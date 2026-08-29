@@ -1,0 +1,20 @@
+@import "tailwindcss";
+@import "../game/styles.css";
+
+/*
+ * Estilos de la página que envuelve al juego. Lo que es del juego —sus colores,
+ * su tipografía y las animaciones de sus pantallas— vive en `game/styles.css`,
+ * que es lo que se lleva consigo al montarse dentro de otra aplicación.
+ */
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  /* Los colores no están aquí: el fondo y el texto de la página los pone el
+     layout desde `lib/palette.ts`, para que no se desvíen de los del juego. */
+  margin: 0;
+  overflow: hidden;
+}

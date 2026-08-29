@@ -171,8 +171,14 @@ export interface StepResult {
   goal: Scorer | null
   /** El disco ha rebotado en una banda. */
   bounced: boolean
-  /** Un mazo ha golpeado el disco. */
-  struck: boolean
+  /**
+   * Qué mazos lo han golpeado, por su posición en `mallets`.
+   *
+   * Se dice cuál y no solo que hubo golpe porque los dos mazos golpean el mismo
+   * disco y quien llama necesita saber de quién fue: es lo que separa un
+   * contraataque del jugador de un despeje de la máquina.
+   */
+  struckBy: readonly number[]
 }
 
 /**
@@ -183,7 +189,7 @@ export interface StepResult {
  */
 export function stepPuck({ puck, mallets, dt }: StepInput): StepResult {
   if (!Number.isFinite(dt) || dt <= 0) {
-    return { puck, goal: null, bounced: false, struck: false }
+    return { puck, goal: null, bounced: false, struckBy: [] }
   }
 
   const speed = magnitude(puck.velocity)
@@ -196,25 +202,32 @@ export function stepPuck({ puck, mallets, dt }: StepInput): StepResult {
 
   let current = puck
   let bounced = false
-  let struck = false
+  const struckBy: number[] = []
 
   for (let i = 0; i < steps; i++) {
     const moved = advance(current, subDt)
     current = moved.puck
     bounced = bounced || moved.bounced
     if (moved.goal != null) {
-      return { puck: current, goal: moved.goal, bounced, struck }
+      return { puck: current, goal: moved.goal, bounced, struckBy }
     }
 
-    for (const mallet of mallets) {
-      const hit = resolveMalletHit(current, mallet)
+    for (let index = 0; index < mallets.length; index++) {
+      const hit = resolveMalletHit(current, mallets[index])
       if (hit == null) continue
+      // Un contacto que no cambia la velocidad es el rastro del golpe anterior:
+      // el disco ya se estaba separando y aquí solo se le recoloca. Anotarlo
+      // como golpe contaría un mismo empujón tantas veces como fotogramas
+      // tarden en despegarse.
+      const pushed =
+        hit.velocity.x !== current.velocity.x ||
+        hit.velocity.z !== current.velocity.z
+      if (pushed && !struckBy.includes(index)) struckBy.push(index)
       current = hit
-      struck = true
     }
   }
 
-  return { puck: current, goal: null, bounced, struck }
+  return { puck: current, goal: null, bounced, struckBy }
 }
 
 /** Un sub-paso: rozamiento, avance y choque contra las bandas. */

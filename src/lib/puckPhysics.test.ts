@@ -73,15 +73,50 @@ describe('el disco', () => {
     // otro del mazo sin tocarlo si la simulación no partiera el paso.
     const puck: Body = { position: { x: 0, z: -0.4 }, velocity: { x: 0, z: -6 } }
 
-    const { puck: after, struck } = stepPuck({
+    const { puck: after, struckBy } = stepPuck({
       puck,
       mallets: [still(0, -0.8)],
       dt: 0.05,
     })
 
-    expect(struck).toBe(true)
+    expect(struckBy).toEqual([0])
     expect(after.velocity.z).toBeGreaterThan(0)
     expect(after.position.z).toBeGreaterThan(-0.8)
+  })
+
+  it('dice cuál de los dos mazos ha golpeado', () => {
+    // El de la máquina está en su sitio y el del jugador, en medio del camino:
+    // sin saber cuál fue, un despeje de la máquina y un contraataque del
+    // jugador son el mismo dato.
+    const puck: Body = { position: { x: 0, z: 0.4 }, velocity: { x: 0, z: 2 } }
+
+    const { struckBy } = stepPuck({
+      puck,
+      mallets: [still(0, -0.8), still(0, 0.6)],
+      dt: 0.05,
+    })
+
+    expect(struckBy).toEqual([1])
+  })
+
+  it('no cuenta como golpe el contacto del que el disco ya se separa', () => {
+    // Recién golpeado, el disco sigue solapando el mazo unos fotogramas. Ahí no
+    // hay empujón nuevo, solo el rastro del anterior: contarlo multiplicaría un
+    // golpe por los fotogramas que tarden en despegarse.
+    const mallet = still(0, 0.6)
+    const puck: Body = {
+      position: { x: 0, z: 0.5 },
+      velocity: { x: 0, z: -3 },
+    }
+
+    const { struckBy, puck: after } = stepPuck({
+      puck,
+      mallets: [mallet],
+      dt: 0.01,
+    })
+
+    expect(struckBy).toEqual([])
+    expect(after.velocity.z).toBeLessThan(0)
   })
 
   it('se frena solo con el paso del tiempo', () => {

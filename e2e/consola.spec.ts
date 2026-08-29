@@ -24,6 +24,12 @@ const AVISOS_DE_TERCEROS = [
   // @react-three/fiber usa THREE.Clock en su bucle de render. Se irá cuando la
   // librería pase a THREE.Timer; el juego no lo instancia en ningún sitio.
   'THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.',
+  // El runner de integración continua no tiene tarjeta gráfica y pinta por
+  // software con SwiftShader, que avisa de que leer píxeles le cuesta. Lo emite
+  // el driver de OpenGL, no la página: en cualquier máquina con GPU no aparece,
+  // y no hay nada que arreglar en el juego. Sin esta entrada, el único sitio
+  // donde este test se ejecuta solo estaría siempre en rojo.
+  'GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels',
 ]
 
 test('el juego arranca sin ensuciar la consola ni salir a la red', async ({

@@ -285,3 +285,94 @@ describe('fuera de la partida', () => {
     )
   })
 })
+
+/**
+ * Lo que la mesa cuenta para que la escena lo ponga con sonido: el golpe del
+ * mazo, el rebote en la banda y el gol (ver `components/game/Rink.tsx`).
+ *
+ * Se comprueba aquí, y no en la escena, porque es lo que decide si un sonido
+ * llega a sonar: la escena solo traduce cada aviso a su ruido.
+ */
+describe('lo que suena en la mesa', () => {
+  /** Disco entrando en el mazo del jugador, que espera parado donde sale. */
+  function shotAtPlayer(): TableState {
+    const { z } = playerStart()
+    return {
+      ...startTable({ skill, lastScorer: null }),
+      puck: { position: { x: 0, z: z - 0.15 }, velocity: { x: 0, z: 3 } },
+    }
+  }
+
+  /** Disco lanzado contra la banda de la derecha, lejos de los dos mazos. */
+  function shotAtRail(): TableState {
+    return {
+      ...startTable({ skill, lastScorer: null }),
+      puck: { position: { x: 0.45, z: 0.2 }, velocity: { x: 6, z: 0 } },
+    }
+  }
+
+  it('el disco deslizándose por la mesa no suena a nada', () => {
+    const quiet = advanceTable(loosePuck(), frame(1 / 60))
+
+    expect(quiet.struck).toBe(false)
+    expect(quiet.bounced).toBe(false)
+    expect(quiet.goals).toEqual([])
+  })
+
+  it('avisa del golpe del mazo, y solo del golpe', () => {
+    const hit = advanceTable(shotAtPlayer(), frame(1 / 60))
+
+    expect(hit.struck).toBe(true)
+    expect(hit.bounced).toBe(false)
+    // Y el golpe es de verdad: el disco sale de vuelta hacia la máquina.
+    expect(hit.table.puck.velocity.z).toBeLessThan(0)
+  })
+
+  it('avisa del rebote en la banda, y solo del rebote', () => {
+    const rail = advanceTable(shotAtRail(), frame(1 / 60))
+
+    expect(rail.bounced).toBe(true)
+    expect(rail.struck).toBe(false)
+    expect(rail.table.puck.velocity.x).toBeLessThan(0)
+  })
+
+  it('el disco parado en el mazo no suena una vez por fotograma', () => {
+    // Después del golpe el disco se separa: el contacto que queda es el rastro
+    // del empujón anterior y volver a anunciarlo pondría el mazo a repiquetear
+    // mientras el disco se despega.
+    let table = advanceTable(shotAtPlayer(), frame(1 / 60)).table
+    const avisos = [0, 1, 2].map(() => {
+      const next = advanceTable(table, frame(1 / 60))
+      table = next.table
+      return next.struck
+    })
+
+    expect(avisos).toEqual([false, false, false])
+  })
+
+  it('fuera de la partida la mesa está muda', () => {
+    const paused = advanceTable(
+      shotAtRail(),
+      frame(1 / 60, { playing: false }),
+    )
+
+    expect(paused.struck).toBe(false)
+    expect(paused.bounced).toBe(false)
+  })
+
+  it('durante la celebración del gol tampoco suena nada', () => {
+    const scored = play(
+      {
+        ...startTable({ skill, lastScorer: null }),
+        puck: { position: { x: 0, z: -0.7 }, velocity: { x: 0, z: -6 } },
+      },
+      { frameSeconds: 1 / 60, seconds: 0.2 },
+    )
+    expect(scored.goals).toEqual(['player'])
+
+    const celebrating = advanceTable(scored.table, frame(1 / 60))
+    expect(celebrating.table.pause).toBeGreaterThan(0)
+    expect(celebrating.struck).toBe(false)
+    expect(celebrating.bounced).toBe(false)
+  })
+})

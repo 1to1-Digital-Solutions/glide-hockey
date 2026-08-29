@@ -24,6 +24,7 @@ import {
   screenPointFromNdc,
   type ScreenPoint,
 } from '../../lib/sceneProbe'
+import { useGameAudio } from '../../lib/useGameAudio'
 import { Mallet } from './Mallet'
 import { Puck } from './Puck'
 
@@ -56,6 +57,7 @@ export function Rink() {
   } = useGame()
 
   const skill = OPPONENT_SKILLS[activeDifficulty]
+  const play = useGameAudio()
 
   const rink = useRef<Group>(null)
   const puckObject = useRef<Group>(null)
@@ -85,7 +87,12 @@ export function Rink() {
   }, [])
 
   useFrame((state, delta) => {
-    const { table: next, goals } = advanceTable(table.current, {
+    const {
+      table: next,
+      goals,
+      struck,
+      bounced,
+    } = advanceTable(table.current, {
       delta,
       pointer: pointer.current,
       skill,
@@ -97,6 +104,13 @@ export function Rink() {
       if (goal === 'player') scorePlayer()
       else scoreOpponent()
     }
+
+    // Lo que se oye de la mesa, en el orden en que pasa: el mazo lanza el
+    // disco, el disco choca donde vaya a chocar y, si entra, se canta el gol.
+    // Silenciado, `play` no hace nada (ver `lib/useGameAudio.ts`).
+    if (struck) play('strike')
+    if (bounced) play('bounce')
+    if (goals.length > 0) play('goal')
 
     place(puckObject.current, next.puck.position)
     place(playerObject.current, next.player.position)

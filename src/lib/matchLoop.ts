@@ -141,6 +141,17 @@ export interface FrameResult {
    * marcador uno a uno.
    */
   goals: readonly Scorer[]
+  /**
+   * Algún mazo ha golpeado el disco en este fotograma.
+   *
+   * Los dos siguientes son lo que el juego cuenta con sonido, y por eso son un
+   * sí o un no y no una cuenta: los varios pasos de un fotograma caen todos en
+   * la misma milésima, así que dos golpes ahí dentro no se oirían como dos
+   * golpes sino como uno más fuerte.
+   */
+  struck: boolean
+  /** El disco ha rebotado en alguna banda. */
+  bounced: boolean
 }
 
 /**
@@ -160,7 +171,7 @@ export function advanceTable(
   input: FrameInput,
 ): FrameResult {
   const elapsed = frameSeconds(input.delta)
-  if (elapsed === 0) return { table, goals: [] }
+  if (elapsed === 0) return { table, goals: [], struck: false, bounced: false }
 
   // Se juegan los pasos enteros que caben en lo acumulado y lo que sobra espera
   // al fotograma siguiente. Como `elapsed` viene topado, el número de pasos
@@ -174,25 +185,40 @@ export function advanceTable(
     leftover: pending - steps * STEP_SECONDS,
   }
   const goals: Scorer[] = []
+  let struck = false
+  let bounced = false
 
   for (let i = 0; i < steps; i++) {
     const step = advanceStep(current, input, STEP_SECONDS)
     current = step.table
     if (step.goal != null) goals.push(step.goal)
+    struck = struck || step.struck
+    bounced = bounced || step.bounced
   }
 
-  return { table: current, goals }
+  return { table: current, goals, struck, bounced }
 }
+
+/** Lo que deja un paso de simulación, además de la mesa. */
+interface StepOutcome {
+  table: TableState
+  goal: Scorer | null
+  struck: boolean
+  bounced: boolean
+}
+
+/** Un paso en el que no pasa nada digno de contarse. */
+const QUIET = { goal: null, struck: false, bounced: false } as const
 
 /** Un paso de simulación: lo que de verdad mueve la mesa. */
 function advanceStep(
   table: TableState,
   { pointer, skill, playing }: FrameInput,
   dt: number,
-): { table: TableState; goal: Scorer | null } {
+): StepOutcome {
   const player = movePlayer(table.player, pointer, dt)
 
-  if (!playing) return { table: { ...table, player }, goal: null }
+  if (!playing) return { table: { ...table, player }, ...QUIET }
 
   if (table.pause > 0) {
     const pause = table.pause - dt
@@ -203,7 +229,7 @@ function advanceStep(
         pause,
         puck: pause > 0 ? table.puck : serve(table.pendingServe),
       },
-      goal: null,
+      ...QUIET,
     }
   }
 
@@ -222,6 +248,9 @@ function advanceStep(
   })
   const playerHits =
     table.playerHits + (result.struckBy.includes(PLAYER_MALLET) ? 1 : 0)
+  // Golpe es golpe lo dé quien lo dé: el disco suena igual saliendo del mazo
+  // del jugador que del de la máquina.
+  const struck = result.struckBy.length > 0
 
   if (result.goal != null) {
     return {
@@ -236,6 +265,8 @@ function advanceStep(
         playerHits,
       },
       goal: result.goal,
+      struck,
+      bounced: result.bounced,
     }
   }
 
@@ -255,6 +286,8 @@ function advanceStep(
       playerHits,
     },
     goal: null,
+    struck,
+    bounced: result.bounced,
   }
 }
 

@@ -3,6 +3,7 @@ import {
   GOAL_PAUSE_SECONDS,
   MAX_PUCK_SPEED,
   OPPONENT_SKILLS,
+  PLAYER_MALLET_SPEED,
 } from './gameConfig'
 import {
   MAX_FRAME_SECONDS,
@@ -23,6 +24,12 @@ import { type Scorer, type Vec2 } from './puckPhysics'
  * hacía la escena— el juego se iba a cámara lenta en cuanto la máquina no daba,
  * y eso no se ve en un navegador rápido: solo se ve dándole fotogramas lentos,
  * que es lo que hacen estos tests.
+ *
+ * Los ritmos que se prueban incluyen a propósito **algunos que no son múltiplos
+ * del paso de simulación** —7, 23, 45 y 56 fotogramas por segundo—. Midiendo
+ * solo con 60, 30 y 15 se aprueba también un bucle que parte el fotograma en
+ * trozos iguales, que no va a cámara lenta pero simula una partida distinta en
+ * cada máquina: a 7 duraba el doble y a 56 no se acababa.
  */
 
 const skill = OPPONENT_SKILLS.impossible
@@ -59,6 +66,9 @@ function play(
   return { table: current, goals }
 }
 
+/** A qué velocidad sale el disco suelto de `loosePuck`, en m/s. */
+const LOOSE_SPEED = 0.8
+
 /**
  * La mesa con el disco lanzado a lo ancho por la mitad del jugador.
  *
@@ -69,34 +79,55 @@ function play(
 function loosePuck(): TableState {
   return {
     ...startTable({ skill, lastScorer: null }),
-    puck: { position: { x: -0.4, z: 0.2 }, velocity: { x: 0.8, z: 0 } },
+    puck: { position: { x: -0.4, z: 0.2 }, velocity: { x: LOOSE_SPEED, z: 0 } },
   }
 }
 
+/** Cuánto se separan el que más ha avanzado y el que menos. */
+function spread(values: readonly number[]): number {
+  return Math.max(...values) - Math.min(...values)
+}
+
 describe('el disco avanza con el reloj, no con los fotogramas', () => {
-  // 60, 30, 15 y 7 por segundo: de una máquina holgada a una que va ahogada.
-  const RATES = [60, 30, 15, 7]
+  // De una máquina holgada a una que va ahogada, y ninguno de 45, 23 y 7 es
+  // múltiplo del paso: son los que no caben justos en el fotograma.
+  const RATES = [60, 45, 30, 23, 15, 7]
 
-  it('recorre lo mismo en un segundo a cualquier ritmo de fotogramas', () => {
+  /**
+   * Lo más que dos ritmos pueden separarse: un paso de simulación sin jugar.
+   *
+   * El paso es fijo, así que lo que no llega a uno entero se guarda para el
+   * fotograma siguiente y en un instante cualquiera un ritmo puede llevarle al
+   * otro un paso de ventaja. Nunca más de uno: es un desfase, no una deriva, y
+   * por eso no crece con los segundos jugados.
+   */
+  const ONE_STEP = LOOSE_SPEED / 60
+
+  /** Lo que el disco ha avanzado a lo ancho en `seconds`, a cada ritmo. */
+  function travelled(seconds: number): number[] {
     const start = loosePuck().puck.position.x
-
-    const travelled = RATES.map((fps) => {
-      const { table } = play(loosePuck(), {
-        frameSeconds: 1 / fps,
-        seconds: 1,
-      })
+    return RATES.map((fps) => {
+      const { table } = play(loosePuck(), { frameSeconds: 1 / fps, seconds })
       return table.puck.position.x - start
     })
+  }
+
+  it('recorre lo mismo en un segundo a cualquier ritmo de fotogramas', () => {
+    const distances = travelled(1)
 
     // Que se haya movido de verdad: si el disco se quedara clavado, todos los
     // ritmos coincidirían en cero y el test no diría nada.
-    for (const distance of travelled) {
+    for (const distance of distances) {
       expect(distance).toBeGreaterThan(0.5)
     }
 
-    // Un milímetro entre el más rápido y el más lento. No es cero porque el
-    // fotograma se reparte en pasos que no siempre caben justos.
-    expect(Math.max(...travelled) - Math.min(...travelled)).toBeLessThan(0.001)
+    expect(spread(distances)).toBeLessThanOrEqual(ONE_STEP)
+  })
+
+  it('y el desfase no crece por muchos segundos que se jueguen', () => {
+    // Seis veces más partida. Si el paso dependiera del fotograma, aquí es
+    // donde la diferencia se multiplicaría en vez de quedarse donde estaba.
+    expect(spread(travelled(6))).toBeLessThanOrEqual(ONE_STEP)
   })
 
   it('el mazo del jugador recorre lo mismo yendo hacia el puntero', () => {
@@ -105,7 +136,7 @@ describe('el disco avanza con el reloj, no con los fotogramas', () => {
     const target: Vec2 = { x: 0.4, z: 0.2 }
     const start = startTable({ skill, lastScorer: null }).player.position
 
-    const travelled = [60, 20, 10].map((fps) => {
+    const distances = [60, 40, 20, 10].map((fps) => {
       const { table } = play(startTable({ skill, lastScorer: null }), {
         frameSeconds: 1 / fps,
         seconds: 0.1,
@@ -115,10 +146,10 @@ describe('el disco avanza con el reloj, no con los fotogramas', () => {
       return Math.hypot(x - start.x, z - start.z)
     })
 
-    for (const distance of travelled) {
+    for (const distance of distances) {
       expect(distance).toBeGreaterThan(0.4)
     }
-    expect(Math.max(...travelled) - Math.min(...travelled)).toBeLessThan(0.001)
+    expect(spread(distances)).toBeLessThanOrEqual(PLAYER_MALLET_SPEED / 60)
   })
 })
 
@@ -146,16 +177,20 @@ describe('una partida entera', () => {
   }
 
   it('dura lo mismo con fotogramas lentos que con fotogramas rápidos', () => {
-    const fast = secondsToConcede(1 / 60, 3)
-    const slow = secondsToConcede(1 / 15, 3)
+    // 56 y 7 están aquí por lo que pasaba partiendo el fotograma en trozos
+    // iguales: a 7 la misma partida duraba veinticuatro segundos y a 56 no
+    // llegaba a acabarse nunca, sin ir a cámara lenta en ninguno de los dos.
+    const durations = [60, 56, 45, 23, 15, 7].map((fps) =>
+      secondsToConcede(1 / fps, 3),
+    )
 
     // La partida es la misma, así que la diferencia es solo la de redondear al
     // fotograma en el que cae cada gol.
-    expect(Math.abs(slow - fast)).toBeLessThan(0.5)
+    expect(spread(durations)).toBeLessThan(0.5)
     // Y dura lo que dura una partida corta: si tardara un minuto, el test de
-    // navegador que la juega se quedaría sin tiempo aunque los dos ritmos
+    // navegador que la juega se quedaría sin tiempo aunque todos los ritmos
     // coincidieran.
-    expect(fast).toBeLessThan(30)
+    expect(Math.max(...durations)).toBeLessThan(30)
   })
 })
 

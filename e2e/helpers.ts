@@ -1,8 +1,13 @@
 import { expect, type Page } from '@playwright/test'
+import { type SceneProbe } from '@/lib/sceneProbe'
 
 /**
- * Lo que comparten los tests de navegador: llegar al menú y empezar una
- * partida como lo haría alguien con el ratón.
+ * Lo que comparten los tests de navegador: llegar al menú, empezar una partida
+ * como lo haría alguien con el ratón y mirar lo que pasa en la mesa.
+ *
+ * Lo último hace falta porque el disco y los mazos son objetos de three: desde
+ * el DOM no se pueden seleccionar ni leer. La escena los publica solo si un
+ * test lo pide (ver `src/lib/sceneProbe.ts`).
  */
 
 /** Abre el juego y espera a que la mesa esté montada. */
@@ -31,4 +36,57 @@ export async function jugarPartida(
 
   // La cuenta atrás va antes del saque; el marcador ya está en pantalla.
   await expect(page.getByText('Máquina')).toBeVisible()
+}
+
+/**
+ * Pide al juego que publique lo que pasa en la mesa.
+ *
+ * Hay que llamarlo **antes** de `abrirJuego`: la escena solo escribe la ranura
+ * si ya existe cuando pinta el primer fotograma (ver `src/lib/sceneProbe.ts`).
+ */
+export async function observarLaMesa(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.__airHockeyScene = null
+  })
+}
+
+/**
+ * Espera al primer fotograma de la partida y devuelve lo que se ve en la mesa.
+ *
+ * La escena solo publica mientras hay partida: en el menú no hay ni disco ni
+ * mazos que mirar (ver `GameWorld`).
+ */
+export async function esperarALaMesa(page: Page): Promise<SceneProbe> {
+  await expect
+    .poll(() => page.evaluate(() => window.__airHockeyScene != null), {
+      message: 'la escena no llegó a publicar lo que pasa en la mesa',
+    })
+    .toBe(true)
+
+  return leerLaMesa(page)
+}
+
+/** Lo que la escena está publicando ahora mismo. */
+export async function leerLaMesa(page: Page): Promise<SceneProbe> {
+  const mesa = await page.evaluate(() => window.__airHockeyScene)
+  if (mesa == null) {
+    throw new Error(
+      'La mesa no está publicando nada: ¿se llamó a observarLaMesa antes de abrir el juego?',
+    )
+  }
+  return mesa
+}
+
+/**
+ * Lleva el ratón a donde se ve el disco y dice cuántas veces lo ha golpeado el
+ * mazo del jugador hasta ahora.
+ *
+ * Es el gesto de quien juega: seguir el disco con la mano. Llamarlo en bucle
+ * mueve el mazo detrás de él hasta que lo alcanza, sin depender de cuándo lo
+ * devuelva la máquina ni de a qué velocidad vaya la partida en esta máquina.
+ */
+export async function perseguirElDisco(page: Page): Promise<number> {
+  const mesa = await leerLaMesa(page)
+  await page.mouse.move(mesa.puckScreen.x, mesa.puckScreen.y)
+  return mesa.playerHits
 }

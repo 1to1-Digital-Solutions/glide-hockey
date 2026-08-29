@@ -42,14 +42,12 @@
   Canvas), `mountAirHockey`, `exports`/`peerDependencies`/`files`/`bin` en el
   `package.json`, y `npx air-hockey-assets` para los ficheros estáticos.
 - Interfaz inmersiva en geometría: menú, marcador, cuenta atrás y fin de partida.
-- 105 tests unitarios y 6 de navegador. Lint, tipos y build en verde.
+- 117 tests unitarios y 8 de navegador. Lint, tipos y build en verde.
 
 ## Pendiente / próximos pasos
 
 - Probar con visor de verdad (ver «siguiente paso»).
 - Sonido: no hay ninguno. El golpe del mazo y el gol se piden solos.
-- El e2e no cubre mover el mazo con el ratón: es la interacción principal y hoy
-  solo la respaldan los unitarios de la física.
 - No hay test que monte la escena dentro de un Canvas ajeno, como hace el salón.
   Hoy el contrato lo vigila `scripts/scene-contract.test.ts`, que lee el código.
 
@@ -59,6 +57,10 @@
   (`aimPoint`). Tirando al medio, un mazo parado delante de la portería es un
   tapón perfecto y la jugada no se acaba nunca: se descubrió porque el e2e
   esperaba un gol que no llegaba.
+- **Mirar dentro de la escena**: el disco y los mazos son objetos de three y
+  desde el DOM no se pueden leer. La escena publica su estado en
+  `window.__airHockeyScene` **solo si el test crea antes esa ranura**
+  (`src/lib/sceneProbe.ts`); en producción es una comprobación por fotograma.
 - **Disco muerto**: si se queda parado cuatro segundos se saca de centro. Ningún
   mazo cruza la línea de medio campo, así que un disco quieto donde el otro no
   llega congela la partida.

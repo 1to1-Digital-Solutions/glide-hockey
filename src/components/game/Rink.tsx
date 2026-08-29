@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useRef } from 'react'
-import { useFrame, type ThreeEvent } from '@react-three/fiber'
+import { useFrame, type RootState, type ThreeEvent } from '@react-three/fiber'
 import { Vector3, type Group, type PointLight } from 'three'
 import {
   GOAL_PAUSE_SECONDS,
@@ -25,6 +25,12 @@ import {
   type Scorer,
   type Vec2,
 } from '../../lib/puckPhysics'
+import {
+  isSceneProbeRequested,
+  publishSceneProbe,
+  screenPointFromNdc,
+  type ScreenPoint,
+} from '../../lib/sceneProbe'
 import { Mallet } from './Mallet'
 import { Puck } from './Puck'
 
@@ -53,6 +59,12 @@ import { Puck } from './Puck'
  * Recortarlo hace que el juego se ralentice en vez de dar saltos.
  */
 const MAX_FRAME_SECONDS = 1 / 30
+
+/**
+ * Dónde va el mazo del jugador entre los que se le pasan a la física, que es
+ * como esta dice cuál ha golpeado el disco (ver `stepPuck`).
+ */
+const PLAYER_MALLET = 0
 
 export function Rink() {
   const {
@@ -95,6 +107,11 @@ export function Rink() {
   // de la mesa. Se reutiliza el mismo vector: son varios eventos por fotograma.
   const worldPoint = useRef(new Vector3())
 
+  /** Veces que el mazo del jugador ha golpeado el disco en esta partida. */
+  const playerHits = useRef(0)
+  /** El vector del camino de vuelta: de un punto de la mesa al mundo. */
+  const tablePoint = useRef(new Vector3())
+
   const aim = useCallback((event: ThreeEvent<PointerEvent>) => {
     const rinkGroup = rink.current
     if (rinkGroup == null) return
@@ -105,7 +122,7 @@ export function Rink() {
     pointer.current = constrainMallet({ x: local.x, z: local.z }, 'player')
   }, [])
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const dt = Math.min(delta, MAX_FRAME_SECONDS)
     if (dt <= 0) return
 
@@ -132,6 +149,7 @@ export function Rink() {
           dt,
         })
         puck.current = result.puck
+        if (result.struckBy.includes(PLAYER_MALLET)) playerHits.current += 1
 
         if (result.goal != null) {
           pendingServe.current = result.goal
@@ -167,6 +185,22 @@ export function Rink() {
       )
       light.position.z =
         pendingServe.current === 'player' ? -HALF_LENGTH : HALF_LENGTH
+    }
+
+    // Lo que pasa en la mesa, para quien lo haya pedido (ver
+    // `lib/sceneProbe.ts`). Nadie lo pide en producción: ahí esto es una
+    // comprobación por fotograma y se sale.
+    const rinkGroup = rink.current
+    if (isSceneProbeRequested() && rinkGroup != null) {
+      const { x, z } = puck.current.position
+      const world = rinkGroup.localToWorld(tablePoint.current.set(x, 0, z))
+
+      publishSceneProbe({
+        playerMallet: player.current.position,
+        puck: puck.current.position,
+        puckScreen: screenPoint(state, world),
+        playerHits: playerHits.current,
+      })
     }
   })
 
@@ -204,6 +238,18 @@ export function Rink() {
       />
     </group>
   )
+}
+
+/**
+ * En qué píxel de la página se ve un punto del mundo.
+ *
+ * Se proyecta el punto y no el objeto que lo dibuja: la matriz de mundo del
+ * objeto es todavía la del fotograma anterior, y el disco cruza la mesa a seis
+ * metros por segundo.
+ */
+function screenPoint({ camera, gl }: RootState, world: Vector3): ScreenPoint {
+  const ndc = world.project(camera)
+  return screenPointFromNdc(ndc.x, ndc.y, gl.domElement.getBoundingClientRect())
 }
 
 /** Lleva un objeto de la escena a su sitio en la mesa. */

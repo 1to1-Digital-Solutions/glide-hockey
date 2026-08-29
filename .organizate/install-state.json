@@ -1,0 +1,50 @@
+{
+  "profile": "saas-web",
+  "appliedAt": "2026-08-29T09:51:23.302Z",
+  "files": [
+    {
+      "path": ".claude/rules/architecture.md",
+      "source": "rules/architecture.md"
+    },
+    {
+      "path": ".claude/rules/security.md",
+      "source": "rules/security.md"
+    },
+    {
+      "path": ".claude/rules/design.md",
+      "source": "rules/design.md"
+    },
+    {
+      "path": ".claude/rules/git-workflow.md",
+      "source": "rules/git-workflow.md"
+    },
+    {
+      "path": ".claude/rules/geo.md",
+      "source": "rules/geo.md"
+    },
+    {
+      "path": ".claude/agents/code-reviewer.md",
+      "source": "catalog/agents/code-reviewer.md"
+    },
+    {
+      "path": ".claude/agents/dev-implementer.md",
+      "source": "catalog/agents/dev-implementer.md"
+    },
+    {
+      "path": "CLAUDE.md",
+      "source": "catalog/templates/CLAUDE.md.tmpl"
+    },
+    {
+      "path": "ESTADO.md",
+      "source": "catalog/templates/ESTADO.md.tmpl"
+    },
+    {
+      "path": ".nvmrc",
+      "source": "catalog/templates/nvmrc.tmpl"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "source": "catalog/templates/ci.yml.tmpl"
+    }
+  ]
+}

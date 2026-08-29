@@ -24,7 +24,7 @@ import {
   screenPointFromNdc,
   type ScreenPoint,
 } from '../../lib/sceneProbe'
-import { useGameAudio } from '../../lib/useGameAudio'
+import { type PlayGameSound } from '../../lib/useGameAudio'
 import { Mallet } from './Mallet'
 import { Puck } from './Puck'
 
@@ -46,8 +46,11 @@ import { Puck } from './Puck'
  * Se monta con `key={runId}`, así que cada partida —y cada ronda del reto—
  * estrena uno limpio: remontarlo es más simple que devolver a mano cada pieza a
  * su sitio.
+ *
+ * Por eso el sonido **se recibe hecho** y no se abre aquí: el audio dura lo que
+ * la escena, no lo que una ronda (ver `GameWorld` y `lib/useGameAudio.ts`).
  */
-export function Rink() {
+export function Rink({ play }: { play: PlayGameSound }) {
   const {
     gameState,
     activeDifficulty,
@@ -57,7 +60,6 @@ export function Rink() {
   } = useGame()
 
   const skill = OPPONENT_SKILLS[activeDifficulty]
-  const play = useGameAudio()
 
   const rink = useRef<Group>(null)
   const puckObject = useRef<Group>(null)

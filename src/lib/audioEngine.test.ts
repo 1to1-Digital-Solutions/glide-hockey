@@ -16,11 +16,54 @@ function fakeParam(): AudioParam {
   } as unknown as AudioParam
 }
 
-function fakeAudioContext(state: AudioContextState = 'running') {
+/**
+ * @param rechaza  Con qué se niegan `resume()` y `close()`. El navegador
+ *   rechaza esas dos promesas de verdad —la política de reproducción
+ *   automática una, un contexto ya cerrado la otra—, así que el doble tiene que
+ *   poder hacerlo: es el caso en el que un fallo sin recoger ensucia la consola
+ *   del juego, que es lo que vigila `e2e/consola.spec.ts`.
+ */
+function fakeAudioContext(
+  state: AudioContextState = 'running',
+  rechaza: Error | null = null,
+) {
   const filters: { type: string; frequency: number }[] = []
   const oscillators: { frequency: number }[] = []
-  const resume = vi.fn()
-  const close = vi.fn()
+  /** Cuántas veces se ha pedido cada cosa que devuelve una promesa. */
+  const llamadas = { resume: 0, close: 0 }
+  /** Promesas rechazadas cuyo fallo no ha recogido nadie. */
+  const sinRecoger: string[] = []
+
+  /**
+   * Lo que devuelve un método que puede fallar, apuntando si alguien lo recoge.
+   *
+   * A mano y **sin `vi.fn`**: los dobles de vitest encadenan un `then` a la
+   * promesa que devuelve la función espiada para anotar cómo acabó, y ese `then`
+   * recoge el fallo por su cuenta. Con uno de por medio, este doble diría que
+   * todo está recogido pase lo que pase.
+   *
+   * Se mira sobre `then` y no sobre `catch` porque `catch(fn)` es
+   * `then(undefined, fn)` y lo busca en la propia promesa: así cuentan las dos
+   * formas de atender un fallo.
+   */
+  const responde = (nombre: 'resume' | 'close') => () => {
+    llamadas[nombre]++
+    if (rechaza == null) return Promise.resolve()
+
+    sinRecoger.push(nombre)
+    const promesa = Promise.reject(rechaza)
+    const then = promesa.then.bind(promesa)
+    promesa.then = ((alCumplir, alFallar) => {
+      if (alFallar != null) {
+        sinRecoger.splice(sinRecoger.indexOf(nombre), 1)
+      }
+      return then(alCumplir, alFallar)
+    }) as typeof promesa.then
+    return promesa
+  }
+
+  const resume = responde('resume')
+  const close = responde('close')
 
   const context = {
     state,
@@ -86,8 +129,8 @@ function fakeAudioContext(state: AudioContextState = 'running') {
     context: context as unknown as AudioContext,
     filters,
     oscillators,
-    resume,
-    close,
+    llamadas,
+    sinRecoger,
   }
 }
 
@@ -111,7 +154,22 @@ describe('createAirHockeyAudio', () => {
 
     createAirHockeyAudio(() => fake.context).play('strike')
 
-    expect(fake.resume).toHaveBeenCalled()
+    expect(fake.llamadas.resume).toBe(1)
+  })
+
+  it('el contexto que se niega a sonar no deja fallos sin recoger', () => {
+    // Un navegador que no da todavía por buena la interacción rechaza el
+    // `resume()` de cada golpe. Sin recogerlo, una partida así deja decenas de
+    // fallos sueltos en la consola —y la consola limpia es lo que vigila
+    // `e2e/consola.spec.ts`—, con el juego funcionando igual de mudo.
+    const fake = fakeAudioContext('suspended', new Error('NotAllowedError'))
+    const audio = createAirHockeyAudio(() => fake.context)
+
+    audio.play('strike')
+    audio.close()
+
+    expect(fake.llamadas).toEqual({ resume: 1, close: 1 })
+    expect(fake.sinRecoger).toEqual([])
   })
 
   it('los tres sonidos se filtran distinto, para que no suenen igual', () => {
@@ -164,7 +222,7 @@ describe('createAirHockeyAudio', () => {
 
     audio.play('strike')
     audio.close()
-    expect(fake.close).toHaveBeenCalled()
+    expect(fake.llamadas.close).toBe(1)
 
     audio.play('strike')
     expect(createContext).toHaveBeenCalledTimes(2)

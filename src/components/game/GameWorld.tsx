@@ -4,6 +4,7 @@ import { useXR } from '@react-three/xr'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
 import { useGame } from '../../lib/gameStore'
 import { HALF_LENGTH } from '../../lib/puckPhysics'
+import { useGameAudio } from '../../lib/useGameAudio'
 import {
   XRCountdown,
   XRGameOver,
@@ -52,6 +53,12 @@ export function GameWorld() {
   const { gameState, runId } = useGame()
   const mode = useXR((state) => state.mode)
 
+  // El sonido cuelga de la escena y no de la mesa: la mesa se estrena en cada
+  // partida y en cada ronda del reto, y con el audio dentro, la ronda ganada se
+  // llevaba por delante el gol que la ganaba —el contexto se cerraba mientras
+  // sonaba— y estrenaba otro contexto por ronda (ver `lib/useGameAudio.ts`).
+  const play = useGameAudio()
+
   // En realidad mixta el escenario es la habitación del jugador: dibujar la
   // sala la taparía y rompería el passthrough.
   const passthrough = mode === 'immersive-ar'
@@ -87,7 +94,7 @@ export function GameWorld() {
           {/* El disco y los mazos solo durante la partida: en el menú la mesa
               se ve vacía, que es lo que hace que empezar se note. `key` la
               estrena en cada partida y en cada ronda del reto. */}
-          {gameState !== 'menu' ? <Rink key={runId} /> : null}
+          {gameState !== 'menu' ? <Rink key={runId} play={play} /> : null}
 
           {/* La interfaz del visor no se monta siquiera en escritorio. No es
               solo que sobre —ahí manda el DOM—: los punteros miran si hay

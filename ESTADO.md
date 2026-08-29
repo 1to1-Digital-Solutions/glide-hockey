@@ -45,7 +45,7 @@
 - Sonido: golpe del mazo, rebote en la banda y gol, sintetizados con la Web
   Audio API (`src/lib/audioEngine.ts`), más el ajuste de silencio en los dos
   menús, guardado entre visitas (`src/lib/muted.ts`).
-- 149 tests unitarios y 8 de navegador. Lint, tipos y build en verde.
+- 150 tests unitarios y 11 de navegador. Lint, tipos y build en verde.
 
 ## Pendiente / próximos pasos
 
@@ -90,3 +90,9 @@
   nadie haya tocado nada, y la mesa se monta antes de pulsar «Jugar». Silenciar
   lo cierra en vez de bajar el volumen: uno abierto cuenta como que la página
   suena, y en el visor eso agacha la música del sistema.
+- **El audio cuelga de la escena (`GameWorld`), no de la mesa (`Rink`).** La
+  mesa se estrena en cada partida y en cada ronda del reto (`key={runId}`), así
+  que con el reproductor dentro, ganar una ronda cerraba el contexto en el mismo
+  fotograma en que sonaba el gol que la ganaba —y abría otro por ronda—. Lo
+  vigila la primera prueba de `e2e/sonido.spec.ts`, que juega dos partidas y
+  exige un solo contexto.

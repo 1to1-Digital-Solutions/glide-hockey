@@ -121,19 +121,25 @@ rompe el build: rompe la partida.
 - **Nada de fuentes remotas.** Los números del visor se dibujan con segmentos
   (`src/lib/xrDigits.ts`), porque `<Text>` de drei descarga la fuente de un CDN.
 - **Nada de ficheros de audio ni de modelos.** La mesa, el disco y los mazos son
-  geometría generada en código, así que lo único que hay que copiar son los
-  perfiles de mando.
+  geometría generada en código, y el golpe, el rebote y el gol se sintetizan con
+  la Web Audio API (`src/lib/audioEngine.ts`), así que lo único que hay que
+  copiar son los perfiles de mando.
+- **Un `AudioContext`, y del juego.** Se abre con el primer sonido de la partida
+  y se cierra al desmontar la escena, así que volver al salón no deja el audio
+  del sistema agachado. Quien juega puede silenciarlo desde el menú, y entonces
+  no se abre ninguno.
 - **El jugador se queda donde lo puso su anfitrión.** El juego coloca su mesa
   alrededor de él y no pone `<XROrigin>`.
 
 ## Almacenamiento que usa
 
-Dos claves en `localStorage`, sin nada que identifique a nadie:
+Tres claves en `localStorage`, sin nada que identifique a nadie:
 
 | Clave | Qué |
 | --- | --- |
 | `air-hockey:best-points` | El récord del modo prueba. |
 | `air-hockey:best-points:challenge` | El récord del modo reto. |
+| `air-hockey:muted` | Si el jugador dejó el juego callado (`1`) o sonando (`0`). |
 
 Si el almacenamiento está bloqueado (ventana privada, política del navegador),
-el juego funciona igual: se juega sin récord.
+el juego funciona igual: se juega sin récord y sonando.

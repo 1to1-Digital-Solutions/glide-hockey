@@ -153,6 +153,21 @@ const RECIPES: Record<GameSound, SoundRecipe> = {
   },
 }
 
+/**
+ * Descarta lo que devuelva el contexto.
+ *
+ * `resume()` y `close()` devuelven promesas **que se rechazan**: la primera
+ * cuando el navegador no da por buena todavía la interacción del jugador
+ * —política de reproducción automática—, la segunda si el contexto ya estaba
+ * cerrado. Sin recogerlo, cada sonido de una partida así deja un rechazo sin
+ * atender en la consola, y la consola limpia es lo que vigila
+ * `e2e/consola.spec.ts`. No hay nada que hacer con el fallo: significa que no
+ * suena, que es exactamente lo que se acepta aquí.
+ */
+function ignore(promise: Promise<void>): void {
+  promise.catch(() => {})
+}
+
 /** El contexto del navegador, si es que lo hay. */
 function browserAudioContext(): AudioContext | null {
   if (typeof window === 'undefined' || window.AudioContext == null) return null
@@ -219,7 +234,7 @@ export function createAirHockeyAudio(
     if (ctx == null || master == null || noise == null) return
     // Suspendido: el navegador lo para al dejar de mirar la pestaña y no se
     // recupera solo. Sin esto, volver al juego después de un rato es jugar mudo.
-    if (ctx.state === 'suspended') void ctx.resume()
+    if (ctx.state === 'suspended') ignore(ctx.resume())
 
     const now = ctx.currentTime
     const recipe = RECIPES[sound]
@@ -229,7 +244,7 @@ export function createAirHockeyAudio(
   }
 
   function close(): void {
-    void context?.close()
+    if (context != null) ignore(context.close())
     context = null
     master = null
     noise = null

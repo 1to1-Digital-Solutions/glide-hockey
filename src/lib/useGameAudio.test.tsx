@@ -9,7 +9,7 @@ import { useGameAudio } from './useGameAudio'
  * Lo que se comprueba aquí es lo único que el hook añade sobre el reproductor
  * (que tiene sus tests en `audioEngine.test.ts`): que haya **un solo contexto
  * de audio**, que aparezca con el primer sonido y no antes, y que se suelte
- * tanto al silenciar como al quitar la mesa.
+ * tanto al silenciar como al quitar la escena.
  *
  * El reproductor va de mentira porque la Web Audio API no existe en jsdom. El
  * almacén, en cambio, es el de verdad: el silencio se cambia como lo cambian
@@ -105,7 +105,7 @@ describe('useGameAudio', () => {
     expect(audio.create).toHaveBeenCalledTimes(2)
   })
 
-  it('quitar la mesa se lleva su audio', () => {
+  it('quitar la escena se lleva su audio', () => {
     const view = renderAudio()
     view.result.current('strike')
 

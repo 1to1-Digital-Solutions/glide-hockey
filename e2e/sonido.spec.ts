@@ -81,6 +81,24 @@ test('la partida suena: la mesa pide sus sonidos al navegador', async ({
 
   // Y con un solo contexto para toda la partida, por muchos golpes que haya.
   expect((await leerElAudio(page))?.contextos).toBe(1)
+
+  // Uno para la escena entera, además, y no uno por partida: la mesa se
+  // estrena en cada partida y en cada ronda del reto (`key={runId}` en
+  // `GameWorld`). Con el audio colgado de ella, la ronda ganada cerraba el
+  // contexto en el mismo fotograma en que sonaba el gol que la ganaba.
+  const sonados = (await leerElAudio(page))?.sonidos ?? 0
+  await page.getByRole('button', { name: 'Dejar la partida' }).click()
+  await page.getByRole('button', { name: 'Jugar' }).click()
+  await expect(page.getByText('Máquina')).toBeVisible()
+
+  await expect
+    .poll(async () => (await leerElAudio(page))?.sonidos ?? 0, {
+      timeout: 30_000,
+      message: 'la segunda partida se jugó muda',
+    })
+    .toBeGreaterThan(sonados)
+
+  expect((await leerElAudio(page))?.contextos).toBe(1)
 })
 
 test('en silencio no se abre siquiera el audio del navegador', async ({

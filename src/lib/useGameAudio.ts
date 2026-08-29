@@ -12,12 +12,17 @@ import { useGame } from './gameStore'
  * El audio de la partida, visto desde la escena: una función a la que se le
  * pide un sonido y punto.
  *
- * Cuelga de la mesa (`components/game/Rink.tsx`) y no de la web que la
+ * Cuelga de la escena (`components/game/GameWorld.tsx`) y no de la web que la
  * envuelve: el salón de xrcade monta la escena y nada más, así que un sonido
  * enganchado a la interfaz de escritorio dejaría el juego mudo justo donde se
- * juega con el visor. Y colgando de un solo sitio hay **un único contexto de
- * audio**, que es el recurso que de verdad hay que vigilar: los navegadores
- * cortan a la decena y la mesa se remonta en cada ronda del reto.
+ * juega con el visor.
+ *
+ * Tampoco cuelga de la mesa, que es quien pide los sonidos: **la mesa se
+ * estrena en cada partida y en cada ronda del reto** (`key={runId}`). Colgado
+ * de ella, ganar una ronda cerraba el contexto en el mismo fotograma en que
+ * sonaba el gol que la ganaba —el gol se cortaba— y abría uno nuevo por ronda,
+ * cuando los navegadores cortan a la decena. Colgado de la escena hay **un
+ * único contexto** mientras el juego esté montado, que es justo lo que dura.
  *
  * Aquí no se decide qué suena —eso lo cuenta la mesa, fotograma a fotograma—,
  * solo si hay con qué sonar: silenciado devuelve una función que no hace nada,
@@ -38,8 +43,8 @@ export function useGameAudio(): PlayGameSound {
     audio.current = null
   }, [muted])
 
-  // Quitar la mesa se lleva su audio: dentro del salón la escena se monta y se
-  // desmonta a cada visita, y los contextos se irían acumulando.
+  // Quitar la escena se lleva su audio: dentro del salón se monta y se desmonta
+  // a cada visita, y los contextos se irían acumulando.
   useEffect(
     () => () => {
       audio.current?.close()

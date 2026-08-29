@@ -1,0 +1,110 @@
+/**
+ * Estilos propios del juego: cómo usa sus colores, su tipografía y las
+ * animaciones de sus pantallas.
+ *
+ * **Aquí no se escribe ningún color.** Los valores de `--color-*` los pone el
+ * juego sobre este mismo elemento desde `src/lib/palette.ts`, que es la única
+ * definición de la paleta y la que leen también la escena y la interfaz del
+ * visor; lo de aquí son los colores derivados y dónde va cada uno.
+ *
+ * Todo cuelga de `.air-hockey`, la clase del contenedor que monta el juego, en
+ * vez de `:root`: montado dentro de otra aplicación, unas variables globales
+ * llamadas `--color-primary` le cambiarían el aspecto a lo que las tuviera
+ * puestas. Las clases utilitarias (`flex`, `text-white/40`…) no están aquí: las
+ * genera Tailwind escaneando el código del juego, y quien lo monta tiene que
+ * incluirlo entre sus fuentes (ver `docs/montar-el-juego.md`).
+ *
+ * Las dos fuentes se toman de fuera con un respaldo del sistema: en su propia
+ * web las define el layout con `next/font`, y quien lo monta puede darle las
+ * suyas definiendo esas dos variables.
+ */
+
+.air-hockey {
+  /* Filo de las tarjetas: el color de texto, apenas insinuado. */
+  --color-border: color-mix(in srgb, var(--color-foreground) 9%, transparent);
+
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-body, system-ui), system-ui, sans-serif;
+}
+
+.air-hockey :is(h1, h2, h3) {
+  font-family: var(--font-heading, system-ui), system-ui, sans-serif;
+}
+
+/* Entrada sutil de las pantallas */
+@keyframes air-hockey-fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.air-hockey .animate-fade-slide-up {
+  animation: air-hockey-fade-slide-up 0.45s ease-out both;
+}
+
+/* Golpe de cada número de la cuenta atrás: entra grande y se asienta. */
+@keyframes air-hockey-countdown-pop {
+  from {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+}
+
+.air-hockey .animate-countdown-pop {
+  animation: air-hockey-countdown-pop 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Halo del título */
+.air-hockey .text-glow-primary {
+  text-shadow:
+    0 0 12px color-mix(in srgb, var(--color-primary) 45%, transparent),
+    0 0 32px color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+/* Botón principal, en el cian del juego. La tinta va aquí, con su fondo: sobre
+   ese cian claro el blanco no se lee. */
+.air-hockey .cta-gradient {
+  background-image: linear-gradient(
+    180deg,
+    var(--color-primary-bright) 0%,
+    var(--color-primary) 55%,
+    var(--color-primary-deep) 100%
+  );
+  color: var(--color-primary-ink);
+  box-shadow:
+    0 0 24px color-mix(in srgb, var(--color-primary) 35%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--color-foreground) 40%, transparent);
+}
+
+.air-hockey .cta-gradient:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow:
+    0 0 32px color-mix(in srgb, var(--color-primary) 50%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--color-foreground) 45%, transparent);
+}
+
+/* El foco tiene que verse: se navega el menú con teclado y con el mando. */
+.air-hockey :is(button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .air-hockey .animate-fade-slide-up,
+  .air-hockey .animate-countdown-pop {
+    animation: none;
+  }
+}

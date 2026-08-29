@@ -29,6 +29,9 @@ import {
 const SMALL_BUTTON: [number, number] = [0.1, 0.1]
 const ACTION_BUTTON: [number, number] = [0.24, 0.11]
 
+/** Altura de cada fila del marcador dentro de su panel, en metros. */
+const ROW = { goals: 0.06, points: -0.065, round: -0.135 }
+
 function hitBox(
   x: number,
   y: number,
@@ -45,17 +48,21 @@ export function XRScoreboard() {
 
   return (
     <group>
-      <XRPanel width={0.52} height={0.3} opacity={0.7} />
+      {/* Alto para las tres filas: marcador, puntos y —en reto— la ronda. Una
+          cifra ocupa `1,14 × size` contando el grosor de los segmentos, y con
+          el panel más corto la ronda se dibujaba encima de los puntos y se
+          salía por abajo. */}
+      <XRPanel width={0.52} height={0.34} opacity={0.7} />
 
       <XRNumber
         value={playerGoals}
         size={0.13}
         color={PALETTE.primary}
-        position={[-0.12, 0.05, 0]}
+        position={[-0.12, ROW.goals, 0]}
       />
       {/* Separador de marcador: dos puntos, que es lo que se lee como «a». */}
       {[-0.03, 0.03].map((y) => (
-        <mesh key={y} position={[0, 0.05 + y, 0]}>
+        <mesh key={y} position={[0, ROW.goals + y, 0]}>
           <planeGeometry args={[0.016, 0.016]} />
           <meshBasicMaterial color={DIM_COLOR} toneMapped={false} />
         </mesh>
@@ -64,14 +71,14 @@ export function XRScoreboard() {
         value={opponentGoals}
         size={0.13}
         color={PALETTE.rival}
-        position={[0.12, 0.05, 0]}
+        position={[0.12, ROW.goals, 0]}
       />
 
       <XRNumber
         value={points}
         size={0.055}
         color={PALETTE.puck}
-        position={[0, -0.08, 0]}
+        position={[0, ROW.points, 0]}
       />
 
       {/* En reto, la ronda por la que va. En prueba no hay rondas que enseñar. */}
@@ -80,7 +87,7 @@ export function XRScoreboard() {
           value={round}
           size={0.04}
           color={DIM_COLOR}
-          position={[0, -0.13, 0]}
+          position={[0, ROW.round, 0]}
         />
       ) : null}
     </group>

@@ -38,14 +38,22 @@ import {
  */
 
 /** Medidas del panel y de sus filas, en metros. */
-const PANEL = { width: 0.78, height: 0.68 }
+const PANEL = { width: 0.78, height: 0.74 }
 const MODE_BUTTON: [number, number] = [0.3, 0.13]
 const LEVEL_BUTTON: [number, number] = [0.12, 0.11]
 const SMALL_BUTTON: [number, number] = [0.11, 0.11]
 const PLAY_BUTTON: [number, number] = [0.28, 0.12]
 
-/** Altura de cada fila dentro del panel. */
-const ROW = { mode: 0.22, level: 0.05, goals: -0.11, actions: -0.26 }
+/**
+ * Altura de cada fila dentro del panel.
+ *
+ * El récord va arriba del todo y no entre el nivel y los goles: una cifra ocupa
+ * `1,14 × size` contando el grosor de los segmentos, y ahí solo quedan cuatro
+ * centímetros libres. Metido en ese hueco se dibujaba encima del número de
+ * goles —dos planos en la misma z, parpadeando— en cuanto hubiera un récord que
+ * enseñar, que es a partir de la primera partida.
+ */
+const ROW = { record: 0.32, mode: 0.22, level: 0.05, goals: -0.11, actions: -0.26 }
 
 function hitBox(
   x: number,
@@ -199,9 +207,9 @@ export function XRMenu() {
       {bestPoints > 0 ? (
         <XRNumber
           value={bestPoints}
-          size={0.045}
+          size={0.04}
           color={DIM_COLOR}
-          position={[0, -0.04, 0]}
+          position={[0, ROW.record, 0]}
         />
       ) : null}
 

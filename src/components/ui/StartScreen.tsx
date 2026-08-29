@@ -50,7 +50,10 @@ function OptionButton({
       onClick={onClick}
       aria-pressed={selected}
       aria-label={label}
-      className={`min-h-11 rounded-lg border px-4 py-2.5 text-sm font-semibold transition disabled:pointer-events-none ${
+      // El relleno lateral es el mínimo y no la medida: las fichas viven en
+      // rejillas que reparten el ancho, así que un `px-4` no las separa más,
+      // solo estrecha el hueco del texto hasta que «Imposible» se sale.
+      className={`min-h-11 rounded-lg border px-2 py-2.5 text-sm font-semibold transition disabled:pointer-events-none sm:px-3 ${
         selected
           ? 'border-white/60 bg-white/15 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.25)]'
           : 'border-white/10 bg-white/[0.03] text-white/60 hover:border-white/30 hover:text-white'
@@ -135,7 +138,11 @@ export function StartScreen() {
             <FieldLabel>
               Nivel {challenge ? '· lo marca el reto' : null}
             </FieldLabel>
-            <div className="grid grid-cols-5 gap-1.5">
+            {/* Cinco columnas no caben en un móvil: con «Imposible» dentro, la
+                ficha se queda en veinte píxeles de ancho y el nombre se sale
+                por encima de la de al lado. Se parte en dos filas y el orden de
+                lectura sigue siendo el de la escalera. */}
+            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
               {DIFFICULTY_ORDER.map((level, index) => (
                 <OptionButton
                   key={level}

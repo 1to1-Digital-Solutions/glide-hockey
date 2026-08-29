@@ -55,6 +55,15 @@ const PERMISSIONS_POLICY = [
 ].join(', ')
 
 const nextConfig: NextConfig = {
+  /**
+   * Next 16 añade un bloque suyo al `CLAUDE.md` del proyecto cada vez que se
+   * ejecuta `next dev` o `next build`. Aquí `CLAUDE.md` está escrito a mano y
+   * versionado, así que eso deja el árbol sucio en cada verificación y acaba
+   * commiteado sin que nadie lo decida. Las instrucciones del repo viven en
+   * `CLAUDE.md` y `.claude/rules/`; que las escriba un paso de build, no.
+   */
+  agentRules: false,
+
   async headers() {
     return [
       {

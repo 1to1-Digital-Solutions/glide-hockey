@@ -42,7 +42,7 @@
   Canvas), `mountAirHockey`, `exports`/`peerDependencies`/`files`/`bin` en el
   `package.json`, y `npx air-hockey-assets` para los ficheros estáticos.
 - Interfaz inmersiva en geometría: menú, marcador, cuenta atrás y fin de partida.
-- 117 tests unitarios y 8 de navegador. Lint, tipos y build en verde.
+- 125 tests unitarios y 8 de navegador. Lint, tipos y build en verde.
 
 ## Pendiente / próximos pasos
 
@@ -66,4 +66,10 @@
   llega congela la partida.
 - El aviso `THREE.Clock deprecated` sale de @react-three/fiber y está en la lista
   de terceros de `e2e/consola.spec.ts`. Cualquier otro aviso hace fallar el test.
+- **El reloj de la partida no depende de los fotogramas**: el bucle vive en
+  `src/lib/matchLoop.ts` y simula los segundos que ha tardado en llegar cada
+  fotograma, repartidos en pasos de como mucho 1/60 s. Solo se descarta lo que
+  pase de un cuarto de segundo, que es una pestaña volviendo de segundo plano.
+  Recortar el paso en todos los fotogramas ponía el juego a cámara lenta por
+  debajo de 30 fps, y con él el CI en rojo: allí WebGL va por software.
 - Los tests de navegador usan el puerto de `PORT`; el 3000 es de Organízate.

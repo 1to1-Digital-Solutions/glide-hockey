@@ -1,0 +1,287 @@
+'use client'
+
+import { type ReactNode, useRef, useState } from 'react'
+import { type ThreeEvent } from '@react-three/fiber'
+import { PALETTE } from '../../lib/palette'
+import {
+  DIGIT_ADVANCE,
+  DIGIT_SEGMENTS,
+  SEGMENT_LAYOUT,
+  SEGMENT_THICKNESS,
+  digitsOf,
+} from '../../lib/xrDigits'
+import { pressCounts, pressTime } from '../../lib/xrPress'
+
+/**
+ * Piezas de interfaz para las sesiones inmersivas.
+ *
+ * En VR/AR no hay DOM, así que menú, marcador y botones son geometría. Todo lo
+ * de aquí es local: ni fuentes, ni texturas, ni nada que salga a la red (ver
+ * `lib/xrDigits.ts` para el porqué de los números dibujados a mano).
+ */
+
+/** Azul claro del botón apuntado. */
+const HIGHLIGHT_COLOR = '#7dd3fc'
+/** Gris azulado de lo que está apagado o es secundario. */
+export const DIM_COLOR = '#8398b4'
+
+/** Dónde está un botón y cuánto ocupa su zona sensible. */
+export interface XrHitBox {
+  position: [number, number, number]
+  size: [number, number, number]
+}
+
+/**
+ * Panel de fondo. En AR es lo que despega la interfaz de la habitación.
+ *
+ * Del color del juego y translúcido: es el mismo fondo, dejando ver lo que hay
+ * detrás.
+ */
+export function XRPanel({
+  width,
+  height,
+  color = PALETTE.background,
+  opacity = 0.86,
+}: {
+  width: number
+  height: number
+  color?: string
+  opacity?: number
+}) {
+  return (
+    <mesh position={[0, 0, -0.02]}>
+      <planeGeometry args={[width, height]} />
+      <meshBasicMaterial
+        color={color}
+        transparent
+        opacity={opacity}
+        toneMapped={false}
+      />
+    </mesh>
+  )
+}
+
+/**
+ * Botón 3D.
+ *
+ * Tres decisiones que vienen de cómo se apunta un botón en el visor:
+ *
+ * - **Se resuelve al pulsar, no al soltar.** `onClick` exige pulsar y soltar
+ *   sobre el mismo objeto; apuntando a pulso a un metro, el rayo se sale del
+ *   botón entre una cosa y la otra y la pulsación se pierde.
+ * - **Un doble roce es una sola pulsación**, que aquí un botón recibe más de un
+ *   puntero. Quién cuenta lo decide `lib/xrPress.ts`.
+ * - **El foco se ve.** El botón apuntado crece *y* se enciende con un halo:
+ *   forma y color, nunca solo color.
+ *
+ * La zona sensible es una caja invisible mayor que el dibujo: apuntando en el
+ * aire, un objetivo del tamaño exacto del icono se falla constantemente. Que
+ * sea invisible no la excluye del raycasting — los punteros miran si hay
+ * listeners, no si se ve.
+ */
+export function XRPressable({
+  box,
+  onSelect,
+  children,
+  disabled = false,
+}: {
+  box: XrHitBox
+  onSelect: () => void
+  children: ReactNode
+  disabled?: boolean
+}) {
+  const [hovered, setHovered] = useState(false)
+  const lastPress = useRef<number | null>(null)
+
+  const handle = (event: ThreeEvent<PointerEvent>) => {
+    // El evento se para también con el botón apagado: si no, atravesaría hasta
+    // lo que haya detrás del panel.
+    event.stopPropagation()
+
+    const now = pressTime()
+    if (!pressCounts(now, lastPress.current, disabled)) return
+    lastPress.current = now
+
+    onSelect()
+  }
+
+  const active = hovered && !disabled
+  const [hitWidth, hitHeight] = box.size
+
+  return (
+    <group
+      position={box.position}
+      scale={active ? 1.08 : 1}
+      onPointerDown={handle}
+      onPointerOver={(event) => {
+        event.stopPropagation()
+        if (!disabled) setHovered(true)
+      }}
+      onPointerOut={() => setHovered(false)}
+    >
+      {children}
+
+      {/* Halo de foco: por detrás del dibujo, para enmarcarlo sin taparlo. */}
+      <mesh position={[0, 0, -0.014]} visible={active}>
+        <planeGeometry args={[hitWidth * 0.98, hitHeight * 0.94]} />
+        <meshBasicMaterial
+          color={HIGHLIGHT_COLOR}
+          transparent
+          opacity={0.34}
+          toneMapped={false}
+        />
+      </mesh>
+
+      <mesh visible={false}>
+        <boxGeometry args={box.size} />
+      </mesh>
+    </group>
+  )
+}
+
+/**
+ * Un número, en segmentos.
+ *
+ * `size` es la altura de una cifra en metros; el ancho y el grosor salen de
+ * ella, así que el conjunto escala sin descuadrarse (ver `lib/xrDigits.ts`).
+ */
+export function XRNumber({
+  value,
+  size = 0.09,
+  color = PALETTE.foreground,
+  position = [0, 0, 0],
+}: {
+  value: number
+  size?: number
+  color?: string
+  position?: [number, number, number]
+}) {
+  const digits = digitsOf(value)
+  const advance = size * DIGIT_ADVANCE
+  const width = (digits.length - 1) * advance
+
+  return (
+    <group position={position}>
+      {digits.map((digit, index) => (
+        <group key={index} position={[index * advance - width / 2, 0, 0]}>
+          {DIGIT_SEGMENTS[digit].map((segment) => {
+            const { x, y, horizontal } = SEGMENT_LAYOUT[segment]
+            const long = size * 0.42
+            const thin = size * SEGMENT_THICKNESS
+            return (
+              <mesh key={segment} position={[x * size, y * size, 0]}>
+                <planeGeometry
+                  args={horizontal ? [long, thin] : [thin, long]}
+                />
+                <meshBasicMaterial color={color} toneMapped={false} />
+              </mesh>
+            )
+          })}
+        </group>
+      ))}
+    </group>
+  )
+}
+
+/** Una placa de botón: el fondo sobre el que va el icono. */
+export function XRPlate({
+  width,
+  height,
+  color,
+  opacity = 1,
+}: {
+  width: number
+  height: number
+  color: string
+  opacity?: number
+}) {
+  return (
+    <mesh position={[0, 0, -0.006]}>
+      <planeGeometry args={[width, height]} />
+      <meshBasicMaterial
+        color={color}
+        transparent
+        opacity={opacity}
+        toneMapped={false}
+      />
+    </mesh>
+  )
+}
+
+/** Triángulo de «jugar», apuntando a la derecha. */
+export function XRPlayIcon({ size = 0.06 }: { size?: number }) {
+  return (
+    <mesh rotation={[0, 0, -Math.PI / 2]}>
+      {/* Un círculo de tres lados es un triángulo, y ahorra una geometría
+          propia para la única forma que no es un rectángulo. */}
+      <circleGeometry args={[size, 3]} />
+      <meshBasicMaterial color={PALETTE.primaryInk} toneMapped={false} />
+    </mesh>
+  )
+}
+
+/** Aspa de «salir». */
+export function XRCloseIcon({
+  size = 0.05,
+  color = PALETTE.foreground,
+}: {
+  size?: number
+  color?: string
+}) {
+  return (
+    <group>
+      {[Math.PI / 4, -Math.PI / 4].map((rotation) => (
+        <mesh key={rotation} rotation={[0, 0, rotation]}>
+          <planeGeometry args={[size, size * 0.2]} />
+          <meshBasicMaterial color={color} toneMapped={false} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+/** Tres barras: «volver al menú». */
+export function XRMenuIcon({
+  size = 0.05,
+  color = PALETTE.foreground,
+}: {
+  size?: number
+  color?: string
+}) {
+  return (
+    <group>
+      {[-1, 0, 1].map((row) => (
+        <mesh key={row} position={[0, row * size * 0.32, 0]}>
+          <planeGeometry args={[size, size * 0.16]} />
+          <meshBasicMaterial color={color} toneMapped={false} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+/** Signo de más o de menos, para los selectores de cantidad. */
+export function XRSignIcon({
+  sign,
+  size = 0.05,
+  color = PALETTE.foreground,
+}: {
+  sign: 'plus' | 'minus'
+  size?: number
+  color?: string
+}) {
+  return (
+    <group>
+      <mesh>
+        <planeGeometry args={[size, size * 0.22]} />
+        <meshBasicMaterial color={color} toneMapped={false} />
+      </mesh>
+      {sign === 'plus' ? (
+        <mesh>
+          <planeGeometry args={[size * 0.22, size]} />
+          <meshBasicMaterial color={color} toneMapped={false} />
+        </mesh>
+      ) : null}
+    </group>
+  )
+}

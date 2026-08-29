@@ -42,12 +42,17 @@
   Canvas), `mountAirHockey`, `exports`/`peerDependencies`/`files`/`bin` en el
   `package.json`, y `npx air-hockey-assets` para los ficheros estáticos.
 - Interfaz inmersiva en geometría: menú, marcador, cuenta atrás y fin de partida.
-- 126 tests unitarios y 8 de navegador. Lint, tipos y build en verde.
+- Sonido: golpe del mazo, rebote en la banda y gol, sintetizados con la Web
+  Audio API (`src/lib/audioEngine.ts`), más el ajuste de silencio en los dos
+  menús, guardado entre visitas (`src/lib/muted.ts`).
+- 149 tests unitarios y 8 de navegador. Lint, tipos y build en verde.
 
 ## Pendiente / próximos pasos
 
 - Probar con visor de verdad (ver «siguiente paso»).
-- Sonido: no hay ninguno. El golpe del mazo y el gol se piden solos.
+- El golpe y el rebote suenan siempre igual de fuerte: la mesa dice **si** ha
+  pasado, no con cuánta fuerza. Escalar el volumen con la velocidad del impacto
+  es lo que separa un golpe seco de un roce, y está fichado como tarea aparte.
 - No hay test que monte la escena dentro de un Canvas ajeno, como hace el salón.
   Hoy el contrato lo vigila `scripts/scene-contract.test.ts`, que lee el código.
 
@@ -80,3 +85,8 @@
   propósito ritmos que no son múltiplos de 60 (7, 23, 45, 56): con 60/30/15 el
   fallo no se ve, porque ahí el fotograma sí cae justo en pasos de 1/60.
 - Los tests de navegador usan el puerto de `PORT`; el 3000 es de Organízate.
+- **El contexto de audio se crea con el primer sonido, no al montar la mesa**:
+  los navegadores dejan en suspenso cualquier `AudioContext` creado sin que
+  nadie haya tocado nada, y la mesa se monta antes de pulsar «Jugar». Silenciar
+  lo cierra en vez de bajar el volumen: uno abierto cuenta como que la página
+  suena, y en el visor eso agacha la música del sistema.

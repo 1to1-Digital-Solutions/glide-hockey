@@ -260,6 +260,55 @@ export function XRMenuIcon({
   )
 }
 
+/**
+ * Altavoz con o sin ondas: el interruptor de sonido del visor.
+ *
+ * El estado se lee **por forma antes que por color** —las ondas están o no
+ * están, y callado se tacha con una barra— porque el menú se mira a un metro y
+ * con el visor puesto, donde un cian y un gris se parecen bastante.
+ */
+export function XRSoundIcon({
+  muted,
+  size = 0.05,
+}: {
+  muted: boolean
+  size?: number
+}) {
+  const color = muted ? DIM_COLOR : PALETTE.foreground
+
+  return (
+    <group position={[-size * 0.12, 0, 0]}>
+      {/* Cuerpo y campana del altavoz, mirando a la derecha. Un círculo de
+          tres lados es un triángulo, y girado media vuelta deja el vértice a la
+          izquierda: es la campana abriéndose hacia donde sale el sonido. */}
+      <mesh position={[-size * 0.46, 0, 0]}>
+        <planeGeometry args={[size * 0.3, size * 0.42]} />
+        <meshBasicMaterial color={color} toneMapped={false} />
+      </mesh>
+      <mesh position={[-size * 0.16, 0, 0]} rotation={[0, 0, Math.PI]}>
+        <circleGeometry args={[size * 0.44, 3]} />
+        <meshBasicMaterial color={color} toneMapped={false} />
+      </mesh>
+
+      {/* Sonando, dos ondas saliendo de la campana; callado, un tachón en
+          diagonal donde estarían. */}
+      {muted ? (
+        <mesh position={[size * 0.42, 0, 0]} rotation={[0, 0, -Math.PI / 4]}>
+          <planeGeometry args={[size * 0.62, size * 0.11]} />
+          <meshBasicMaterial color={color} toneMapped={false} />
+        </mesh>
+      ) : (
+        [0, 1].map((index) => (
+          <mesh key={index} position={[size * (0.42 + index * 0.24), 0, 0]}>
+            <planeGeometry args={[size * 0.09, size * (0.34 + index * 0.3)]} />
+            <meshBasicMaterial color={color} toneMapped={false} />
+          </mesh>
+        ))
+      )}
+    </group>
+  )
+}
+
 /** Signo de más o de menos, para los selectores de cantidad. */
 export function XRSignIcon({
   sign,

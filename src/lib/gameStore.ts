@@ -25,6 +25,12 @@ import {
   saveBestPoints,
   subscribeBestPoints,
 } from './highScore'
+import {
+  getMuted,
+  getServerMuted,
+  saveMuted,
+  subscribeMuted,
+} from './muted'
 import { type Scorer } from './puckPhysics'
 import { scoreConceded, scoreGoal } from './scoring'
 
@@ -91,12 +97,15 @@ export interface GameStore {
   runId: number
   /** Si hay una sesión inmersiva abierta, es decir, si se juega con gafas. */
   immersive: boolean
+  /** Si el juego está callado. Es de quien juega y se recuerda entre visitas. */
+  muted: boolean
 
   setGoalTarget: (goals: number) => void
   setDifficulty: (difficulty: Difficulty) => void
   /** Elige modo. **Solo desde el menú** (ver el porqué en la implementación). */
   setGameMode: (mode: GameMode) => void
   setImmersive: (immersive: boolean) => void
+  setMuted: (muted: boolean) => void
 
   startGame: () => void
   /** Gol del jugador: suma puntos y alarga la racha. */
@@ -151,6 +160,11 @@ export function useGameStoreValue(): GameStore {
   // guarda, `bestPoints` ya incluye lo recién hecho y no serviría para saber si
   // se ha superado nada.
   const [recordToBeat, setRecordToBeat] = useState(0)
+
+  // El silencio tampoco es estado de React: es una preferencia del navegador,
+  // así que los dos menús —el de escritorio y el del visor— leen lo mismo y
+  // cambiarlo en uno se ve en el otro (ver `muted.ts`).
+  const muted = useSyncExternalStore(subscribeMuted, getMuted, getServerMuted)
 
   const challenge = gameMode === 'challenge'
   const round = challenge ? challengeRoundNumber : null
@@ -297,6 +311,8 @@ export function useGameStoreValue(): GameStore {
     setPoints((total) => scoreConceded(total))
   }, [])
 
+  const setMuted = useCallback((value: boolean) => saveMuted(value), [])
+
   const resetGame = useCallback(() => {
     clearRun()
     setCountdown(0)
@@ -326,10 +342,12 @@ export function useGameStoreValue(): GameStore {
       countdown,
       runId,
       immersive,
+      muted,
       setGoalTarget,
       setDifficulty,
       setGameMode,
       setImmersive,
+      setMuted,
       startGame,
       scorePlayer,
       scoreOpponent,
@@ -357,8 +375,10 @@ export function useGameStoreValue(): GameStore {
       countdown,
       runId,
       immersive,
+      muted,
       setGoalTarget,
       setGameMode,
+      setMuted,
       startGame,
       scorePlayer,
       scoreOpponent,

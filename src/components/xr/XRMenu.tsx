@@ -18,6 +18,7 @@ import {
   XRPlayIcon,
   XRPressable,
   XRSignIcon,
+  XRSoundIcon,
   type XrHitBox,
 } from './XRUi'
 
@@ -101,6 +102,8 @@ export function XRMenu() {
     goalTarget,
     setGoalTarget,
     activeGoalTarget,
+    muted,
+    setMuted,
     bestPoints,
     startGame,
     gameState,
@@ -213,8 +216,24 @@ export function XRMenu() {
         />
       ) : null}
 
+      {/* Silencio a un lado de «jugar» y salir al otro: los dos son de la
+          sesión, no de la partida, y así la fila queda centrada en el botón
+          que de verdad se busca. */}
       <XRPressable
-        box={hitBox(-0.1, ROW.actions, PLAY_BUTTON)}
+        box={hitBox(-0.28, ROW.actions, SMALL_BUTTON)}
+        onSelect={() => setMuted(!muted)}
+      >
+        <XRPlate
+          width={SMALL_BUTTON[0]}
+          height={SMALL_BUTTON[1]}
+          color={PALETTE.rail}
+          opacity={0.8}
+        />
+        <XRSoundIcon muted={muted} />
+      </XRPressable>
+
+      <XRPressable
+        box={hitBox(0, ROW.actions, PLAY_BUTTON)}
         onSelect={startGame}
       >
         <XRPlate
@@ -226,7 +245,7 @@ export function XRMenu() {
       </XRPressable>
 
       <XRPressable
-        box={hitBox(0.19, ROW.actions, SMALL_BUTTON)}
+        box={hitBox(0.28, ROW.actions, SMALL_BUTTON)}
         onSelect={exit}
       >
         <XRPlate

@@ -82,6 +82,8 @@ export function StartScreen() {
     setDifficulty,
     goalTarget,
     setGoalTarget,
+    muted,
+    setMuted,
     bestPoints,
     startGame,
     immersive: inSession,
@@ -191,6 +193,22 @@ export function StartScreen() {
               onChange={(event) => setGoalTarget(Number(event.target.value))}
               className="h-11 w-full accent-[var(--color-primary)]"
             />
+          </fieldset>
+
+          {/* El sonido no es de la partida sino de quien juega, así que va
+              debajo de las tres decisiones y nunca apagado: en reto también se
+              silencia. Se recuerda entre visitas (ver `lib/muted.ts`). */}
+          <fieldset className="flex flex-col gap-2">
+            <legend className="sr-only">Sonido del juego</legend>
+            <FieldLabel>Sonido</FieldLabel>
+            <div className="grid grid-cols-2 gap-2">
+              <OptionButton selected={!muted} onClick={() => setMuted(false)}>
+                Activado
+              </OptionButton>
+              <OptionButton selected={muted} onClick={() => setMuted(true)}>
+                Silencio
+              </OptionButton>
+            </div>
           </fieldset>
         </div>
 

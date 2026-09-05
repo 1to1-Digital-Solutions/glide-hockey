@@ -208,10 +208,16 @@ export function XRPlate({
   )
 }
 
-/** Triángulo de «jugar», apuntando a la derecha. */
+/**
+ * Triángulo de «jugar», apuntando a la derecha.
+ *
+ * Sin girarlo: `CircleGeometry` pone su primer vértice en el ángulo 0, que es
+ * la derecha. Girado −90° ese vértice acababa abajo y el botón se leía como
+ * «descargar», no como «play».
+ */
 export function XRPlayIcon({ size = 0.06 }: { size?: number }) {
   return (
-    <mesh rotation={[0, 0, -Math.PI / 2]}>
+    <mesh>
       {/* Un círculo de tres lados es un triángulo, y ahorra una geometría
           propia para la única forma que no es un rectángulo. */}
       <circleGeometry args={[size, 3]} />

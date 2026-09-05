@@ -50,7 +50,14 @@ import { Puck } from './Puck'
  * Por eso el sonido **se recibe hecho** y no se abre aquí: el audio dura lo que
  * la escena, no lo que una ronda (ver `GameWorld` y `lib/useGameAudio.ts`).
  */
-export function Rink({ play }: { play: PlayGameSound }) {
+export function Rink({
+  play,
+  onAim,
+}: {
+  play: PlayGameSound
+  /** Cada movimiento del mazo, para saber qué mando lo lleva (`useGameHaptics`). */
+  onAim?: (event: ThreeEvent<PointerEvent>) => void
+}) {
   const {
     gameState,
     activeDifficulty,
@@ -78,15 +85,19 @@ export function Rink({ play }: { play: PlayGameSound }) {
   /** El vector del camino de vuelta: de un punto de la mesa al mundo. */
   const tablePoint = useRef(new Vector3())
 
-  const aim = useCallback((event: ThreeEvent<PointerEvent>) => {
-    const rinkGroup = rink.current
-    if (rinkGroup == null) return
+  const aim = useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      onAim?.(event)
+      const rinkGroup = rink.current
+      if (rinkGroup == null) return
 
-    // `worldToLocal` muta lo que recibe, así que nunca se le pasa el punto del
-    // evento: es de la librería y lo reutiliza para el siguiente.
-    const local = rinkGroup.worldToLocal(worldPoint.current.copy(event.point))
-    pointer.current = constrainMallet({ x: local.x, z: local.z }, 'player')
-  }, [])
+      // `worldToLocal` muta lo que recibe, así que nunca se le pasa el punto del
+      // evento: es de la librería y lo reutiliza para el siguiente.
+      const local = rinkGroup.worldToLocal(worldPoint.current.copy(event.point))
+      pointer.current = constrainMallet({ x: local.x, z: local.z }, 'player')
+    },
+    [onAim],
+  )
 
   useFrame((state, delta) => {
     const {

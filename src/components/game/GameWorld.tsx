@@ -1,10 +1,13 @@
 'use client'
 
+import { useCallback } from 'react'
 import { useXR } from '@react-three/xr'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
 import { useGame } from '../../lib/gameStore'
 import { HALF_LENGTH } from '../../lib/puckPhysics'
+import { type GameSound } from '../../lib/audioEngine'
 import { useGameAudio } from '../../lib/useGameAudio'
+import { useGameHaptics } from '../../lib/useGameHaptics'
 import {
   XRCountdown,
   XRGameOver,
@@ -58,6 +61,17 @@ export function GameWorld() {
   // llevaba por delante el gol que la ganaba —el contexto se cerraba mientras
   // sonaba— y estrenaba otro contexto por ronda (ver `lib/useGameAudio.ts`).
   const play = useGameAudio()
+  const haptics = useGameHaptics()
+  // Cada suceso de la mesa suena y se siente a la vez: el sonido obedece al
+  // silencio y la vibración no, que con el juego callado es lo único que dice
+  // sin mirar qué ha pasado.
+  const feedback = useCallback(
+    (sound: GameSound) => {
+      play(sound)
+      haptics.pulse(sound)
+    },
+    [play, haptics],
+  )
 
   // En realidad mixta el escenario es la habitación del jugador: dibujar la
   // sala la taparía y rompería el passthrough.
@@ -94,7 +108,7 @@ export function GameWorld() {
           {/* El disco y los mazos solo durante la partida: en el menú la mesa
               se ve vacía, que es lo que hace que empezar se note. `key` la
               estrena en cada partida y en cada ronda del reto. */}
-          {gameState !== 'menu' ? <Rink key={runId} play={play} /> : null}
+          {gameState !== 'menu' ? <Rink key={runId} play={feedback} onAim={haptics.noteAim} /> : null}
 
           {/* La interfaz del visor no se monta siquiera en escritorio. No es
               solo que sobre —ahí manda el DOM—: los punteros miran si hay

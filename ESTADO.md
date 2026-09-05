@@ -9,7 +9,10 @@
 
 - Probar el juego **con el visor** (`npm run dev:https`): es lo único de la
   primera versión que no ha visto nadie. Mirar sobre todo si se puede jugar
-  apuntando con el rayo del mando y si el menú inmersivo se lee y se pulsa.
+  apuntando con el rayo del mando y si el menú inmersivo se lee y se pulsa. Y la
+  vibración: que el golpe (0,7 × 45 ms) se sienta como golpe, que el rebote
+  (0,25 × 20 ms) no moleste en una jugada larga contra la banda y que el gol
+  (0,5 × 120 ms, dos manos) se distinga. Las recetas están en `src/lib/haptics.ts`.
 
 ## Qué es air-hockey
 
@@ -45,6 +48,11 @@
 - Sonido: golpe del mazo, rebote en la banda y gol, sintetizados con la Web
   Audio API (`src/lib/audioEngine.ts`), más el ajuste de silencio en los dos
   menús, guardado entre visitas (`src/lib/muted.ts`).
+- Vibración de los mandos (`src/lib/haptics.ts` + `useGameHaptics`): los mismos
+  tres sucesos que el sonido, sin obedecer al silencio. El golpe y el rebote van
+  a la mano que lleva el mazo —la del último mando que lo movió, que la mesa
+  apunta en cada `onPointerMove`—; el gol, a las dos. Hasta que un mando mueve
+  el mazo, el golpe va a las dos manos.
 - 150 tests unitarios y 11 de navegador. Lint, tipos y build en verde.
 
 ## Pendiente / próximos pasos

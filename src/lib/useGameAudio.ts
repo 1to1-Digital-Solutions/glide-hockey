@@ -28,7 +28,7 @@ import { useGame } from './gameStore'
  * solo si hay con qué sonar: silenciado devuelve una función que no hace nada,
  * así que quien la llama no tiene que preguntar.
  */
-export type PlayGameSound = (sound: GameSound) => void
+export type PlayGameSound = (sound: GameSound, strength?: number) => void
 
 export function useGameAudio(): PlayGameSound {
   const { muted } = useGame()
@@ -54,13 +54,13 @@ export function useGameAudio(): PlayGameSound {
   )
 
   return useCallback(
-    (sound: GameSound) => {
+    (sound: GameSound, strength?: number) => {
       if (muted) return
       // El contexto se crea con el primer sonido, que siempre llega con la
       // partida ya empezada: creado antes de que nadie toque nada, el navegador
       // lo dejaría en suspenso (ver `audioEngine.ts`).
       const engine = (audio.current ??= createAirHockeyAudio())
-      engine.play(sound)
+      engine.play(sound, strength)
     },
     [muted],
   )

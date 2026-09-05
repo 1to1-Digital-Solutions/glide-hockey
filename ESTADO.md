@@ -48,6 +48,12 @@
 - Sonido: golpe del mazo, rebote en la banda y gol, sintetizados con la Web
   Audio API (`src/lib/audioEngine.ts`), más el ajuste de silencio en los dos
   menús, guardado entre visitas (`src/lib/muted.ts`).
+- El golpe y el rebote suenan y vibran con la fuerza del impacto: la mesa dice
+  con qué velocidad se acercaban disco y mazo y con cuál llegó el disco a la
+  banda (`Impact`, en `puckPhysics.ts`), y `impactStrength` lo pasa a 0-1 sobre la
+  velocidad máxima; el volumen va entre un quinto y el entero y el tono un poco
+  más grave cuanto más flojo. Es lo que apaga el disco atrapado en una esquina
+  repiqueteando a volumen completo. El gol no lo mira.
 - Vibración de los mandos (`src/lib/haptics.ts` + `useGameHaptics`): los mismos
   tres sucesos que el sonido, sin obedecer al silencio. El golpe y el rebote van
   a la mano que lleva el mazo —la del último mando que lo movió, que la mesa
@@ -58,9 +64,6 @@
 ## Pendiente / próximos pasos
 
 - Probar con visor de verdad (ver «siguiente paso»).
-- El golpe y el rebote suenan siempre igual de fuerte: la mesa dice **si** ha
-  pasado, no con cuánta fuerza. Escalar el volumen con la velocidad del impacto
-  es lo que separa un golpe seco de un roce, y está fichado como tarea aparte.
 - No hay test que monte la escena dentro de un Canvas ajeno, como hace el salón.
   Hoy el contrato lo vigila `scripts/scene-contract.test.ts`, que lee el código.
 

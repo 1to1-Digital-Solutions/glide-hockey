@@ -25,12 +25,34 @@
  */
 
 /** Los tres momentos que suenan en una partida. */
+import { MAX_PUCK_SPEED } from './gameConfig'
+
 export type GameSound = 'strike' | 'bounce' | 'goal'
 
+/**
+ * Cuánto de fuerte es un impacto, de 0 a 1, a partir de su velocidad en m/s.
+ * El tope es la velocidad máxima del disco: un golpe a esa velocidad es el
+ * sonido entero; un disco que roza la banda a un palmo por segundo, apenas se
+ * oye. Es lo que apaga el caso feo de un disco atrapado en una esquina
+ * repiqueteando a volumen completo.
+ */
+export function impactStrength(speed: number): number {
+  if (!Number.isFinite(speed) || speed <= 0) return 0
+  return Math.min(1, speed / MAX_PUCK_SPEED)
+}
+
+/** Cuánto suena un golpe de fuerza cero: nunca del todo mudo si lo hubo. */
+const MIN_LEVEL = 0.2
+/** Cuánto sube de tono un golpe fuerte respecto a uno flojo. */
+const PITCH_SPREAD = 0.2
 /** Reproductor de los sonidos del juego. */
 export interface AirHockeyAudio {
-  /** Suelta un sonido. Si no hay con qué, no hace nada. */
-  play: (sound: GameSound) => void
+  /**
+   * Suelta un sonido. `strength` (0 a 1) es la fuerza del impacto: escala el
+   * volumen y un poco el tono del golpe y del rebote; el gol no la mira, que es
+   * una celebración y no un impacto. Si no hay con qué, no hace nada.
+   */
+  play: (sound: GameSound, strength?: number) => void
   /** Suelta el contexto. Sin esto queda un audio abierto por escena montada. */
   close: () => void
 }
@@ -164,6 +186,30 @@ const RECIPES: Record<GameSound, SoundRecipe> = {
  * `e2e/consola.spec.ts`. No hay nada que hacer con el fallo: significa que no
  * suena, que es exactamente lo que se acepta aquí.
  */
+/**
+ * La misma receta, con la fuerza del impacto: el volumen entre un quinto y el
+ * entero, y el tono un poco más grave cuanto más flojo. La duración no cambia:
+ * es lo que dice qué se ha oído.
+ */
+function scaled(recipe: SoundRecipe, strength: number): SoundRecipe {
+  const s = Math.min(1, Math.max(0, Number.isFinite(strength) ? strength : 1))
+  const level = MIN_LEVEL + (1 - MIN_LEVEL) * s
+  const pitch = 1 - PITCH_SPREAD / 2 + PITCH_SPREAD * s
+  return {
+    noise: {
+      ...recipe.noise,
+      peak: recipe.noise.peak * level,
+      frequency: recipe.noise.frequency * pitch,
+    },
+    tones: recipe.tones.map((tone) => ({
+      ...tone,
+      peak: tone.peak * level,
+      from: tone.from * pitch,
+      to: tone.to * pitch,
+    })),
+  }
+}
+
 function ignore(promise: Promise<void>): void {
   promise.catch(() => {})
 }
@@ -229,7 +275,7 @@ export function createAirHockeyAudio(
     return context
   }
 
-  function play(sound: GameSound): void {
+  function play(sound: GameSound, strength = 1): void {
     const ctx = ready()
     if (ctx == null || master == null || noise == null) return
     // Suspendido: el navegador lo para al dejar de mirar la pestaña y no se
@@ -237,8 +283,7 @@ export function createAirHockeyAudio(
     if (ctx.state === 'suspended') ignore(ctx.resume())
 
     const now = ctx.currentTime
-    const recipe = RECIPES[sound]
-
+    const recipe = sound === 'goal' ? RECIPES[sound] : scaled(RECIPES[sound], strength)
     playNoise(ctx, master, noise, now, recipe.noise)
     for (const tone of recipe.tones) playTone(ctx, master, now, tone)
   }

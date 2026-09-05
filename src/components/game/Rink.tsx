@@ -24,6 +24,7 @@ import {
   screenPointFromNdc,
   type ScreenPoint,
 } from '../../lib/sceneProbe'
+import { impactStrength } from '../../lib/audioEngine'
 import { type PlayGameSound } from '../../lib/useGameAudio'
 import { Mallet } from './Mallet'
 import { Puck } from './Puck'
@@ -105,6 +106,7 @@ export function Rink({
       goals,
       struck,
       bounced,
+      impact,
     } = advanceTable(table.current, {
       delta,
       pointer: pointer.current,
@@ -121,8 +123,8 @@ export function Rink({
     // Lo que se oye de la mesa, en el orden en que pasa: el mazo lanza el
     // disco, el disco choca donde vaya a chocar y, si entra, se canta el gol.
     // Silenciado, `play` no hace nada (ver `lib/useGameAudio.ts`).
-    if (struck) play('strike')
-    if (bounced) play('bounce')
+    if (struck) play('strike', impactStrength(impact.strike))
+    if (bounced) play('bounce', impactStrength(impact.bounce))
     if (goals.length > 0) play('goal')
 
     place(puckObject.current, next.puck.position)

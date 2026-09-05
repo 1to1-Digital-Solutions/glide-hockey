@@ -419,10 +419,24 @@ describe('lo que suena en la mesa', () => {
 
   it('avisa del rebote en la banda, y solo del rebote', () => {
     const rail = advanceTable(shotAtRail(), frame(1 / 60))
-
     expect(rail.bounced).toBe(true)
     expect(rail.struck).toBe(false)
     expect(rail.table.puck.velocity.x).toBeLessThan(0)
+  })
+
+  it('dice con qué fuerza: un disco a seis metros por segundo no roza la banda', () => {
+    // Es lo que el sonido y la vibración escalan: un roce y un golpe seco ya
+    // no suenan igual.
+    const rail = advanceTable(shotAtRail(), frame(1 / 60))
+    expect(rail.impact.bounce).toBeGreaterThan(5)
+    expect(rail.impact.strike).toBe(0)
+
+    const hit = advanceTable(shotAtPlayer(), frame(1 / 60))
+    expect(hit.impact.strike).toBeGreaterThan(2.5)
+    expect(hit.impact.bounce).toBe(0)
+
+    const quiet = advanceTable(loosePuck(), frame(1 / 60))
+    expect(quiet.impact).toEqual({ strike: 0, bounce: 0 })
   })
 
   it('el disco parado en el mazo no suena una vez por fotograma', () => {

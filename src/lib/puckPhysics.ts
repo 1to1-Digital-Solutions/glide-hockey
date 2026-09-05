@@ -116,7 +116,28 @@ export function constrainMallet(position: Vec2, side: Side): Vec2 {
  *
  * Devuelve `null` si no se tocan.
  */
-export function resolveMalletHit(puck: Body, mallet: Body): Body | null {
+/**
+ * Con qué fuerza se ha dado cada cosa en un paso, en metros por segundo: la
+ * velocidad de aproximación del golpe del mazo y la componente normal con la
+ * que el disco llegó a la banda. Cero si no hubo. Es lo que separa un roce de
+ * un golpe seco, y quien suena y quien vibra lo escalan con ello.
+ */
+export interface Impact {
+  strike: number
+  bounce: number
+}
+
+export const NO_IMPACT: Impact = { strike: 0, bounce: 0 }
+
+/** El impacto más fuerte de cada clase entre dos. */
+export function strongerImpact(a: Impact, b: Impact): Impact {
+  return { strike: Math.max(a.strike, b.strike), bounce: Math.max(a.bounce, b.bounce) }
+}
+
+/** El disco tras un golpe de mazo, con la velocidad de aproximación que lo dio. */
+export type MalletHit = Body & { approach: number }
+
+export function resolveMalletHit(puck: Body, mallet: Body): MalletHit | null {
   const contact = PUCK_RADIUS + MALLET_RADIUS
   const offset = {
     x: puck.position.x - mallet.position.x,
@@ -145,7 +166,7 @@ export function resolveMalletHit(puck: Body, mallet: Body): Body | null {
   const approach = relative.x * normal.x + relative.z * normal.z
   // Ya se estaban separando: el contacto es el resto de un golpe anterior y
   // volver a reflejar aquí lo dejaría vibrando pegado al mazo.
-  if (approach >= 0) return { position, velocity: puck.velocity }
+  if (approach >= 0) return { position, velocity: puck.velocity, approach: 0 }
 
   const impulse = (1 + MALLET_RESTITUTION) * approach
   return {
@@ -154,6 +175,7 @@ export function resolveMalletHit(puck: Body, mallet: Body): Body | null {
       x: puck.velocity.x - impulse * normal.x,
       z: puck.velocity.z - impulse * normal.z,
     }),
+    approach: -approach,
   }
 }
 
@@ -179,6 +201,8 @@ export interface StepResult {
    * contraataque del jugador de un despeje de la máquina.
    */
   struckBy: readonly number[]
+  /** Con qué fuerza se dio el golpe y el rebote más fuertes del paso. */
+  impact: Impact
 }
 
 /**
@@ -189,7 +213,7 @@ export interface StepResult {
  */
 export function stepPuck({ puck, mallets, dt }: StepInput): StepResult {
   if (!Number.isFinite(dt) || dt <= 0) {
-    return { puck, goal: null, bounced: false, struckBy: [] }
+    return { puck, goal: null, bounced: false, struckBy: [], impact: NO_IMPACT }
   }
 
   const speed = magnitude(puck.velocity)
@@ -202,14 +226,16 @@ export function stepPuck({ puck, mallets, dt }: StepInput): StepResult {
 
   let current = puck
   let bounced = false
+  let impact: Impact = NO_IMPACT
   const struckBy: number[] = []
 
   for (let i = 0; i < steps; i++) {
     const moved = advance(current, subDt)
     current = moved.puck
     bounced = bounced || moved.bounced
+    impact = strongerImpact(impact, { strike: 0, bounce: moved.bounceSpeed })
     if (moved.goal != null) {
-      return { puck: current, goal: moved.goal, bounced, struckBy }
+      return { puck: current, goal: moved.goal, bounced, struckBy, impact }
     }
 
     for (let index = 0; index < mallets.length; index++) {
@@ -223,18 +249,18 @@ export function stepPuck({ puck, mallets, dt }: StepInput): StepResult {
         hit.velocity.x !== current.velocity.x ||
         hit.velocity.z !== current.velocity.z
       if (pushed && !struckBy.includes(index)) struckBy.push(index)
-      current = hit
+      impact = strongerImpact(impact, { strike: hit.approach, bounce: 0 })
+      current = { position: hit.position, velocity: hit.velocity }
     }
   }
-
-  return { puck: current, goal: null, bounced, struckBy }
+  return { puck: current, goal: null, bounced, struckBy, impact }
 }
 
 /** Un sub-paso: rozamiento, avance y choque contra las bandas. */
 function advance(
   puck: Body,
   dt: number,
-): { puck: Body; goal: Scorer | null; bounced: boolean } {
+): { puck: Body; goal: Scorer | null; bounced: boolean; bounceSpeed: number } {
   // Decaimiento exponencial y no una resta: así frenar no depende de cada
   // cuánto se llame, que es lo que pasaría con una pérdida fija por paso.
   const drag = Math.exp(-PUCK_FRICTION * dt)
@@ -242,10 +268,13 @@ function advance(
   let x = puck.position.x + velocity.x * dt
   let z = puck.position.z + velocity.z * dt
   let bounced = false
-
+  // Con qué velocidad llegó a la banda, en la dirección de la banda: es lo que
+  // se oye y lo que se siente, antes de que el rebote se la quede.
+  let bounceSpeed = 0
   const sideLimit = HALF_WIDTH - PUCK_RADIUS
   if (x < -sideLimit || x > sideLimit) {
     x = clamp(x, -sideLimit, sideLimit)
+    bounceSpeed = Math.max(bounceSpeed, Math.abs(velocity.x))
     velocity = { x: -velocity.x * WALL_RESTITUTION, z: velocity.z }
     bounced = true
   }
@@ -258,14 +287,15 @@ function advance(
         puck: { position: { x, z }, velocity },
         goal: z < 0 ? 'player' : 'opponent',
         bounced,
+        bounceSpeed,
       }
     }
     z = clamp(z, -endLimit, endLimit)
+    bounceSpeed = Math.max(bounceSpeed, Math.abs(velocity.z))
     velocity = { x: velocity.x, z: -velocity.z * WALL_RESTITUTION }
     bounced = true
   }
-
-  return { puck: { position: { x, z }, velocity }, goal: null, bounced }
+  return { puck: { position: { x, z }, velocity }, goal: null, bounced, bounceSpeed }
 }
 
 /**

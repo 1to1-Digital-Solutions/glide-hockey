@@ -5,6 +5,7 @@ import {
 } from './gameConfig'
 import { opponentStart, playerStart, stepOpponent } from './opponent'
 import {
+  NO_IMPACT,
   constrainMallet,
   isRallyOver,
   isStalled,
@@ -12,7 +13,9 @@ import {
   serve,
   stallSeconds,
   stepPuck,
+  strongerImpact,
   type Body,
+  type Impact,
   type Scorer,
   type Vec2,
 } from './puckPhysics'
@@ -161,6 +164,8 @@ export interface FrameResult {
   struck: boolean
   /** El disco ha rebotado en alguna banda. */
   bounced: boolean
+  /** Con qué fuerza: el golpe y el rebote más fuertes del fotograma, en m/s. */
+  impact: Impact
 }
 
 /**
@@ -180,7 +185,7 @@ export function advanceTable(
   input: FrameInput,
 ): FrameResult {
   const elapsed = frameSeconds(input.delta)
-  if (elapsed === 0) return { table, goals: [], struck: false, bounced: false }
+  if (elapsed === 0) return { table, goals: [], struck: false, bounced: false, impact: NO_IMPACT }
 
   // Se juegan los pasos enteros que caben en lo acumulado y lo que sobra espera
   // al fotograma siguiente. Como `elapsed` viene topado, el número de pasos
@@ -196,16 +201,17 @@ export function advanceTable(
   const goals: Scorer[] = []
   let struck = false
   let bounced = false
-
+  let impact: Impact = NO_IMPACT
   for (let i = 0; i < steps; i++) {
     const step = advanceStep(current, input, STEP_SECONDS)
     current = step.table
     if (step.goal != null) goals.push(step.goal)
     struck = struck || step.struck
     bounced = bounced || step.bounced
+    impact = strongerImpact(impact, step.impact)
   }
 
-  return { table: current, goals, struck, bounced }
+  return { table: current, goals, struck, bounced, impact }
 }
 
 /** Lo que deja un paso de simulación, además de la mesa. */
@@ -214,10 +220,11 @@ interface StepOutcome {
   goal: Scorer | null
   struck: boolean
   bounced: boolean
+  impact: Impact
 }
 
 /** Un paso en el que no pasa nada digno de contarse. */
-const QUIET = { goal: null, struck: false, bounced: false } as const
+const QUIET = { goal: null, struck: false, bounced: false, impact: NO_IMPACT } as const
 
 /** Un paso de simulación: lo que de verdad mueve la mesa. */
 function advanceStep(
@@ -277,6 +284,7 @@ function advanceStep(
       goal: result.goal,
       struck,
       bounced: result.bounced,
+      impact: result.impact,
     }
   }
 
@@ -302,6 +310,7 @@ function advanceStep(
     goal: null,
     struck,
     bounced: result.bounced,
+    impact: result.impact,
   }
 }
 

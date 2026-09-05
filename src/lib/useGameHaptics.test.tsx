@@ -2,7 +2,7 @@ import { type ThreeEvent } from '@react-three/fiber'
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { GOAL_PULSE, STRIKE_PULSE, type HapticSession } from './haptics'
-import { useGameHaptics } from './useGameHaptics'
+import { scaledPulse, useGameHaptics } from './useGameHaptics'
 
 /**
  * Lo único que el hook añade sobre `haptics.ts` (que ya tiene sus tests): que
@@ -87,5 +87,28 @@ describe('useGameHaptics', () => {
 
     expect(() => result.current.pulse('goal')).not.toThrow()
     expect(xr.left).not.toHaveBeenCalled()
+  })
+})
+
+describe('la fuerza del impacto en la mano', () => {
+  it('un roce vibra menos que un golpe seco, pero se nota', () => {
+    const seco = scaledPulse(STRIKE_PULSE, 1).intensity
+    const roce = scaledPulse(STRIKE_PULSE, 0).intensity
+    expect(seco).toBe(STRIKE_PULSE.intensity)
+    expect(roce).toBeGreaterThan(0)
+    expect(roce).toBeLessThan(seco)
+    expect(scaledPulse(STRIKE_PULSE, 0).durationMs).toBe(STRIKE_PULSE.durationMs)
+  })
+
+  it('llega al mando escalado, y el gol siempre entero', () => {
+    withHeadset()
+    const { result } = renderHook(() => useGameHaptics())
+    result.current.noteAim(aimWith('right'))
+
+    result.current.pulse('strike', 0)
+    result.current.pulse('goal', 0)
+
+    expect(xr.right.mock.calls[0][0]).toBeLessThan(STRIKE_PULSE.intensity)
+    expect(xr.right.mock.calls[1][0]).toBe(GOAL_PULSE.intensity)
   })
 })

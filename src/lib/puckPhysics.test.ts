@@ -266,3 +266,47 @@ describe('el disco muerto', () => {
     expect(isStalled(STALL_SECONDS)).toBe(true)
   })
 })
+
+describe('con qué fuerza se da cada cosa', () => {
+  it('el golpe del mazo dice la velocidad con la que se acercaban', () => {
+    // Disco a 2 m/s contra un mazo que viene a 1 m/s de frente: se acercan a 3.
+    const puck: Body = {
+      position: { x: 0, z: PUCK_RADIUS + MALLET_RADIUS - 0.01 },
+      velocity: { x: 0, z: -2 },
+    }
+    const mallet: Body = { position: { x: 0, z: 0 }, velocity: { x: 0, z: 1 } }
+    expect(resolveMalletHit(puck, mallet)!.approach).toBeCloseTo(3, 5)
+  })
+
+  it('un contacto que ya se separaba no tiene fuerza', () => {
+    const puck: Body = {
+      position: { x: 0, z: PUCK_RADIUS + MALLET_RADIUS - 0.01 },
+      velocity: { x: 0, z: 3 },
+    }
+    expect(resolveMalletHit(puck, still(0, 0))!.approach).toBe(0)
+  })
+
+  it('el paso cuenta el golpe y el rebote más fuertes, y nada cuando no hay nada', () => {
+    const rail: Body = {
+      position: { x: HALF_WIDTH - PUCK_RADIUS, z: 0 },
+      velocity: { x: 3, z: 0 },
+    }
+    const { impact } = stepPuck({ puck: rail, mallets: [], dt: 1 / 60 })
+    // La fuerza del rebote es la velocidad con la que llegó a la banda (menos el
+    // rozamiento de un paso), no la que se lleva después de perder un 10 %.
+    expect(impact.bounce).toBeGreaterThan(2.9)
+    expect(impact.bounce).toBeLessThanOrEqual(3)
+    expect(impact.strike).toBe(0)
+
+    const struck: Body = {
+      position: { x: 0, z: PUCK_RADIUS + MALLET_RADIUS - 0.01 },
+      velocity: { x: 0, z: -2 },
+    }
+    const hit = stepPuck({ puck: struck, mallets: [still(0, 0)], dt: 1 / 60 })
+    expect(hit.impact.strike).toBeGreaterThan(1.9)
+    expect(hit.impact.bounce).toBe(0)
+
+    const loose: Body = { position: { x: 0, z: 0 }, velocity: { x: 1, z: 0 } }
+    expect(stepPuck({ puck: loose, mallets: [], dt: 1 / 60 }).impact).toEqual({ strike: 0, bounce: 0 })
+  })
+})

@@ -66,9 +66,9 @@ export function GameWorld() {
   // silencio y la vibración no, que con el juego callado es lo único que dice
   // sin mirar qué ha pasado.
   const feedback = useCallback(
-    (sound: GameSound) => {
-      play(sound)
-      haptics.pulse(sound)
+    (sound: GameSound, strength?: number) => {
+      play(sound, strength)
+      haptics.pulse(sound, strength)
     },
     [play, haptics],
   )

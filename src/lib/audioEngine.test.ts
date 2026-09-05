@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createAirHockeyAudio } from './audioEngine'
+import { MAX_PUCK_SPEED } from './gameConfig'
+import { createAirHockeyAudio, impactStrength } from './audioEngine'
 
 /**
  * La Web Audio API no existe en jsdom, así que se le da una de mentira que
@@ -226,5 +227,62 @@ describe('createAirHockeyAudio', () => {
 
     audio.play('strike')
     expect(createContext).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('la fuerza del impacto', () => {
+  it('va de 0 a 1 con la velocidad, y a tope a la velocidad máxima del disco', () => {
+    expect(impactStrength(0)).toBe(0)
+    expect(impactStrength(-1)).toBe(0)
+    expect(impactStrength(Number.NaN)).toBe(0)
+    expect(impactStrength(MAX_PUCK_SPEED / 2)).toBeCloseTo(0.5, 5)
+    expect(impactStrength(MAX_PUCK_SPEED)).toBe(1)
+    expect(impactStrength(MAX_PUCK_SPEED * 3)).toBe(1)
+  })
+
+  /** Los picos de volumen que se le pidieron a cada ganancia en una reproducción. */
+  function picos(play: (audio: ReturnType<typeof createAirHockeyAudio>) => void): number[] {
+    const fake = fakeAudioContext()
+    const valores: number[] = []
+    const context = fake.context as unknown as { createGain: () => unknown }
+    context.createGain = () => ({
+      gain: {
+        value: 0,
+        setValueAtTime: vi.fn(),
+        exponentialRampToValueAtTime: (value: number) => {
+          if (value > 0.001) valores.push(value)
+        },
+      },
+      connect: vi.fn(),
+    })
+    play(createAirHockeyAudio(() => fake.context))
+    return valores
+  }
+
+  it('un roce suena más bajo que un golpe seco, pero no se calla', () => {
+    const seco = Math.max(...picos((audio) => audio.play('bounce', 1)))
+    const roce = Math.max(...picos((audio) => audio.play('bounce', 0)))
+    const medio = Math.max(...picos((audio) => audio.play('bounce', 0.5)))
+
+    expect(roce).toBeGreaterThan(0)
+    expect(roce).toBeLessThan(medio)
+    expect(medio).toBeLessThan(seco)
+    // Sin fuerza dicha, suena entero: es lo que hacía antes.
+    expect(Math.max(...picos((audio) => audio.play('bounce')))).toBe(seco)
+  })
+
+  it('el golpe flojo suena un poco más grave', () => {
+    const fake = fakeAudioContext()
+    const audio = createAirHockeyAudio(() => fake.context)
+    audio.play('strike', 1)
+    audio.play('strike', 0)
+    const [fuerte, flojo] = fake.oscillators
+    expect(flojo.frequency).toBeLessThan(fuerte.frequency)
+  })
+
+  it('el gol no mira la fuerza: es una celebración', () => {
+    const entero = picos((audio) => audio.play('goal', 1))
+    const flojo = picos((audio) => audio.play('goal', 0))
+    expect(flojo).toEqual(entero)
   })
 })

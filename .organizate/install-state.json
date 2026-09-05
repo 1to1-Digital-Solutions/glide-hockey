@@ -19,10 +19,6 @@
       "source": "rules/git-workflow.md"
     },
     {
-      "path": ".claude/rules/geo.md",
-      "source": "rules/geo.md"
-    },
-    {
       "path": ".claude/agents/code-reviewer.md",
       "source": "catalog/agents/code-reviewer.md"
     },

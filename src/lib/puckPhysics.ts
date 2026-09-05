@@ -300,6 +300,30 @@ export function isStalled(seconds: number): boolean {
 }
 
 /**
+ * Segundos que puede durar una jugada sin gol antes de volver a sacar.
+ *
+ * La regla del disco muerto no coge todo: hay jugadas en las que el disco no
+ * se para nunca —un peloteo rápido entre el mazo de la máquina y una banda, o
+ * entre los dos mazos, que se repite igual porque la máquina golpea siempre
+ * hacia el mismo sitio— y sin esto no acaban. Con el mazo del jugador quieto,
+ * un 4 % de las partidas simuladas seguían vivas a los 200 segundos. Una
+ * jugada normal contra la máquina dura pocos segundos: veinte sin gol es un
+ * peloteo, no una partida.
+ */
+export const RALLY_SECONDS = 20
+
+/** Cuánto lleva la jugada sin gol tras `dt` segundos más. */
+export function rallySeconds(previous: number, dt: number): number {
+  if (!Number.isFinite(dt) || dt <= 0) return previous
+  return previous + dt
+}
+
+/** Si toca sacar de nuevo porque la jugada no se acaba. */
+export function isRallyOver(seconds: number): boolean {
+  return seconds >= RALLY_SECONDS
+}
+
+/**
  * El disco puesto en el centro para sacar.
  *
  * Sale hacia quien acaba de encajar el gol —hacia el jugador si marcó la

@@ -77,6 +77,13 @@
 - **Disco muerto**: si se queda parado cuatro segundos se saca de centro. Ningún
   mazo cruza la línea de medio campo, así que un disco quieto donde el otro no
   llega congela la partida.
+- **Jugada que no se acaba**: a los veinte segundos sin gol también se saca de
+  centro (`RALLY_SECONDS`, en `src/lib/puckPhysics.ts`). El disco muerto no lo
+  cogía porque en esos peloteos el disco no se para: rebota igual entre el mazo
+  de la máquina y una banda porque ella golpea siempre hacia el mismo sitio. Con
+  el mazo del jugador parado, un 4 % de las partidas simuladas no acababa nunca;
+  `matchLoop.test.ts` juega doscientas con jitter y exige que ninguna pase del
+  minuto.
 - El aviso `THREE.Clock deprecated` sale de @react-three/fiber y está en la lista
   de terceros de `e2e/consola.spec.ts`. Cualquier otro aviso hace fallar el test.
 - **El reloj de la partida no depende de los fotogramas**: el bucle vive en

@@ -6,7 +6,9 @@ import {
 import { opponentStart, playerStart, stepOpponent } from './opponent'
 import {
   constrainMallet,
+  isRallyOver,
   isStalled,
+  rallySeconds,
   serve,
   stallSeconds,
   stepPuck,
@@ -82,6 +84,12 @@ export interface TableState {
   pause: number
   /** Cuánto lleva el disco muerto: pasado el plazo se saca de nuevo. */
   stalled: number
+  /**
+   * Cuánto lleva la jugada sin gol. Pasado el plazo se saca de nuevo: es lo
+   * que corta los peloteos que el disco muerto no ve, porque en ellos el disco
+   * no se para (`RALLY_SECONDS`).
+   */
+  rally: number
   /** Quién marcó el último gol: decide hacia dónde se saca. */
   pendingServe: Scorer | null
   /** Veces que el mazo del jugador ha golpeado el disco en esta partida. */
@@ -113,6 +121,7 @@ export function startTable({
     opponent: { position: opponentStart(skill), velocity: { x: 0, z: 0 } },
     pause: 0,
     stalled: 0,
+    rally: 0,
     pendingServe: lastScorer,
     playerHits: 0,
     leftover: 0,
@@ -261,6 +270,7 @@ function advanceStep(
         puck: result.puck,
         pause: GOAL_PAUSE_SECONDS,
         stalled: 0,
+        rally: 0,
         pendingServe: result.goal,
         playerHits,
       },
@@ -274,15 +284,19 @@ function advanceStep(
   // parado donde el otro no llega deja la partida congelada. Se saca de nuevo,
   // como en la mesa de verdad.
   const stalled = stallSeconds(table.stalled, result.puck, dt)
-  const dead = isStalled(stalled)
+  const rally = rallySeconds(table.rally, dt)
+  // Se vuelve a sacar por dos motivos distintos —el disco muerto y la jugada
+  // que no se acaba— y los dos empiezan una jugada nueva: las dos cuentas a cero.
+  const reserve = isStalled(stalled) || isRallyOver(rally)
 
   return {
     table: {
       ...table,
       player,
       opponent,
-      puck: dead ? serve(table.pendingServe) : result.puck,
-      stalled: dead ? 0 : stalled,
+      puck: reserve ? serve(table.pendingServe) : result.puck,
+      stalled: reserve ? 0 : stalled,
+      rally: reserve ? 0 : rally,
       playerHits,
     },
     goal: null,

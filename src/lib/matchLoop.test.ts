@@ -13,7 +13,7 @@ import {
   type TableState,
 } from './matchLoop'
 import { playerStart } from './opponent'
-import { type Scorer, type Vec2 } from './puckPhysics'
+import { RALLY_SECONDS, type Scorer, type Vec2 } from './puckPhysics'
 
 /**
  * El reloj de la partida y lo que la mesa hace con él.
@@ -191,6 +191,95 @@ describe('una partida entera', () => {
     // navegador que la juega se quedaría sin tiempo aunque todos los ritmos
     // coincidieran.
     expect(Math.max(...durations)).toBeLessThan(30)
+  })
+})
+
+describe('la jugada que no se acaba', () => {
+  /**
+   * Fotogramas de navegador: unos 8 ms con algo de jitter, que es lo que
+   * convierte una partida en otra distinta. El generador va con semilla para
+   * que el test sea el mismo cada vez.
+   */
+  function jitteredFrames(seed: number): () => number {
+    let state = seed
+    return () => {
+      state = (state * 1664525 + 1013904223) % 4294967296
+      return 0.008 + (state / 4294967296 - 0.5) * 0.004
+    }
+  }
+
+  /**
+   * Segundos que tarda la máquina en marcar `goals` con el mazo del jugador
+   * parado y fotogramas con jitter. Es la partida del test de navegador.
+   */
+  function secondsToConcedeJittered(seed: number, goals: number): number {
+    const nextFrame = jitteredFrames(seed)
+    let table = startTable({ skill, lastScorer: null })
+    let conceded = 0
+    let clock = 0
+
+    while (conceded < goals) {
+      const delta = nextFrame()
+      const result = advanceTable(table, frame(delta))
+      table = result.table
+      conceded += result.goals.filter((g) => g === 'opponent').length
+      clock += delta
+      if (clock > 300) return clock
+    }
+
+    return clock
+  }
+
+  it('ninguna de doscientas partidas con el mazo parado se queda sin acabar', () => {
+    // Antes de la regla de la jugada, un 4 % de estas partidas seguían vivas a
+    // los 200 s: un peloteo entre el mazo de la máquina y una banda que se
+    // repetía igual para siempre. Con tres goles y un tope de RALLY_SECONDS
+    // por jugada, la más larga tiene que quedar muy por debajo del minuto.
+    const durations = Array.from({ length: 200 }, (_, seed) =>
+      secondsToConcedeJittered(seed + 1, 3),
+    )
+
+    expect(Math.max(...durations)).toBeLessThan(60)
+  })
+
+  it('pasado el plazo sin gol se saca de centro, y la cuenta vuelve a cero', () => {
+    // El disco cruzando a lo ancho por donde nadie llega, con la jugada a punto
+    // de caducar: el paso siguiente la corta.
+    const almost: TableState = { ...loosePuck(), rally: RALLY_SECONDS - 1 / 120 }
+
+    const served = advanceTable(almost, frame(1 / 60)).table
+
+    expect(Math.hypot(served.puck.position.x, served.puck.position.z)).toBeLessThan(0.05)
+    expect(served.rally).toBe(0)
+    expect(served.stalled).toBe(0)
+  })
+
+  it('la jugada cuenta el tiempo jugado, no el de la celebración', () => {
+    const shot: TableState = {
+      ...startTable({ skill, lastScorer: null }),
+      puck: { position: { x: 0, z: -0.7 }, velocity: { x: 0, z: -6 } },
+      rally: 12,
+    }
+
+    const scored = play(shot, { frameSeconds: 1 / 60, seconds: 0.2 })
+    expect(scored.goals).toEqual(['player'])
+    expect(scored.table.rally).toBe(0)
+
+    // Mientras se celebra el gol la jugada no corre.
+    const celebrating = play(scored.table, {
+      frameSeconds: 1 / 60,
+      seconds: GOAL_PAUSE_SECONDS / 2,
+    })
+    expect(celebrating.table.rally).toBe(0)
+  })
+
+  it('fuera de la partida la jugada tampoco corre', () => {
+    const idle = play(loosePuck(), {
+      frameSeconds: 1 / 60,
+      seconds: 2,
+      input: { playing: false },
+    })
+    expect(idle.table.rally).toBe(0)
   })
 })
 

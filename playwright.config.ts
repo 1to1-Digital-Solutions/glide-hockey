@@ -23,6 +23,8 @@ const HOST = '127.0.0.1'
 const baseURL = `http://${HOST}:${PORT}`
 
 export default defineConfig({
+  // Empaqueta el emulador de WebXR y el anfitrión de prueba (`e2e/support/`).
+  globalSetup: './e2e/support/globalSetup.ts',
   testDir: './e2e',
   // La partida va en tiempo real: dos a la vez en la misma máquina se roban
   // fotogramas y falsean lo que tarda el disco en cruzar la mesa.

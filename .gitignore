@@ -28,3 +28,6 @@ next-env.d.ts
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# empaquetados por e2e/support/globalSetup.ts antes de cada suite de Playwright
+/e2e/support/*.bundle.js

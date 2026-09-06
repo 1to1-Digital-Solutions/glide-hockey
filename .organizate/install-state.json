@@ -41,6 +41,10 @@
     {
       "path": ".github/workflows/ci.yml",
       "source": "catalog/templates/ci.yml.tmpl"
+    },
+    {
+      "path": ".claude/rules/xr.md",
+      "source": "rules/xr.md"
     }
   ]
 }

@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useFrame, type RootState, type ThreeEvent } from '@react-three/fiber'
-import { Vector3, type Group, type PointLight } from 'three'
+import { Vector3, type Group, type PointLight, type Texture } from 'three'
 import {
   OPPONENT_SKILLS,
   RAIL_HEIGHT,
@@ -25,7 +25,7 @@ import {
   type ScreenPoint,
 } from '../../lib/sceneProbe'
 import { impactStrength } from '../../lib/audioEngine'
-import { type PlayGameSound } from '../../lib/useGameAudio'
+import { type PlayGameSound, type SlidePuck } from '../../lib/useGameAudio'
 import { Mallet } from './Mallet'
 import { Puck } from './Puck'
 
@@ -53,11 +53,17 @@ import { Puck } from './Puck'
  */
 export function Rink({
   play,
+  slide,
   onAim,
+  environment,
 }: {
   play: PlayGameSound
+  /** El roce del disco según su velocidad, cada fotograma (`useGameAudio`). */
+  slide: SlidePuck
   /** Cada movimiento del mazo, para saber qué mando lo lleva (`useGameHaptics`). */
   onAim?: (event: ThreeEvent<PointerEvent>) => void
+  /** Los reflejos de la sala para el disco, los mismos que lleva el tablero. */
+  environment?: Texture
 }) {
   const {
     gameState,
@@ -76,7 +82,12 @@ export function Rink({
   const goalLight = useRef<PointLight>(null)
 
   const table = useRef<TableState>(startTable({ skill, lastScorer }))
+  /** Lo rápido que va el disco, para su halo (`Puck`) y su roce (`play.slide`). */
+  const puckSpeed = useRef(0)
 
+  // Al retirar la mesa (fin de ronda, vuelta al menú) el roce se apaga: nadie
+  // volvería a llamarlo y se quedaría sonando a la última velocidad.
+  useEffect(() => () => slide(0), [slide])
   /** Dónde apunta el jugador. El mazo va detrás, no salta hasta ahí. */
   const pointer = useRef<Vec2>(playerStart())
 
@@ -127,6 +138,12 @@ export function Rink({
     if (bounced) play('bounce', impactStrength(impact.bounce))
     if (goals.length > 0) play('goal')
 
+    // El disco deslizándose se oye y se ve según lo rápido que va; parado, o
+    // con la partida en pausa, nada.
+    const { x: vx, z: vz } = next.puck.velocity
+    const speed = gameState === 'playing' ? Math.hypot(vx, vz) : 0
+    puckSpeed.current = speed
+    slide(speed)
     place(puckObject.current, next.puck.position)
     place(playerObject.current, next.player.position)
     place(opponentObject.current, next.opponent.position)
@@ -182,7 +199,7 @@ export function Rink({
         <planeGeometry args={[TABLE_WIDTH, TABLE_LENGTH]} />
       </mesh>
 
-      <Puck ref={puckObject} />
+      <Puck ref={puckObject} speedRef={puckSpeed} environment={environment} />
       <Mallet ref={playerObject} color={PALETTE.primary} />
       <Mallet ref={opponentObject} color={PALETTE.rival} />
 

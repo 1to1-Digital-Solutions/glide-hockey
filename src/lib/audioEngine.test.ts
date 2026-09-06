@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { MAX_PUCK_SPEED } from './gameConfig'
-import { createAirHockeyAudio, impactStrength } from './audioEngine'
+import { createAirHockeyAudio, impactStrength, slideLevel, slidePitch } from './audioEngine'
+import { STALL_SPEED } from './puckPhysics'
 
 /**
  * La Web Audio API no existe en jsdom, así que se le da una de mentira que
@@ -14,6 +15,7 @@ function fakeParam(): AudioParam {
     value: 0,
     setValueAtTime: vi.fn(),
     exponentialRampToValueAtTime: vi.fn(),
+    setTargetAtTime: vi.fn(),
   } as unknown as AudioParam
 }
 
@@ -77,7 +79,7 @@ function fakeAudioContext(
     createBiquadFilter: () => {
       const filter = {
         type: 'lowpass',
-        frequency: { value: 0 },
+        frequency: { value: 0, setTargetAtTime: vi.fn() },
         Q: { value: 0 },
         connect: vi.fn(),
       }
@@ -95,6 +97,7 @@ function fakeAudioContext(
     },
     createBufferSource: () => ({
       buffer: null,
+      loop: false,
       playbackRate: { value: 1 },
       connect: vi.fn(),
       start: vi.fn(),
@@ -286,3 +289,58 @@ describe('la fuerza del impacto', () => {
     expect(flojo).toEqual(entero)
   })
 })
+
+describe('el roce del disco', () => {
+  it('no suena parado y sube con la velocidad hasta un fondo, nunca a golpe entero', () => {
+    expect(slideLevel(0)).toBe(0)
+    expect(slideLevel(STALL_SPEED)).toBe(0)
+    expect(slideLevel(1)).toBeGreaterThan(0)
+    expect(slideLevel(3)).toBeGreaterThan(slideLevel(1))
+    expect(slideLevel(MAX_PUCK_SPEED)).toBeLessThan(0.5)
+    expect(slideLevel(MAX_PUCK_SPEED * 3)).toBe(slideLevel(MAX_PUCK_SPEED))
+    expect(slideLevel(Number.NaN)).toBe(0)
+  })
+
+  it('el arranque se oye más que la punta: la curva es una raíz', () => {
+    const arranque = slideLevel(1) - slideLevel(STALL_SPEED)
+    const punta = slideLevel(MAX_PUCK_SPEED) - slideLevel(MAX_PUCK_SPEED - 1)
+    expect(arranque).toBeGreaterThan(punta)
+  })
+
+  it('más rápido, más agudo', () => {
+    expect(slidePitch(0)).toBeLessThan(slidePitch(3))
+    expect(slidePitch(3)).toBeLessThan(slidePitch(MAX_PUCK_SPEED))
+    expect(slidePitch(MAX_PUCK_SPEED * 2)).toBe(slidePitch(MAX_PUCK_SPEED))
+  })
+
+  it('no abre el contexto por su cuenta: hasta el primer golpe no hay nada que roce', () => {
+    const create = vi.fn(() => fakeAudioContext().context)
+    const audio = createAirHockeyAudio(create)
+
+    audio.slide(3)
+    expect(create).not.toHaveBeenCalled()
+
+    audio.play('strike')
+    audio.slide(3)
+    expect(create).toHaveBeenCalledTimes(1)
+  })
+
+  it('una sola voz en bucle que sigue la velocidad suavizada, y se para al cerrar', () => {
+    const fake = fakeAudioContext()
+    const audio = createAirHockeyAudio(() => fake.context)
+    audio.play('strike')
+    const filtrosAntes = fake.filters.length
+
+    audio.slide(2)
+    audio.slide(4)
+    audio.slide(0)
+
+    // Una voz: un filtro más que los del golpe, aunque se haya llamado tres veces.
+    expect(fake.filters.length).toBe(filtrosAntes + 1)
+    audio.close()
+    // Y cerrar no deja el roce sonando en un contexto que ya no existe.
+    audio.slide(3)
+    expect(fake.filters.length).toBe(filtrosAntes + 1)
+  })
+})
+

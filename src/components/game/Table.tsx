@@ -7,9 +7,9 @@ import {
   TABLE_LENGTH,
   TABLE_WIDTH,
 } from '../../lib/gameConfig'
+import { type Texture } from 'three'
 import { PALETTE } from '../../lib/palette'
 import { HALF_LENGTH, HALF_WIDTH } from '../../lib/puckPhysics'
-
 /**
  * La mesa: el tablero, las bandas que lo rodean, las dos porterías y las
  * marcas de la pista.
@@ -171,18 +171,22 @@ function Legs() {
   )
 }
 
-export function Table() {
+export function Table({ environment }: { environment?: Texture }) {
   return (
     <group>
+      {/* El tablero refleja la sala (`useRoomEnvironment`): es lo que le da el
+          brillo de una mesa de verdad y lo que hace que el disco se lea sobre
+          él al moverse, porque el reflejo se mueve con la cabeza y el disco no. */}
       <mesh position={[0, -TOP_THICKNESS / 2, 0]} receiveShadow>
         <boxGeometry args={[TABLE_WIDTH, TOP_THICKNESS, TABLE_LENGTH]} />
         <meshStandardMaterial
           color={PALETTE.table}
-          roughness={0.25}
-          metalness={0.05}
+          roughness={0.18}
+          metalness={0.08}
+          envMap={environment ?? null}
+          envMapIntensity={0.7}
         />
       </mesh>
-
       <Markings />
       <Rails />
       {/* La del jugador está en Z positivo, que es el lado que tiene delante. */}

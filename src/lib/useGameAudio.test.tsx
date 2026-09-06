@@ -19,6 +19,7 @@ import { useGameAudio } from './useGameAudio'
 const audio = vi.hoisted(() => ({
   create: vi.fn(),
   play: vi.fn(),
+  slide: vi.fn(),
   close: vi.fn(),
 }))
 
@@ -49,6 +50,7 @@ describe('useGameAudio', () => {
     // `restoreMocks` deja los dobles sin implementación antes de cada test.
     audio.create.mockImplementation(() => ({
       play: audio.play,
+      slide: audio.slide,
       close: audio.close,
     }))
   })
@@ -62,9 +64,9 @@ describe('useGameAudio', () => {
   it('un solo reproductor para toda la partida', () => {
     const { result } = renderAudio()
 
-    result.current('strike')
-    result.current('bounce')
-    result.current('goal')
+    result.current.play('strike')
+    result.current.play('bounce')
+    result.current.play('goal')
 
     expect(audio.create).toHaveBeenCalledTimes(1)
     expect(played()).toEqual(['strike', 'bounce', 'goal'])
@@ -74,8 +76,8 @@ describe('useGameAudio', () => {
     setMuted(true)
     const { result } = renderAudio()
 
-    result.current('strike')
-    result.current('goal')
+    result.current.play('strike')
+    result.current.play('goal')
 
     expect(audio.create).not.toHaveBeenCalled()
     expect(audio.play).not.toHaveBeenCalled()
@@ -83,7 +85,7 @@ describe('useGameAudio', () => {
 
   it('silenciar suelta el audio del dispositivo, no solo lo calla', () => {
     const { result } = renderAudio()
-    result.current('strike')
+    result.current.play('strike')
 
     setMuted(true)
 
@@ -92,14 +94,14 @@ describe('useGameAudio', () => {
 
   it('el sonido se apaga y se enciende sin recargar el juego', () => {
     const view = renderAudio()
-    view.result.current('strike')
+    view.result.current.play('strike')
 
     setMuted(true)
-    view.result.current('bounce')
+    view.result.current.play('bounce')
     expect(played()).toEqual(['strike'])
 
     setMuted(false)
-    view.result.current('goal')
+    view.result.current.play('goal')
     expect(played()).toEqual(['strike', 'goal'])
     // El que se soltó al silenciar no vuelve: hace falta abrir otro.
     expect(audio.create).toHaveBeenCalledTimes(2)
@@ -107,10 +109,32 @@ describe('useGameAudio', () => {
 
   it('quitar la escena se lleva su audio', () => {
     const view = renderAudio()
-    view.result.current('strike')
+    view.result.current.play('strike')
 
     view.unmount()
 
     expect(audio.close).toHaveBeenCalled()
   })
+
+  it('el roce va por el mismo reproductor y no lo abre antes del primer golpe', () => {
+    const { result } = renderAudio()
+
+    result.current.slide(3)
+    expect(audio.create).not.toHaveBeenCalled()
+
+    result.current.play('strike')
+    result.current.slide(3)
+    expect(audio.create).toHaveBeenCalledTimes(1)
+    expect(audio.slide).toHaveBeenCalledWith(3)
+  })
+
+  it('silenciado, el roce tampoco suena', () => {
+    setMuted(true)
+    const { result } = renderAudio()
+
+    result.current.play('strike')
+    result.current.slide(3)
+    expect(audio.slide).not.toHaveBeenCalled()
+  })
 })
+

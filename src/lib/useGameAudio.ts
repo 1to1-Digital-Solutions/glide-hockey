@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   type AirHockeyAudio,
   type GameSound,
@@ -29,8 +29,10 @@ import { useGame } from './gameStore'
  * así que quien la llama no tiene que preguntar.
  */
 export type PlayGameSound = (sound: GameSound, strength?: number) => void
+/** El roce del disco, cada fotograma, con su velocidad en m/s (0 lo apaga). */
+export type SlidePuck = (speed: number) => void
 
-export function useGameAudio(): PlayGameSound {
+export function useGameAudio(): { play: PlayGameSound; slide: SlidePuck } {
   const { muted } = useGame()
   const audio = useRef<AirHockeyAudio | null>(null)
 
@@ -53,7 +55,7 @@ export function useGameAudio(): PlayGameSound {
     [],
   )
 
-  return useCallback(
+  const play = useCallback(
     (sound: GameSound, strength?: number) => {
       if (muted) return
       // El contexto se crea con el primer sonido, que siempre llega con la
@@ -64,4 +66,16 @@ export function useGameAudio(): PlayGameSound {
     },
     [muted],
   )
+
+  // El roce va colgado del mismo reproductor: silenciado no hay reproductor y
+  // no hace nada; sin golpe previo tampoco (no abre el contexto).
+  const slide = useCallback(
+    (speed: number) => {
+      if (muted) return
+      audio.current?.slide(speed)
+    },
+    [muted],
+  )
+
+  return useMemo(() => ({ play, slide }), [play, slide])
 }

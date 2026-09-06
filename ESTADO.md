@@ -69,6 +69,21 @@
   el mazo, el golpe va a las dos manos.
 - 150 tests unitarios y 11 de navegador. Lint, tipos y build en verde.
 
+- **v0.3.0 (2026-09-06): la mesa refleja, el disco brilla y roza.** Un **mapa de entorno sin
+  fichero**: `RoomEnvironment` de three prefiltrado con `PMREMGenerator` una vez al montar
+  (`lib/useRoomEnvironment.ts`), aplicado al tablero y al disco (`envMap`, no
+  `scene.environment`: dentro del salón la escena es del anfitrión). La tarea pedía un
+  cubemap/HDRI desde `assetsBase`; esto se ve igual y no pide nada por HTTP. El disco lleva
+  **emisivo y un halo aditivo que crecen con la velocidad** (`lib/puckGlow.ts`, `Puck.tsx` con un
+  ref de velocidad que escribe la pista). Y el **roce del disco** se oye: una voz continua de
+  ruido en bucle filtrado en el mismo `AudioContext`, cuyo volumen (raíz de la velocidad, tope
+  0,28) y tono (380–1900 Hz) siguen la velocidad con `setTargetAtTime` (`slideLevel`/`slidePitch`
+  en `audioEngine.ts`, tests de la curva); no abre el contexto por su cuenta, obedece al silencio
+  y se apaga al retirar la pista. `useGameAudio()` devuelve ahora `{ play, slide }`. **Coste
+  medido** en llamadas de dibujo (`e2e/mesa.spec.ts`, techo 40): la mesa en el menú se queda en
+  **27**, igual que antes; el halo es una malla más solo en partida. **Sin probar con las gafas**:
+  ahí hay que mirar si el roce cansa (`SLIDE_MAX_LEVEL`) y si los reflejos cuestan fotogramas.
+
 ## Pendiente / próximos pasos
 
 - Probar con visor de verdad (ver «siguiente paso»).

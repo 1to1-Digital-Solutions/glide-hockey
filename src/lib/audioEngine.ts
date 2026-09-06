@@ -26,9 +26,39 @@
 
 /** Los tres momentos que suenan en una partida. */
 import { MAX_PUCK_SPEED } from './gameConfig'
+import { STALL_SPEED } from './puckPhysics'
 
 export type GameSound = 'strike' | 'bounce' | 'goal'
 
+/**
+ * Cuánto se oye el disco deslizándose, de 0 a 1, según su velocidad en m/s.
+ *
+ * Nada por debajo de la velocidad a la que el disco cuenta como parado
+ * (`STALL_SPEED`): un disco quieto no roza. De ahí sube con la raíz de la
+ * velocidad —el oído nota más el arranque que la punta— hasta el tope a la
+ * velocidad máxima. Es un sonido de fondo: nunca llega al volumen de un golpe.
+ */
+export function slideLevel(speed: number): number {
+  if (!Number.isFinite(speed) || speed <= STALL_SPEED) return 0
+  const t = Math.min(1, (speed - STALL_SPEED) / (MAX_PUCK_SPEED - STALL_SPEED))
+  return SLIDE_MAX_LEVEL * Math.sqrt(t)
+}
+
+/**
+ * A qué frecuencia se filtra el roce según la velocidad: más rápido, más agudo.
+ * Es lo que hace que la velocidad se oiga y no solo el volumen.
+ */
+export function slidePitch(speed: number): number {
+  const s = Number.isFinite(speed) ? Math.min(1, Math.max(0, speed / MAX_PUCK_SPEED)) : 0
+  return SLIDE_PITCH_MIN + (SLIDE_PITCH_MAX - SLIDE_PITCH_MIN) * s
+}
+
+/** Tope del roce respecto a un golpe entero, y su banda de frecuencias en Hz. */
+const SLIDE_MAX_LEVEL = 0.28
+const SLIDE_PITCH_MIN = 380
+const SLIDE_PITCH_MAX = 1900
+/** Segundos que tarda el roce en seguir a la velocidad: sin saltos entre fotogramas. */
+const SLIDE_SMOOTHING = 0.05
 /**
  * Cuánto de fuerte es un impacto, de 0 a 1, a partir de su velocidad en m/s.
  * El tope es la velocidad máxima del disco: un golpe a esa velocidad es el
@@ -53,6 +83,12 @@ export interface AirHockeyAudio {
    * una celebración y no un impacto. Si no hay con qué, no hace nada.
    */
   play: (sound: GameSound, strength?: number) => void
+  /**
+   * El disco deslizándose: un roce continuo cuyo volumen y tono siguen la
+   * velocidad (m/s). Se llama cada fotograma; a 0 se apaga. No abre el contexto
+   * por su cuenta: hasta el primer golpe no hay nada que roce.
+   */
+  slide: (speed: number) => void
   /** Suelta el contexto. Sin esto queda un audio abierto por escena montada. */
   close: () => void
 }
@@ -256,6 +292,8 @@ export function createAirHockeyAudio(
   let context: AudioContext | null = null
   let master: GainNode | null = null
   let noise: AudioBuffer | null = null
+  /** La voz del roce, una para toda la partida: ruido en bucle, filtro y volumen. */
+  let slideVoice: { filter: BiquadFilterNode; gain: GainNode; source: AudioBufferSourceNode } | null = null
   // Que ya se haya intentado y no haya salido: sin esto, un navegador sin Web
   // Audio se lleva un intento de crear contexto por cada golpe de la partida,
   // y de esos hay decenas.
@@ -288,14 +326,54 @@ export function createAirHockeyAudio(
     for (const tone of recipe.tones) playTone(ctx, master, now, tone)
   }
 
+  /** Monta la voz del roce sobre el contexto que ya hay. */
+  function slideReady(ctx: AudioContext) {
+    if (slideVoice != null || master == null || noise == null) return slideVoice
+    const source = ctx.createBufferSource()
+    source.buffer = noise
+    source.loop = true
+    const filter = ctx.createBiquadFilter()
+    filter.type = 'bandpass'
+    filter.frequency.value = SLIDE_PITCH_MIN
+    filter.Q.value = 0.9
+    const gain = ctx.createGain()
+    gain.gain.value = 0
+    source.connect(filter)
+    filter.connect(gain)
+    gain.connect(master)
+    source.start()
+    slideVoice = { filter, gain, source }
+    return slideVoice
+  }
+
+  function slide(speed: number): void {
+    // Sin contexto no se roza: el primer golpe es quien lo abre.
+    if (context == null) return
+    const voice = slideReady(context)
+    if (voice == null) return
+    const now = context.currentTime
+    // Suavizado y no un salto: la velocidad cambia cada fotograma y un volumen
+    // que salte con ella crepita.
+    voice.gain.gain.setTargetAtTime(slideLevel(speed), now, SLIDE_SMOOTHING)
+    voice.filter.frequency.setTargetAtTime(slidePitch(speed), now, SLIDE_SMOOTHING)
+  }
+
   function close(): void {
+    if (slideVoice != null) {
+      try {
+        slideVoice.source.stop()
+      } catch {
+        // Ya parada: el contexto se cierra igual.
+      }
+    }
+    slideVoice = null
     if (context != null) ignore(context.close())
     context = null
     master = null
     noise = null
   }
 
-  return { play, close }
+  return { play, slide, close }
 }
 
 /** La capa de ruido: el material del golpe. */

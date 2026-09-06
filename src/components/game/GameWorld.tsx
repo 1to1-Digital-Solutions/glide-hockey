@@ -8,6 +8,7 @@ import { HALF_LENGTH } from '../../lib/puckPhysics'
 import { type GameSound } from '../../lib/audioEngine'
 import { useGameAudio } from '../../lib/useGameAudio'
 import { useGameHaptics } from '../../lib/useGameHaptics'
+import { useRoomEnvironment } from '../../lib/useRoomEnvironment'
 import {
   XRCountdown,
   XRGameOver,
@@ -60,7 +61,7 @@ export function GameWorld() {
   // partida y en cada ronda del reto, y con el audio dentro, la ronda ganada se
   // llevaba por delante el gol que la ganaba —el contexto se cerraba mientras
   // sonaba— y estrenaba otro contexto por ronda (ver `lib/useGameAudio.ts`).
-  const play = useGameAudio()
+  const { play, slide } = useGameAudio()
   const haptics = useGameHaptics()
   // Cada suceso de la mesa suena y se siente a la vez: el sonido obedece al
   // silencio y la vibración no, que con el juego callado es lo único que dice
@@ -72,7 +73,8 @@ export function GameWorld() {
     },
     [play, haptics],
   )
-
+  // Los reflejos de la mesa y del disco, calculados una vez (ver el hook).
+  const environment = useRoomEnvironment()
   // En realidad mixta el escenario es la habitación del jugador: dibujar la
   // sala la taparía y rompería el passthrough.
   const passthrough = mode === 'immersive-ar'
@@ -103,12 +105,21 @@ export function GameWorld() {
         {!passthrough ? <Room /> : null}
 
         <group position={[0, TABLE_HEIGHT, TABLE_CENTER_Z]}>
-          <Table />
-
+          <Table environment={environment} />
           {/* El disco y los mazos solo durante la partida: en el menú la mesa
               se ve vacía, que es lo que hace que empezar se note. `key` la
               estrena en cada partida y en cada ronda del reto. */}
-          {gameState !== 'menu' ? <Rink key={runId} play={feedback} onAim={haptics.noteAim} /> : null}
+          {gameState !== 'menu' ? (
+            <Rink
+              key={runId}
+              play={feedback}
+              // El roce del disco no vibra: es un fondo continuo, y un mando
+              // zumbando toda la partida cansa la mano. Va solo al audio.
+              slide={slide}
+              onAim={haptics.noteAim}
+              environment={environment}
+            />
+          ) : null}
 
           {/* La interfaz del visor no se monta siquiera en escritorio. No es
               solo que sobre —ahí manda el DOM—: los punteros miran si hay

@@ -15,8 +15,16 @@ import { createStoredPreference } from './storage'
 /** Clave del récord de cada modo, con prefijo para no chocar con nada más. */
 export const HIGH_SCORE_KEYS: Record<GameMode, string> = {
   practice: 'air-hockey:best-points',
+  levels: 'air-hockey:best-points:levels',
   challenge: 'air-hockey:best-points:challenge',
 }
+
+/**
+ * La partida sin fin no tiene récord de puntos —crecen sin tope con el tiempo—,
+ * así que su marca es la mejor racha de goles seguidos. Clave aparte para que
+ * no se mezcle con la prueba normal, que sí mide el total.
+ */
+export const ENDLESS_STREAK_KEY = 'air-hockey:best-streak:endless'
 
 /**
  * Interpreta lo leído del almacenamiento.
@@ -53,4 +61,22 @@ export const {
 export function saveBestPoints(mode: GameMode, points: number): void {
   if (!Number.isSafeInteger(points) || points <= getBestPoints(mode)) return
   bestPoints.save(points, mode)
+}
+
+const endlessStreak = createStoredPreference<number>({
+  key: ENDLESS_STREAK_KEY,
+  parse: parseBestPoints,
+  serialize: String,
+})
+
+export const {
+  get: getBestEndlessStreak,
+  getServer: getServerBestEndlessStreak,
+  subscribe: subscribeBestEndlessStreak,
+} = endlessStreak
+
+/** Guarda la racha de una partida sin fin si mejora la marca. */
+export function saveBestEndlessStreak(streak: number): void {
+  if (!Number.isSafeInteger(streak) || streak <= getBestEndlessStreak()) return
+  endlessStreak.save(streak)
 }

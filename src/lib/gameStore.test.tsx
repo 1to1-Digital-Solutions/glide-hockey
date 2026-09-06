@@ -217,6 +217,65 @@ describe('useGameStoreValue', () => {
     expect(result.current.isRecord).toBe(false)
   })
 
+  it('sin fin, la partida no se acaba por goles y la termina el jugador con la racha guardada', () => {
+    const { result } = renderHook(() => useGameStoreValue())
+
+    act(() => result.current.setEndless(true))
+    act(() => result.current.startGame())
+    skipCountdown()
+
+    scorePlayer(result, MAX_GOALS + 3)
+    expect(result.current.gameState).toBe('playing')
+    expect(result.current.outcome).toBeNull()
+
+    act(() => result.current.endRun())
+    expect(result.current.gameState).toBe('finished')
+    expect(result.current.outcome).toBe('won')
+    // La marca de este modo es la racha, no los puntos.
+    expect(result.current.bestPoints).toBe(MAX_GOALS + 3)
+    expect(result.current.isRecord).toBe(true)
+    expect(getBestPoints('practice')).toBe(0)
+  })
+
+  it('en niveles, ganar el nivel da estrellas y desbloquea el siguiente, sin encadenar', () => {
+    const { result } = renderHook(() => useGameStoreValue())
+
+    act(() => result.current.setGameMode('levels'))
+    expect(result.current.activeLevel).toBe(1)
+    expect(result.current.unlockedLevel).toBe(1)
+    act(() => result.current.startGame())
+    skipCountdown()
+
+    // Dos encajados de tres metidos: no es menos de la mitad, así que una estrella.
+    scoreOpponent(result, 2)
+    scorePlayer(result, CHALLENGE_GOAL_STEPS[0])
+
+    expect(result.current.gameState).toBe('finished')
+    expect(result.current.levelResult).toEqual({ stars: 1, passed: true, unlocked: 2 })
+    expect(result.current.unlockedLevel).toBe(2)
+    // El nivel jugado no se mueve aunque el desbloqueado haya subido.
+    expect(result.current.activeLevel).toBe(1)
+
+    act(() => result.current.resetGame())
+    expect(result.current.activeLevel).toBe(2)
+  })
+
+  it('en niveles, perder no abre nada y no se puede elegir más allá de lo desbloqueado', () => {
+    const { result } = renderHook(() => useGameStoreValue())
+
+    act(() => result.current.setGameMode('levels'))
+    act(() => result.current.setLevel(9))
+    expect(result.current.activeLevel).toBe(1)
+    act(() => result.current.startGame())
+    skipCountdown()
+
+    scoreOpponent(result, CHALLENGE_GOAL_STEPS[0])
+
+    expect(result.current.levelResult).toEqual({ stars: 0, passed: false, unlocked: null })
+    expect(result.current.unlockedLevel).toBe(1)
+    expect(result.current.isRecord).toBe(false)
+  })
+
   it('volver al menú deja el marcador y los puntos a cero', () => {
     const { result } = renderHook(() => useGameStoreValue())
 

@@ -2,7 +2,7 @@
 
 import { useExit } from '../../game/exit'
 import { DIFFICULTY_LABELS } from '../../lib/gameConfig'
-import { GAME_MODE_LABELS } from '../../lib/gameMode'
+import { GAME_MODE_LABELS, isEndless } from '../../lib/gameMode'
 import { useGame } from '../../lib/gameStore'
 
 /**
@@ -54,9 +54,10 @@ function Scoreboard() {
     points,
     streak,
     round,
+    activeLevel,
     gameMode,
   } = useGame()
-
+  const endless = isEndless(activeGoalTarget)
   return (
     <header className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-4">
       <div className="flex items-center gap-5 rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_82%,transparent)] px-5 py-3 backdrop-blur-sm">
@@ -91,9 +92,11 @@ function Scoreboard() {
           <span>
             {GAME_MODE_LABELS[gameMode]}
             {round != null ? ` · ronda ${round}` : null}
+            {gameMode === 'levels' ? ` · nivel ${activeLevel}` : null}
           </span>
           <span>
-            {DIFFICULTY_LABELS[activeDifficulty]} · a {activeGoalTarget} goles
+            {DIFFICULTY_LABELS[activeDifficulty]} ·{' '}
+            {endless ? 'sin fin' : `a ${activeGoalTarget} goles`}
           </span>
         </div>
       </div>
@@ -125,15 +128,19 @@ function GameOver() {
     points,
     isRecord,
     bestStreak,
+    bestPoints,
     totalPlayerGoals,
     totalOpponentGoals,
     round,
+    activeGoalTarget,
+    activeLevel,
+    levelResult,
     startGame,
     resetGame,
   } = useGame()
 
   const won = outcome === 'won'
-
+  const endless = isEndless(activeGoalTarget)
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
       <div className="pointer-events-auto animate-fade-slide-up w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_92%,transparent)] p-6 text-center shadow-2xl backdrop-blur-sm">
@@ -141,14 +148,33 @@ function GameOver() {
           className="text-2xl font-bold"
           style={{ color: won ? 'var(--color-primary)' : 'var(--color-rival)' }}
         >
-          {won ? 'Partida ganada' : 'Partida perdida'}
+          {endless
+            ? 'Partida terminada'
+            : levelResult
+              ? levelResult.passed
+                ? `Nivel ${activeLevel} superado`
+                : `Nivel ${activeLevel} no superado`
+              : won
+                ? 'Partida ganada'
+                : 'Partida perdida'}
         </h2>
+        {levelResult ? (
+          <p className="mt-2 text-2xl tracking-[0.3em] text-[var(--color-accent)]" aria-hidden>
+            {'★'.repeat(levelResult.stars)}
+            <span className="text-white/20">{'★'.repeat(3 - levelResult.stars)}</span>
+          </p>
+        ) : null}
         <p className="mt-1.5 text-sm text-white/60">
           {round != null
             ? `El reto se acaba en la ronda ${round}.`
-            : `Marcador final: ${totalPlayerGoals}–${totalOpponentGoals}.`}
+            : levelResult
+              ? levelResult.unlocked != null
+                ? `${levelResult.stars} ${levelResult.stars === 1 ? 'estrella' : 'estrellas'} · nivel ${levelResult.unlocked} desbloqueado.`
+                : levelResult.passed
+                  ? `${levelResult.stars} ${levelResult.stars === 1 ? 'estrella' : 'estrellas'} · marcador ${totalPlayerGoals}–${totalOpponentGoals}.`
+                  : 'Gana la partida para abrir el siguiente.'
+              : `Marcador final: ${totalPlayerGoals}–${totalOpponentGoals}.`}
         </p>
-
         <p className="mt-5 text-5xl font-bold tabular-nums">
           {points.toLocaleString('es-ES')}
         </p>
@@ -158,10 +184,11 @@ function GameOver() {
 
         {isRecord ? (
           <p className="mt-3 text-sm font-semibold text-[var(--color-accent)]">
-            ¡Récord nuevo!
+            {endless ? '¡Mejor racha nueva!' : '¡Récord nuevo!'}
           </p>
+        ) : endless && bestPoints > 0 ? (
+          <p className="mt-3 text-sm text-white/50">Tu mejor racha sin fin: {bestPoints}</p>
         ) : null}
-
         <dl className="mt-5 grid grid-cols-3 gap-3 text-sm">
           <div>
             <dt className="text-[0.6rem] uppercase tracking-[0.14em] text-white/40">
@@ -206,11 +233,22 @@ function GameOver() {
 
 /** Dejar la partida a medias, sin esperar al final. */
 function QuitButton() {
-  const { resetGame, immersive } = useGame()
+  const { resetGame, immersive, endRun, activeGoalTarget, gameState } = useGame()
   const exit = useExit()
 
   return (
     <div className="pointer-events-none absolute right-4 bottom-4 flex gap-2">
+      {/* La partida sin fin solo la cierra el jugador: terminar sí pasa por el
+          resumen y guarda la racha; dejarla, no. */}
+      {isEndless(activeGoalTarget) && gameState === 'playing' ? (
+        <button
+          type="button"
+          onClick={endRun}
+          className="pointer-events-auto min-h-11 rounded-xl border border-[var(--color-primary)]/50 bg-[color-mix(in_srgb,var(--color-background)_75%,transparent)] px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:border-[var(--color-primary)]"
+        >
+          Terminar
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={resetGame}

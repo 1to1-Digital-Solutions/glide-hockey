@@ -1,6 +1,7 @@
 'use client'
 
 import { useGame } from '../../lib/gameStore'
+import { isEndless } from '../../lib/gameMode'
 import { PALETTE } from '../../lib/palette'
 import { useExit } from '../../game/exit'
 import {
@@ -42,8 +43,9 @@ function hitBox(
 
 /** El marcador de la partida en curso, con los puntos debajo. */
 export function XRScoreboard() {
-  const { gameState, playerGoals, opponentGoals, points, round } = useGame()
-
+  const { gameState, playerGoals, opponentGoals, points, round, gameMode, activeLevel } = useGame()
+  // La ronda del reto, o el nivel en Niveles: la misma fila.
+  const fila = round ?? (gameMode === 'levels' ? activeLevel : null)
   if (gameState === 'menu') return null
 
   return (
@@ -81,10 +83,11 @@ export function XRScoreboard() {
         position={[0, ROW.points, 0]}
       />
 
-      {/* En reto, la ronda por la que va. En prueba no hay rondas que enseñar. */}
-      {round != null ? (
+      {/* En reto, la ronda por la que va; en niveles, el nivel. En prueba no hay
+          nada que enseñar aquí. */}
+      {fila != null ? (
         <XRNumber
-          value={round}
+          value={fila}
           size={0.04}
           color={DIM_COLOR}
           position={[0, ROW.round, 0]}
@@ -113,14 +116,13 @@ export function XRCountdown() {
  * el marcador, que sigue a la vista al lado.
  */
 export function XRGameOver() {
-  const { gameState, outcome, points, isRecord, startGame, resetGame } =
+  const { gameState, outcome, points, isRecord, levelResult, startGame, resetGame } =
     useGame()
   const exit = useExit()
 
   if (gameState !== 'finished') return null
 
   const won = outcome === 'won'
-
   return (
     <group>
       <XRPanel width={0.6} height={0.42} />
@@ -140,6 +142,22 @@ export function XRGameOver() {
         position={[0, 0.02, 0]}
       />
 
+      {/* Las estrellas del nivel, bajo los puntos: las ganadas encendidas. */}
+      {levelResult ? (
+        <group position={[0, -0.055, 0]}>
+          {[0, 1, 2].map((i) => (
+            <mesh key={i} position={[(i - 1) * 0.045, 0, 0]} rotation={[0, 0, Math.PI / 4]}>
+              <planeGeometry args={[0.022, 0.022]} />
+              <meshBasicMaterial
+                color={i < levelResult.stars ? PALETTE.puck : DIM_COLOR}
+                toneMapped={false}
+                transparent
+                opacity={i < levelResult.stars ? 1 : 0.35}
+              />
+            </mesh>
+          ))}
+        </group>
+      ) : null}
       <XRPressable
         box={hitBox(-0.12, -0.13, ACTION_BUTTON)}
         onSelect={startGame}
@@ -177,21 +195,37 @@ export function XRGameOver() {
   )
 }
 
-/** Dejar la partida sin llegar al final. */
+/** Dejar la partida sin llegar al final; y en la sin fin, terminarla con resumen. */
 export function XRQuitButton() {
-  const { gameState, resetGame } = useGame()
+  const { gameState, resetGame, endRun, activeGoalTarget } = useGame()
 
   if (gameState !== 'playing' && gameState !== 'countdown') return null
 
   return (
-    <XRPressable box={hitBox(0, 0, SMALL_BUTTON)} onSelect={resetGame}>
-      <XRPlate
-        width={SMALL_BUTTON[0]}
-        height={SMALL_BUTTON[1]}
-        color={PALETTE.rail}
-        opacity={0.7}
-      />
-      <XRMenuIcon color={DIM_COLOR} />
-    </XRPressable>
+    <group>
+      <XRPressable box={hitBox(0, 0, SMALL_BUTTON)} onSelect={resetGame}>
+        <XRPlate
+          width={SMALL_BUTTON[0]}
+          height={SMALL_BUTTON[1]}
+          color={PALETTE.rail}
+          opacity={0.7}
+        />
+        <XRMenuIcon color={DIM_COLOR} />
+      </XRPressable>
+      {isEndless(activeGoalTarget) && gameState === 'playing' ? (
+        <XRPressable box={hitBox(0.13, 0, SMALL_BUTTON)} onSelect={endRun}>
+          <XRPlate
+            width={SMALL_BUTTON[0]}
+            height={SMALL_BUTTON[1]}
+            color={PALETTE.primaryDeep}
+            opacity={0.9}
+          />
+          <mesh>
+            <planeGeometry args={[0.036, 0.036]} />
+            <meshBasicMaterial color={PALETTE.foreground} toneMapped={false} />
+          </mesh>
+        </XRPressable>
+      ) : null}
+    </group>
   )
 }

@@ -18,13 +18,27 @@ import {
   MIN_GOALS,
   type Difficulty,
 } from './gameConfig'
-import { type GameMode, type RunOutcome, runOutcome } from './gameMode'
+import { ENDLESS, type GameMode, type RunOutcome, isEndless, runOutcome } from './gameMode'
 import {
+  getBestEndlessStreak,
   getBestPoints,
+  getServerBestEndlessStreak,
   getServerBestPoints,
+  saveBestEndlessStreak,
   saveBestPoints,
+  subscribeBestEndlessStreak,
   subscribeBestPoints,
 } from './highScore'
+import { LEVEL_COUNT, clampLevel, levelPassed, levelSpec, levelStars, type Stars } from './levels'
+import {
+  getServerStarsList,
+  getServerUnlockedLevel,
+  getStarsList,
+  getUnlockedLevel,
+  saveLevelResult,
+  subscribeStarsList,
+  subscribeUnlockedLevel,
+} from './progress'
 import {
   getMuted,
   getServerMuted,
@@ -55,8 +69,20 @@ export interface GameStore {
   goalTarget: number
   /** Nivel elegido. En reto lo manda la ronda y esto no se toca. */
   difficulty: Difficulty
-  /** Prueba o reto (ver `gameMode.ts`). */
+  /** Prueba, niveles o reto (ver `gameMode.ts`). */
   gameMode: GameMode
+  /** Prueba sin fin: la partida no se acaba por goles, la termina el jugador. */
+  endless: boolean
+  /** Nivel elegido en Niveles, o `null` = el más alto desbloqueado. */
+  level: number | null
+  /** El nivel que se juega: el elegido, o el más alto desbloqueado. */
+  activeLevel: number
+  /** Hasta qué nivel se puede jugar, recordado entre visitas. */
+  unlockedLevel: number
+  /** Estrellas de cada nivel, del primero al último. */
+  levelStars: readonly Stars[]
+  /** Cómo acabó el nivel jugado, solo con la partida terminada en Niveles. */
+  levelResult: { stars: Stars; passed: boolean; unlocked: number | null } | null
 
   /** Ronda del reto, o `null` en un modo que no las tiene. */
   round: number | null
@@ -104,6 +130,11 @@ export interface GameStore {
   setDifficulty: (difficulty: Difficulty) => void
   /** Elige modo. **Solo desde el menú** (ver el porqué en la implementación). */
   setGameMode: (mode: GameMode) => void
+  setEndless: (endless: boolean) => void
+  /** Elige nivel entre los desbloqueados; lo que no lo está se recorta. */
+  setLevel: (level: number) => void
+  /** Termina la partida sin fin a voluntad: es su única salida con resumen. */
+  endRun: () => void
   setImmersive: (immersive: boolean) => void
   setMuted: (muted: boolean) => void
 
@@ -129,7 +160,12 @@ export function useGameStoreValue(): GameStore {
   // Se entra en prueba: quien acaba de llegar no tiene por qué estrenarse en un
   // reto que se acaba a la primera derrota. El reto está a un toque, al lado.
   const [gameMode, setGameModeState] = useState<GameMode>('practice')
-
+  const [endless, setEndless] = useState(false)
+  // `null` es «el más alto desbloqueado»: así el menú enseña el nivel que toca
+  // sin leer el almacenamiento en el primer render, que no está en el servidor.
+  const [level, setLevelState] = useState<number | null>(null)
+  // La partida sin fin la termina el jugador: es lo único que la cierra.
+  const [endedByPlayer, setEndedByPlayer] = useState(false)
   const [running, setRunning] = useState(false)
   const [countdown, setCountdown] = useState(0)
   const [runId, setRunId] = useState(0)
@@ -166,12 +202,50 @@ export function useGameStoreValue(): GameStore {
   // cambiarlo en uno se ve en el otro (ver `muted.ts`).
   const muted = useSyncExternalStore(subscribeMuted, getMuted, getServerMuted)
 
+  // El progreso de Niveles tampoco es estado de React: vive en el navegador y se
+  // lee suscrito, como el récord, para que los dos menús lo vean a la vez.
+  const unlockedLevel = useSyncExternalStore(
+    subscribeUnlockedLevel,
+    getUnlockedLevel,
+    getServerUnlockedLevel,
+  )
+  const starsList = useSyncExternalStore(subscribeStarsList, getStarsList, getServerStarsList)
+  const levelStarsAll = useMemo(
+    () => starsList.split(',').map((s) => Number(s) as Stars),
+    [starsList],
+  )
+  const bestEndlessStreak = useSyncExternalStore(
+    subscribeBestEndlessStreak,
+    getBestEndlessStreak,
+    getServerBestEndlessStreak,
+  )
+  // Hasta dónde se podía jugar al empezar, y con qué nivel se empezó. El nivel
+  // se congela al empezar: al ganarlo se desbloquea el siguiente en el acto, y
+  // si el activo siguiera al desbloqueado la partida ganada se convertiría en
+  // la siguiente a medias, con más goles que meter y el resumen esfumado.
+  const [unlockedAtStart, setUnlockedAtStart] = useState(1)
+  const [levelAtStart, setLevelAtStart] = useState(1)
+
   const challenge = gameMode === 'challenge'
+  const levels = gameMode === 'levels'
   const round = challenge ? challengeRoundNumber : null
   const currentRound = challengeRound(challengeRoundNumber)
-  const activeDifficulty = challenge ? currentRound.difficulty : difficulty
-  const activeGoalTarget = challenge ? currentRound.goalTarget : goalTarget
-
+  const selectedLevel = clampLevel(Math.min(level ?? unlockedLevel, unlockedLevel))
+  const activeLevel = running ? levelAtStart : selectedLevel
+  const currentLevel = levelSpec(activeLevel)
+  const activeDifficulty = challenge
+    ? currentRound.difficulty
+    : levels
+      ? currentLevel.difficulty
+      : difficulty
+  const activeGoalTarget = challenge
+    ? currentRound.goalTarget
+    : levels
+      ? currentLevel.goalTarget
+      : endless
+        ? ENDLESS
+        : goalTarget
+  const endlessRun = isEndless(activeGoalTarget)
   const totalPlayerGoals = previousPlayerGoals + playerGoals
   const totalOpponentGoals = previousOpponentGoals + opponentGoals
 
@@ -180,9 +254,16 @@ export function useGameStoreValue(): GameStore {
     ? runOutcome({ playerGoals, opponentGoals, goalTarget: activeGoalTarget })
     : null
   // En reto, ganar no acaba nada: encadena la ronda siguiente. Solo perder
-  // cierra un reto, y de ahí que no tenga final.
-  const outcome = matchOutcome === 'won' && challenge ? null : matchOutcome
-
+  // cierra un reto, y de ahí que no tenga final. La partida sin fin no se cierra
+  // por goles: la cierra el jugador, y se cuenta como ganada si va por delante.
+  const outcome =
+    matchOutcome === 'won' && challenge
+      ? null
+      : running && endedByPlayer && endlessRun
+        ? playerGoals >= opponentGoals
+          ? 'won'
+          : 'lost'
+        : matchOutcome
   const gameState: GameState = !running
     ? 'menu'
     : countdown > 0
@@ -231,14 +312,30 @@ export function useGameStoreValue(): GameStore {
     opponentGoals,
   ])
 
-  // Al terminar, la puntuación sale hacia el almacenamiento; guardar solo hace
-  // algo si mejora lo que había, así que repetirlo no cambia nada. Se guarda al
-  // final y no gol a gol para que durante la partida el récord siga siendo la
-  // marca a batir.
+  // Cómo acabó el nivel, solo con la partida terminada en Niveles.
+  const levelResult = useMemo(() => {
+    if (!levels || gameState !== 'finished') return null
+    const stars = levelStars(outcome === 'won', playerGoals, opponentGoals)
+    const passed = levelPassed(stars)
+    const abre = passed && activeLevel + 1 > unlockedAtStart && activeLevel < LEVEL_COUNT
+    return { stars, passed, unlocked: abre ? activeLevel + 1 : null }
+  }, [levels, gameState, outcome, playerGoals, opponentGoals, activeLevel, unlockedAtStart])
+
+  // Cada modo guarda lo suyo al terminar: puntos, racha o estrellas. Guardar
+  // solo hace algo si mejora lo que había, así que repetirlo no cambia nada. Se
+  // guarda al final y no gol a gol para que durante la partida el récord siga
+  // siendo la marca a batir.
   useEffect(() => {
     if (gameState !== 'finished') return
-    saveBestPoints(gameMode, points)
-  }, [gameState, gameMode, points])
+    if (levelResult) saveLevelResult(activeLevel, levelResult.stars)
+    else if (endlessRun) saveBestEndlessStreak(bestStreak)
+    else saveBestPoints(gameMode, points)
+  }, [gameState, gameMode, points, bestStreak, endlessRun, levelResult, activeLevel])
+
+  // La marca de este modo: puntos, o la racha en la partida sin fin. En Niveles
+  // no hay marca que batir: hay estrellas.
+  const bestForMode = endlessRun ? bestEndlessStreak : levels ? 0 : bestPoints
+  const scoreForRecord = endlessRun ? bestStreak : points
 
   // La partida ha batido el récord con el que empezó *y* lo guardado es
   // exactamente esta puntuación. Sin esa segunda condición, con el
@@ -247,8 +344,10 @@ export function useGameStoreValue(): GameStore {
   // no «al menos»: con dos pestañas abiertas, la otra puede haber guardado algo
   // mejor mientras se jugaba.
   const isRecord =
-    gameState === 'finished' && points > recordToBeat && bestPoints === points
-
+    gameState === 'finished' &&
+    !levels &&
+    scoreForRecord > recordToBeat &&
+    bestForMode === scoreForRecord
   const setGoalTarget = useCallback((goals: number) => {
     setGoalTargetState(clampGoalTarget(goals))
   }, [])
@@ -269,6 +368,15 @@ export function useGameStoreValue(): GameStore {
     [running],
   )
 
+  const setLevel = useCallback(
+    (next: number) => {
+      if (running) return
+      setLevelState(clampLevel(Math.min(next, getUnlockedLevel())))
+    },
+    [running],
+  )
+
+  const endRun = useCallback(() => setEndedByPlayer(true), [])
   const clearRun = useCallback(() => {
     setPlayerGoals(0)
     setOpponentGoals(0)
@@ -284,12 +392,16 @@ export function useGameStoreValue(): GameStore {
   const startGame = useCallback(() => {
     clearRun()
     advancedRound.current = 0
-    setRecordToBeat(getBestPoints(gameMode))
+    setEndedByPlayer(false)
+    setRecordToBeat(
+      gameMode === 'practice' && endless ? getBestEndlessStreak() : getBestPoints(gameMode),
+    )
+    setUnlockedAtStart(getUnlockedLevel())
+    setLevelAtStart(selectedLevel)
     setRunId((id) => id + 1)
     setCountdown(COUNTDOWN_SECONDS)
     setRunning(true)
-  }, [clearRun, gameMode])
-
+  }, [clearRun, gameMode, endless, selectedLevel])
   const scorePlayer = useCallback(() => {
     setPlayerGoals((value) => value + 1)
     setLastScorer('player')
@@ -316,14 +428,20 @@ export function useGameStoreValue(): GameStore {
   const resetGame = useCallback(() => {
     clearRun()
     setCountdown(0)
+    setEndedByPlayer(false)
     setRunning(false)
   }, [clearRun])
-
   return useMemo(
     () => ({
       goalTarget,
       difficulty,
       gameMode,
+      endless,
+      level,
+      activeLevel,
+      unlockedLevel,
+      levelStars: levelStarsAll,
+      levelResult,
       round,
       activeDifficulty,
       activeGoalTarget,
@@ -335,7 +453,7 @@ export function useGameStoreValue(): GameStore {
       points,
       streak,
       bestStreak,
-      bestPoints,
+      bestPoints: bestForMode,
       isRecord,
       outcome,
       gameState,
@@ -346,6 +464,9 @@ export function useGameStoreValue(): GameStore {
       setGoalTarget,
       setDifficulty,
       setGameMode,
+      setEndless,
+      setLevel,
+      endRun,
       setImmersive,
       setMuted,
       startGame,
@@ -357,6 +478,12 @@ export function useGameStoreValue(): GameStore {
       goalTarget,
       difficulty,
       gameMode,
+      endless,
+      level,
+      activeLevel,
+      unlockedLevel,
+      levelStarsAll,
+      levelResult,
       round,
       activeDifficulty,
       activeGoalTarget,
@@ -368,7 +495,7 @@ export function useGameStoreValue(): GameStore {
       points,
       streak,
       bestStreak,
-      bestPoints,
+      bestForMode,
       isRecord,
       outcome,
       gameState,
@@ -378,6 +505,8 @@ export function useGameStoreValue(): GameStore {
       muted,
       setGoalTarget,
       setGameMode,
+      setLevel,
+      endRun,
       setMuted,
       startGame,
       scorePlayer,

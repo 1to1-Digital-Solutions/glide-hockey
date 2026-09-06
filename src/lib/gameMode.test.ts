@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { runOutcome } from './gameMode'
+import { ENDLESS, isEndless, runOutcome } from './gameMode'
 
 describe('cómo acaba una partida', () => {
   it('sigue viva mientras nadie llegue a los goles pactados', () => {
@@ -15,6 +15,12 @@ describe('cómo acaba una partida', () => {
     expect(
       runOutcome({ playerGoals: 2, opponentGoals: 5, goalTarget: 5 }),
     ).toBe('lost')
+  })
+
+  it('la partida sin fin no se acaba por goles', () => {
+    expect(isEndless(ENDLESS)).toBe(true)
+    expect(isEndless(7)).toBe(false)
+    expect(runOutcome({ playerGoals: 40, opponentGoals: 35, goalTarget: ENDLESS })).toBeNull()
   })
 
   it('cuenta también si el marcador se pasa del objetivo', () => {

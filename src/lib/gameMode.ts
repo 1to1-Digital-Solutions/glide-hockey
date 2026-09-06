@@ -4,30 +4,50 @@
  * - **Prueba**: se elige la dificultad y a cuántos goles se juega, y la partida
  *   acaba cuando alguien llega. Perder no cuesta nada. Es para calibrar el pulso
  *   o probar un nivel nuevo.
+ * - **Niveles**: la misma escalera del reto, pero una partida cada vez: cada
+ *   nivel es una ronda de `challengeRound`, ganarla da estrellas según lo que
+ *   se encaje (`levels.ts`) y desbloquea el siguiente. Lo desbloqueado se
+ *   recuerda entre visitas (`progress.ts`): no hay que volver a empezar por lo
+ *   fácil.
  * - **Reto**: se empieza por lo más fácil y la máquina va apretando sola —más
  *   goles por partida y, después, más nivel (ver `challenge.ts`)—. Cada partida
  *   ganada encadena la siguiente y la primera perdida cierra el reto. No tiene
- *   final: se aguanta lo que se aguante, y de ahí sale la puntuación.
+ *   final: se aguanta lo que se aguante, y de ahí sale la puntuación. Es el
+ *   modo heroico: del tirón, sin puntos de control.
  *
  * Todo son funciones puras sobre marcadores: el estado vive en `gameStore` y la
  * interfaz solo lo pinta, igual que con la puntuación.
  */
 
-export type GameMode = 'practice' | 'challenge'
+export type GameMode = 'practice' | 'levels' | 'challenge'
 
 /** Orden de los modos en los selectores, del más suave al más exigente. */
-export const GAME_MODE_ORDER: GameMode[] = ['practice', 'challenge']
+export const GAME_MODE_ORDER: GameMode[] = ['practice', 'levels', 'challenge']
 
 /** Etiqueta visible para el usuario (idioma del producto: español). */
 export const GAME_MODE_LABELS: Record<GameMode, string> = {
   practice: 'Prueba',
+  levels: 'Niveles',
   challenge: 'Reto',
 }
 
 /** Qué promete cada modo, en una línea, para el menú. */
 export const GAME_MODE_HINTS: Record<GameMode, string> = {
   practice: 'Tú eliges el nivel y los goles. Perder no cuesta nada.',
-  challenge: 'Sube solo de nivel. La primera partida que pierdas se acabó.',
+  levels: 'Una partida cada vez. El nivel que ganas queda desbloqueado para la próxima.',
+  challenge: 'Sube solo de nivel, del tirón. La primera partida que pierdas se acabó.',
+}
+
+/**
+ * La partida sin fin de la prueba: no se juega a ningún número de goles, sigue
+ * hasta que el jugador la termina. Se representa como una partida a infinitos
+ * goles, que es exactamente lo que es: `runOutcome` no la cierra nunca. Los
+ * puntos crecen sin tope, así que su récord es la mejor racha.
+ */
+export const ENDLESS = Number.POSITIVE_INFINITY
+
+export function isEndless(goalTarget: number): boolean {
+  return !Number.isFinite(goalTarget)
 }
 
 /**

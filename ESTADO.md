@@ -37,6 +37,14 @@
 
 ## Hecho hasta ahora
 
+- **Niveles y Prueba sin fin** (los modos como módulos sobre lo que había). `Niveles`
+  (`src/lib/levels.ts`) es la escalera del reto una partida cada vez: cada nivel es
+  `challengeRound(n)`, ganarlo da estrellas según lo encajado (una por ganar, dos si la máquina
+  metió menos de la mitad que tú, tres si no metió ninguno) y una estrella desbloquea el
+  siguiente; el progreso vive en el navegador (`src/lib/progress.ts`). El Reto queda como estaba
+  (del tirón, a la primera derrota). La **partida sin fin** de Prueba es una partida a infinitos
+  goles (`ENDLESS`): la cierra el botón «Terminar» (web y visor) y su récord es la mejor racha
+  (`air-hockey:best-streak:endless`). El nivel activo se congela al empezar la partida.
 - Primera versión completa y jugable en escritorio: menú, partida, marcador,
   resumen, récord por modo, y los dos modos.
 - Lógica pura y probada: física del disco, máquina rival por niveles, escalera

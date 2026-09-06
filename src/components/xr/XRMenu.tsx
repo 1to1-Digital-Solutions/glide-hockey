@@ -6,7 +6,8 @@ import {
   MIN_GOALS,
 } from '../../lib/gameConfig'
 import { useGame } from '../../lib/gameStore'
-import { GAME_MODE_ORDER } from '../../lib/gameMode'
+import { GAME_MODE_ORDER, type GameMode } from '../../lib/gameMode'
+import { LEVEL_COUNT } from '../../lib/levels'
 import { DIFFICULTY_COLORS, PALETTE } from '../../lib/palette'
 import { useExit } from '../../game/exit'
 import {
@@ -40,7 +41,7 @@ import {
 
 /** Medidas del panel y de sus filas, en metros. */
 const PANEL = { width: 0.78, height: 0.74 }
-const MODE_BUTTON: [number, number] = [0.3, 0.13]
+const MODE_BUTTON: [number, number] = [0.22, 0.13]
 const LEVEL_BUTTON: [number, number] = [0.12, 0.11]
 const SMALL_BUTTON: [number, number] = [0.11, 0.11]
 const PLAY_BUTTON: [number, number] = [0.28, 0.12]
@@ -64,8 +65,25 @@ function hitBox(
   return { position: [x, y, 0], size: [width, height, 0.04] }
 }
 
-/** Silueta de cada modo: un mazo para la prueba, una escalera para el reto. */
-function ModeIcon({ mode, lit }: { mode: 'practice' | 'challenge'; lit: boolean }) {
+/** Tres estrellas —rombos— por nivel: las ganadas, encendidas. */
+function StarsRow({ lit, size = 0.02, color = PALETTE.puck }: { lit: number; size?: number; color?: string }) {
+  return (
+    <group>
+      {[0, 1, 2].map((i) => (
+        <mesh key={i} position={[(i - 1) * size * 1.9, 0, 0]} rotation={[0, 0, Math.PI / 4]}>
+          <planeGeometry args={[size, size]} />
+          <meshBasicMaterial color={i < lit ? color : DIM_COLOR} toneMapped={false} transparent opacity={i < lit ? 1 : 0.35} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+/**
+ * Silueta de cada modo: un disco para la prueba, tres estrellas para los
+ * niveles, una escalera para el reto.
+ */
+function ModeIcon({ mode, lit }: { mode: GameMode; lit: boolean }) {
   const color = lit ? PALETTE.primary : DIM_COLOR
 
   if (mode === 'practice') {
@@ -77,6 +95,7 @@ function ModeIcon({ mode, lit }: { mode: 'practice' | 'challenge'; lit: boolean 
     )
   }
 
+  if (mode === 'levels') return <StarsRow lit={lit ? 3 : 0} color={color} />
   return (
     <group>
       {[0, 1, 2].map((step) => (
@@ -102,6 +121,12 @@ export function XRMenu() {
     goalTarget,
     setGoalTarget,
     activeGoalTarget,
+    endless,
+    setEndless,
+    activeLevel,
+    unlockedLevel,
+    levelStars,
+    setLevel,
     muted,
     setMuted,
     bestPoints,
@@ -112,11 +137,12 @@ export function XRMenu() {
 
   if (gameState !== 'menu') return null
 
-  const challenge = gameMode === 'challenge'
+  // Nivel y goles los manda la escalera en reto y en niveles.
+  const challenge = gameMode !== 'practice'
+  const levels = gameMode === 'levels'
   // En reto se enseña lo que toca en la ronda; en prueba, lo elegido.
   const shownDifficulty = challenge ? activeDifficulty : difficulty
   const shownGoals = challenge ? activeGoalTarget : goalTarget
-
   return (
     <group>
       <XRPanel width={PANEL.width} height={PANEL.height} />
@@ -126,7 +152,7 @@ export function XRMenu() {
         return (
           <XRPressable
             key={mode}
-            box={hitBox((index - 0.5) * 0.34, ROW.mode, MODE_BUTTON)}
+            box={hitBox((index - 1) * 0.25, ROW.mode, MODE_BUTTON)}
             onSelect={() => setGameMode(mode)}
           >
             <XRPlate
@@ -169,11 +195,12 @@ export function XRMenu() {
         )
       })}
 
-      {/* A cuántos goles se juega. */}
+      {/* La fila de goles: a cuántos se juega en prueba, o el nivel en Niveles
+          (con sus estrellas debajo). Los mismos dos botones, otra pregunta. */}
       <XRPressable
         box={hitBox(-0.19, ROW.goals, SMALL_BUTTON)}
-        onSelect={() => setGoalTarget(goalTarget - 1)}
-        disabled={challenge || goalTarget <= MIN_GOALS}
+        onSelect={() => (levels ? setLevel(activeLevel - 1) : setGoalTarget(goalTarget - 1))}
+        disabled={levels ? activeLevel <= 1 : challenge || endless || goalTarget <= MIN_GOALS}
       >
         <XRPlate
           width={SMALL_BUTTON[0]}
@@ -184,17 +211,45 @@ export function XRMenu() {
         <XRSignIcon sign="minus" />
       </XRPressable>
 
-      <XRNumber
-        value={shownGoals}
-        size={0.11}
-        color={challenge ? DIM_COLOR : PALETTE.foreground}
-        position={[0, ROW.goals, 0]}
-      />
+      {levels ? (
+        <group>
+          <XRNumber
+            value={activeLevel}
+            size={0.1}
+            color={PALETTE.foreground}
+            position={[-0.03, ROW.goals + 0.01, 0]}
+          />
+          <XRNumber
+            value={LEVEL_COUNT}
+            size={0.04}
+            color={DIM_COLOR}
+            position={[0.07, ROW.goals + 0.01, 0]}
+          />
+          <group position={[0, ROW.goals - 0.07, 0]}>
+            <StarsRow lit={levelStars[activeLevel - 1] ?? 0} size={0.016} />
+          </group>
+        </group>
+      ) : endless && !challenge ? (
+        // Sin fin: un anillo en vez de una cifra, que es «esto no se acaba».
+        <mesh position={[0, ROW.goals, 0]}>
+          <ringGeometry args={[0.03, 0.045, 32]} />
+          <meshBasicMaterial color={PALETTE.foreground} toneMapped={false} />
+        </mesh>
+      ) : (
+        <XRNumber
+          value={shownGoals}
+          size={0.11}
+          color={challenge ? DIM_COLOR : PALETTE.foreground}
+          position={[0, ROW.goals, 0]}
+        />
+      )}
 
       <XRPressable
         box={hitBox(0.19, ROW.goals, SMALL_BUTTON)}
-        onSelect={() => setGoalTarget(goalTarget + 1)}
-        disabled={challenge || goalTarget >= MAX_GOALS}
+        onSelect={() => (levels ? setLevel(activeLevel + 1) : setGoalTarget(goalTarget + 1))}
+        disabled={
+          levels ? activeLevel >= unlockedLevel : challenge || endless || goalTarget >= MAX_GOALS
+        }
       >
         <XRPlate
           width={SMALL_BUTTON[0]}
@@ -205,9 +260,28 @@ export function XRMenu() {
         <XRSignIcon sign="plus" />
       </XRPressable>
 
+      {/* Sin fin, al lado de los goles: la misma pregunta —cuánto— con la otra
+          respuesta. En reto y niveles no hay nada que elegir. */}
+      {!challenge ? (
+        <XRPressable
+          box={hitBox(0.32, ROW.goals, SMALL_BUTTON)}
+          onSelect={() => setEndless(!endless)}
+        >
+          <XRPlate
+            width={SMALL_BUTTON[0]}
+            height={SMALL_BUTTON[1]}
+            color={endless ? PALETTE.primaryDeep : PALETTE.rail}
+            opacity={endless ? 0.95 : 0.8}
+          />
+          <mesh>
+            <ringGeometry args={[0.018, 0.028, 24]} />
+            <meshBasicMaterial color={endless ? PALETTE.foreground : DIM_COLOR} toneMapped={false} />
+          </mesh>
+        </XRPressable>
+      ) : null}
       {/* El récord del modo elegido, en pequeño y apagado: es un dato, no una
           decisión. Solo se enseña si hay alguno que batir. */}
-      {bestPoints > 0 ? (
+      {bestPoints > 0 && !levels ? (
         <XRNumber
           value={bestPoints}
           size={0.04}

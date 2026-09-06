@@ -28,10 +28,12 @@ export async function abrirJuego(page: Page): Promise<void> {
  */
 export async function jugarPartida(
   page: Page,
-  { goles, nivel }: { goles: number; nivel: string },
+  { goles, nivel, sinFin = false }: { goles: number; nivel: string; sinFin?: boolean },
 ): Promise<void> {
   await page.getByRole('button', { name: nivel }).click()
   await page.getByLabel(/^Goles/).fill(String(goles))
+  // Después de los goles: sin fin apaga el deslizador.
+  if (sinFin) await page.getByRole('button', { name: 'Sin fin', exact: true }).click()
   await page.getByRole('button', { name: 'Jugar' }).click()
 
   // La cuenta atrás va antes del saque; el marcador ya está en pantalla.

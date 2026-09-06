@@ -13,6 +13,7 @@ import {
   GAME_MODE_ORDER,
 } from '../../lib/gameMode'
 import { useGame } from '../../lib/gameStore'
+import { LEVEL_COUNT, levelSpec } from '../../lib/levels'
 import { DIFFICULTY_COLORS } from '../../lib/palette'
 import { useImmersiveSupport } from '../xr/useImmersiveSupport'
 import { getXrStore } from '../xr/xrStore'
@@ -82,6 +83,12 @@ export function StartScreen() {
     setDifficulty,
     goalTarget,
     setGoalTarget,
+    endless,
+    setEndless,
+    activeLevel,
+    unlockedLevel,
+    levelStars,
+    setLevel,
     muted,
     setMuted,
     bestPoints,
@@ -91,10 +98,12 @@ export function StartScreen() {
   const exit = useExit()
   const immersive = useImmersiveSupport()
 
-  // En reto la escalera reparte nivel y goles, así que elegirlos no haría nada.
-  // Se dejan a la vista, apagados: enseñan a qué se está renunciando a decidir,
-  // que es distinto de esconderlos.
-  const challenge = gameMode === 'challenge'
+  // En reto y en niveles la escalera reparte nivel y goles, así que elegirlos no
+  // haría nada. Se dejan a la vista, apagados: enseñan a qué se está renunciando
+  // a decidir, que es distinto de esconderlos.
+  const challenge = gameMode !== 'practice'
+  const levels = gameMode === 'levels'
+  const quienManda = levels ? 'el nivel' : 'el reto'
 
   return (
     <main className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-y-auto p-4">
@@ -113,7 +122,7 @@ export function StartScreen() {
           <fieldset className="flex flex-col gap-2">
             <legend className="sr-only">Modo de juego</legend>
             <FieldLabel>Modo</FieldLabel>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {GAME_MODE_ORDER.map((mode) => (
                 <OptionButton
                   key={mode}
@@ -138,7 +147,7 @@ export function StartScreen() {
           >
             <legend className="sr-only">Nivel de la máquina</legend>
             <FieldLabel>
-              Nivel {challenge ? '· lo marca el reto' : null}
+              Nivel de la máquina {challenge ? `· lo marca ${quienManda}` : null}
             </FieldLabel>
             {/* Cinco columnas no caben en un móvil: con «Imposible» dentro, la
                 ficha se queda en veinte píxeles de ancho y el nombre se sale
@@ -179,9 +188,32 @@ export function StartScreen() {
           >
             <FieldLabel>
               <label htmlFor="goal-target">
-                Goles {challenge ? '· los reparte el reto' : `· ${goalTarget}`}
+                Goles{' '}
+                {challenge
+                  ? `· los reparte ${quienManda}`
+                  : endless
+                    ? '· sin fin'
+                    : `· ${goalTarget}`}
               </label>
             </FieldLabel>
+            {/* A tantos goles, o sin fin: la partida no se acaba hasta que el
+                jugador la termina, y el récord pasa a ser la racha. */}
+            <div className="grid grid-cols-2 gap-2">
+              <OptionButton
+                selected={!challenge && !endless}
+                onClick={() => setEndless(false)}
+                label="A tantos goles"
+              >
+                A tantos goles
+              </OptionButton>
+              <OptionButton
+                selected={!challenge && endless}
+                onClick={() => setEndless(true)}
+                label="Sin fin"
+              >
+                Sin fin
+              </OptionButton>
+            </div>
             <input
               id="goal-target"
               type="range"
@@ -189,11 +221,57 @@ export function StartScreen() {
               max={MAX_GOALS}
               step={1}
               value={goalTarget}
-              disabled={challenge}
+              disabled={challenge || endless}
               onChange={(event) => setGoalTarget(Number(event.target.value))}
               className="h-11 w-full accent-[var(--color-primary)]"
             />
           </fieldset>
+
+          {/* El nivel que se va a jugar: los desbloqueados se eligen, el resto se
+              ve con candado. Lo que da cada uno lo dice la escalera. */}
+          {levels ? (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="sr-only">Nivel</legend>
+              <FieldLabel>
+                Nivel · {activeLevel} de {LEVEL_COUNT} ·{' '}
+                {DIFFICULTY_LABELS[levelSpec(activeLevel).difficulty]}, a{' '}
+                {levelSpec(activeLevel).goalTarget} goles
+              </FieldLabel>
+              <div className="grid grid-cols-5 gap-1.5">
+                {Array.from({ length: LEVEL_COUNT }, (_, i) => i + 1).map((n) => {
+                  const bloqueado = n > unlockedLevel
+                  const stars = levelStars[n - 1] ?? 0
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setLevel(n)}
+                      disabled={bloqueado}
+                      aria-pressed={n === activeLevel}
+                      aria-label={
+                        bloqueado
+                          ? `Nivel ${n}, bloqueado`
+                          : `Nivel ${n}, ${stars} ${stars === 1 ? 'estrella' : 'estrellas'}`
+                      }
+                      className={`flex min-h-11 flex-col items-center justify-center rounded-lg border px-1 py-1.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-35 ${
+                        n === activeLevel
+                          ? 'border-white/60 bg-white/15 text-white'
+                          : 'border-white/10 bg-white/[0.03] text-white/60 hover:border-white/30 hover:text-white'
+                      }`}
+                    >
+                      <span>{bloqueado ? '🔒' : n}</span>
+                      {!bloqueado ? (
+                        <span aria-hidden className="text-[0.6rem] tracking-[0.15em] text-[var(--color-accent)]">
+                          {'★'.repeat(stars)}
+                          <span className="text-white/20">{'★'.repeat(3 - stars)}</span>
+                        </span>
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+            </fieldset>
+          ) : null}
 
           {/* El sonido no es de la partida sino de quien juega, así que va
               debajo de las tres decisiones y nunca apagado: en reto también se
@@ -212,13 +290,30 @@ export function StartScreen() {
           </fieldset>
         </div>
 
-        {bestPoints > 0 ? (
+        {levels ? (
           <p className="mt-5 text-sm text-white/55">
-            Tu récord en {GAME_MODE_LABELS[gameMode].toLowerCase()}:{' '}
+            Niveles superados:{' '}
             <strong className="font-semibold text-white">
-              {bestPoints.toLocaleString('es-ES')}
+              {levelStars.filter((s) => s >= 1).length}
             </strong>{' '}
-            puntos
+            de {LEVEL_COUNT}
+          </p>
+        ) : bestPoints > 0 ? (
+          <p className="mt-5 text-sm text-white/55">
+            {endless ? (
+              <>
+                Tu mejor racha sin fin:{' '}
+                <strong className="font-semibold text-white">{bestPoints}</strong> goles
+              </>
+            ) : (
+              <>
+                Tu récord en {GAME_MODE_LABELS[gameMode].toLowerCase()}:{' '}
+                <strong className="font-semibold text-white">
+                  {bestPoints.toLocaleString('es-ES')}
+                </strong>{' '}
+                puntos
+              </>
+            )}
           </p>
         ) : null}
 

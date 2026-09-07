@@ -37,6 +37,11 @@
 
 ## Hecho hasta ahora
 
+- **Ya se juega en un sitio, no en el vacío.** El escenario era un suelo oscuro y poco más, así
+  que con el visor puesto no había forma de calcular distancias: lo que da la escala son las
+  cosas conocidas alrededor. Ahora es un salón recreativo: moqueta con dibujo, máquinas apagadas contra las paredes, neones y la luz baja de un sitio así. Todo geometría por código y colores
+  planos, que es lo que deja pasar la política de seguridad del salón.
+
 - **La interfaz de dentro de la escena ya se ve cuando lo monta el salón.** Se escondía siempre
   que no había sesión de WebXR, porque en la web propia manda el DOM y sus botones cazarían los
   clics del ratón por delante del juego. Pero el salón de xrcade **no pone DOM**: montado ahí y

@@ -4,6 +4,7 @@ import { useCallback } from 'react'
 import { useXR } from '@react-three/xr'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
 import { useGame } from '../../lib/gameStore'
+import { showsPlace } from '../../lib/scenery'
 import { HALF_LENGTH } from '../../lib/puckPhysics'
 import { type GameSound } from '../../lib/audioEngine'
 import { useGameAudio } from '../../lib/useGameAudio'
@@ -68,7 +69,7 @@ export interface GameWorldProps {
 }
 
 export function GameWorld({ hasDomUi = false }: GameWorldProps) {
-  const { gameState, runId } = useGame()
+  const { gameState, runId, scenery } = useGame()
   const mode = useXR((state) => state.mode)
 
   // El sonido cuelga de la escena y no de la mesa: la mesa se estrena en cada
@@ -89,9 +90,12 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
   )
   // Los reflejos de la mesa y del disco, calculados una vez (ver el hook).
   const environment = useRoomEnvironment()
-  // En realidad mixta el escenario es la habitación del jugador: dibujar la
-  // sala la taparía y rompería el passthrough.
-  const passthrough = mode === 'immersive-ar'
+  // Qué se pinta alrededor lo elige quien juega y no el modo de sesión: dentro
+  // de una sesión de realidad aumentada las dos son la misma sesión pintada de
+  // dos formas, así que se puede cambiar sin salirse, que con el visor puesto
+  // es lo que importa. Fuera de ella no hay habitación que enseñar y la sala se
+  // pinta igual.
+  const passthrough = !showsPlace(mode, scenery)
   const immersive = mode != null
   /** Si toca dibujar los paneles de dentro de la escena. */
   const showPanels = !hasDomUi || immersive

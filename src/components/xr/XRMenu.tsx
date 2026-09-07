@@ -1,5 +1,7 @@
 'use client'
 
+import { useXR } from '@react-three/xr'
+
 import {
   DIFFICULTY_ORDER,
   MAX_GOALS,
@@ -19,6 +21,7 @@ import {
   XRPlayIcon,
   XRPressable,
   XRSignIcon,
+  XRSceneryIcon,
   XRSoundIcon,
   type XrHitBox,
 } from './XRUi'
@@ -129,11 +132,16 @@ export function XRMenu() {
     setLevel,
     muted,
     setMuted,
+    scenery,
+    setScenery,
     bestPoints,
     startGame,
     gameState,
   } = useGame()
   const exit = useExit()
+  // Fuera de una sesión de realidad aumentada no hay habitación que enseñar: el
+  // visor no entrega el passthrough en realidad virtual.
+  const passthroughAvailable = useXR((state) => state.mode) === 'immersive-ar'
 
   if (gameState !== 'menu') return null
 
@@ -289,6 +297,25 @@ export function XRMenu() {
           position={[0, ROW.record, 0]}
         />
       ) : null}
+
+      {/* Lo que se pinta alrededor, en la banda del récord, que es la única
+          con hueco. Está aquí y no solo en el menú de la web porque es aquí
+          donde sirve: con las gafas puestas se cambia sin salir de la sesión.
+          Fuera de una sesión de realidad aumentada no hay habitación que
+          enseñar, así que el botón se apaga en vez de prometerla. */}
+      <XRPressable
+        box={hitBox(-0.28, ROW.record, SMALL_BUTTON)}
+        onSelect={() => setScenery(scenery === 'room' ? 'place' : 'room')}
+        disabled={!passthroughAvailable}
+      >
+        <XRPlate
+          width={SMALL_BUTTON[0]}
+          height={SMALL_BUTTON[1]}
+          color={PALETTE.rail}
+          opacity={passthroughAvailable ? 0.8 : 0.4}
+        />
+        <XRSceneryIcon room={scenery === 'room'} lit={passthroughAvailable} />
+      </XRPressable>
 
       {/* Silencio a un lado de «jugar» y salir al otro: los dos son de la
           sesión, no de la partida, y así la fila queda centrada en el botón

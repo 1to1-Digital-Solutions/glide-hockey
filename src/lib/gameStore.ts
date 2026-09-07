@@ -45,6 +45,13 @@ import {
   saveMuted,
   subscribeMuted,
 } from './muted'
+import {
+  getScenery,
+  getServerScenery,
+  saveScenery,
+  subscribeScenery,
+  type Scenery,
+} from './scenery'
 import { type Scorer } from './puckPhysics'
 import { scoreConceded, scoreGoal } from './scoring'
 
@@ -125,6 +132,8 @@ export interface GameStore {
   immersive: boolean
   /** Si el juego está callado. Es de quien juega y se recuerda entre visitas. */
   muted: boolean
+  /** Qué se pinta alrededor: la sala del juego o tu habitación. */
+  scenery: Scenery
 
   setGoalTarget: (goals: number) => void
   setDifficulty: (difficulty: Difficulty) => void
@@ -137,6 +146,12 @@ export interface GameStore {
   endRun: () => void
   setImmersive: (immersive: boolean) => void
   setMuted: (muted: boolean) => void
+  /**
+   * Cambia lo que se pinta alrededor. Se puede a media partida y con el visor
+   * puesto: es lo que hace que se pueda mirar la habitación sin salir de la
+   * sesión, que es de lo que va este ajuste.
+   */
+  setScenery: (scenery: Scenery) => void
 
   startGame: () => void
   /** Gol del jugador: suma puntos y alarga la racha. */
@@ -201,6 +216,9 @@ export function useGameStoreValue(): GameStore {
   // así que los dos menús —el de escritorio y el del visor— leen lo mismo y
   // cambiarlo en uno se ve en el otro (ver `muted.ts`).
   const muted = useSyncExternalStore(subscribeMuted, getMuted, getServerMuted)
+  // Lo que se pinta alrededor tampoco es estado de React: se recuerda entre
+  // visitas, como el silencio, y se cambia desde los dos menús.
+  const scenery = useSyncExternalStore(subscribeScenery, getScenery, getServerScenery)
 
   // El progreso de Niveles tampoco es estado de React: vive en el navegador y se
   // lee suscrito, como el récord, para que los dos menús lo vean a la vez.
@@ -428,6 +446,8 @@ export function useGameStoreValue(): GameStore {
 
   const setMuted = useCallback((value: boolean) => saveMuted(value), [])
 
+  const setScenery = useCallback((value: Scenery) => saveScenery(value), [])
+
   const resetGame = useCallback(() => {
     clearRun()
     setCountdown(0)
@@ -464,6 +484,7 @@ export function useGameStoreValue(): GameStore {
       runId,
       immersive,
       muted,
+      scenery,
       setGoalTarget,
       setDifficulty,
       setGameMode,
@@ -472,6 +493,7 @@ export function useGameStoreValue(): GameStore {
       endRun,
       setImmersive,
       setMuted,
+      setScenery,
       startGame,
       scorePlayer,
       scoreOpponent,
@@ -506,11 +528,13 @@ export function useGameStoreValue(): GameStore {
       runId,
       immersive,
       muted,
+      scenery,
       setGoalTarget,
       setGameMode,
       setLevel,
       endRun,
       setMuted,
+      setScenery,
       startGame,
       scorePlayer,
       scoreOpponent,

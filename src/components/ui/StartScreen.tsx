@@ -13,6 +13,7 @@ import {
   GAME_MODE_ORDER,
 } from '../../lib/gameMode'
 import { useGame } from '../../lib/gameStore'
+import { SCENERY_HINTS, SCENERY_IDS, SCENERY_LABELS } from '../../lib/scenery'
 import { LEVEL_COUNT, levelSpec } from '../../lib/levels'
 import { DIFFICULTY_COLORS } from '../../lib/palette'
 import { useImmersiveSupport } from '../xr/useImmersiveSupport'
@@ -91,6 +92,8 @@ export function StartScreen() {
     setLevel,
     muted,
     setMuted,
+    scenery,
+    setScenery,
     bestPoints,
     startGame,
     immersive: inSession,
@@ -272,6 +275,26 @@ export function StartScreen() {
               </div>
             </fieldset>
           ) : null}
+
+          {/* Lo que se pinta alrededor: tampoco es de la partida y se recuerda
+              entre visitas. Aquí se deja elegido; donde de verdad se usa es
+              dentro del visor, cambiándolo sin salir de la sesión. */}
+          <fieldset className="flex flex-col gap-2">
+            <legend className="sr-only">Lo que se ve alrededor</legend>
+            <FieldLabel>Alrededor</FieldLabel>
+            <div className="grid grid-cols-2 gap-2">
+              {SCENERY_IDS.map((option) => (
+                <OptionButton
+                  key={option}
+                  selected={scenery === option}
+                  onClick={() => setScenery(option)}
+                >
+                  {SCENERY_LABELS[option]}
+                </OptionButton>
+              ))}
+            </div>
+            <p className="text-xs text-white/50">{SCENERY_HINTS[scenery]}</p>
+          </fieldset>
 
           {/* El sonido no es de la partida sino de quien juega, así que va
               debajo de las tres decisiones y nunca apagado: en reto también se

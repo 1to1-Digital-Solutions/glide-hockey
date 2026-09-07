@@ -5,6 +5,18 @@
 
 ---
 
+## 📍 v0.6.0 (2026-09-07): el escenario se cambia sin salir de la sesión
+
+- **La sala o tu habitación, elegido por quien juega** y no por cómo se entró al visor.
+  Dentro de una sesión de realidad aumentada las dos son la misma sesión pintada de dos
+  formas, así que se cambia **sin salirse**: con el visor puesto, salir y volver a entrar
+  para ver la habitación era justo lo que hacía que nadie lo usara.
+- Se elige desde los dos menús —el de la web y el del visor—, y dentro del visor el
+  interruptor se apaga cuando la sesión no es de realidad aumentada: sin passthrough no hay
+  habitación que enseñar, y prometerla dejaría al jugador mirando la nada.
+- Lo decide `showsPlace(modo, escenario)`: fuera de una sesión de realidad aumentada la sala
+  se pinta siempre. Es una preferencia guardada.
+
 ## 📍 v0.5.1 (2026-09-07): los tests dicen ahora cuánto código ejecutan
 
 - **La suite mide su propia cobertura** (`npm run coverage`, y un paso más en CI). Se mide

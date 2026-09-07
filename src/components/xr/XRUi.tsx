@@ -315,6 +315,49 @@ export function XRSoundIcon({
   )
 }
 
+/**
+ * Lo que se pinta alrededor, dicho con un dibujo: con la sala, cuatro paredes
+ * cerradas; con la habitación, el marco de una ventana abierta.
+ *
+ * Cambia la **forma** y no solo el color, que dentro del visor cambia con la
+ * luz de la escena y no puede ser la única señal (WCAG 1.4.1).
+ */
+export function XRSceneryIcon({
+  room,
+  lit = true,
+  size = 0.05,
+}: {
+  room: boolean
+  lit?: boolean
+  size?: number
+}) {
+  const color = lit ? PALETTE.foreground : DIM_COLOR
+  const grosor = size * 0.12
+
+  return (
+    <group>
+      {/* El marco, siempre. */}
+      {[
+        [0, size * 0.34, size * 0.8, grosor],
+        [0, -size * 0.34, size * 0.8, grosor],
+        [-size * 0.34, 0, grosor, size * 0.8],
+        [size * 0.34, 0, grosor, size * 0.8],
+      ].map(([x, y, ancho, alto], index) => (
+        <mesh key={index} position={[x, y, 0]}>
+          <planeGeometry args={[ancho, alto]} />
+          <meshBasicMaterial color={color} toneMapped={false} />
+        </mesh>
+      ))}
+
+      {/* Cerrado, el interior lleno; abierto, solo el travesaño de la ventana. */}
+      <mesh position={[0, 0, 0]}>
+        <planeGeometry args={room ? [size * 0.68, grosor] : [size * 0.56, size * 0.56]} />
+        <meshBasicMaterial color={color} toneMapped={false} />
+      </mesh>
+    </group>
+  )
+}
+
 /** Signo de más o de menos, para los selectores de cantidad. */
 export function XRSignIcon({
   sign,

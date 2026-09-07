@@ -37,6 +37,12 @@
 
 ## Hecho hasta ahora
 
+- **La interfaz de dentro de la escena ya se ve cuando lo monta el salón.** Se escondía siempre
+  que no había sesión de WebXR, porque en la web propia manda el DOM y sus botones cazarían los
+  clics del ratón por delante del juego. Pero el salón de xrcade **no pone DOM**: montado ahí y
+  sin visor, el juego se veía entero y no había forma de empezar la partida. Ahora lo decide
+  `hasDomUi` —lo pasa quien monta la escena, no lo adivina el juego—, como en los juegos nuevos.
+
 - **Niveles y Prueba sin fin** (los modos como módulos sobre lo que había). `Niveles`
   (`src/lib/levels.ts`) es la escalera del reto una partida cada vez: cada nivel es
   `challengeRound(n)`, ganarlo da estrellas según lo encajado (una por ganar, dos si la máquina

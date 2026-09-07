@@ -53,7 +53,21 @@ const XR_UI = {
   quit: [0.42, 0.26, HALF_LENGTH * 0.55] as [number, number, number],
 }
 
-export function GameWorld() {
+export interface GameWorldProps {
+  /**
+   * Quien monta la escena pone además interfaz en DOM alrededor. Entonces los
+   * paneles de dentro de la escena solo hacen falta con el visor puesto: sus
+   * botones cazarían los clics del ratón por delante de la mesa, porque los
+   * punteros miran si hay manejadores y no si se ve algo.
+   *
+   * Montado en el salón de xrcade no hay nada de eso —el hub no pone DOM—, así
+   * que los paneles van siempre. Sin esto, el juego se veía en el hub y no
+   * había forma de empezar la partida.
+   */
+  hasDomUi?: boolean
+}
+
+export function GameWorld({ hasDomUi = false }: GameWorldProps) {
   const { gameState, runId } = useGame()
   const mode = useXR((state) => state.mode)
 
@@ -79,6 +93,8 @@ export function GameWorld() {
   // sala la taparía y rompería el passthrough.
   const passthrough = mode === 'immersive-ar'
   const immersive = mode != null
+  /** Si toca dibujar los paneles de dentro de la escena. */
+  const showPanels = !hasDomUi || immersive
 
   return (
     <>
@@ -121,11 +137,13 @@ export function GameWorld() {
             />
           ) : null}
 
-          {/* La interfaz del visor no se monta siquiera en escritorio. No es
-              solo que sobre —ahí manda el DOM—: los punteros miran si hay
-              listeners y no si se ve, así que sus botones cazarían clics del
-              ratón por delante de la mesa. */}
-          {immersive ? (
+          {/* La interfaz de dentro de la escena no se monta cuando el anfitrión
+              pone la suya en DOM y no hay visor. No es solo que sobre: los
+              punteros miran si hay manejadores y no si se ve algo, así que sus
+              botones cazarían clics del ratón por delante de la mesa. Montado
+              en el salón —que no pone DOM— va siempre, o el juego se queda sin
+              forma de empezar la partida. */}
+          {showPanels ? (
             <>
               <group position={XR_UI.scoreboard} rotation={[-0.18, 0, 0]}>
                 <XRScoreboard />

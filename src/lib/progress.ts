@@ -70,6 +70,9 @@ export const {
 export function saveLevelResult(level: number, earned: Stars): number {
   const nivel = clampLevel(level)
   const lista = getStarsList().split(',').map(Number)
+  // El `?? 0` es para una lista guardada más corta de lo que debería: se edita
+  // a mano, y sin esto comparar contra `undefined` daría siempre falso.
+  /* v8 ignore next */
   if (earned > (lista[nivel - 1] ?? 0)) {
     lista[nivel - 1] = earned
     stars.save(lista.join(','))

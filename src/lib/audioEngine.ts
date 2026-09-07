@@ -228,6 +228,9 @@ const RECIPES: Record<GameSound, SoundRecipe> = {
  * es lo que dice qué se ha oído.
  */
 function scaled(recipe: SoundRecipe, strength: number): SoundRecipe {
+  // Quien llama ya pasa la fuerza por `impactStrength`, que descarta lo que no
+  // es número; el 1 de aquí es el resguardo de que esta receta valga sola.
+  /* v8 ignore next */
   const s = Math.min(1, Math.max(0, Number.isFinite(strength) ? strength : 1))
   const level = MIN_LEVEL + (1 - MIN_LEVEL) * s
   const pitch = 1 - PITCH_SPREAD / 2 + PITCH_SPREAD * s
@@ -350,6 +353,9 @@ export function createAirHockeyAudio(
     // Sin contexto no se roza: el primer golpe es quien lo abre.
     if (context == null) return
     const voice = slideReady(context)
+    // Solo sería nulo con el contexto abierto y sin maestro ni ruido montados,
+    // que es un estado que no llega a darse: los tres se crean a la vez.
+    /* v8 ignore next */
     if (voice == null) return
     const now = context.currentTime
     // Suavizado y no un salto: la velocidad cambia cada fotograma y un volumen

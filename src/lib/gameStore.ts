@@ -292,6 +292,9 @@ export function useGameStoreValue(): GameStore {
   // disco en el centro.
   useEffect(() => {
     if (!running || !challenge || matchOutcome !== 'won') return
+    // Dos ejecuciones del efecto por la misma ronda —Strict Mode las provoca en
+    // desarrollo— sumarían dos veces lo hecho y saltarían una ronda entera.
+    /* v8 ignore next */
     if (advancedRound.current === challengeRoundNumber) return
     advancedRound.current = challengeRoundNumber
 

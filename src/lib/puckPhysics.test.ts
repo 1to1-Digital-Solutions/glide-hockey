@@ -13,6 +13,7 @@ import {
   constrainMallet,
   fitsThroughGoal,
   isStalled,
+  rallySeconds,
   resolveMalletHit,
   serve,
   stallSeconds,
@@ -308,5 +309,50 @@ describe('con qué fuerza se da cada cosa', () => {
 
     const loose: Body = { position: { x: 0, z: 0 }, velocity: { x: 1, z: 0 } }
     expect(stepPuck({ puck: loose, mallets: [], dt: 1 / 60 }).impact).toEqual({ strike: 0, bounce: 0 })
+  })
+})
+
+describe('el disco atrapado bajo el mazo', () => {
+  it('sale hacia la portería contraria a la del mazo si están justo encima', () => {
+    // Pasa al empezar si alguien deja el mazo sobre el punto de saque: sin una
+    // dirección de choque que deducir, el disco se quedaría dentro del mazo
+    // para siempre y la partida se congelaría sin que nada fallara.
+    const mallet = { position: { x: 0, z: -1 }, velocity: { x: 0, z: 0 } }
+    const puck = { position: { x: 0, z: -1 }, velocity: { x: 0, z: 0 } }
+
+    const resuelto = resolveMalletHit(puck, mallet)
+
+    expect(resuelto).not.toBeNull()
+    expect(resuelto?.position.z).toBeGreaterThan(-1)
+  })
+
+  it('y al revés con el mazo en el otro lado de la mesa', () => {
+    const mallet = { position: { x: 0, z: 1 }, velocity: { x: 0, z: 0 } }
+    const puck = { position: { x: 0, z: 1 }, velocity: { x: 0, z: 0 } }
+
+    expect(resolveMalletHit(puck, mallet)?.position.z).toBeLessThan(1)
+  })
+})
+
+describe('los relojes de la jugada', () => {
+  it('un salto de reloj imposible no adelanta nada', () => {
+    // `dt` sale del navegador: al volver de una pestaña en segundo plano puede
+    // llegar en cero, negativo o NaN, y con eso los relojes se irían.
+    for (const dt of [0, -1, Number.NaN]) {
+      expect(stallSeconds(2, { position: { x: 0, z: 0 }, velocity: { x: 0, z: 0 } }, dt)).toBe(2)
+      expect(rallySeconds(2, dt)).toBe(2)
+    }
+  })
+
+  it('el disco parado va sumando, y en cuanto se mueve vuelve a cero', () => {
+    const quieto = { position: { x: 0, z: 0 }, velocity: { x: 0, z: 0 } }
+    const rodando = { position: { x: 0, z: 0 }, velocity: { x: 0, z: 5 } }
+
+    expect(stallSeconds(1, quieto, 0.5)).toBeCloseTo(1.5, 9)
+    expect(stallSeconds(1, rodando, 0.5)).toBe(0)
+  })
+
+  it('la jugada suma pase lo que pase: solo la corta el gol', () => {
+    expect(rallySeconds(1, 0.5)).toBeCloseTo(1.5, 9)
   })
 })

@@ -87,8 +87,10 @@ describe('pulseSession', () => {
     const throws = vi.fn(() => {
       throw new Error('desconectado')
     })
+    // El que lanza va en una mano de verdad: puesto en `none` no llegaría a
+    // llamarse y el caso que se quiere probar no ocurriría.
     const session: HapticSession = {
-      inputSources: [source('left'), source('right', rejects), source('none', throws)],
+      inputSources: [source('left', throws), source('right', rejects), source('none')],
     }
 
     expect(() => pulseSession(session, GOAL_PULSE, null)).not.toThrow()
@@ -97,5 +99,21 @@ describe('pulseSession', () => {
 
   it('sin sesión no hay a quién pulsar', () => {
     expect(pulseSession(null, STRIKE_PULSE, 'left')).toBe(0)
+  })
+})
+
+
+describe('un mando que dice tener vibrador pero no lo tiene', () => {
+  it('se salta sin romper', () => {
+    // `hapticActuators` está en el estándar pero no todos los navegadores lo
+    // rellenan igual: unos lo dejan vacío y otros ponen un objeto sin `pulse`.
+    const sinNada = { gamepad: undefined, handedness: 'left' }
+    const sinLista = { gamepad: {}, handedness: 'right' }
+    const sinPulse = { gamepad: { hapticActuators: [{}] }, handedness: 'none' }
+    const session = {
+      inputSources: [sinNada, sinLista, sinPulse],
+    } as unknown as HapticSession
+
+    expect(pulseSession(session, GOAL_PULSE, null)).toBe(0)
   })
 })

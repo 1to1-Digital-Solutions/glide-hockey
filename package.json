@@ -1,6 +1,6 @@
 {
   "name": "air-hockey",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "Air hockey contra la máquina. Juego web en 3D para navegador y realidad mixta (VR/AR), montable dentro de otra aplicación.",
   "license": "MIT",
@@ -39,7 +39,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "sync:xr-profiles": "node scripts/sync-xr-profiles.mjs"
+    "sync:xr-profiles": "node scripts/sync-xr-profiles.mjs",
+    "coverage": "vitest run --coverage"
   },
   "peerDependencies": {
     "@react-three/drei": "^10.7.7",
@@ -61,6 +62,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.185.0",
+    "@vitest/coverage-v8": "^3.2.7",
     "@webxr-input-profiles/assets": "^1.0.20",
     "esbuild": "^0.28.2",
     "eslint": "^9",

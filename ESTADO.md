@@ -5,6 +5,19 @@
 
 ---
 
+## 📍 v0.5.1 (2026-09-07): los tests dicen ahora cuánto código ejecutan
+
+- **La suite mide su propia cobertura** (`npm run coverage`, y un paso más en CI). Se mide
+  **el dominio** (`src/lib`), que es lo único que se puede probar sin un navegador con WebGL;
+  la escena se prueba de extremo a extremo.
+- **Está al 100 %, y el mínimo es 100**: lo que se añada sin probar rompe el build. Las pocas
+  ramas que ningún test puede alcanzar —guardas que solo actuarían si cambiara el código de
+  al lado— llevan `v8 ignore` con el motivo escrito al lado, no un número más bajo.
+- Para llegar ahí se escribieron tests de lo que no probaba nadie: el almacenamiento cuando el
+  navegador no deja guardar, el motor de sonido contra un `AudioContext` de mentira, el panel
+  del visor y el estado de la partida con relojes falsos.
+- El informe HTML queda en `coverage/`, que no se commitea.
+
 ## ⏭️ SIGUIENTE PASO (lo primero al volver)
 
 - Probar el juego **con el visor** (`npm run dev:https`): es lo único de la

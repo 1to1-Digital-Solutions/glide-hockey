@@ -7,7 +7,9 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Los empaquetados que genera `e2e/support/globalSetup.ts` para los tests de
   // navegador: código de terceros, no del proyecto.
-  globalIgnores(['e2e/support/*.bundle.js']),
+  // `coverage/**` es el informe de cobertura que genera Vitest: no es código
+  // del proyecto y no se commitea (está en `.gitignore`).
+  globalIgnores(['coverage/**', 'e2e/support/*.bundle.js']),
 ])
 
 export default eslintConfig

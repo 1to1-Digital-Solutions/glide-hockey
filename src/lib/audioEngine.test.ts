@@ -31,6 +31,8 @@ function fakeAudioContext(
   rechaza: Error | null = null,
 ) {
   const filters: { type: string; frequency: number }[] = []
+  /** Las fuentes creadas, para poder hacer que una falle al pararla. */
+  const sources: { stop: () => void }[] = []
   const oscillators: { frequency: number }[] = []
   /** Cuántas veces se ha pedido cada cosa que devuelve una promesa. */
   const llamadas = { resume: 0, close: 0 }
@@ -95,14 +97,18 @@ function fakeAudioContext(
       })
       return filter
     },
-    createBufferSource: () => ({
-      buffer: null,
-      loop: false,
-      playbackRate: { value: 1 },
-      connect: vi.fn(),
-      start: vi.fn(),
-      stop: vi.fn(),
-    }),
+    createBufferSource: () => {
+      const source = {
+        buffer: null,
+        loop: false,
+        playbackRate: { value: 1 },
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+      }
+      sources.push(source)
+      return source
+    },
     createOscillator: () => {
       let frequency = 0
       const oscillator = {
@@ -133,6 +139,7 @@ function fakeAudioContext(
     context: context as unknown as AudioContext,
     filters,
     oscillators,
+    sources,
     llamadas,
     sinRecoger,
   }
@@ -344,3 +351,85 @@ describe('el roce del disco', () => {
   })
 })
 
+
+describe('el contexto que abre el navegador', () => {
+  it('sin Web Audio en el navegador, se juega en silencio', () => {
+    // Es lo que pasa en un navegador viejo o con el audio vetado por política:
+    // el juego tiene que seguir, no llevarse la escena por delante.
+    vi.stubGlobal('window', {})
+
+    const audio = createAirHockeyAudio()
+    expect(() => audio.play('strike')).not.toThrow()
+
+    vi.unstubAllGlobals()
+  })
+
+  it('sin ventana ninguna tampoco rompe', () => {
+    vi.stubGlobal('window', undefined)
+
+    const audio = createAirHockeyAudio()
+    expect(() => audio.play('strike')).not.toThrow()
+
+    vi.unstubAllGlobals()
+  })
+
+  it('si abrir el contexto falla, se juega en silencio', () => {
+    // Sin permiso, sin salida de audio o con demasiados contextos abiertos.
+    class Rota {
+      constructor() {
+        throw new Error('sin salida de audio')
+      }
+    }
+    vi.stubGlobal('window', { AudioContext: Rota })
+
+    const audio = createAirHockeyAudio()
+    expect(() => audio.play('strike')).not.toThrow()
+
+    vi.unstubAllGlobals()
+  })
+
+  it('con Web Audio, lo abre y suena', () => {
+    const fake = fakeAudioContext()
+    vi.stubGlobal('window', { AudioContext: function () { return fake.context } })
+
+    const audio = createAirHockeyAudio()
+    audio.play('strike')
+
+    expect(fake.oscillators.length).toBeGreaterThan(0)
+    vi.unstubAllGlobals()
+  })
+})
+
+describe('cerrar el reproductor', () => {
+  it('una voz ya parada no impide cerrar el contexto', () => {
+    // El navegador lanza si se para dos veces la misma fuente, y eso pasa al
+    // salir de la partida justo después de que el roce se apague solo.
+    const fake = fakeAudioContext()
+    const audio = createAirHockeyAudio(() => fake.context)
+    // El primer golpe es quien abre el contexto; sin él no hay roce que parar.
+    audio.play('strike')
+    audio.slide(5)
+
+    // La última fuente creada es la voz del roce; el golpe crea la suya.
+    const voz = fake.sources[fake.sources.length - 1]
+    voz.stop = () => {
+      throw new Error('ya parada')
+    }
+
+    expect(() => audio.close()).not.toThrow()
+    expect(fake.llamadas.close).toBe(1)
+  })
+})
+
+describe('velocidades imposibles', () => {
+  it('una velocidad que no es número no sube el volumen del roce', () => {
+    // Sale del disco cada fotograma: al volver de una pestaña en segundo plano
+    // puede llegar como NaN, y con eso el volumen se iría a lo que sea.
+    expect(slideLevel(Number.NaN)).toBe(slideLevel(0))
+    expect(slidePitch(Number.NaN)).toBe(slidePitch(0))
+  })
+
+  it('y un golpe sin velocidad conocida es el más flojo, no el más fuerte', () => {
+    expect(impactStrength(Number.NaN)).toBe(impactStrength(0))
+  })
+})

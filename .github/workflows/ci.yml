@@ -49,6 +49,10 @@ jobs:
         run: npm run typecheck --if-present
       - if: steps.proyecto.outputs.hay == 'si'
         run: npm test --if-present
+      # Con el mínimo de cobertura del dominio (`vitest.config.mts`): los tests en
+      # verde no dicen nada si la mitad del código no se ejecuta en ninguno.
+      - if: steps.proyecto.outputs.hay == 'si'
+        run: npm run coverage --if-present
       - if: steps.proyecto.outputs.hay == 'si'
         run: npm run build --if-present
 

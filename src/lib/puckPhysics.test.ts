@@ -187,6 +187,36 @@ describe('el golpe de un mazo', () => {
     )
   })
 
+  it('un mazo quieto no puede devolver el disco más rápido de lo que llegó', () => {
+    // La mesa no fabrica energía. Un mazo parado es una pared: devuelve algo
+    // menos de lo que recibe. Con la restitución por encima de 1 que había
+    // antes, el disco salía disparado de un mazo inmóvil y la mesa jugaba sola.
+    for (const llega of [1, 3, 5]) {
+      const puck: Body = {
+        position: { x: 0, z: PUCK_RADIUS + MALLET_RADIUS - 0.01 },
+        velocity: { x: 0, z: -llega },
+      }
+
+      const hit = resolveMalletHit(puck, still(0, 0))
+
+      expect(Math.hypot(hit!.velocity.x, hit!.velocity.z), `llegando a ${llega} m/s`).toBeLessThan(llega)
+    }
+  })
+
+  it('pero un mazo que avanza sí contraataca: la fuerza la pone la mano', () => {
+    // Y sale más rápido de lo que llegó, sin necesidad de inventarse nada: el
+    // impulso se calcula con la velocidad relativa.
+    const puck: Body = {
+      position: { x: 0, z: PUCK_RADIUS + MALLET_RADIUS - 0.01 },
+      velocity: { x: 0, z: -2 },
+    }
+    const mallet: Body = { position: { x: 0, z: 0 }, velocity: { x: 0, z: 3 } }
+
+    const hit = resolveMalletHit(puck, mallet)
+
+    expect(hit!.velocity.z).toBeGreaterThan(2)
+  })
+
   it('no toca el disco si no llega a alcanzarlo', () => {
     const puck: Body = { position: { x: 0, z: 0.5 }, velocity: { x: 0, z: 0 } }
 

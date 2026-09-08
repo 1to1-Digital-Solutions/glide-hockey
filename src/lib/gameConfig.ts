@@ -78,11 +78,17 @@ export const MAX_PUCK_SPEED = 6
 export const WALL_RESTITUTION = 0.9
 
 /**
- * Cuánto devuelve un mazo al golpear. Por encima de 1 porque el mazo también
- * empuja: un golpe seco tiene que salir más rápido de lo que llegó, o no hay
- * forma de contraatacar un disco que viene lento.
+ * Cuánto devuelve un mazo al golpear: lo de un mazo de verdad contra un disco
+ * de verdad, que no llega a devolver todo lo que recibe.
+ *
+ * Estuvo en 1,15 —por encima de 1— para que un golpe seco saliera más rápido de
+ * lo que llegaba. Eso ya lo hace la física sola y sin inventarse energía: el
+ * impulso se calcula con la velocidad **relativa**, así que un mazo que avanza
+ * a 3 m/s contra un disco que viene a 2 le devuelve casi 7. Lo que hacía el
+ * 1,15 era que un mazo QUIETO devolviera el disco más rápido de lo que llegó,
+ * que es una mesa que juega sola.
  */
-export const MALLET_RESTITUTION = 1.15
+export const MALLET_RESTITUTION = 0.85
 
 /**
  * Velocidad máxima del mazo del jugador, en m/s.

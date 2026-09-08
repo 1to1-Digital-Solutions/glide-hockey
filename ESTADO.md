@@ -5,7 +5,22 @@
 
 ---
 
-## 📍 v0.6.0 (2026-09-07): el escenario se cambia sin salir de la sesión
+## 📍 v0.6.1 (2026-09-08): la mesa deja de fabricar energía
+
+- **`MALLET_RESTITUTION` baja de 1,15 a 0,85**, que es lo de un mazo de verdad. Por encima de 1
+  significaba que un mazo **quieto** devolvía el disco más rápido de lo que llegaba: una mesa que
+  juega sola.
+- El contraataque no se pierde, porque nunca dependió de eso: el impulso se calcula con la
+  velocidad **relativa**, así que un mazo que avanza a 3 m/s contra un disco que viene a 2 le
+  devuelve casi 7. La fuerza la pone la mano, no la restitución.
+- Dos guardas nuevas en `puckPhysics.test.ts`: un mazo quieto no puede devolver el disco más
+  rápido de lo que llegó, y uno que avanza sí.
+- **Y de paso, la sala volvía a caber en su presupuesto de dibujo.** El e2e llevaba tiempo en
+  rojo sin que nadie lo mirase: la sala de recreativos (v0.5.0) subió la escena de 40 llamadas a
+  **63**, con el techo en 40. Las diez máquinas eran treinta mallas, las bandas de la moqueta
+  cinco y las paredes seis; instanciadas son tres, una y dos. **36 llamadas** y se ve igual.
+
+## v0.6.0 (2026-09-07): el escenario se cambia sin salir de la sesión
 
 - **La sala o tu habitación, elegido por quien juega** y no por cómo se entró al visor.
   Dentro de una sesión de realidad aumentada las dos son la misma sesión pintada de dos

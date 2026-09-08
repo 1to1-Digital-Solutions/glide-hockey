@@ -39,6 +39,7 @@ import {
   subscribeStarsList,
   subscribeUnlockedLevel,
 } from './progress'
+import { getMusic, getServerMusic, saveMusic, subscribeMusic } from './music'
 import {
   getMuted,
   getServerMuted,
@@ -146,6 +147,9 @@ export interface GameStore {
   endRun: () => void
   setImmersive: (immersive: boolean) => void
   setMuted: (muted: boolean) => void
+  /** Si suena la música de fondo. El silencio manda sobre ella. */
+  music: boolean
+  setMusic: (music: boolean) => void
   /**
    * Cambia lo que se pinta alrededor. Se puede a media partida y con el visor
    * puesto: es lo que hace que se pueda mirar la habitación sin salir de la
@@ -216,6 +220,9 @@ export function useGameStoreValue(): GameStore {
   // así que los dos menús —el de escritorio y el del visor— leen lo mismo y
   // cambiarlo en uno se ve en el otro (ver `muted.ts`).
   const muted = useSyncExternalStore(subscribeMuted, getMuted, getServerMuted)
+  // Y la música va aparte del silencio: son dos decisiones distintas (ver
+  // `music.ts`), y las dos se recuerdan entre visitas.
+  const music = useSyncExternalStore(subscribeMusic, getMusic, getServerMusic)
   // Lo que se pinta alrededor tampoco es estado de React: se recuerda entre
   // visitas, como el silencio, y se cambia desde los dos menús.
   const scenery = useSyncExternalStore(subscribeScenery, getScenery, getServerScenery)
@@ -445,6 +452,7 @@ export function useGameStoreValue(): GameStore {
   }, [])
 
   const setMuted = useCallback((value: boolean) => saveMuted(value), [])
+  const setMusic = useCallback((value: boolean) => saveMusic(value), [])
 
   const setScenery = useCallback((value: Scenery) => saveScenery(value), [])
 
@@ -484,6 +492,7 @@ export function useGameStoreValue(): GameStore {
       runId,
       immersive,
       muted,
+      music,
       scenery,
       setGoalTarget,
       setDifficulty,
@@ -493,6 +502,7 @@ export function useGameStoreValue(): GameStore {
       endRun,
       setImmersive,
       setMuted,
+      setMusic,
       setScenery,
       startGame,
       scorePlayer,
@@ -528,12 +538,14 @@ export function useGameStoreValue(): GameStore {
       runId,
       immersive,
       muted,
+      music,
       scenery,
       setGoalTarget,
       setGameMode,
       setLevel,
       endRun,
       setMuted,
+      setMusic,
       setScenery,
       startGame,
       scorePlayer,

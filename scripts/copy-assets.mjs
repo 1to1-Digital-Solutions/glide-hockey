@@ -23,12 +23,13 @@ const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const source = join(packageRoot, 'public')
 
 /**
- * Lo que necesita el juego. `webxr-profiles/` es el mapa de botones de cada
+ * Lo que necesita el juego. `audio/` es la música de fondo, y
+ * `webxr-profiles/` es el mapa de botones de cada
  * mando: sin él, el anfitrión que apunte ahí su store se queda sin mandos en el
  * visor (ver `scripts/sync-xr-profiles.mjs`). `CREDITS.md` va con ellos porque
  * su licencia obliga a acompañar cada copia del aviso.
  */
-const ASSETS = ['webxr-profiles', 'CREDITS.md']
+const ASSETS = ['audio', 'webxr-profiles', 'CREDITS.md']
 
 async function main() {
   const target = process.argv[2]

@@ -5,7 +5,21 @@
 
 ---
 
-## 📍 v0.6.1 (2026-09-08): la mesa deja de fabricar energía
+## 📍 v0.7.0 (2026-09-08): música de fondo, con su propio interruptor
+
+- **La sala suena.** Hasta ahora todo el audio eran osciladores: los golpes, los goles y el roce
+  del disco. Faltaba el fondo, y sin él un salón recreativo no es un salón recreativo.
+- La pista es [Calm Ambient 1 (Synthwave 4k)](https://opengameart.org/content/calm-ambient-1-synthwave-4k),
+  **CC0**, en `public/audio/sala.mp3`. Mono a 64 kbps: 1,2 MB por dos minutos y medio, que es lo
+  que se puede pedir por HTTP en un visor conectado a la red de casa. Empieza y acaba casi en
+  silencio, así que el bucle no tiene costura. Acreditada en `public/CREDITS.md`.
+- **Interruptor propio**, al lado del de sonido en los dos menús (`lib/music.ts`, con el patrón
+  de `muted.ts`). Son dos decisiones distintas: hay quien quiere oír el disco y no el fondo. El
+  silencio manda sobre las dos.
+- **Entrando con la música apagada no se descarga nada**: el elemento de audio se crea al pedirla
+  por primera vez. Comprobado en el navegador —cero peticiones apagada, una al encenderla.
+
+## v0.6.1 (2026-09-08): la mesa deja de fabricar energía
 
 - **`MALLET_RESTITUTION` baja de 1,15 a 0,85**, que es lo de un mazo de verdad. Por encima de 1
   significaba que un mazo **quieto** devolvía el disco más rápido de lo que llegaba: una mesa que

@@ -92,6 +92,8 @@ export function StartScreen() {
     setLevel,
     muted,
     setMuted,
+    music,
+    setMusic,
     scenery,
     setScenery,
     bestPoints,
@@ -308,6 +310,22 @@ export function StartScreen() {
               </OptionButton>
               <OptionButton selected={muted} onClick={() => setMuted(true)}>
                 Silencio
+              </OptionButton>
+            </div>
+          </fieldset>
+
+          {/* Y la música aparte: hay quien quiere oír el disco y no el fondo, y
+              quien pone el juego de fondo y prefiere lo contrario. Con el juego
+              en silencio no suena ninguna de las dos. */}
+          <fieldset className="flex flex-col gap-2">
+            <legend className="sr-only">Música de fondo</legend>
+            <FieldLabel>Música</FieldLabel>
+            <div className="grid grid-cols-2 gap-2">
+              <OptionButton selected={music} onClick={() => setMusic(true)}>
+                Activada
+              </OptionButton>
+              <OptionButton selected={!music} onClick={() => setMusic(false)}>
+                Sin música
               </OptionButton>
             </div>
           </fieldset>

@@ -8,6 +8,7 @@ import { showsPlace } from '../../lib/scenery'
 import { HALF_LENGTH } from '../../lib/puckPhysics'
 import { type GameSound } from '../../lib/audioEngine'
 import { useGameAudio } from '../../lib/useGameAudio'
+import { useGameMusic } from '../../lib/useGameMusic'
 import { useGameHaptics } from '../../lib/useGameHaptics'
 import { useRoomEnvironment } from '../../lib/useRoomEnvironment'
 import {
@@ -77,6 +78,7 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
   // llevaba por delante el gol que la ganaba —el contexto se cerraba mientras
   // sonaba— y estrenaba otro contexto por ronda (ver `lib/useGameAudio.ts`).
   const { play, slide } = useGameAudio()
+  useGameMusic()
   const haptics = useGameHaptics()
   // Cada suceso de la mesa suena y se siente a la vez: el sonido obedece al
   // silencio y la vibración no, que con el juego callado es lo único que dice

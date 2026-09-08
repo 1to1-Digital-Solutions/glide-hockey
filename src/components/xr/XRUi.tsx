@@ -273,6 +273,48 @@ export function XRMenuIcon({
  * están, y callado se tacha con una barra— porque el menú se mira a un metro y
  * con el visor puesto, donde un cian y un gris se parecen bastante.
  */
+/**
+ * Una nota musical: la cabeza y su plica. Dice si la música de fondo suena o
+ * está apagada, con el mismo tachón en diagonal que el altavoz callado, para
+ * que los dos interruptores se lean igual sin leer nada.
+ */
+export function XRMusicIcon({
+  playing,
+  size = 0.05,
+}: {
+  playing: boolean
+  size?: number
+}) {
+  const color = playing ? PALETTE.foreground : DIM_COLOR
+
+  return (
+    <group>
+      {/* La cabeza de la nota, ovalada por estar algo tumbada. */}
+      <mesh position={[-size * 0.18, -size * 0.3, 0]} rotation={[0, 0, -0.35]} scale={[1.3, 1, 1]}>
+        <circleGeometry args={[size * 0.22, 16]} />
+        <meshBasicMaterial color={color} toneMapped={false} />
+      </mesh>
+      {/* La plica, subiendo por la derecha de la cabeza. */}
+      <mesh position={[-size * 0.02, size * 0.05, 0]}>
+        <planeGeometry args={[size * 0.09, size * 0.75]} />
+        <meshBasicMaterial color={color} toneMapped={false} />
+      </mesh>
+      {/* Y el corchete, doblando hacia la derecha arriba del todo. */}
+      <mesh position={[size * 0.14, size * 0.34, 0]} rotation={[0, 0, -0.5]}>
+        <planeGeometry args={[size * 0.34, size * 0.09]} />
+        <meshBasicMaterial color={color} toneMapped={false} />
+      </mesh>
+
+      {playing ? null : (
+        <mesh rotation={[0, 0, -Math.PI / 4]}>
+          <planeGeometry args={[size * 1.05, size * 0.11]} />
+          <meshBasicMaterial color={color} toneMapped={false} />
+        </mesh>
+      )}
+    </group>
+  )
+}
+
 export function XRSoundIcon({
   muted,
   size = 0.05,

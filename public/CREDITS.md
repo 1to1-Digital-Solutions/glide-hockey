@@ -5,7 +5,20 @@ con qué licencia y qué obliga esa licencia, porque es lo que se copia al
 `public/` de quien monte el juego (`npx air-hockey-assets`) y viaja con él.
 
 El resto del juego —la mesa, el disco, los mazos, la sala— es geometría
-generada en código: no hay modelos ni texturas que acreditar.
+generada en código, y los golpes y los goles son osciladores: no hay modelos ni
+texturas que acreditar, y el único fichero de sonido es la música de fondo.
+
+## Música de fondo — `audio/sala.mp3`
+
+[Calm Ambient 1 (Synthwave 4k)](https://opengameart.org/content/calm-ambient-1-synthwave-4k),
+de The Cynic Project, publicada en OpenGameArt bajo **CC0** (dominio público):
+se puede usar y modificar sin atribución. Se acredita igualmente por cortesía.
+
+Son pads tranquilos de dos minutos y medio, que es lo que pide el fondo de un
+salón recreativo: se oye cuando no pasa nada y desaparece debajo del disco en
+cuanto lo hay. Se sirve en mono a 64 kbps (1,2 MB) porque va de fondo y a poco
+volumen; el original son 6 MB en estéreo a 320. Empieza y acaba casi en
+silencio, así que el bucle no tiene costura.
 
 ## Perfiles de mando de WebXR — `webxr-profiles/`
 

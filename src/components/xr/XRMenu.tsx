@@ -21,6 +21,7 @@ import {
   XRPlayIcon,
   XRPressable,
   XRSignIcon,
+  XRMusicIcon,
   XRSceneryIcon,
   XRSoundIcon,
   type XrHitBox,
@@ -131,6 +132,8 @@ export function XRMenu() {
     levelStars,
     setLevel,
     muted,
+    music,
+    setMusic,
     setMuted,
     scenery,
     setScenery,
@@ -315,6 +318,22 @@ export function XRMenu() {
           opacity={passthroughAvailable ? 0.8 : 0.4}
         />
         <XRSceneryIcon room={scenery === 'room'} lit={passthroughAvailable} />
+      </XRPressable>
+
+      {/* Y la música al otro lado de la misma banda, junto al escenario: las
+          dos son cosas del sitio, no de la partida. Aparte del silencio a
+          propósito: hay quien quiere oír el disco y no el fondo. */}
+      <XRPressable
+        box={hitBox(0.28, ROW.record, SMALL_BUTTON)}
+        onSelect={() => setMusic(!music)}
+      >
+        <XRPlate
+          width={SMALL_BUTTON[0]}
+          height={SMALL_BUTTON[1]}
+          color={PALETTE.rail}
+          opacity={0.8}
+        />
+        <XRMusicIcon playing={music} />
       </XRPressable>
 
       {/* Silencio a un lado de «jugar» y salir al otro: los dos son de la

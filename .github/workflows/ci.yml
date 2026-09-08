@@ -1,11 +1,18 @@
 name: CI
 
-# El trabajo entra por `develop` y se publica a `main`: sin PRs de por medio, un CI que
-# solo escuchara `pull_request` no se ejecutaría nunca.
+# **Solo al publicar a `main`.** El trabajo entra por `develop` continuamente —cada tarea
+# de un agente es un merge— y esto tarda veinte minutos por los e2e: correrlo ahí se comía
+# la cuota de Actions de la organización en una semana. Lo que protege `main` es lo que
+# importa, porque es lo que se despliega. Lo de `develop` ya lo verifican los gates que
+# Organízate ejecuta sobre la rama antes de integrarla, en esta misma máquina y gratis.
+#
+# `workflow_dispatch` deja lanzarlo a mano desde GitHub sin tener que empujar nada.
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
+    branches: [main]
+  workflow_dispatch:
 
 # Cancela ejecuciones antiguas de la misma rama: solo interesa la última.
 concurrency:

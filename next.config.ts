@@ -32,6 +32,8 @@ const CONTENT_SECURITY_POLICY = [
   "script-src 'self' 'unsafe-inline'",
   "worker-src 'self' blob:",
   "connect-src 'self'",
+  // La música de fondo se sirve desde el propio origen, como todo lo demás.
+  "media-src 'self'",
 ].join('; ')
 
 /**

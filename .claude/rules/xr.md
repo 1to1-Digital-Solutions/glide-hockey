@@ -71,6 +71,14 @@ principio.
 - **El gesto se enseña mostrando el objeto.** Al apretar el gatillo, lo que se va a lanzar
   aparece en la mano; al soltar, sale. Sin ver el dardo en la mano no hay forma de saber
   cuándo se ha cogido ni cuándo se suelta.
+- **Nada se separa a milímetros: se separa con `polygonOffset`.** Las líneas de una pista, los
+  anillos de una diana, los tablones de un suelo —todo lo pintado sobre otra cosa— se ponían uno
+  o dos milímetros por delante, y en el navegador basta. Con el visor puesto no: WebXR sirve
+  menos bits de profundidad y, a la distancia a la que se juega, un milímetro cae por debajo de
+  lo que el búfer distingue. Las dos superficies se pelean fotograma a fotograma y la escena
+  **reverbera**, que se lee como «hay algo en medio». `polygonOffset` sesga la profundidad al
+  rasterizar, así que no depende de la distancia ni de los bits; y si hay varias capas, cada una
+  lleva el suyo. Esto se comprobó en los seis juegos que lo tenían.
 - **La iluminación se prueba dentro.** Una escena que en el navegador se ve bien puede
   parpadear con el visor puesto: luces que el decorado recalcula cada fotograma, sombras que
   se recomponen, materiales emisivos peleándose con el tono. Si al entrar la pantalla

@@ -218,7 +218,13 @@ export function Room() {
       </mesh>
       <instancedMesh ref={stripes} args={[undefined, undefined, stripeCopies.length]}>
         <planeGeometry args={[0.5, ROOM_DEPTH]} />
-        <meshStandardMaterial color={CARPET_STRIPE_COLOR} roughness={1} />
+        <meshStandardMaterial
+          color={CARPET_STRIPE_COLOR}
+          roughness={1}
+          polygonOffset
+          polygonOffsetFactor={-2}
+          polygonOffsetUnits={-2}
+        />
       </instancedMesh>
 
       {/* Las paredes, con zócalo. Solo las tres que se ven desde el sitio de

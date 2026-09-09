@@ -46,3 +46,40 @@ contrato de montaje —escena, no aplicación— está en `docs/xrcade.md` del r
 - **Publicar es un tag** `vX.Y.Z` igual a la `version` del `package.json`; el hub lo instala
   por tag. Antes del tag: typecheck, lint, tests, e2e y el test del contrato del paquete
   (`peerDependencies`, `exports`, `files`).
+
+## Lo que enseñó probar con el visor puesto
+
+Nada de esto se ve desde una pantalla, y todo salió de la primera tanda de pruebas con gafas.
+Un juego nuevo empieza cumpliéndolo; no es una lista de arreglos, es cómo se hace desde el
+principio.
+
+- **La escena va DELANTE de quien entra.** Al abrir la sesión, lo primero que se ve tiene que
+  ser aquello a lo que se juega: la mesa, la diana, la pista. Si el mundo se coloca respecto
+  del origen y no respecto de hacia dónde mira quien lleva el visor, la mitad de las veces se
+  entra mirando a una pared y hay que darse la vuelta para encontrar el juego. Lo mismo vale
+  para el menú: se ancla a la mirada la primera vez, no a un punto fijo del mundo.
+- **El botón de volver, arriba a la izquierda y fuera del juego.** En medio de la escena tapa
+  justo lo que hay que mirar y se pulsa sin querer. No es parte de la partida: es la salida.
+- **El menú de ajustes desaparece al jugar.** Si sigue puesto durante la partida, compite con
+  la pelota por la atención y por los píxeles. Se enseña antes de empezar y al terminar.
+- **Un solo panel, y en el mismo sitio en todos los juegos.** Dos placas —una a cada mano—
+  obligan a aprenderse cada juego por separado. Quien ya sabe usar uno tiene que saber usar el
+  siguiente: mismo sitio, mismo orden, mismos gestos.
+- **Lo que se coge, se coge con la mano.** Agarrar con el gatillo y sostener —como el palo de
+  stick-rush— se entiende sin explicación. Mover un objeto con el rayo del mando a distancia
+  se siente como manejar un cursor, no como jugar.
+- **El gesto se enseña mostrando el objeto.** Al apretar el gatillo, lo que se va a lanzar
+  aparece en la mano; al soltar, sale. Sin ver el dardo en la mano no hay forma de saber
+  cuándo se ha cogido ni cuándo se suelta.
+- **La iluminación se prueba dentro.** Una escena que en el navegador se ve bien puede
+  parpadear con el visor puesto: luces que el decorado recalcula cada fotograma, sombras que
+  se recomponen, materiales emisivos peleándose con el tono. Si al entrar la pantalla
+  parpadea o no se puede seleccionar nada, es esto —o un error que la escena se está
+  tragando— y no se despacha como «cosa del visor».
+- **Avisar del sitio real antes de entrar.** Se juega de pie y con los brazos: el hub avisa de
+  que se mire alrededor antes de ponerse las gafas. Un juego cuyos gestos barren mucho espacio
+  lo dice también en su menú.
+- **Idioma y sonido NO se preguntan en el juego.** Se eligen una sola vez en xrcade y viajan
+  por `localStorage` y por una cookie (`lib/ajustes.ts`, el mismo fichero en los trece repos).
+  El menú del juego es para lo suyo: nivel, dificultad, modo, escenario. Los efectos y el
+  ambiente son dos canales con volumen propio, y a cero ni se abre el `AudioContext`.

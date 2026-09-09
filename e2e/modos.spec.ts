@@ -9,28 +9,28 @@ import { abrirJuego, jugarPartida } from './helpers'
  */
 test('sin fin: la máquina marca y la partida sigue hasta que se termina', async ({ page }) => {
   await abrirJuego(page)
-  await jugarPartida(page, { goles: 3, nivel: 'Imposible', sinFin: true })
+  await jugarPartida(page, { goles: 3, nivel: 'Impossible', sinFin: true })
 
-  await expect(page.getByText('sin fin')).toBeVisible()
+  await expect(page.getByText('endless')).toBeVisible()
   // La máquina marca tres veces —lo que sería la partida entera— y no pasa nada.
   await expect(page.getByText('3', { exact: true }).first()).toBeVisible({ timeout: 60_000 })
-  await expect(page.getByRole('button', { name: 'Otra vez' })).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Again' })).toBeHidden()
 
-  await page.getByRole('button', { name: 'Terminar', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Partida terminada' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Otra vez' })).toBeVisible()
+  await page.getByRole('button', { name: 'End run', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Game over' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Again' })).toBeVisible()
 })
 
 test('niveles: se empieza por el primero y el resto tiene candado', async ({ page }) => {
   await abrirJuego(page)
-  await page.getByRole('button', { name: 'Niveles' }).click()
+  await page.getByRole('button', { name: 'Levels' }).click()
 
-  await expect(page.getByRole('button', { name: /^Nivel 1,/ })).toBeEnabled()
-  await expect(page.getByRole('button', { name: 'Nivel 2, bloqueado' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: /^Level 1,/ })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Level 2, locked' })).toBeDisabled()
   // El nivel y los goles los manda la escalera.
-  await expect(page.getByLabel(/^Goles/)).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Imposible' })).toBeDisabled()
+  await expect(page.getByLabel(/^Goals/)).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Impossible' })).toBeDisabled()
 
-  await page.getByRole('button', { name: 'Jugar' }).click()
-  await expect(page.getByText(/Niveles · nivel 1/)).toBeVisible()
+  await page.getByRole('button', { name: 'Play' }).click()
+  await expect(page.getByText(/Levels · level 1/)).toBeVisible()
 })

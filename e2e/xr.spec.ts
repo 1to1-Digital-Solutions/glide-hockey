@@ -34,7 +34,7 @@ test.describe('Sesión inmersiva', () => {
     expect(await page.evaluate(() => window.__xrTest.hasSession())).toBe(true)
     // Se entra al menú: la partida la empieza el jugador. (El menú ofrece
     // también «Salir» del visor mientras hay sesión; no es el «Salir» del HUD.)
-    await expect(page.getByRole('button', { name: 'Jugar', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
   })
 
   test('la escena inmersiva se monta y la partida corre dentro de la sesión', async ({ page }) => {
@@ -64,7 +64,7 @@ test.describe('Sesión inmersiva', () => {
 
     // Quitarse el visor a media partida vuelve al menú (`XRSessionController`):
     // la partida del visor no continúa en la pantalla, se empieza otra.
-    await expect(page.getByRole('button', { name: 'Jugar', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
     await expect(enterButton(page)).toBeVisible()
   })
 })

@@ -23,13 +23,13 @@ export const SCENERY_IDS = ['place', 'room'] as const
 export type Scenery = (typeof SCENERY_IDS)[number]
 
 export const SCENERY_LABELS: Record<Scenery, string> = {
-  place: 'La sala',
-  room: 'Tu habitación',
+  place: 'The room',
+  room: 'Your room',
 }
 
 export const SCENERY_HINTS: Record<Scenery, string> = {
-  place: 'La mesa con la sala de recreativos alrededor.',
-  room: 'Solo con el visor y en realidad aumentada: la mesa se planta en tu cuarto.',
+  place: 'The table with the arcade room around it.',
+  room: 'Headset and augmented reality only: the table stands in your own room.',
 }
 
 /** Con qué se entra: con la sala, que es lo que se ve en cualquier pantalla. */

@@ -10,6 +10,8 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { volumeFactor } from './ajustes'
+import { useVolumes } from './ajustesCliente'
 import { challengeRound } from './challenge'
 import {
   COUNTDOWN_SECONDS,
@@ -39,13 +41,6 @@ import {
   subscribeStarsList,
   subscribeUnlockedLevel,
 } from './progress'
-import { getMusic, getServerMusic, saveMusic, subscribeMusic } from './music'
-import {
-  getMuted,
-  getServerMuted,
-  saveMuted,
-  subscribeMuted,
-} from './muted'
 import {
   getScenery,
   getServerScenery,
@@ -132,7 +127,18 @@ export interface GameStore {
   /** Si hay una sesión inmersiva abierta, es decir, si se juega con gafas. */
   immersive: boolean
   /** Si el juego está callado. Es de quien juega y se recuerda entre visitas. */
+  /**
+   * Juego en silencio, porque los efectos están a cero en los ajustes del
+   * arcade. Ya no es una preferencia de este juego: se elige una vez en xrcade
+   * y vale para los doce (ver `ajustes.ts`). Se deja derivado porque media
+   * escena pregunta «¿estoy mudo?» y no «¿a cuánto están los efectos?».
+   */
   muted: boolean
+  /** Volumen de los efectos, de 0 a 1, tal y como lo quiere la Web Audio API. */
+  sfxVolume: number
+  /** Música de fondo encendida: el ambiente de los ajustes, por encima de cero. */
+  /** Volumen del ambiente, de 0 a 1. */
+  ambienceVolume: number
   /** Qué se pinta alrededor: la sala del juego o tu habitación. */
   scenery: Scenery
 
@@ -146,10 +152,8 @@ export interface GameStore {
   /** Termina la partida sin fin a voluntad: es su única salida con resumen. */
   endRun: () => void
   setImmersive: (immersive: boolean) => void
-  setMuted: (muted: boolean) => void
   /** Si suena la música de fondo. El silencio manda sobre ella. */
   music: boolean
-  setMusic: (music: boolean) => void
   /**
    * Cambia lo que se pinta alrededor. Se puede a media partida y con el visor
    * puesto: es lo que hace que se pueda mirar la habitación sin salir de la
@@ -216,13 +220,14 @@ export function useGameStoreValue(): GameStore {
   // se ha superado nada.
   const [recordToBeat, setRecordToBeat] = useState(0)
 
-  // El silencio tampoco es estado de React: es una preferencia del navegador,
-  // así que los dos menús —el de escritorio y el del visor— leen lo mismo y
-  // cambiarlo en uno se ve en el otro (ver `muted.ts`).
-  const muted = useSyncExternalStore(subscribeMuted, getMuted, getServerMuted)
-  // Y la música va aparte del silencio: son dos decisiones distintas (ver
-  // `music.ts`), y las dos se recuerdan entre visitas.
-  const music = useSyncExternalStore(subscribeMusic, getMusic, getServerMusic)
+  // El sonido no es estado de este juego: sale de los ajustes del arcade, que
+  // se eligen una vez en xrcade y valen para los doce. Aquí solo se traduce a
+  // lo que la escena pregunta: si está mudo y a qué volumen (ver `ajustes.ts`).
+  const volumes = useVolumes()
+  const muted = volumes.sfx === 0
+  const sfxVolume = volumeFactor(volumes.sfx)
+  const music = volumes.ambience > 0
+  const ambienceVolume = volumeFactor(volumes.ambience)
   // Lo que se pinta alrededor tampoco es estado de React: se recuerda entre
   // visitas, como el silencio, y se cambia desde los dos menús.
   const scenery = useSyncExternalStore(subscribeScenery, getScenery, getServerScenery)
@@ -451,9 +456,6 @@ export function useGameStoreValue(): GameStore {
     setPoints((total) => scoreConceded(total))
   }, [])
 
-  const setMuted = useCallback((value: boolean) => saveMuted(value), [])
-  const setMusic = useCallback((value: boolean) => saveMusic(value), [])
-
   const setScenery = useCallback((value: Scenery) => saveScenery(value), [])
 
   const resetGame = useCallback(() => {
@@ -492,7 +494,9 @@ export function useGameStoreValue(): GameStore {
       runId,
       immersive,
       muted,
+      sfxVolume,
       music,
+      ambienceVolume,
       scenery,
       setGoalTarget,
       setDifficulty,
@@ -501,8 +505,6 @@ export function useGameStoreValue(): GameStore {
       setLevel,
       endRun,
       setImmersive,
-      setMuted,
-      setMusic,
       setScenery,
       startGame,
       scorePlayer,
@@ -538,14 +540,14 @@ export function useGameStoreValue(): GameStore {
       runId,
       immersive,
       muted,
+      sfxVolume,
       music,
+      ambienceVolume,
       scenery,
       setGoalTarget,
       setGameMode,
       setLevel,
       endRun,
-      setMuted,
-      setMusic,
       setScenery,
       startGame,
       scorePlayer,

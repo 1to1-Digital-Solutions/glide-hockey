@@ -33,7 +33,7 @@ function SceneLoading() {
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-background)]">
       <p className="animate-pulse text-sm uppercase tracking-[0.3em] text-white/40">
-        Montando la mesa…
+        Setting up the table…
       </p>
     </div>
   )

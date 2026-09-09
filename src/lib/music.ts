@@ -1,5 +1,4 @@
 import { assetUrl } from './assets'
-import { createStoredPreference } from './storage'
 
 /**
  * La música de fondo: si suena y cuál es.
@@ -33,32 +32,3 @@ export const MUSIC_VOLUME = 0.22
 export function musicUrl(): string {
   return assetUrl(MUSIC_PATH)
 }
-
-/** Cómo se entra: con música. */
-export const DEFAULT_MUSIC = true
-
-export const MUSIC_KEY = 'air-hockey:music'
-
-/** Lo que se escribe para cada estado. */
-const MUSIC_OFF = '0'
-const MUSIC_ON = '1'
-
-/**
- * Interpreta lo leído del almacenamiento. Solo un valor la apaga; cualquier
- * otra cosa —incluido no haber elegido nunca— es que suena, que es como se
- * entra.
- */
-export function parseMusic(raw: string | null): boolean {
-  return raw !== MUSIC_OFF
-}
-
-export const {
-  get: getMusic,
-  getServer: getServerMusic,
-  subscribe: subscribeMusic,
-  save: saveMusic,
-} = createStoredPreference<boolean>({
-  key: MUSIC_KEY,
-  parse: parseMusic,
-  serialize: (on) => (on ? MUSIC_ON : MUSIC_OFF),
-})

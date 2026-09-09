@@ -11,7 +11,7 @@ const BUNDLE_PATH = '/anfitrion-de-prueba.js'
 const PUBLIC_DIR = path.join(process.cwd(), 'public')
 
 const HTML = `<!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <title>Anfitrión de prueba</title>

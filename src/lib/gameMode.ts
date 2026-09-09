@@ -26,16 +26,16 @@ export const GAME_MODE_ORDER: GameMode[] = ['practice', 'levels', 'challenge']
 
 /** Etiqueta visible para el usuario (idioma del producto: español). */
 export const GAME_MODE_LABELS: Record<GameMode, string> = {
-  practice: 'Prueba',
-  levels: 'Niveles',
-  challenge: 'Reto',
+  practice: 'Practice',
+  levels: 'Levels',
+  challenge: 'Challenge',
 }
 
 /** Qué promete cada modo, en una línea, para el menú. */
 export const GAME_MODE_HINTS: Record<GameMode, string> = {
-  practice: 'Tú eliges el nivel y los goles. Perder no cuesta nada.',
-  levels: 'Una partida cada vez. El nivel que ganas queda desbloqueado para la próxima.',
-  challenge: 'Sube solo de nivel, del tirón. La primera partida que pierdas se acabó.',
+  practice: 'You choose the level and the goals. Losing costs nothing.',
+  levels: 'One game at a time. The level you win stays unlocked for next time.',
+  challenge: 'It steps up on its own, in one run. The first game you lose ends it.',
 }
 
 /**

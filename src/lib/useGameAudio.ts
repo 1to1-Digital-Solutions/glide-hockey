@@ -33,17 +33,24 @@ export type PlayGameSound = (sound: GameSound, strength?: number) => void
 export type SlidePuck = (speed: number) => void
 
 export function useGameAudio(): { play: PlayGameSound; slide: SlidePuck } {
-  const { muted } = useGame()
+  const { muted, sfxVolume } = useGame()
   const audio = useRef<AirHockeyAudio | null>(null)
 
   // Silenciar suelta el audio del dispositivo, no solo baja el volumen: un
   // contexto abierto sigue contando como que la página está sonando, y en el
   // visor eso es lo que agacha la música que el jugador tenga puesta.
+  // El volumen de efectos de los ajustes del arcade, aplicado al motor en
+  // cuanto cambia. No hace falta volver a crearlo: `setVolume` toca el nodo
+  // maestro, y con el audio aún sin abrir se aplica al abrirlo.
+  useEffect(() => {
+    audio.current?.setVolume(sfxVolume)
+  }, [sfxVolume])
+
   useEffect(() => {
     if (!muted) return
     audio.current?.close()
     audio.current = null
-  }, [muted])
+  }, [muted, sfxVolume])
 
   // Quitar la escena se lleva su audio: dentro del salón se monta y se desmonta
   // a cada visita, y los contextos se irían acumulando.
@@ -62,9 +69,13 @@ export function useGameAudio(): { play: PlayGameSound; slide: SlidePuck } {
       // partida ya empezada: creado antes de que nadie toque nada, el navegador
       // lo dejaría en suspenso (ver `audioEngine.ts`).
       const engine = (audio.current ??= createAirHockeyAudio())
+    // El motor nace a volumen completo y aquí se le dice el de los
+    // ajustes: creado dentro de este efecto, el que sigue al volumen todavía
+    // no lo ha visto.
+    engine.setVolume(sfxVolume)
       engine.play(sound, strength)
     },
-    [muted],
+    [muted, sfxVolume],
   )
 
   // El roce va colgado del mismo reproductor: silenciado no hay reproductor y

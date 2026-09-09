@@ -72,7 +72,7 @@ async function llevarElMazoAlDisco(page: Page): Promise<Vec2> {
 test('el ratón mueve el mazo del jugador a donde apunta', async ({ page }) => {
   await observarLaMesa(page)
   await abrirJuego(page)
-  await jugarPartida(page, { goles: 15, nivel: 'Fácil' })
+  await jugarPartida(page, { goles: 15, nivel: 'Easy' })
 
   const inicio = await esperarALaMesa(page)
   // El mazo sale delante de su portería, a media mesa del centro: si ya
@@ -89,7 +89,7 @@ test('el mazo golpea el disco cuando se le persigue con el ratón', async ({
 }) => {
   await observarLaMesa(page)
   await abrirJuego(page)
-  await jugarPartida(page, { goles: 15, nivel: 'Fácil' })
+  await jugarPartida(page, { goles: 15, nivel: 'Easy' })
   await esperarALaMesa(page)
 
   // Primero se comprueba que el ratón manda de verdad. Sin esto, un mazo

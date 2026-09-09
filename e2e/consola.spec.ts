@@ -54,8 +54,8 @@ test('el juego arranca sin ensuciar la consola ni salir a la red', async ({
   await abrirJuego(page)
   // Un poco de partida: es cuando entran en juego la física y la escena, que
   // es donde aparecerían los avisos de three.
-  await page.getByRole('button', { name: 'Jugar' }).click()
-  await expect(page.getByText('Máquina')).toBeVisible()
+  await page.getByRole('button', { name: 'Play' }).click()
+  await expect(page.getByText('Machine')).toBeVisible()
   await page.waitForTimeout(4000)
 
   expect(problemas).toEqual([])

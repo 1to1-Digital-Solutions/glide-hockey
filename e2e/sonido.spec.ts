@@ -2,6 +2,20 @@ import { expect, test, type Page } from '@playwright/test'
 import { abrirJuego, jugarPartida } from './helpers'
 
 /**
+ * Entra al juego con los efectos apagados desde los ajustes del arcade.
+ *
+ * Ya no hay botón de silencio en el juego: el volumen se elige una vez en
+ * xrcade y viaja en el almacenamiento del navegador, que es el mismo origen
+ * cuando el juego se monta dentro del arcade. Se escribe antes de cargar la
+ * página, que es como llega quien viene de allí.
+ */
+async function entrarEnSilencio(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('xrcade:volume:sfx', '0')
+  })
+}
+
+/**
  * Que el juego suene de verdad, y que callado no suene nada.
  *
  * Los tests de `src/lib` prueban el sintetizador con un contexto de mentira y
@@ -70,7 +84,7 @@ test('la partida suena: la mesa pide sus sonidos al navegador', async ({
 
   // Una partida a muchos goles contra la máquina más lenta: no hace falta que
   // termine, solo que el disco se mueva y choque con algo.
-  await jugarPartida(page, { goles: 15, nivel: 'Fácil' })
+  await jugarPartida(page, { goles: 15, nivel: 'Easy' })
 
   await expect
     .poll(async () => (await leerElAudio(page))?.sonidos ?? 0, {
@@ -87,9 +101,9 @@ test('la partida suena: la mesa pide sus sonidos al navegador', async ({
   // `GameWorld`). Con el audio colgado de ella, la ronda ganada cerraba el
   // contexto en el mismo fotograma en que sonaba el gol que la ganaba.
   const sonados = (await leerElAudio(page))?.sonidos ?? 0
-  await page.getByRole('button', { name: 'Dejar la partida' }).click()
-  await page.getByRole('button', { name: 'Jugar' }).click()
-  await expect(page.getByText('Máquina')).toBeVisible()
+  await page.getByRole('button', { name: 'Leave the game' }).click()
+  await page.getByRole('button', { name: 'Play' }).click()
+  await expect(page.getByText('Machine')).toBeVisible()
 
   await expect
     .poll(async () => (await leerElAudio(page))?.sonidos ?? 0, {
@@ -105,10 +119,10 @@ test('en silencio no se abre siquiera el audio del navegador', async ({
   page,
 }) => {
   await contarElAudio(page)
+  await entrarEnSilencio(page)
   await abrirJuego(page)
 
-  await page.getByRole('button', { name: 'Silencio' }).click()
-  await jugarPartida(page, { goles: 15, nivel: 'Fácil' })
+  await jugarPartida(page, { goles: 15, nivel: 'Easy' })
 
   // Lo suficiente para que en una partida con sonido ya hubiera sonado algo:
   // el disco sale del centro y llega al fondo de la mesa en menos de dos
@@ -118,13 +132,3 @@ test('en silencio no se abre siquiera el audio del navegador', async ({
   expect(await leerElAudio(page)).toEqual({ contextos: 0, sonidos: 0 })
 })
 
-test('el silencio se recuerda al volver al juego', async ({ page }) => {
-  await abrirJuego(page)
-  await page.getByRole('button', { name: 'Silencio' }).click()
-
-  await page.reload()
-  await expect(page.getByRole('button', { name: 'Silencio' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
-})

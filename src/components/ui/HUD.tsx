@@ -65,7 +65,7 @@ function Scoreboard() {
             igual de que ha habido gol. */}
         <div className="flex items-center gap-4" aria-live="polite">
           <Stat
-            label="Tú"
+            label="You"
             value={String(playerGoals)}
             color="var(--color-primary)"
             large
@@ -74,7 +74,7 @@ function Scoreboard() {
             :
           </span>
           <Stat
-            label="Máquina"
+            label="Machine"
             value={String(opponentGoals)}
             color="var(--color-rival)"
             large
@@ -83,20 +83,20 @@ function Scoreboard() {
 
         <span aria-hidden className="h-8 w-px bg-white/10" />
 
-        <Stat label="Puntos" value={points.toLocaleString('es-ES')} />
-        {streak > 1 ? <Stat label="Racha" value={`×${streak}`} /> : null}
+        <Stat label="Points" value={points.toLocaleString('en-GB')} />
+        {streak > 1 ? <Stat label="Streak" value={`×${streak}`} /> : null}
 
         <span aria-hidden className="h-8 w-px bg-white/10" />
 
         <div className="flex flex-col gap-0.5 text-[0.7rem] text-white/50">
           <span>
             {GAME_MODE_LABELS[gameMode]}
-            {round != null ? ` · ronda ${round}` : null}
-            {gameMode === 'levels' ? ` · nivel ${activeLevel}` : null}
+            {round != null ? ` · round ${round}` : null}
+            {gameMode === 'levels' ? ` · level ${activeLevel}` : null}
           </span>
           <span>
             {DIFFICULTY_LABELS[activeDifficulty]} ·{' '}
-            {endless ? 'sin fin' : `a ${activeGoalTarget} goles`}
+            {endless ? 'endless' : `to ${activeGoalTarget} goals`}
           </span>
         </div>
       </div>
@@ -149,14 +149,14 @@ function GameOver() {
           style={{ color: won ? 'var(--color-primary)' : 'var(--color-rival)' }}
         >
           {endless
-            ? 'Partida terminada'
+            ? 'Game over'
             : levelResult
               ? levelResult.passed
-                ? `Nivel ${activeLevel} superado`
-                : `Nivel ${activeLevel} no superado`
+                ? `Level ${activeLevel} cleared`
+                : `Level ${activeLevel} not cleared`
               : won
-                ? 'Partida ganada'
-                : 'Partida perdida'}
+                ? 'Game won'
+                : 'Game lost'}
         </h2>
         {levelResult ? (
           <p className="mt-2 text-2xl tracking-[0.3em] text-[var(--color-accent)]" aria-hidden>
@@ -166,45 +166,45 @@ function GameOver() {
         ) : null}
         <p className="mt-1.5 text-sm text-white/60">
           {round != null
-            ? `El reto se acaba en la ronda ${round}.`
+            ? `The challenge ends at round ${round}.`
             : levelResult
               ? levelResult.unlocked != null
-                ? `${levelResult.stars} ${levelResult.stars === 1 ? 'estrella' : 'estrellas'} · nivel ${levelResult.unlocked} desbloqueado.`
+                ? `${levelResult.stars} ${levelResult.stars === 1 ? 'star' : 'stars'} · level ${levelResult.unlocked} unlocked.`
                 : levelResult.passed
-                  ? `${levelResult.stars} ${levelResult.stars === 1 ? 'estrella' : 'estrellas'} · marcador ${totalPlayerGoals}–${totalOpponentGoals}.`
-                  : 'Gana la partida para abrir el siguiente.'
-              : `Marcador final: ${totalPlayerGoals}–${totalOpponentGoals}.`}
+                  ? `${levelResult.stars} ${levelResult.stars === 1 ? 'star' : 'stars'} · score ${totalPlayerGoals}–${totalOpponentGoals}.`
+                  : 'Win the game to open the next one.'
+              : `Final score: ${totalPlayerGoals}–${totalOpponentGoals}.`}
         </p>
         <p className="mt-5 text-5xl font-bold tabular-nums">
-          {points.toLocaleString('es-ES')}
+          {points.toLocaleString('en-GB')}
         </p>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/40">
-          puntos
+          points
         </p>
 
         {isRecord ? (
           <p className="mt-3 text-sm font-semibold text-[var(--color-accent)]">
-            {endless ? '¡Mejor racha nueva!' : '¡Récord nuevo!'}
+            {endless ? 'New best streak!' : 'New record!'}
           </p>
         ) : endless && bestPoints > 0 ? (
-          <p className="mt-3 text-sm text-white/50">Tu mejor racha sin fin: {bestPoints}</p>
+          <p className="mt-3 text-sm text-white/50">Your best endless streak: {bestPoints}</p>
         ) : null}
         <dl className="mt-5 grid grid-cols-3 gap-3 text-sm">
           <div>
             <dt className="text-[0.6rem] uppercase tracking-[0.14em] text-white/40">
-              Metidos
+              Scored
             </dt>
             <dd className="font-semibold tabular-nums">{totalPlayerGoals}</dd>
           </div>
           <div>
             <dt className="text-[0.6rem] uppercase tracking-[0.14em] text-white/40">
-              Encajados
+              Conceded
             </dt>
             <dd className="font-semibold tabular-nums">{totalOpponentGoals}</dd>
           </div>
           <div>
             <dt className="text-[0.6rem] uppercase tracking-[0.14em] text-white/40">
-              Mejor racha
+              Best streak
             </dt>
             <dd className="font-semibold tabular-nums">{bestStreak}</dd>
           </div>
@@ -216,14 +216,14 @@ function GameOver() {
             onClick={startGame}
             className="cta-gradient min-h-12 w-full rounded-xl px-6 py-3 text-base font-bold transition"
           >
-            Otra vez
+            Again
           </button>
           <button
             type="button"
             onClick={resetGame}
             className="min-h-11 w-full rounded-xl border border-white/15 px-6 py-2.5 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
           >
-            Volver al menú
+            Back to the menu
           </button>
         </div>
       </div>
@@ -246,7 +246,7 @@ function QuitButton() {
           onClick={endRun}
           className="pointer-events-auto min-h-11 rounded-xl border border-[var(--color-primary)]/50 bg-[color-mix(in_srgb,var(--color-background)_75%,transparent)] px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:border-[var(--color-primary)]"
         >
-          Terminar
+          End run
         </button>
       ) : null}
       <button
@@ -254,7 +254,7 @@ function QuitButton() {
         onClick={resetGame}
         className="pointer-events-auto min-h-11 rounded-xl border border-white/15 bg-[color-mix(in_srgb,var(--color-background)_75%,transparent)] px-4 py-2.5 text-sm font-semibold text-white/70 backdrop-blur-sm transition hover:border-white/40 hover:text-white"
       >
-        Dejar la partida
+        Leave the game
       </button>
       {immersive ? (
         <button
@@ -262,7 +262,7 @@ function QuitButton() {
           onClick={exit}
           className="pointer-events-auto min-h-11 rounded-xl px-4 py-2.5 text-sm font-medium text-white/40 transition hover:text-white/70"
         >
-          Salir
+          Exit
         </button>
       ) : null}
     </div>

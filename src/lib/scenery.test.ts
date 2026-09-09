@@ -94,6 +94,6 @@ describe('cómo se ofrece', () => {
   it('avisa de que la habitación solo se ve con el visor', () => {
     // En el navegador la opción está y no hace nada: sin decirlo, se lee como
     // que el juego está roto.
-    expect(SCENERY_HINTS.room).toMatch(/visor/)
+    expect(SCENERY_HINTS.room).toMatch(/[Hh]eadset/)
   })
 })

@@ -91,6 +91,13 @@ export interface AirHockeyAudio {
   slide: (speed: number) => void
   /** Suelta el contexto. Sin esto queda un audio abierto por escena montada. */
   close: () => void
+  /**
+   * Cuánto de todo esto se oye, de 0 a 1: el volumen de efectos de los ajustes
+   * del arcade. Multiplica al maestro del juego y no lo sustituye —`MASTER_GAIN`
+   * dice cuánto pega este juego frente a los demás—, y se puede llamar con el
+   * audio aún sin abrir: se aplica al abrirlo.
+   */
+  setVolume: (factor: number) => void
 }
 
 /**
@@ -301,6 +308,8 @@ export function createAirHockeyAudio(
   // Audio se lleva un intento de crear contexto por cada golpe de la partida,
   // y de esos hay decenas.
   let unavailable = false
+  /** Lo que dicen los ajustes del arcade. 1 hasta que alguien diga otra cosa. */
+  let volumen = 1
 
   function ready(): AudioContext | null {
     if (context != null || unavailable) return context
@@ -310,7 +319,7 @@ export function createAirHockeyAudio(
       return null
     }
     master = context.createGain()
-    master.gain.value = MASTER_GAIN
+    master.gain.value = MASTER_GAIN * volumen
     master.connect(context.destination)
     noise = noiseBuffer(context)
     return context
@@ -379,7 +388,13 @@ export function createAirHockeyAudio(
     noise = null
   }
 
-  return { play, slide, close }
+  /** Ver `setVolume` en la interfaz. */
+  function setVolume(factor: number): void {
+    volumen = Math.min(1, Math.max(0, factor))
+    if (master != null) master.gain.value = MASTER_GAIN * volumen
+  }
+
+  return { play, slide, close, setVolume }
 }
 
 /** La capa de ruido: el material del golpe. */

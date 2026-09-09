@@ -2,8 +2,9 @@ import { type ReactNode } from 'react'
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GameContext, useGameStoreValue } from './gameStore'
-import { saveMuted } from './muted'
 import { useGameAudio } from './useGameAudio'
+import { DEFAULT_VOLUMES } from './ajustes'
+import { setVolume } from './ajustesCliente'
 
 /**
  * Lo que se comprueba aquí es lo único que el hook añade sobre el reproductor
@@ -21,6 +22,7 @@ const audio = vi.hoisted(() => ({
   play: vi.fn(),
   slide: vi.fn(),
   close: vi.fn(),
+  setVolume: vi.fn(),
 }))
 
 vi.mock('./audioEngine', () => ({ createAirHockeyAudio: audio.create }))
@@ -36,7 +38,7 @@ function Harness({ children }: { children: ReactNode }) {
 
 /** Silencia o vuelve a encender, como haría el menú. */
 function setMuted(muted: boolean) {
-  act(() => saveMuted(muted))
+  act(() => setVolume('sfx', muted ? 0 : DEFAULT_VOLUMES.sfx))
 }
 
 const renderAudio = () => renderHook(() => useGameAudio(), { wrapper: Harness })
@@ -46,12 +48,19 @@ const played = () => audio.play.mock.calls.map(([sound]) => sound)
 
 describe('useGameAudio', () => {
   beforeEach(() => {
+  // Los volúmenes salen de los ajustes del arcade, que cachean lo leído para
+  // que `useSyncExternalStore` no repinte sin parar: vaciar `localStorage` a
+  // secas dejaría el caché con el valor de la prueba anterior. Se restablecen
+  // por la API, que es la que lo invalida.
+  setVolume('sfx', DEFAULT_VOLUMES.sfx)
+  setVolume('ambience', DEFAULT_VOLUMES.ambience)
     window.localStorage.clear()
     // `restoreMocks` deja los dobles sin implementación antes de cada test.
     audio.create.mockImplementation(() => ({
       play: audio.play,
       slide: audio.slide,
       close: audio.close,
+      setVolume: audio.setVolume,
     }))
   })
 

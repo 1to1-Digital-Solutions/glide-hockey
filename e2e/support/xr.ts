@@ -19,12 +19,12 @@ export async function installXREmulator(page: Page) {
 }
 
 export function enterButton(page: Page) {
-  return page.getByRole('button', { name: 'Jugar con el visor' })
+  return page.getByRole('button', { name: 'Play in the headset' })
 }
 
 /** Solo está con una partida en marcha: es el espejo de DOM del estado. */
 export function exitButton(page: Page) {
-  return page.getByRole('button', { name: 'Salir', exact: true })
+  return page.getByRole('button', { name: 'Exit', exact: true })
 }
 
 export async function enterVR(page: Page) {
@@ -52,7 +52,7 @@ export async function exitXR(page: Page) {
  * propaga las poses de los punteros hasta la escena.
  */
 export async function startGameInsideSession(page: Page, attempts = 8) {
-  const play = page.getByRole('button', { name: 'Jugar', exact: true })
+  const play = page.getByRole('button', { name: 'Play', exact: true })
   for (let attempt = 0; attempt < attempts; attempt++) {
     await play.focus()
     await page.keyboard.press('Enter')

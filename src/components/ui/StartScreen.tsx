@@ -90,10 +90,6 @@ export function StartScreen() {
     unlockedLevel,
     levelStars,
     setLevel,
-    muted,
-    setMuted,
-    music,
-    setMusic,
     scenery,
     setScenery,
     bestPoints,
@@ -108,7 +104,7 @@ export function StartScreen() {
   // a decidir, que es distinto de esconderlos.
   const challenge = gameMode !== 'practice'
   const levels = gameMode === 'levels'
-  const quienManda = levels ? 'el nivel' : 'el reto'
+  const quienManda = levels ? 'the level' : 'the challenge'
 
   return (
     <main className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-y-auto p-4">
@@ -118,15 +114,15 @@ export function StartScreen() {
             Air Hockey
           </h1>
           <p className="mt-1.5 text-sm text-white/60">
-            Tú contra la máquina. Mueve el mazo con el ratón y cuela el disco en
-            su portería.
+            You against the machine. Move the mallet with the mouse and put the puck in
+            its goal.
           </p>
         </header>
 
         <div className="flex flex-col gap-5">
           <fieldset className="flex flex-col gap-2">
-            <legend className="sr-only">Modo de juego</legend>
-            <FieldLabel>Modo</FieldLabel>
+            <legend className="sr-only">Game mode</legend>
+            <FieldLabel>Mode</FieldLabel>
             <div className="grid grid-cols-3 gap-2">
               {GAME_MODE_ORDER.map((mode) => (
                 <OptionButton
@@ -150,9 +146,9 @@ export function StartScreen() {
             disabled={challenge}
             className={`flex flex-col gap-2 transition ${challenge ? 'opacity-45' : ''}`}
           >
-            <legend className="sr-only">Nivel de la máquina</legend>
+            <legend className="sr-only">Machine level</legend>
             <FieldLabel>
-              Nivel de la máquina {challenge ? `· lo marca ${quienManda}` : null}
+              Machine level {challenge ? `· set by ${quienManda}` : null}
             </FieldLabel>
             {/* Cinco columnas no caben en un móvil: con «Imposible» dentro, la
                 ficha se queda en veinte píxeles de ancho y el nombre se sale
@@ -193,11 +189,11 @@ export function StartScreen() {
           >
             <FieldLabel>
               <label htmlFor="goal-target">
-                Goles{' '}
+                Goals{' '}
                 {challenge
-                  ? `· los reparte ${quienManda}`
+                  ? `· set by ${quienManda}`
                   : endless
-                    ? '· sin fin'
+                    ? '· endless'
                     : `· ${goalTarget}`}
               </label>
             </FieldLabel>
@@ -207,16 +203,16 @@ export function StartScreen() {
               <OptionButton
                 selected={!challenge && !endless}
                 onClick={() => setEndless(false)}
-                label="A tantos goles"
+                label="Fixed goals"
               >
-                A tantos goles
+                Fixed goals
               </OptionButton>
               <OptionButton
                 selected={!challenge && endless}
                 onClick={() => setEndless(true)}
-                label="Sin fin"
+                label="Endless"
               >
-                Sin fin
+                Endless
               </OptionButton>
             </div>
             <input
@@ -236,11 +232,11 @@ export function StartScreen() {
               ve con candado. Lo que da cada uno lo dice la escalera. */}
           {levels ? (
             <fieldset className="flex flex-col gap-2">
-              <legend className="sr-only">Nivel</legend>
+              <legend className="sr-only">Level</legend>
               <FieldLabel>
-                Nivel · {activeLevel} de {LEVEL_COUNT} ·{' '}
-                {DIFFICULTY_LABELS[levelSpec(activeLevel).difficulty]}, a{' '}
-                {levelSpec(activeLevel).goalTarget} goles
+                Level · {activeLevel} of {LEVEL_COUNT} ·{' '}
+                {DIFFICULTY_LABELS[levelSpec(activeLevel).difficulty]}, to{' '}
+                {levelSpec(activeLevel).goalTarget} goals
               </FieldLabel>
               <div className="grid grid-cols-5 gap-1.5">
                 {Array.from({ length: LEVEL_COUNT }, (_, i) => i + 1).map((n) => {
@@ -255,8 +251,8 @@ export function StartScreen() {
                       aria-pressed={n === activeLevel}
                       aria-label={
                         bloqueado
-                          ? `Nivel ${n}, bloqueado`
-                          : `Nivel ${n}, ${stars} ${stars === 1 ? 'estrella' : 'estrellas'}`
+                          ? `Level ${n}, locked`
+                          : `Level ${n}, ${stars} ${stars === 1 ? 'star' : 'stars'}`
                       }
                       className={`flex min-h-11 flex-col items-center justify-center rounded-lg border px-1 py-1.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-35 ${
                         n === activeLevel
@@ -282,8 +278,8 @@ export function StartScreen() {
               entre visitas. Aquí se deja elegido; donde de verdad se usa es
               dentro del visor, cambiándolo sin salir de la sesión. */}
           <fieldset className="flex flex-col gap-2">
-            <legend className="sr-only">Lo que se ve alrededor</legend>
-            <FieldLabel>Alrededor</FieldLabel>
+            <legend className="sr-only">What you see around you</legend>
+            <FieldLabel>Around you</FieldLabel>
             <div className="grid grid-cols-2 gap-2">
               {SCENERY_IDS.map((option) => (
                 <OptionButton
@@ -297,62 +293,30 @@ export function StartScreen() {
             </div>
             <p className="text-xs text-white/50">{SCENERY_HINTS[scenery]}</p>
           </fieldset>
-
-          {/* El sonido no es de la partida sino de quien juega, así que va
-              debajo de las tres decisiones y nunca apagado: en reto también se
-              silencia. Se recuerda entre visitas (ver `lib/muted.ts`). */}
-          <fieldset className="flex flex-col gap-2">
-            <legend className="sr-only">Sonido del juego</legend>
-            <FieldLabel>Sonido</FieldLabel>
-            <div className="grid grid-cols-2 gap-2">
-              <OptionButton selected={!muted} onClick={() => setMuted(false)}>
-                Activado
-              </OptionButton>
-              <OptionButton selected={muted} onClick={() => setMuted(true)}>
-                Silencio
-              </OptionButton>
-            </div>
-          </fieldset>
-
-          {/* Y la música aparte: hay quien quiere oír el disco y no el fondo, y
-              quien pone el juego de fondo y prefiere lo contrario. Con el juego
-              en silencio no suena ninguna de las dos. */}
-          <fieldset className="flex flex-col gap-2">
-            <legend className="sr-only">Música de fondo</legend>
-            <FieldLabel>Música</FieldLabel>
-            <div className="grid grid-cols-2 gap-2">
-              <OptionButton selected={music} onClick={() => setMusic(true)}>
-                Activada
-              </OptionButton>
-              <OptionButton selected={!music} onClick={() => setMusic(false)}>
-                Sin música
-              </OptionButton>
-            </div>
-          </fieldset>
         </div>
 
         {levels ? (
           <p className="mt-5 text-sm text-white/55">
-            Niveles superados:{' '}
+            Levels cleared:{' '}
             <strong className="font-semibold text-white">
               {levelStars.filter((s) => s >= 1).length}
             </strong>{' '}
-            de {LEVEL_COUNT}
+            of {LEVEL_COUNT}
           </p>
         ) : bestPoints > 0 ? (
           <p className="mt-5 text-sm text-white/55">
             {endless ? (
               <>
-                Tu mejor racha sin fin:{' '}
-                <strong className="font-semibold text-white">{bestPoints}</strong> goles
+                Your best endless streak:{' '}
+                <strong className="font-semibold text-white">{bestPoints}</strong> goals
               </>
             ) : (
               <>
-                Tu récord en {GAME_MODE_LABELS[gameMode].toLowerCase()}:{' '}
+                Your record on {GAME_MODE_LABELS[gameMode].toLowerCase()}:{' '}
                 <strong className="font-semibold text-white">
-                  {bestPoints.toLocaleString('es-ES')}
+                  {bestPoints.toLocaleString('en-GB')}
                 </strong>{' '}
-                puntos
+                points
               </>
             )}
           </p>
@@ -364,7 +328,7 @@ export function StartScreen() {
             onClick={startGame}
             className="cta-gradient min-h-12 w-full rounded-xl px-6 py-3 text-base font-bold transition"
           >
-            Jugar
+            Play
           </button>
 
           {immersive?.ar || immersive?.vr ? (
@@ -378,7 +342,7 @@ export function StartScreen() {
               }
               className="min-h-11 w-full rounded-xl border border-white/15 px-6 py-2.5 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
             >
-              Jugar con el visor
+              Play in the headset
             </button>
           ) : null}
 
@@ -394,7 +358,7 @@ export function StartScreen() {
               onClick={exit}
               className="min-h-11 w-full rounded-xl px-6 py-2 text-sm font-medium text-white/40 transition hover:text-white/70"
             >
-              Salir
+              Exit
             </button>
           ) : null}
         </div>

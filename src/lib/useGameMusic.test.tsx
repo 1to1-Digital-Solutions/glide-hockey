@@ -2,9 +2,10 @@ import { type ReactNode } from 'react'
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GameContext, useGameStoreValue } from './gameStore'
-import { MUSIC_VOLUME, musicUrl, saveMusic } from './music'
-import { saveMuted } from './muted'
+import { MUSIC_VOLUME, musicUrl } from './music'
 import { useGameMusic } from './useGameMusic'
+import { DEFAULT_VOLUMES, volumeFactor } from './ajustes'
+import { setVolume } from './ajustesCliente'
 
 /**
  * La música de fondo, vista desde la escena.
@@ -43,6 +44,12 @@ class FakeAudio {
 }
 
 beforeEach(() => {
+  // Los volúmenes salen de los ajustes del arcade, que cachean lo leído para
+  // que `useSyncExternalStore` no repinte sin parar: vaciar `localStorage` a
+  // secas dejaría el caché con el valor de la prueba anterior. Se restablecen
+  // por la API, que es la que lo invalida.
+  setVolume('sfx', DEFAULT_VOLUMES.sfx)
+  setVolume('ambience', DEFAULT_VOLUMES.ambience)
   players.length = 0
   allowsAutoplay = true
   vi.stubGlobal('Audio', FakeAudio)
@@ -70,33 +77,36 @@ describe('la música de fondo', () => {
     expect(players).toHaveLength(1)
     expect(players[0].src).toBe(musicUrl())
     expect(players[0].loop).toBe(true)
-    expect(players[0].volume).toBe(MUSIC_VOLUME)
+    expect(players[0].volume).toBeCloseTo(MUSIC_VOLUME * volumeFactor(DEFAULT_VOLUMES.ambience))
     expect(players[0].play).toHaveBeenCalled()
     hook.unmount()
   })
 
   it('entrando con la música apagada no se descarga nada', () => {
-    act(() => saveMusic(false))
+    act(() => setVolume('ambience', 0))
     const hook = renderMusic()
 
     expect(players).toHaveLength(0)
     hook.unmount()
   })
 
-  it('el silencio la calla, aunque la música esté encendida', () => {
+  it('quitar los efectos no la calla: son dos canales aparte', () => {
+    // Antes el silencio mandaba sobre todo. Ahora los ajustes del arcade
+    // separan «sonidos interactivos» de «sonidos ambientales» a propósito: hay
+    // quien quiere oír el fondo y no el juego, y quien prefiere lo contrario.
     const hook = renderMusic()
-    act(() => saveMuted(true))
+    act(() => setVolume('sfx', true ? 0 : DEFAULT_VOLUMES.sfx))
 
-    expect(players[0].pause).toHaveBeenCalled()
+    expect(players[0].pause).not.toHaveBeenCalled()
     hook.unmount()
   })
 
   it('apagarla la para, y volver a encenderla la reanuda con el mismo reproductor', () => {
     const hook = renderMusic()
-    act(() => saveMusic(false))
+    act(() => setVolume('ambience', 0))
     expect(players[0].pause).toHaveBeenCalled()
 
-    act(() => saveMusic(true))
+    act(() => setVolume('ambience', DEFAULT_VOLUMES.ambience))
     // El mismo elemento: volver a crearlo pediría el fichero otra vez.
     expect(players).toHaveLength(1)
     expect(players[0].play).toHaveBeenCalledTimes(2)

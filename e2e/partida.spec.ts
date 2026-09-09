@@ -14,26 +14,26 @@ import { abrirJuego, jugarPartida } from './helpers'
  */
 test('la máquina marca y la partida termina', async ({ page }) => {
   await abrirJuego(page)
-  await jugarPartida(page, { goles: 3, nivel: 'Imposible' })
+  await jugarPartida(page, { goles: 3, nivel: 'Impossible' })
 
   // A tres goles y con el mazo parado, la máquina llega antes.
   await expect(
-    page.getByRole('heading', { name: 'Partida perdida' }),
+    page.getByRole('heading', { name: 'Game lost' }),
   ).toBeVisible()
 
-  await expect(page.getByText('Encajados')).toBeVisible()
+  await expect(page.getByText('Conceded')).toBeVisible()
   // El resumen enseña el marcador con el que se acabó.
-  await expect(page.getByText('Marcador final: 0–3.')).toBeVisible()
+  await expect(page.getByText('Final score: 0–3.')).toBeVisible()
 })
 
 test('desde el resumen se vuelve al menú', async ({ page }) => {
   await abrirJuego(page)
-  await jugarPartida(page, { goles: 3, nivel: 'Imposible' })
+  await jugarPartida(page, { goles: 3, nivel: 'Impossible' })
 
   await expect(
-    page.getByRole('heading', { name: 'Partida perdida' }),
+    page.getByRole('heading', { name: 'Game lost' }),
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Volver al menú' }).click()
+  await page.getByRole('button', { name: 'Back to the menu' }).click()
 
   await expect(page.getByRole('heading', { name: 'Air Hockey' })).toBeVisible()
 })
@@ -42,17 +42,17 @@ test('dejar la partida devuelve al menú sin esperar al final', async ({
   page,
 }) => {
   await abrirJuego(page)
-  await jugarPartida(page, { goles: 15, nivel: 'Fácil' })
+  await jugarPartida(page, { goles: 15, nivel: 'Easy' })
 
-  await page.getByRole('button', { name: 'Dejar la partida' }).click()
+  await page.getByRole('button', { name: 'Leave the game' }).click()
 
   await expect(page.getByRole('heading', { name: 'Air Hockey' })).toBeVisible()
 })
 
 test('el reto no deja elegir nivel ni goles', async ({ page }) => {
   await abrirJuego(page)
-  await page.getByRole('button', { name: 'Reto' }).click()
+  await page.getByRole('button', { name: 'Challenge' }).click()
 
-  await expect(page.getByLabel(/^Goles/)).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Imposible' })).toBeDisabled()
+  await expect(page.getByLabel(/^Goals/)).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Impossible' })).toBeDisabled()
 })

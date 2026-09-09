@@ -30,6 +30,7 @@ function fakeAudioContext(
   state: AudioContextState = 'running',
   rechaza: Error | null = null,
 ) {
+  const gains: { gain: AudioParam }[] = []
   const filters: { type: string; frequency: number }[] = []
   /** Las fuentes creadas, para poder hacer que una falle al pararla. */
   const sources: { stop: () => void }[] = []
@@ -77,7 +78,13 @@ function fakeAudioContext(
     destination: {},
     resume,
     close,
-    createGain: () => ({ gain: fakeParam(), connect: vi.fn() }),
+    createGain: () => {
+      const gain = { gain: fakeParam(), connect: vi.fn() }
+      // Se apuntan en el orden en que se crean: el maestro es el primero,
+      // porque es el que se cuelga del destino antes que nada.
+      gains.push(gain)
+      return gain
+    },
     createBiquadFilter: () => {
       const filter = {
         type: 'lowpass',
@@ -137,6 +144,8 @@ function fakeAudioContext(
 
   return {
     context: context as unknown as AudioContext,
+    /** El nodo maestro, que es por donde pasa todo lo que suena. */
+    maestro: () => gains[0].gain,
     filters,
     oscillators,
     sources,
@@ -431,5 +440,51 @@ describe('velocidades imposibles', () => {
 
   it('y un golpe sin velocidad conocida es el más flojo, no el más fuerte', () => {
     expect(impactStrength(Number.NaN)).toBe(impactStrength(0))
+  })
+})
+
+describe('el volumen de los efectos del arcade', () => {
+  it('llega al nodo maestro, que es por donde pasa todo', () => {
+    const fake = fakeAudioContext()
+    const audio = createAirHockeyAudio(() => fake.context)
+
+    audio.play('goal')
+    const completo = fake.maestro().value
+
+    audio.setVolume(0.5)
+
+    expect(fake.maestro().value).toBeCloseTo(completo / 2, 6)
+  })
+
+  it('se guarda para cuando haya audio, si se pide antes de abrirlo', () => {
+    // El contexto no se abre hasta el primer sonido, y el volumen se elige
+    // antes, en la portada del arcade: pedirlo con el audio aún cerrado no
+    // puede perderse.
+    const fake = fakeAudioContext()
+    const audio = createAirHockeyAudio(() => fake.context)
+
+    audio.setVolume(0.5)
+    audio.play('goal')
+
+    const aMitad = fake.maestro().value
+    audio.setVolume(1)
+
+    expect(aMitad).toBeCloseTo(fake.maestro().value / 2, 6)
+  })
+
+  it('no se sale de lo que el navegador admite', () => {
+    // Lo que llega son ajustes de fuera: por encima de uno la ganancia satura,
+    // que no es sonar más alto sino sonar roto.
+    const fake = fakeAudioContext()
+    const audio = createAirHockeyAudio(() => fake.context)
+
+    audio.play('goal')
+    const completo = fake.maestro().value
+
+    audio.setVolume(4)
+    expect(fake.maestro().value).toBeCloseTo(completo, 6)
+
+    audio.setVolume(-1)
+    expect(fake.maestro().value).toBe(0)
   })
 })

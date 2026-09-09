@@ -31,6 +31,7 @@ const EVENTO = 'xrcade:ajustes'
 
 /** El almacenamiento del navegador, o nada si no lo hay o está capado. */
 export function settingsStorage(): Storage | null {
+  /* v8 ignore next -- en el servidor no hay ventana, y allí no corre ningún test. */
   if (typeof window === 'undefined') return null
   try {
     return window.localStorage
@@ -104,6 +105,7 @@ export function setVolume(channel: SoundChannel, value: number): void {
  * suscribirse. Quien pinta en el servidor usa `langFromCookies` con la cabecera.
  */
 export function currentLang(): Lang {
+  /* v8 ignore next -- en el servidor pinta `idiomaDeLaPeticion`, que sí ve la cabecera. */
   if (typeof document === 'undefined') return DEFAULT_LANG
   return langFromCookies(document.cookie)
 }
@@ -130,6 +132,7 @@ export function useLang(): Lang {
  * puesto igualmente.
  */
 export function setLang(lang: Lang): void {
+  /* v8 ignore next -- solo lo llama el menú, que es del navegador. */
   if (typeof document === 'undefined') return
   const seguro = window.location.protocol === 'https:' ? '; Secure' : ''
   document.cookie = `${LANG_COOKIE}=${lang}; Path=/; Max-Age=${LANG_MAX_AGE}; SameSite=Lax${seguro}`

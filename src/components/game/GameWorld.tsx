@@ -5,7 +5,7 @@ import { useXR } from '@react-three/xr'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
 import { useGame } from '../../lib/gameStore'
 import { showsPlace } from '../../lib/scenery'
-import { HALF_LENGTH } from '../../lib/puckPhysics'
+import { HALF_LENGTH, HALF_WIDTH } from '../../lib/puckPhysics'
 import { type GameSound } from '../../lib/audioEngine'
 import { useGameAudio } from '../../lib/useGameAudio'
 import { useGameMusic } from '../../lib/useGameMusic'
@@ -51,8 +51,15 @@ const XR_UI = {
   panel: [0, 0.52, -0.25] as [number, number, number],
   /** Cuenta atrás: flotando sobre el punto de saque. */
   countdown: [0, 0.34, 0] as [number, number, number],
-  /** Dejar la partida: a un lado, donde no estorbe al juego. */
-  quit: [0.42, 0.26, HALF_LENGTH * 0.55] as [number, number, number],
+  /**
+   * Dejar la partida: **fuera de la mesa, arriba y a la izquierda**.
+   *
+   * Estaba a 26 cm sobre el tablero y sobre el lado derecho, que es justo por donde pasa
+   * el brazo: tapaba el juego y se pulsaba sin querer. Sacarlo del rectángulo de la mesa
+   * y subirlo a la altura del pecho lo deja donde se busca cuando se busca, y en ningún
+   * otro momento. La izquierda es a propósito: es la mano con la que menos se juega.
+   */
+  quit: [-HALF_WIDTH - 0.22, 0.72, HALF_LENGTH * 0.7] as [number, number, number],
 }
 
 export interface GameWorldProps {

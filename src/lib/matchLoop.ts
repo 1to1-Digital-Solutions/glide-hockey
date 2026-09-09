@@ -136,6 +136,13 @@ export interface FrameInput {
   delta: number
   /** Dónde apunta el jugador. El mazo va detrás, no salta hasta ahí. */
   pointer: Vec2
+  /**
+   * Si el mazo va **cogido con la mano** (visor). Entonces no persigue al puntero: está
+   * donde esté la mano, porque un mazo que va detrás de tu mano no se siente cogido, se
+   * siente arrastrado. Con el ratón sigue persiguiendo, que es lo que le da peso en una
+   * pantalla.
+   */
+  inHand?: boolean
   skill: OpponentSkill
   /**
    * Si el disco está en juego. Fuera de la partida los mazos siguen
@@ -229,10 +236,10 @@ const QUIET = { goal: null, struck: false, bounced: false, impact: NO_IMPACT } a
 /** Un paso de simulación: lo que de verdad mueve la mesa. */
 function advanceStep(
   table: TableState,
-  { pointer, skill, playing }: FrameInput,
+  { pointer, skill, playing, inHand = false }: FrameInput,
   dt: number,
 ): StepOutcome {
-  const player = movePlayer(table.player, pointer, dt)
+  const player = movePlayer(table.player, pointer, dt, inHand)
 
   if (!playing) return { table: { ...table, player }, ...QUIET }
 
@@ -319,15 +326,20 @@ function advanceStep(
  *
  * La velocidad resultante es la real y no la pretendida: es con la que golpea,
  * así que un mazo que llega al tope del recorrido tiene que dejar de empujar.
+ *
+ * **Cogido con la mano no persigue nada**: va donde va la mano, y el tope de velocidad
+ * dejaría de ser un peso para pasar a ser un retardo entre la mano y lo que se ve en
+ * ella. La velocidad sigue saliendo del movimiento real, así que un golpe fuerte pega
+ * fuerte sin que haya que fingir nada.
  */
-function movePlayer(mallet: Body, target: Vec2, dt: number): Body {
+function movePlayer(mallet: Body, target: Vec2, dt: number, inHand: boolean): Body {
   const from = mallet.position
   const delta = { x: target.x - from.x, z: target.z - from.z }
   const distance = Math.hypot(delta.x, delta.z)
   const budget = PLAYER_MALLET_SPEED * dt
 
   const step =
-    distance <= budget || distance === 0
+    inHand || distance <= budget || distance === 0
       ? delta
       : { x: (delta.x / distance) * budget, z: (delta.z / distance) * budget }
 

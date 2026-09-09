@@ -479,3 +479,60 @@ describe('lo que suena en la mesa', () => {
     expect(celebrating.bounced).toBe(false)
   })
 })
+
+describe('el mazo cogido con la mano', () => {
+  /**
+   * Con el ratón el mazo persigue al puntero a una velocidad tope, y eso es lo que le da
+   * peso en una pantalla. Cogido con la mano ese tope deja de ser peso y pasa a ser
+   * retardo: la mano va por delante y el mazo detrás, que es exactamente lo que hacía que
+   * no se sintiera cogido.
+   */
+  const lejos = { x: 0.3, z: 0.25 }
+
+  it('va donde va la mano, sin quedarse por el camino', () => {
+    const salida = startTable({ skill, lastScorer: null })
+    const { table } = advanceTable(salida, {
+      delta: 1 / 60,
+      pointer: lejos,
+      skill,
+      playing: true,
+      inHand: true,
+    })
+
+    expect(table.player.position.x).toBeCloseTo(lejos.x, 5)
+    expect(table.player.position.z).toBeCloseTo(lejos.z, 5)
+  })
+
+  it('con el ratón sigue persiguiendo, que es lo que le da peso', () => {
+    const salida = startTable({ skill, lastScorer: null })
+    const { table } = advanceTable(salida, {
+      delta: 1 / 60,
+      pointer: lejos,
+      skill,
+      playing: true,
+    })
+
+    // En un fotograma no llega: se ha movido, pero mucho menos que la mano.
+    const recorrido = Math.hypot(
+      table.player.position.x - salida.player.position.x,
+      table.player.position.z - salida.player.position.z,
+    )
+    expect(recorrido).toBeGreaterThan(0)
+    expect(recorrido).toBeLessThan(0.1)
+  })
+
+  it('un golpe con la mano pega con la velocidad de la mano', () => {
+    // La velocidad sale del movimiento real, así que no hay que fingir nada: mover deprisa
+    // pega fuerte y mover despacio, flojo.
+    const salida = startTable({ skill, lastScorer: null })
+    const { table } = advanceTable(salida, {
+      delta: 1 / 60,
+      pointer: lejos,
+      skill,
+      playing: true,
+      inHand: true,
+    })
+
+    expect(Math.hypot(table.player.velocity.x, table.player.velocity.z)).toBeGreaterThan(4.5)
+  })
+})

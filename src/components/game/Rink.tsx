@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef } from 'react'
+import { useXR } from '@react-three/xr'
 import { useFrame, type RootState, type ThreeEvent } from '@react-three/fiber'
 import { Vector3, type Group, type PointLight, type Texture } from 'three'
 import {
@@ -28,6 +29,7 @@ import { impactStrength } from '../../lib/audioEngine'
 import { type PlayGameSound, type SlidePuck } from '../../lib/useGameAudio'
 import { Mallet } from './Mallet'
 import { Puck } from './Puck'
+import { MalletHand } from './MalletHand'
 
 /**
  * La partida en marcha: el disco, los dos mazos y el bucle que los mueve.
@@ -90,12 +92,19 @@ export function Rink({
   useEffect(() => () => slide(0), [slide])
   /** Dónde apunta el jugador. El mazo va detrás, no salta hasta ahí. */
   const pointer = useRef<Vec2>(playerStart())
+  /** Si el mazo va cogido con la mano (visor). Con el ratón nunca. */
+  const enLaMano = useRef(false)
 
   // El punto del evento viene en coordenadas del mundo y hay que traerlo a las
   // de la mesa. Se reutiliza el mismo vector: son varios eventos por fotograma.
   const worldPoint = useRef(new Vector3())
   /** El vector del camino de vuelta: de un punto de la mesa al mundo. */
   const tablePoint = useRef(new Vector3())
+
+  // Con el visor puesto el mazo va en la mano, no en el rayo: apuntar con el mando se
+  // sentía como manejar un cursor. Fuera de sesión sigue mandando el ratón sobre el
+  // tablero, que es como se juega en pantalla.
+  const enSesion = useXR((state) => state.mode != null)
 
   const aim = useCallback(
     (event: ThreeEvent<PointerEvent>) => {
@@ -121,6 +130,8 @@ export function Rink({
     } = advanceTable(table.current, {
       delta,
       pointer: pointer.current,
+      // Cogido con la mano el mazo no persigue: está donde está la mano.
+      inHand: enLaMano.current,
       skill,
       playing: gameState === 'playing',
     })
@@ -193,11 +204,26 @@ export function Rink({
       <mesh
         position={[0, 0.001, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
-        onPointerMove={aim}
+        onPointerMove={enSesion ? undefined : aim}
         visible={false}
       >
         <planeGeometry args={[TABLE_WIDTH, TABLE_LENGTH]} />
       </mesh>
+
+      {/* El mazo en la mano: solo en sesión, que es donde hay manos. */}
+      {enSesion ? (
+        <MalletHand
+          rink={rink}
+          destino={pointer}
+          onMove={(destino, cogido) => {
+            pointer.current = destino
+            enLaMano.current = cogido
+          }}
+          onRelease={() => {
+            enLaMano.current = false
+          }}
+        />
+      ) : null}
 
       <Puck ref={puckObject} speedRef={puckSpeed} environment={environment} />
       <Mallet ref={playerObject} color={PALETTE.primary} />

@@ -18,6 +18,7 @@ import {
   XRScoreboard,
 } from '../xr/XRHud'
 import { XRMenu } from '../xr/XRMenu'
+import { XRTutorial } from '../xr/XRTutorial'
 import { XRSessionController } from '../xr/XRSessionController'
 import { Rink } from './Rink'
 import { Room } from './Room'
@@ -51,6 +52,12 @@ const XR_UI = {
   panel: [0, 0.52, -0.25] as [number, number, number],
   /** Cuenta atrás: flotando sobre el punto de saque. */
   countdown: [0, 0.34, 0] as [number, number, number],
+  /**
+   * La demostración de cómo se coge el mazo: sobre el sitio del menú y algo más arriba,
+   * que es donde se está mirando al empezar, y por encima del pasillo por el que va el
+   * disco.
+   */
+  tutorial: [0, 0.66, -0.35] as [number, number, number],
   /**
    * Dejar la partida: **fuera de la mesa, arriba y a la izquierda**.
    *
@@ -167,6 +174,9 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
               </group>
               <group position={XR_UI.countdown}>
                 <XRCountdown />
+              </group>
+              <group position={XR_UI.tutorial} rotation={[-0.2, 0, 0]}>
+                <XRTutorial />
               </group>
               <group position={XR_UI.quit} rotation={[-0.3, 0, 0]}>
                 <XRQuitButton />

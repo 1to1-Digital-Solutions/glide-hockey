@@ -24,19 +24,19 @@ export type GameMode = 'practice' | 'levels' | 'challenge'
 /** Orden de los modos en los selectores, del más suave al más exigente. */
 export const GAME_MODE_ORDER: GameMode[] = ['practice', 'levels', 'challenge']
 
-/** Etiqueta visible para el usuario (idioma del producto: español). */
-export const GAME_MODE_LABELS: Record<GameMode, string> = {
+/** Etiqueta visible, en inglés: es la clave con la que se traduce (ver `textos.ts`). */
+export const GAME_MODE_LABELS = {
   practice: 'Practice',
   levels: 'Levels',
   challenge: 'Challenge',
-}
+} as const satisfies Record<GameMode, string>
 
 /** Qué promete cada modo, en una línea, para el menú. */
-export const GAME_MODE_HINTS: Record<GameMode, string> = {
+export const GAME_MODE_HINTS = {
   practice: 'You choose the level and the goals. Losing costs nothing.',
   levels: 'One game at a time. The level you win stays unlocked for next time.',
   challenge: 'It steps up on its own, in one run. The first game you lose ends it.',
-}
+} as const satisfies Record<GameMode, string>
 
 /**
  * La partida sin fin de la prueba: no se juega a ningún número de goles, sigue

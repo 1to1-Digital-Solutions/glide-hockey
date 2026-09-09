@@ -13,6 +13,8 @@ import {
   GAME_MODE_ORDER,
 } from '../../lib/gameMode'
 import { useGame } from '../../lib/gameStore'
+import { useLang } from '../../lib/ajustesCliente'
+import { traductor } from '../../lib/textos'
 import { SCENERY_HINTS, SCENERY_IDS, SCENERY_LABELS } from '../../lib/scenery'
 import { LEVEL_COUNT, levelSpec } from '../../lib/levels'
 import { DIFFICULTY_COLORS } from '../../lib/palette'
@@ -102,9 +104,10 @@ export function StartScreen() {
   // En reto y en niveles la escalera reparte nivel y goles, así que elegirlos no
   // haría nada. Se dejan a la vista, apagados: enseñan a qué se está renunciando
   // a decidir, que es distinto de esconderlos.
+  const t = traductor(useLang())
   const challenge = gameMode !== 'practice'
   const levels = gameMode === 'levels'
-  const quienManda = levels ? 'the level' : 'the challenge'
+  const quienManda = levels ? t('the level') : t('the challenge')
 
   return (
     <main className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-y-auto p-4">
@@ -114,15 +117,16 @@ export function StartScreen() {
             Air Hockey
           </h1>
           <p className="mt-1.5 text-sm text-white/60">
-            You against the machine. Move the mallet with the mouse and put the puck in
-            its goal.
+            {t(
+              'You against the machine. Move the mallet with the mouse and put the puck in its goal.',
+            )}
           </p>
         </header>
 
         <div className="flex flex-col gap-5">
           <fieldset className="flex flex-col gap-2">
-            <legend className="sr-only">Game mode</legend>
-            <FieldLabel>Mode</FieldLabel>
+            <legend className="sr-only">{t('Game mode')}</legend>
+            <FieldLabel>{t('Mode')}</FieldLabel>
             <div className="grid grid-cols-3 gap-2">
               {GAME_MODE_ORDER.map((mode) => (
                 <OptionButton
@@ -130,11 +134,11 @@ export function StartScreen() {
                   selected={gameMode === mode}
                   onClick={() => setGameMode(mode)}
                 >
-                  {GAME_MODE_LABELS[mode]}
+                  {t(GAME_MODE_LABELS[mode])}
                 </OptionButton>
               ))}
             </div>
-            <p className="text-xs text-white/45">{GAME_MODE_HINTS[gameMode]}</p>
+            <p className="text-xs text-white/45">{t(GAME_MODE_HINTS[gameMode])}</p>
           </fieldset>
 
           {/* Apagado de verdad, no apagado de aspecto: unas fichas al 45 % que
@@ -146,9 +150,10 @@ export function StartScreen() {
             disabled={challenge}
             className={`flex flex-col gap-2 transition ${challenge ? 'opacity-45' : ''}`}
           >
-            <legend className="sr-only">Machine level</legend>
+            <legend className="sr-only">{t('Machine level')}</legend>
             <FieldLabel>
-              Machine level {challenge ? `· set by ${quienManda}` : null}
+              {t('Machine level')}{' '}
+              {challenge ? t('· set by {who}', { who: quienManda }) : null}
             </FieldLabel>
             {/* Cinco columnas no caben en un móvil: con «Imposible» dentro, la
                 ficha se queda en veinte píxeles de ancho y el nombre se sale
@@ -161,7 +166,7 @@ export function StartScreen() {
                   selected={!challenge && difficulty === level}
                   onClick={() => setDifficulty(level)}
                   accent={DIFFICULTY_COLORS[level]}
-                  label={DIFFICULTY_LABELS[level]}
+                  label={t(DIFFICULTY_LABELS[level])}
                 >
                   <span className="flex flex-col items-center gap-1">
                     {/* Barras crecientes además del color: el nivel no puede
@@ -176,7 +181,7 @@ export function StartScreen() {
                       }}
                     />
                     <span className="text-[0.68rem] leading-tight">
-                      {DIFFICULTY_LABELS[level]}
+                      {t(DIFFICULTY_LABELS[level])}
                     </span>
                   </span>
                 </OptionButton>
@@ -189,11 +194,11 @@ export function StartScreen() {
           >
             <FieldLabel>
               <label htmlFor="goal-target">
-                Goals{' '}
+                {t('Goals')}{' '}
                 {challenge
-                  ? `· set by ${quienManda}`
+                  ? t('· set by {who}', { who: quienManda })
                   : endless
-                    ? '· endless'
+                    ? t('· endless')
                     : `· ${goalTarget}`}
               </label>
             </FieldLabel>
@@ -203,16 +208,16 @@ export function StartScreen() {
               <OptionButton
                 selected={!challenge && !endless}
                 onClick={() => setEndless(false)}
-                label="Fixed goals"
+                label={t('Fixed goals')}
               >
-                Fixed goals
+                {t('Fixed goals')}
               </OptionButton>
               <OptionButton
                 selected={!challenge && endless}
                 onClick={() => setEndless(true)}
-                label="Endless"
+                label={t('Endless')}
               >
-                Endless
+                {t('Endless')}
               </OptionButton>
             </div>
             <input
@@ -232,11 +237,14 @@ export function StartScreen() {
               ve con candado. Lo que da cada uno lo dice la escalera. */}
           {levels ? (
             <fieldset className="flex flex-col gap-2">
-              <legend className="sr-only">Level</legend>
+              <legend className="sr-only">{t('Level')}</legend>
               <FieldLabel>
-                Level · {activeLevel} of {LEVEL_COUNT} ·{' '}
-                {DIFFICULTY_LABELS[levelSpec(activeLevel).difficulty]}, to{' '}
-                {levelSpec(activeLevel).goalTarget} goals
+                {t('Level · {level} of {total} · {difficulty}, to {goals} goals', {
+                  level: activeLevel,
+                  total: LEVEL_COUNT,
+                  difficulty: t(DIFFICULTY_LABELS[levelSpec(activeLevel).difficulty]),
+                  goals: levelSpec(activeLevel).goalTarget,
+                })}
               </FieldLabel>
               <div className="grid grid-cols-5 gap-1.5">
                 {Array.from({ length: LEVEL_COUNT }, (_, i) => i + 1).map((n) => {
@@ -251,8 +259,13 @@ export function StartScreen() {
                       aria-pressed={n === activeLevel}
                       aria-label={
                         bloqueado
-                          ? `Level ${n}, locked`
-                          : `Level ${n}, ${stars} ${stars === 1 ? 'star' : 'stars'}`
+                          ? t('Level {level}, locked', { level: n })
+                          : t(
+                              stars === 1
+                                ? 'Level {level}, {stars} star'
+                                : 'Level {level}, {stars} stars',
+                              { level: n, stars },
+                            )
                       }
                       className={`flex min-h-11 flex-col items-center justify-center rounded-lg border px-1 py-1.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-35 ${
                         n === activeLevel
@@ -278,8 +291,8 @@ export function StartScreen() {
               entre visitas. Aquí se deja elegido; donde de verdad se usa es
               dentro del visor, cambiándolo sin salir de la sesión. */}
           <fieldset className="flex flex-col gap-2">
-            <legend className="sr-only">What you see around you</legend>
-            <FieldLabel>Around you</FieldLabel>
+            <legend className="sr-only">{t('What you see around you')}</legend>
+            <FieldLabel>{t('Around you')}</FieldLabel>
             <div className="grid grid-cols-2 gap-2">
               {SCENERY_IDS.map((option) => (
                 <OptionButton
@@ -287,36 +300,39 @@ export function StartScreen() {
                   selected={scenery === option}
                   onClick={() => setScenery(option)}
                 >
-                  {SCENERY_LABELS[option]}
+                  {t(SCENERY_LABELS[option])}
                 </OptionButton>
               ))}
             </div>
-            <p className="text-xs text-white/50">{SCENERY_HINTS[scenery]}</p>
+            <p className="text-xs text-white/50">{t(SCENERY_HINTS[scenery])}</p>
           </fieldset>
         </div>
 
         {levels ? (
           <p className="mt-5 text-sm text-white/55">
-            Levels cleared:{' '}
+            {t('Levels cleared:')}{' '}
             <strong className="font-semibold text-white">
               {levelStars.filter((s) => s >= 1).length}
             </strong>{' '}
-            of {LEVEL_COUNT}
+            {t('of {total}', { total: LEVEL_COUNT })}
           </p>
         ) : bestPoints > 0 ? (
           <p className="mt-5 text-sm text-white/55">
             {endless ? (
               <>
-                Your best endless streak:{' '}
-                <strong className="font-semibold text-white">{bestPoints}</strong> goals
+                {t('Your best endless streak:')}{' '}
+                <strong className="font-semibold text-white">{bestPoints}</strong>{' '}
+                {t('goals')}
               </>
             ) : (
               <>
-                Your record on {GAME_MODE_LABELS[gameMode].toLowerCase()}:{' '}
+                {t('Your record on {mode}:', {
+                  mode: t(GAME_MODE_LABELS[gameMode]).toLowerCase(),
+                })}{' '}
                 <strong className="font-semibold text-white">
                   {bestPoints.toLocaleString('en-GB')}
                 </strong>{' '}
-                points
+                {t('points')}
               </>
             )}
           </p>
@@ -328,7 +344,7 @@ export function StartScreen() {
             onClick={startGame}
             className="cta-gradient min-h-12 w-full rounded-xl px-6 py-3 text-base font-bold transition"
           >
-            Play
+            {t('Play')}
           </button>
 
           {immersive?.ar || immersive?.vr ? (
@@ -342,7 +358,7 @@ export function StartScreen() {
               }
               className="min-h-11 w-full rounded-xl border border-white/15 px-6 py-2.5 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
             >
-              Play in the headset
+              {t('Play in the headset')}
             </button>
           ) : null}
 
@@ -358,7 +374,7 @@ export function StartScreen() {
               onClick={exit}
               className="min-h-11 w-full rounded-xl px-6 py-2 text-sm font-medium text-white/40 transition hover:text-white/70"
             >
-              Exit
+              {t('Exit')}
             </button>
           ) : null}
         </div>

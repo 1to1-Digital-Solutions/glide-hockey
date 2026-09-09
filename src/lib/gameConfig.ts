@@ -21,14 +21,14 @@ export const DIFFICULTY_ORDER: Difficulty[] = [
   'impossible',
 ]
 
-/** Etiqueta visible para el usuario (idioma del producto: español). */
-export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
+/** Etiqueta visible, en inglés: es la clave con la que se traduce (ver `textos.ts`). */
+export const DIFFICULTY_LABELS = {
   easy: 'Easy',
   medium: 'Medium',
   hard: 'Hard',
   expert: 'Expert',
   impossible: 'Impossible',
-}
+} as const satisfies Record<Difficulty, string>
 
 /**
  * La mesa, medida como una de verdad pero un poco más estrecha: en el visor se

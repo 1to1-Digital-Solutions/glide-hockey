@@ -5,6 +5,8 @@ import { useGame } from '../../lib/gameStore'
 import { AIR_HOCKEY_CSS_VARIABLES } from '../../lib/palette'
 import { HUD } from '../ui/HUD'
 import { StartScreen } from '../ui/StartScreen'
+import { useLang } from '../../lib/ajustesCliente'
+import { traductor } from '../../lib/textos'
 
 // El Canvas de R3F depende de WebGL y de `window`, así que se carga aparte y
 // solo en cliente. Con `lazy` de React y no con `next/dynamic`: el juego se
@@ -30,10 +32,12 @@ const useOnClient = () =>
   )
 
 function SceneLoading() {
+  const t = traductor(useLang())
+
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-background)]">
       <p className="animate-pulse text-sm uppercase tracking-[0.3em] text-white/40">
-        Setting up the table…
+        {t('Setting up the table…')}
       </p>
     </div>
   )

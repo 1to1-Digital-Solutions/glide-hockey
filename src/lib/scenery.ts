@@ -22,15 +22,15 @@ import { createStoredPreference } from './storage'
 export const SCENERY_IDS = ['place', 'room'] as const
 export type Scenery = (typeof SCENERY_IDS)[number]
 
-export const SCENERY_LABELS: Record<Scenery, string> = {
+export const SCENERY_LABELS = {
   place: 'The room',
   room: 'Your room',
-}
+} as const satisfies Record<Scenery, string>
 
-export const SCENERY_HINTS: Record<Scenery, string> = {
+export const SCENERY_HINTS = {
   place: 'The table with the arcade room around it.',
   room: 'Headset and augmented reality only: the table stands in your own room.',
-}
+} as const satisfies Record<Scenery, string>
 
 /** Con qué se entra: con la sala, que es lo que se ve en cualquier pantalla. */
 export const DEFAULT_SCENERY: Scenery = 'place'

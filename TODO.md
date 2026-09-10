@@ -28,3 +28,18 @@
 - [x] Modo Niveles: la escalera del reto como niveles con estrellas y progreso guardado <!-- org:8540ce6e-0992-4c10-971d-24e9b988cd8c -->
 - [x] Práctica sin fin: partida que no acaba hasta que sales, con récord de racha <!-- org:37e6f302-159b-46e7-9130-5bad022155ab -->
 - [x] Brillo del disco y reflejo de la mesa con un mapa de entorno barato <!-- org:38455675-8fea-4c54-bd3c-cb8e09c76d11 -->
+
+## Revisión de mejoras
+
+- [ ] El reflejo del entorno llega a la mesa pero no al mazo
+  `useRoomEnvironment()` se pasa a `Table` y `Puck`, no a `components/game/Mallet.tsx` ni
+  `MalletHand.tsx`. El objeto que está a centímetros de los ojos todo el rato tiene menos acabado
+  que la mesa, y eso se nota más que al revés. Lo mismo en ping-pong con la pala.
+- [ ] Terminar la partida no suena
+  El HUD pinta estrellas, nivel desbloqueado o récord en silencio: solo se repite el último sonido
+  normal de la partida. Comparte el hueco con ping-pong, whack-a-mole, bow-shooting, skeet y
+  stick-rush.
+- [ ] Sin techo ni fondo de cielo jugando desde su propia web
+  `components/game/Room.tsx` levanta paredes de 3,4-4 m pero no techo, y `GameCanvas.tsx` no fija
+  `<color attach="background">`. En realidad virtual, mirar por encima de las paredes enseña el
+  negro del compositor. Dentro del salón no pasa: el hub sí lo pone.

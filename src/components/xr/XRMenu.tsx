@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback } from 'react'
 import { useXR } from '@react-three/xr'
 
 import {
@@ -8,9 +9,13 @@ import {
   MIN_GOALS,
 } from '../../lib/gameConfig'
 import { useGame } from '../../lib/gameStore'
+import { useLang } from '../../lib/ajustesCliente'
+import { traductor } from '../../lib/textos'
+import { CanvasPanel, drawText } from './canvasPanel'
 import { GAME_MODE_ORDER, type GameMode } from '../../lib/gameMode'
 import { LEVEL_COUNT } from '../../lib/levels'
 import { DIFFICULTY_COLORS, PALETTE } from '../../lib/palette'
+import { LEVEL_BAR_BOTTOM, LEVEL_BUTTON, levelBarHeight } from '../../lib/xrMenuLayout'
 import { useExit } from '../../game/exit'
 import {
   DIM_COLOR,
@@ -42,9 +47,8 @@ import {
  */
 
 /** Medidas del panel y de sus filas, en metros. */
-const PANEL = { width: 0.78, height: 0.74 }
+const PANEL = { width: 0.78, height: 0.86 }
 const MODE_BUTTON: [number, number] = [0.22, 0.13]
-const LEVEL_BUTTON: [number, number] = [0.12, 0.11]
 const SMALL_BUTTON: [number, number] = [0.11, 0.11]
 const PLAY_BUTTON: [number, number] = [0.28, 0.12]
 
@@ -57,7 +61,19 @@ const PLAY_BUTTON: [number, number] = [0.28, 0.12]
  * goles —dos planos en la misma z, parpadeando— en cuanto hubiera un récord que
  * enseñar, que es a partir de la primera partida.
  */
-const ROW = { record: 0.32, mode: 0.22, level: 0.05, goals: -0.11, actions: -0.26 }
+const ROW = { record: 0.39, mode: 0.25, level: 0.05, goals: -0.14, actions: -0.32 }
+
+/**
+ * Cuánto sube el nombre de una fila por encima de sus botones, en metros.
+ *
+ * Las filas son iconos y barras, y un icono dice **qué pasa** pero no **de qué es la
+ * fila**: cinco barras en línea no se leen como «nivel» hasta que alguien lo dice. El
+ * panel creció para hacerles sitio, que quitárselo a los botones es quitárselo a lo que
+ * cuesta apuntar.
+ */
+const ROW_LABEL_RISE = 0.09
+
+
 
 function hitBox(
   x: number,
@@ -139,18 +155,52 @@ export function XRMenu() {
   // Fuera de una sesión de realidad aumentada no hay habitación que enseñar: el
   // visor no entrega el passthrough en realidad virtual.
   const passthroughAvailable = useXR((state) => state.mode) === 'immersive-ar'
-
-  if (gameState !== 'menu') return null
+  const t = traductor(useLang())
 
   // Nivel y goles los manda la escalera en reto y en niveles.
   const challenge = gameMode !== 'practice'
   const levels = gameMode === 'levels'
+
+  // Los nombres de las filas, en un lienzo aparte: el resto del panel es geometría y ahí no
+  // cabe una letra. La tercera fila cambia de pregunta con el modo, así que cambia de
+  // nombre con ella.
+  const nombrarFilas = useCallback(
+    (ctx: CanvasRenderingContext2D) => {
+      const filas = [
+        [ROW.mode, t('Mode')],
+        [ROW.level, t('Level')],
+        [ROW.goals, levels ? t('Stage') : t('Goals')],
+      ] as const
+      for (const [y, nombre] of filas) {
+        drawText(ctx, nombre, -PANEL.width / 2 + 0.05, y + ROW_LABEL_RISE, {
+          size: 0.03,
+          color: DIM_COLOR,
+          align: 'left',
+          maxWidth: PANEL.width / 2,
+        })
+      }
+    },
+    [levels, t],
+  )
+
+  if (gameState !== 'menu') return null
   // En reto se enseña lo que toca en la ronda; en prueba, lo elegido.
   const shownDifficulty = challenge ? activeDifficulty : difficulty
   const shownGoals = challenge ? activeGoalTarget : goalTarget
   return (
     <group>
       <XRPanel width={PANEL.width} height={PANEL.height} />
+
+      {/* De qué es cada fila. Va encima de sus botones y no dentro: dentro habría que
+          elegir entre el nombre y el icono, y el icono es lo que se pulsa. */}
+      <group position={[0, 0, 0.004]}>
+        <CanvasPanel
+          width={PANEL.width}
+          height={PANEL.height}
+          draw={nombrarFilas}
+          fallbackColor={PALETTE.background}
+        />
+      </group>
 
       {GAME_MODE_ORDER.map((mode, index) => {
         const selected = mode === gameMode
@@ -175,7 +225,7 @@ export function XRMenu() {
           que el nivel se lee por forma y por color, no solo por color. */}
       {DIFFICULTY_ORDER.map((level, index) => {
         const selected = level === shownDifficulty
-        const height = 0.026 + index * 0.014
+        const height = levelBarHeight(index, DIFFICULTY_ORDER.length)
         return (
           <XRPressable
             key={level}
@@ -189,7 +239,7 @@ export function XRMenu() {
               color={selected ? DIFFICULTY_COLORS[level] : PALETTE.rail}
               opacity={challenge && !selected ? 0.35 : 0.85}
             />
-            <mesh position={[0, -0.02 + height / 2, 0]}>
+            <mesh position={[0, LEVEL_BAR_BOTTOM + height / 2, 0]}>
               <planeGeometry args={[0.05, height]} />
               <meshBasicMaterial
                 color={selected ? PALETTE.foreground : DIM_COLOR}

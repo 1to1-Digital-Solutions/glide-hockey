@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test'
+import { TUTORIAL_SEEN_KEY } from '../../src/lib/tutorial'
 import { XR_EMULATOR_BUNDLE } from './globalSetup'
 
 interface XRTestApi {
@@ -62,4 +63,26 @@ export async function startGameInsideSession(page: Page, attempts = 8) {
     if ((await play.count()) === 0) return
   }
   throw new Error(`No se pudo arrancar la partida dentro de la sesión en ${attempts} intentos`)
+}
+
+/**
+ * Deja el juego como si la demostración del gesto ya se hubiera visto.
+ *
+ * **Hace falta antes de abrir el juego.** Con el visor puesto y sin haberla visto nunca, la
+ * demostración corre entre «empezar» y el primer lanzamiento, y la partida la espera: quien
+ * no sabe todavía el gesto no juega (ver `lib/gameStore.ts`). Un test que va a hacer el
+ * gesto no está probando eso, y esperar seis segundos en cada uno solo alarga la suite.
+ *
+ * Lo que se escribe es lo mismo que escribe el juego al terminarla (`lib/tutorial.ts`), y
+ * por eso la clave se importa de ahí en vez de copiarse.
+ */
+export async function skipTutorial(page: Page) {
+  await page.addInitScript((key: string) => {
+    try {
+      window.localStorage.setItem(key, '1')
+    } catch {
+      // Almacenamiento capado: la demostración saldrá, y el test que la necesite fuera ya
+      // se enterará al no ver el gesto.
+    }
+  }, TUTORIAL_SEEN_KEY)
 }

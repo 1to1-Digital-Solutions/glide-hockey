@@ -171,6 +171,14 @@ export interface GameStore {
   setScenery: (scenery: Scenery) => void
 
   /**
+   * Si la demostración del gesto está corriendo ahora mismo. Lo dice `XRTutorial`.
+   *
+   * **La cuenta atrás la espera.** Empezar mientras la demostración explica el gesto es empezar sin
+   * él: el saque llegaba con la explicación a medias. Fuera del visor no hay demostración y esto se queda en `false`.
+   */
+  tutorialRunning: boolean
+  setTutorialRunning: (running: boolean) => void
+  /**
    * Lo que se está preguntando ahora mismo, o `null` si no se pregunta nada.
    *
    * Dejar la partida a medias **pierde lo que se lleva**, y el botón se pulsa sin querer:
@@ -215,6 +223,7 @@ export function useGameStoreValue(): GameStore {
   const [running, setRunning] = useState(false)
   const [countdown, setCountdown] = useState(0)
   const [prompt, setPrompt] = useState<'quit' | null>(null)
+  const [tutorialRunning, setTutorialRunning] = useState(false)
   const [malletHeld, setMalletHeld] = useState(false)
   const [runId, setRunId] = useState(0)
   // Ronda del reto. Vive aquí y no se deriva porque es lo único que sobrevive
@@ -334,10 +343,10 @@ export function useGameStoreValue(): GameStore {
   // mazo en la mesa es empezar a perder.
   const esperandoElMazo = immersive && !malletHeld && countdown <= 1
   useEffect(() => {
-    if (!running || countdown <= 0 || esperandoElMazo || prompt !== null) return
+    if (!running || countdown <= 0 || esperandoElMazo || prompt !== null || tutorialRunning) return
     const timer = setTimeout(() => setCountdown((value) => value - 1), 1000)
     return () => clearTimeout(timer)
-  }, [running, countdown, esperandoElMazo, prompt])
+  }, [running, countdown, esperandoElMazo, prompt, tutorialRunning])
 
   // De qué ronda se subió ya el escalón. Sin esta marca, dos ejecuciones del
   // efecto por la misma ronda —Strict Mode las provoca en desarrollo— sumarían
@@ -500,6 +509,8 @@ export function useGameStoreValue(): GameStore {
   return useMemo(
     () => ({
       prompt,
+      tutorialRunning,
+      setTutorialRunning,
       askToQuit,
       keepPlaying,
       goalTarget,
@@ -551,6 +562,7 @@ export function useGameStoreValue(): GameStore {
     }),
     [
       prompt,
+      tutorialRunning,
       askToQuit,
       keepPlaying,
       malletHeld,

@@ -384,3 +384,37 @@ describe('dejar la partida', () => {
     expect(hook.result.current.prompt).toBeNull()
   })
 })
+
+/**
+ * La cuenta atrás espera a que la demostración termine.
+ *
+ * Empezar mientras el tutorial explica el gesto es empezar sin él: el saque llegaba con la explicación a medias. Solo pasa
+ * con el visor puesto y solo la primera vez, que es justo cuando más importa.
+ */
+describe('esperar a la demostración', () => {
+  it('mientras corre, la cuenta atrás no baja', () => {
+    const hook = renderHook(() => useGameStoreValue())
+    act(() => hook.result.current.setTutorialRunning(true))
+    act(() => hook.result.current.startGame())
+    const desde = hook.result.current.countdown
+
+    act(() => void vi.advanceTimersByTime(5000))
+
+    expect(hook.result.current.countdown).toBe(desde)
+    expect(hook.result.current.gameState).toBe('countdown')
+  })
+
+  it('y en cuanto termina, echa a andar', () => {
+    const hook = renderHook(() => useGameStoreValue())
+    act(() => hook.result.current.setTutorialRunning(true))
+    act(() => hook.result.current.startGame())
+    act(() => void vi.advanceTimersByTime(5000))
+
+    const parada = hook.result.current.countdown
+
+    act(() => hook.result.current.setTutorialRunning(false))
+    act(() => void vi.advanceTimersByTime(1100))
+
+    expect(hook.result.current.countdown).toBeLessThan(parada)
+  })
+})

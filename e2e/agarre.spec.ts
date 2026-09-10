@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { abrirJuego, observarLaMesa } from './helpers'
-import { enterVR, installXREmulator, startGameInsideSession } from './support/xr'
+import { enterVR, installXREmulator, skipTutorial, startGameInsideSession } from './support/xr'
 
 /**
  * Coger el mazo con la mano, dentro de una sesión de verdad.
@@ -16,6 +16,9 @@ import { enterVR, installXREmulator, startGameInsideSession } from './support/xr
  */
 test('el mazo va con la mano cuando se aprieta el gatillo', async ({ page }) => {
   await installXREmulator(page)
+  // La demostración del gesto para la partida hasta que termina, y aquí lo que se prueba
+  // es el gesto: se entra como quien ya la ha visto.
+  await skipTutorial(page)
   await observarLaMesa(page)
   await abrirJuego(page)
   await enterVR(page)

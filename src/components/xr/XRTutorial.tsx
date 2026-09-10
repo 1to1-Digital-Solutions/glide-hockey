@@ -2,7 +2,7 @@
 
 import { useFrame } from '@react-three/fiber'
 import { useXR } from '@react-three/xr'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Group, Mesh } from 'three'
 
 import { useGame } from '../../lib/gameStore'
@@ -75,7 +75,7 @@ const FRASES: Record<TutorialStepKey, TextKey> = {
 const TEXT_HEIGHT = 0.2
 
 export function XRTutorial() {
-  const { gameState } = useGame()
+  const { gameState, setTutorialRunning } = useGame()
   const t = traductor(useLang())
   const enSesion = useXR((state) => state.mode != null)
 
@@ -129,6 +129,12 @@ export function XRTutorial() {
     },
     [frame, t],
   )
+
+  // La partida espera: empezar mientras esto explica el gesto es empezar sin él.
+  useEffect(() => {
+    setTutorialRunning(activo)
+    return () => setTutorialRunning(false)
+  }, [activo, setTutorialRunning])
 
   if (!activo) return null
 

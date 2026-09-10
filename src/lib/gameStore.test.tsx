@@ -290,3 +290,47 @@ describe('usar el store sin haberlo montado', () => {
     expect(() => renderHook(() => useGame())).toThrow(/GameProvider/)
   })
 })
+
+/**
+ * El saque espera a que el mazo esté en la mano.
+ *
+ * **Con el visor puesto la partida empezaba sin él**: el disco salía y no había con qué
+ * pararlo, porque coger el mazo es un gesto que se aprende justo en esos tres segundos. En
+ * escritorio no aplica —el ratón lleva el mazo desde el primer fotograma—, así que solo se
+ * espera dentro de una sesión.
+ */
+describe('el saque con el visor puesto', () => {
+  it('no pasa del último segundo sin el mazo en la mano', () => {
+    const hook = renderHook(() => useGameStoreValue())
+    act(() => hook.result.current.setImmersive(true))
+    act(() => hook.result.current.startGame())
+
+    // La cuenta baja hasta el último segundo y ahí se queda.
+    for (let i = 0; i < 8; i += 1) act(() => void vi.advanceTimersByTime(1000))
+
+    expect(hook.result.current.countdown).toBe(1)
+    expect(hook.result.current.gameState).toBe('countdown')
+  })
+
+  it('en cuanto se coge, saca', () => {
+    const hook = renderHook(() => useGameStoreValue())
+    act(() => hook.result.current.setImmersive(true))
+    act(() => hook.result.current.startGame())
+    for (let i = 0; i < 8; i += 1) act(() => void vi.advanceTimersByTime(1000))
+
+    act(() => hook.result.current.setMalletHeld(true))
+    act(() => void vi.advanceTimersByTime(1000))
+
+    expect(hook.result.current.gameState).toBe('playing')
+  })
+
+  it('en escritorio no espera a nada', () => {
+    // El ratón lleva el mazo desde el primer fotograma: esperar sería no empezar nunca.
+    const hook = renderHook(() => useGameStoreValue())
+    act(() => hook.result.current.startGame())
+
+    for (let i = 0; i < 8; i += 1) act(() => void vi.advanceTimersByTime(1000))
+
+    expect(hook.result.current.gameState).toBe('playing')
+  })
+})

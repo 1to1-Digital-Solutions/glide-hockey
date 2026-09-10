@@ -120,6 +120,15 @@ export interface GameStore {
   /** Segundos para el saque. Solo tiene sentido en `countdown`. */
   countdown: number
   /**
+   * Si el mazo va en la mano ahora mismo. Lo dice la mesa, fotograma a fotograma.
+   *
+   * **La cuenta atrás lo espera.** Con el visor puesto, el saque llegaba con el mazo aún en
+   * la mesa: el disco salía y no había con qué pararlo. Se para en el último segundo hasta
+   * que se coge, que es lo que el tutorial está enseñando justo entonces.
+   */
+  malletHeld: boolean
+  setMalletHeld: (held: boolean) => void
+  /**
    * Identificador de partida. Sube al empezar una nueva, y en reto también al
    * pasar de ronda: es lo que remonta la mesa y devuelve el disco al centro.
    */
@@ -191,6 +200,7 @@ export function useGameStoreValue(): GameStore {
   const [endedByPlayer, setEndedByPlayer] = useState(false)
   const [running, setRunning] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  const [malletHeld, setMalletHeld] = useState(false)
   const [runId, setRunId] = useState(0)
   // Ronda del reto. Vive aquí y no se deriva porque es lo único que sobrevive
   // de una partida a la siguiente dentro del mismo reto.
@@ -305,11 +315,14 @@ export function useGameStoreValue(): GameStore {
   // Un tic por segundo hasta el saque. La cuenta atrás da tiempo a colocar el
   // mazo —en el visor uno acaba de pulsar un botón y tiene la mano donde no
   // toca— y avisa de que la partida va a empezar de verdad.
+  // Y en el visor no pasa del último segundo hasta tener el mazo en la mano: sacar con el
+  // mazo en la mesa es empezar a perder.
+  const esperandoElMazo = immersive && !malletHeld && countdown <= 1
   useEffect(() => {
-    if (!running || countdown <= 0) return
+    if (!running || countdown <= 0 || esperandoElMazo) return
     const timer = setTimeout(() => setCountdown((value) => value - 1), 1000)
     return () => clearTimeout(timer)
-  }, [running, countdown])
+  }, [running, countdown, esperandoElMazo])
 
   // De qué ronda se subió ya el escalón. Sin esta marca, dos ejecuciones del
   // efecto por la misma ronda —Strict Mode las provoca en desarrollo— sumarían
@@ -491,6 +504,8 @@ export function useGameStoreValue(): GameStore {
       outcome,
       gameState,
       countdown,
+      malletHeld,
+      setMalletHeld,
       runId,
       immersive,
       muted,
@@ -512,6 +527,7 @@ export function useGameStoreValue(): GameStore {
       resetGame,
     }),
     [
+      malletHeld,
       goalTarget,
       difficulty,
       gameMode,

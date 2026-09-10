@@ -46,7 +46,7 @@
 
 ## Del visor — segunda ronda
 
-- [ ] [urgente] La partida no espera a que el mazo esté en la mano
+- [x] [urgente] La partida no espera a que el mazo esté en la mano
   **Media tarea hecha**: el mazo ya se puede agarrar —el juego no sabía dónde estaba la mano, ver
   `XRControllerGrip`—. Queda lo otro: la cuenta atrás arranca igual aunque no lo hayas cogido, así
   que la partida puede empezar contigo sin nada con que parar el disco. Tiene que esperar.

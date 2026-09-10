@@ -73,6 +73,7 @@ export function Rink({
     lastScorer,
     scoreOpponent,
     scorePlayer,
+    setMalletHeld,
   } = useGame()
 
   const skill = OPPONENT_SKILLS[activeDifficulty]
@@ -218,9 +219,12 @@ export function Rink({
           onMove={(destino, cogido) => {
             pointer.current = destino
             enLaMano.current = cogido
+            // El estado también se entera: la cuenta atrás no saca hasta tenerlo en la mano.
+            setMalletHeld(cogido)
           }}
           onRelease={() => {
             enLaMano.current = false
+            setMalletHeld(false)
           }}
         />
       ) : null}

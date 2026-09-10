@@ -33,10 +33,21 @@ export const BOUNCE_PULSE: HapticPulse = { intensity: 0.25, durationMs: 20, hand
 /** El gol, a favor o en contra: largo y en las dos manos, como una celebración. */
 export const GOAL_PULSE: HapticPulse = { intensity: 0.5, durationMs: 120, hands: 'both' }
 
+/**
+ * El final del partido: el más largo de todos, en las dos manos. Es lo único que dice que
+ * se acabó sin mirar el marcador, que con el visor puesto está donde uno no está mirando.
+ */
+export const OVER_PULSE: HapticPulse = { intensity: 0.6, durationMs: 220, hands: 'both' }
+/** Y la marca batida, un toque corto por encima del cierre. */
+export const RECORD_PULSE: HapticPulse = { intensity: 0.4, durationMs: 70, hands: 'both' }
+
 const PULSES: Record<GameSound, HapticPulse> = {
   strike: STRIKE_PULSE,
   bounce: BOUNCE_PULSE,
   goal: GOAL_PULSE,
+  win: OVER_PULSE,
+  loss: OVER_PULSE,
+  record: RECORD_PULSE,
 }
 
 /** El golpe que corresponde a cada suceso de la mesa. */

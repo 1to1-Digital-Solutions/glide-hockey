@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { XRUiHeight } from '../xr/XRUiHeight'
 import { useXR } from '@react-three/xr'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
@@ -87,7 +87,14 @@ export interface GameWorldProps {
 }
 
 export function GameWorld({ hasDomUi = false }: GameWorldProps) {
-  const { gameState, runId, scenery } = useGame()
+  const {
+    gameState,
+    runId,
+    scenery,
+    isRecord,
+    totalPlayerGoals,
+    totalOpponentGoals,
+  } = useGame()
   const mode = useXR((state) => state.mode)
 
   // El sonido cuelga de la escena y no de la mesa: la mesa se estrena en cada
@@ -107,6 +114,22 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
     },
     [play, haptics],
   )
+  // El final del partido. Antes era silencio: se metía el último gol, sonaba como cualquier
+  // otro y la pantalla de fin llegaba sin avisar. Con el visor puesto es peor todavía,
+  // porque el marcador está donde uno no siempre está mirando. La marca batida va **encima**
+  // del cierre y no en su lugar: se puede batir ganando o perdiendo, y hay que oír las dos.
+  const terminado = useRef(false)
+  useEffect(() => {
+    if (gameState !== 'finished') {
+      terminado.current = false
+      return
+    }
+    if (terminado.current) return
+    terminado.current = true
+    feedback(totalPlayerGoals > totalOpponentGoals ? 'win' : 'loss')
+    if (isRecord) feedback('record')
+  }, [gameState, feedback, isRecord, totalPlayerGoals, totalOpponentGoals])
+
   // Los reflejos de la mesa y del disco, calculados una vez (ver el hook).
   const environment = useRoomEnvironment()
   // Qué se pinta alrededor lo elige quien juega y no el modo de sesión: dentro

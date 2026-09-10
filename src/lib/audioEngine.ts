@@ -24,11 +24,11 @@
  * el juego mudo y nada más: el sonido cuenta lo que pasa, no decide nada.
  */
 
-/** Los tres momentos que suenan en una partida. */
+/** Lo que suena en una partida: los tres golpes, y cómo acaba. */
 import { MAX_PUCK_SPEED } from './gameConfig'
 import { STALL_SPEED } from './puckPhysics'
 
-export type GameSound = 'strike' | 'bounce' | 'goal'
+export type GameSound = 'strike' | 'bounce' | 'goal' | 'win' | 'loss' | 'record'
 
 /**
  * Cuánto se oye el disco deslizándose, de 0 a 1, según su velocidad en m/s.
@@ -148,7 +148,11 @@ interface ToneLayer {
 }
 
 interface SoundRecipe {
-  noise: NoiseLayer
+  /**
+   * El siseo del golpe. Opcional porque los cierres no lo llevan: un final no golpea nada,
+   * y el ruido de un impacto ahí sonaría a que se ha roto algo.
+   */
+  noise?: NoiseLayer
   tones: readonly ToneLayer[]
 }
 
@@ -161,6 +165,9 @@ interface SoundRecipe {
  * lo único con melodía —dos notas que suben una quinta— porque es lo único que
  * hay que celebrar.
  */
+/** Lo que suena igual de fuerte pase lo que pase: no son impactos. */
+const SIN_FUERZA = new Set<GameSound>(['goal', 'win', 'loss', 'record'])
+
 const RECIPES: Record<GameSound, SoundRecipe> = {
   strike: {
     noise: {
@@ -224,6 +231,41 @@ const RECIPES: Record<GameSound, SoundRecipe> = {
       },
     ],
   },
+  /**
+   * Ganar el partido. Antes terminar era silencio: se metía el último gol, sonaba como
+   * cualquier otro y aparecía la pantalla de fin sin avisar. Con el visor puesto es peor
+   * todavía, porque el marcador está donde uno no siempre está mirando.
+   *
+   * Sube y dura, que es lo que separa un final de un gol: la misma quinta del gol pero
+   * resuelta una octava arriba, y tres notas en vez de dos.
+   */
+  win: {
+    tones: [
+      { type: 'triangle', from: 523.25, to: 523.25, peak: 0.3, delay: 0, seconds: 0.2 },
+      { type: 'triangle', from: 659.25, to: 659.25, peak: 0.3, delay: 0.13, seconds: 0.2 },
+      { type: 'triangle', from: 784, to: 1046.5, peak: 0.34, delay: 0.26, seconds: 0.42 },
+      { type: 'sine', from: 1046.5, to: 1046.5, peak: 0.16, delay: 0.26, seconds: 0.48 },
+    ],
+  },
+  /** Perderlo: lo contrario, cayendo y grave. Sin ruido: un final no golpea nada. */
+  loss: {
+    tones: [
+      { type: 'triangle', from: 329.63, to: 329.63, peak: 0.3, delay: 0, seconds: 0.24 },
+      { type: 'triangle', from: 261.63, to: 196, peak: 0.32, delay: 0.16, seconds: 0.5 },
+      { type: 'sine', from: 130.81, to: 98, peak: 0.24, delay: 0.16, seconds: 0.55 },
+    ],
+  },
+  /**
+   * Y la marca batida, por encima del cierre y no en su lugar: se puede batir ganando o
+   * perdiendo el partido, y hay que oír las dos cosas. Cae cuando el cierre se apaga.
+   */
+  record: {
+    tones: [
+      { type: 'sine', from: 1318.5, to: 1318.5, peak: 0.26, delay: 0.42, seconds: 0.12 },
+      { type: 'sine', from: 1568, to: 1568, peak: 0.26, delay: 0.52, seconds: 0.12 },
+      { type: 'sine', from: 1760, to: 1975.5, peak: 0.28, delay: 0.62, seconds: 0.34 },
+    ],
+  },
 }
 
 /**
@@ -250,7 +292,10 @@ function scaled(recipe: SoundRecipe, strength: number): SoundRecipe {
   const level = MIN_LEVEL + (1 - MIN_LEVEL) * s
   const pitch = 1 - PITCH_SPREAD / 2 + PITCH_SPREAD * s
   return {
-    noise: {
+    // Solo escalan las recetas de impacto, y todas llevan siseo: `SIN_FUERZA` deja fuera a
+    // las que no lo tienen. El resguardo está por si esta receta se usa suelta.
+    /* v8 ignore next */
+    noise: recipe.noise && {
       ...recipe.noise,
       peak: recipe.noise.peak * level,
       frequency: recipe.noise.frequency * pitch,
@@ -341,8 +386,10 @@ export function createAirHockeyAudio(
     if (ctx.state === 'suspended') ignore(ctx.resume())
 
     const now = ctx.currentTime
-    const recipe = sound === 'goal' ? RECIPES[sound] : scaled(RECIPES[sound], strength)
-    playNoise(ctx, master, noise, now, recipe.noise)
+    // El gol y los cierres no miran la fuerza: son celebraciones, no impactos.
+    const recipe = SIN_FUERZA.has(sound) ? RECIPES[sound] : scaled(RECIPES[sound], strength)
+    // Un cierre no golpea nada: sin siseo, que ahí sonaría a que se ha roto algo.
+    if (recipe.noise != null) playNoise(ctx, master, noise, now, recipe.noise)
     for (const tone of recipe.tones) playTone(ctx, master, now, tone)
   }
 

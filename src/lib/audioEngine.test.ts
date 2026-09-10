@@ -222,6 +222,57 @@ describe('createAirHockeyAudio', () => {
     expect(segunda.frequency).toBeGreaterThan(primera.frequency)
   })
 
+  it('el final del partido suena, y ganar y perder no suenan igual', () => {
+    // Terminar era silencio: se metía el último gol, sonaba como cualquier otro y la
+    // pantalla de fin llegaba sin avisar. Con el visor puesto el marcador está donde uno
+    // no siempre está mirando.
+    const fake = fakeAudioContext()
+    const audio = createAirHockeyAudio(() => fake.context)
+
+    audio.play('win')
+    const ganar = fake.oscillators.map((o) => o.frequency)
+    audio.play('loss')
+    const perder = fake.oscillators.slice(ganar.length).map((o) => o.frequency)
+
+    expect(ganar.length).toBeGreaterThan(0)
+    expect(perder.length).toBeGreaterThan(0)
+    // Ganar sube y perder baja, que es lo que el oído entiende sin haberlo aprendido.
+    expect(Math.max(...ganar)).toBeGreaterThan(Math.min(...ganar))
+    expect(Math.min(...perder)).toBeLessThan(Math.min(...ganar))
+  })
+
+  it('un cierre no golpea nada: va sin siseo', () => {
+    // El ruido del impacto en un final sonaría a que se ha roto algo.
+    const fake = fakeAudioContext()
+    const audio = createAirHockeyAudio(() => fake.context)
+
+    // Se cuentan filtros **nuevos** por sonido: el contexto ya monta el suyo para el roce
+    // del disco en cuanto se abre, así que el total no dice nada por sí solo.
+    const nuevos = (sonido: 'goal' | 'win' | 'loss' | 'record') => {
+      const antes = fake.filters.length
+      audio.play(sonido)
+      return fake.filters.length - antes
+    }
+
+    expect(nuevos('goal')).toBeGreaterThan(0)
+    expect(nuevos('win')).toBe(0)
+    expect(nuevos('loss')).toBe(0)
+    expect(nuevos('record')).toBe(0)
+  })
+
+  it('la marca batida suena por encima de todo y después del cierre', () => {
+    // Va aparte del cierre porque se puede batir ganando o perdiendo el partido.
+    const fake = fakeAudioContext()
+    const audio = createAirHockeyAudio(() => fake.context)
+
+    audio.play('win')
+    const ganar = fake.oscillators.map((o) => o.frequency)
+    audio.play('record')
+    const record = fake.oscillators.slice(ganar.length).map((o) => o.frequency)
+
+    expect(Math.min(...record)).toBeGreaterThan(Math.max(...ganar))
+  })
+
   it('sin Web Audio se juega en silencio y no se reintenta a cada golpe', () => {
     const createContext = vi.fn(() => null)
     const audio = createAirHockeyAudio(createContext)

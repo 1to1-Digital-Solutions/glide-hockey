@@ -114,3 +114,40 @@ export function pulseSession(
   }
   return pulsed
 }
+
+/**
+ * Fuerza y duración del toque que confirma un botón del visor.
+ *
+ * Corto y flojo: no es un golpe del juego, es el «te he oído» de un botón. Los mismos
+ * números en los trece, que cambiar de cabina no cambie lo que se siente al pulsar.
+ */
+export const PRESS_PULSE: HapticPulse = { intensity: 0.25, durationMs: 18, hands: 'both' }
+
+/** De qué mando viene el evento, si es que viene de uno. */
+function inputSourceOf(event: unknown): HapticSource | undefined {
+  return (event as { nativeEvent?: { inputSource?: HapticSource } } | null)?.nativeEvent
+    ?.inputSource
+}
+
+/**
+ * Vibra **el mando que ha pulsado**, si puede.
+ *
+ * Aparte de `pulseSession`, que reparte por manos: un botón lo pulsa una mano concreta y
+ * contestarle a la otra sería contestarle a quien no ha hecho nada. Con el ratón no hay
+ * mando y no pasa nada, que es el caso de escritorio.
+ */
+export function pulsePressed(event: unknown, pulse: HapticPulse = PRESS_PULSE): boolean {
+  const source = inputSourceOf(event)
+  const actuator = source == null ? undefined : actuatorOf(source)
+  if (actuator == null || pulse.intensity <= 0) return false
+  try {
+    const played: unknown = actuator.pulse(pulse.intensity, pulse.durationMs)
+    if (typeof (played as Promise<unknown> | undefined)?.catch === 'function') {
+      void (played as Promise<unknown>).catch(() => {})
+    }
+    return true
+  } catch {
+    // Un vibrador que falla no puede parar la partida.
+    return false
+  }
+}

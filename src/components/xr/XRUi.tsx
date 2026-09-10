@@ -1,6 +1,7 @@
 'use client'
 
 import { type ReactNode, useRef, useState } from 'react'
+import { pulsePressed } from '../../lib/haptics'
 import { type ThreeEvent } from '@react-three/fiber'
 import { PALETTE } from '../../lib/palette'
 import {
@@ -101,6 +102,10 @@ export function XRPressable({
     const now = pressTime()
     if (!pressCounts(now, lastPress.current, disabled)) return
     lastPress.current = now
+
+    // El mando que ha pulsado contesta. Dentro del visor no se dibuja, así que este toque es
+    // lo único que dice que el botón ha oído; con el ratón no hay mando y no pasa nada.
+    pulsePressed(event)
 
     onSelect()
   }

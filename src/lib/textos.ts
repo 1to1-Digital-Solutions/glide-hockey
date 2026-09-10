@@ -22,6 +22,11 @@
 import type { Lang } from './ajustes'
 
 const ES = {
+  // Lo que dice la pestaña y lo que se lee al compartir el enlace
+  'Air Hockey — you against the machine': 'Air Hockey — tú contra la máquina',
+  'Air hockey against the machine: choose the level and the goals to play to, and put the puck in its net. Play in the browser or in mixed reality (VR/AR).':
+    'Air hockey contra la máquina: elige el nivel y los goles a los que jugar, y mete el disco en su portería. Juega en el navegador o en realidad mixta (VR/AR).',
+
   // Portada
   'You against the machine. Move the mallet with the mouse and put the puck in its goal.':
     'Tú contra la máquina. Mueve el mazo con el ratón y mete el disco en su portería.',

@@ -19,6 +19,12 @@ test.describe('El idioma que viene del arcade', () => {
     await expect(page.getByRole('heading', { name: 'Air Hockey' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
     expect(await page.locator('html').getAttribute('lang')).toBe('en')
+
+    // Y la metadata: es lo que dice la pestaña y lo que se lee al compartir el enlace, y
+    // sale del servidor como el `lang`.
+    expect(await page.locator('meta[name="description"]').getAttribute('content')).toContain(
+      'browser',
+    )
   })
 
   test('con la cookie en español, el juego habla español', async ({ page, context, baseURL }) => {
@@ -29,6 +35,12 @@ test.describe('El idioma que viene del arcade', () => {
     // El idioma del documento sale del servidor: si se corrigiera al hidratar, React
     // vería dos árboles distintos y el jugador vería el cambio.
     expect(await page.locator('html').getAttribute('lang')).toBe('es')
+
+    // La metadata sale del servidor igual que el `lang`: sin ella, la pestaña y lo que se
+    // lee al compartir el enlace se quedarían en inglés sin que nadie lo note.
+    expect(await page.locator('meta[name="description"]').getAttribute('content')).toContain(
+      'navegador',
+    )
     await expect(page.getByRole('button', { name: 'Jugar', exact: true })).toBeVisible()
     await expect(page.getByText('Modo de juego')).toBeVisible()
     await expect(page.getByText('Tú contra la máquina', { exact: false })).toBeVisible()
@@ -46,6 +58,12 @@ test.describe('El idioma que viene del arcade', () => {
     await page.goto('/')
 
     expect(await page.locator('html').getAttribute('lang')).toBe('en')
+
+    // Y la metadata: es lo que dice la pestaña y lo que se lee al compartir el enlace, y
+    // sale del servidor como el `lang`.
+    expect(await page.locator('meta[name="description"]').getAttribute('content')).toContain(
+      'browser',
+    )
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
   })
 })

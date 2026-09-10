@@ -3,6 +3,7 @@ import { Orbitron, Inter } from 'next/font/google'
 import { PALETTE } from '@/lib/palette'
 import './globals.css'
 import { idiomaDeLaPeticion } from '../lib/idioma-servidor'
+import { traductor } from '../lib/textos'
 
 const orbitron = Orbitron({
   variable: '--font-heading',
@@ -16,11 +17,21 @@ const inter = Inter({
   weight: ['400', '500', '600', '700'],
 })
 
-export const metadata: Metadata = {
-  title: 'Air Hockey — you against the machine',
-  description:
-    'Air hockey against the machine: choose the level and the goals to play to, and put the puck in its net. Play in the browser or in mixed reality (VR/AR).',
+/**
+ * Lo que dice la pestaña y lo que se lee al compartir el enlace, en el idioma del arcade.
+ *
+ * Es una función y no una constante porque el idioma llega en la cookie de la petición
+ * (ver `lib/ajustes.ts`), y eso solo se puede leer aquí dentro.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = traductor(await idiomaDeLaPeticion())
+
+  return {
+    title: t('Air Hockey — you against the machine'),
+    description: t('Air hockey against the machine: choose the level and the goals to play to, and put the puck in its net. Play in the browser or in mixed reality (VR/AR).'),
+  }
 }
+
 
 export const viewport: Viewport = {
   themeColor: PALETTE.background,

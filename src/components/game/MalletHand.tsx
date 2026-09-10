@@ -1,9 +1,11 @@
 'use client'
 
 import { useFrame } from '@react-three/fiber'
-import { useXRInputSourceState } from '@react-three/xr'
+import { useXR, useXRInputSourceState } from '@react-three/xr'
+
+import { isPinching } from '../../lib/pellizco'
 import { useRef } from 'react'
-import { Vector3, type Group } from 'three'
+import { Vector3, type Group, type Object3D } from 'three'
 
 import { siguienteAgarre, type ManoEnLaMesa } from '../../lib/malletGrab'
 import { constrainMallet, type Vec2 } from '../../lib/puckPhysics'
@@ -42,13 +44,20 @@ export function MalletHand({
 }) {
   const izquierda = useXRInputSourceState('controller', 'left')
   const derecha = useXRInputSourceState('controller', 'right')
+  // Y las manos desnudas, que son el otro modo de entrada del visor: sin esto, quien no
+  // tiene los mandos a mano —o no puede sostenerlos— no puede coger el mazo y no juega.
+  const manoIzquierda = useXRInputSourceState('hand', 'left')
+  const manoDerecha = useXRInputSourceState('hand', 'right')
+  const referenceSpace = useXR((state) => state.originReferenceSpace)
+  const origin = useXR((state) => state.origin)
+  const pellizcando = useRef({ left: false, right: false })
 
   /** Si el mazo va en la mano. Dónde está lo dice `destino`, que es de la mesa. */
   const cogido = useRef(false)
   // Se reutiliza entre fotogramas: `worldToLocal` muta lo que recibe y esto corre a 90 Hz.
   const punto = useRef(new Vector3())
 
-  useFrame(() => {
+  useFrame((_, __, frame) => {
     const grupo = rink.current
     if (grupo == null) return
 
@@ -62,6 +71,23 @@ export function MalletHand({
       enLaMesa = {
         posicion: { x: local.x, z: local.z },
         agarrando: mano.gamepad['xr-standard-squeeze']?.state === 'pressed',
+      }
+    } else {
+      // Sin mando, la mano desnuda. Aquí no hay botón que apretar: agarrar es juntar el
+      // pulgar y el índice (ver `lib/pellizco.ts`), y el mazo va donde va la palma.
+      for (const candidata of [manoIzquierda, manoDerecha]) {
+        const leida = leerLaMano(
+          candidata,
+          frame,
+          referenceSpace,
+          origin,
+          pellizcando.current,
+          grupo,
+          punto.current,
+        )
+        // La que esté agarrando manda; si ninguna, vale la primera que haya para saber si
+        // está encima del mazo cuando pellizque.
+        if (leida != null && (leida.agarrando || enLaMesa == null)) enLaMesa = leida
       }
     }
 
@@ -97,4 +123,54 @@ function manoQueManda<T extends { gamepad: { 'xr-standard-squeeze'?: { state: st
   // Sin nadie apretando se devuelve una cualquiera: hace falta su posición para saber si
   // la mano está encima del mazo cuando apriete.
   return izquierda ?? derecha
+}
+
+/**
+ * Dónde está una mano desnuda sobre la mesa, y si está agarrando.
+ *
+ * Se leen las articulaciones del fotograma de WebXR y no `state.object`: ese objeto solo lo
+ * rellena la librería cuando dibuja el modelo de la mano, y quien monta el juego decide si
+ * se dibuja —dentro del salón, no—. Las articulaciones llegan siempre que el visor las siga.
+ */
+function leerLaMano(
+  estado: ReturnType<typeof useXRInputSourceState<'hand'>>,
+  frame: XRFrame | undefined,
+  referenceSpace: XRReferenceSpace | null | undefined,
+  /** El origen de XR, que es de quien monta el juego: la pose llega en su espacio. */
+  origin: Object3D | undefined,
+  pellizcando: { left: boolean; right: boolean },
+  mesa: Group,
+  punto: Vector3,
+): ManoEnLaMesa | null {
+  const articulaciones = estado?.inputSource.hand
+  if (articulaciones == null || frame == null || referenceSpace == null) return null
+
+  const palma = articulaciones.get('wrist')
+  const pulgar = articulaciones.get('thumb-tip')
+  const indice = articulaciones.get('index-finger-tip')
+  if (palma == null || pulgar == null || indice == null) return null
+
+  const posePalma = frame.getJointPose?.(palma, referenceSpace)
+  if (posePalma == null) return null
+
+  const posePulgar = frame.getJointPose?.(pulgar, referenceSpace)
+  const poseIndice = frame.getJointPose?.(indice, referenceSpace)
+  const separacion =
+    posePulgar == null || poseIndice == null
+      ? null
+      : Math.hypot(
+          posePulgar.transform.position.x - poseIndice.transform.position.x,
+          posePulgar.transform.position.y - poseIndice.transform.position.y,
+          posePulgar.transform.position.z - poseIndice.transform.position.z,
+        )
+
+  const lado = estado?.inputSource.handedness === 'left' ? 'left' : 'right'
+  const agarrando = isPinching(separacion, pellizcando[lado])
+  pellizcando[lado] = agarrando
+
+  const { position } = posePalma.transform
+  punto.set(position.x, position.y, position.z)
+  if (origin != null) origin.localToWorld(punto)
+  mesa.worldToLocal(punto)
+  return { posicion: { x: punto.x, z: punto.z }, agarrando }
 }

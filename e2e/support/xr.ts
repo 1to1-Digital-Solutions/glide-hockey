@@ -5,6 +5,11 @@ import { XR_EMULATOR_BUNDLE } from './globalSetup'
 interface XRTestApi {
   hasSession: () => boolean
   connectControllers: () => void
+  /** Cambia a manos desnudas: apaga los mandos y enciende las manos con sus articulaciones. */
+  useHands: () => void
+  placeHand: (handedness: 'left' | 'right', x: number, y: number, z: number) => void
+  /** Junta o separa el pulgar y el índice, que es el «agarrar» de una mano desnuda. */
+  pinch: (handedness: 'left' | 'right', pressed: boolean) => void
   placeController: (handedness: 'left' | 'right', x: number, y: number, z: number) => void
   squeeze: (handedness: 'left' | 'right', pressed: boolean) => void
   endSession: () => Promise<void>

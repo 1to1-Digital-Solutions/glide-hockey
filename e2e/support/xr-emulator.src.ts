@@ -59,6 +59,43 @@ const api = {
     device.controllers[handedness]?.setButtonValueImmediate('squeeze', pressed ? 1 : 0)
   },
 
+  /**
+   * Cambia a manos desnudas: apaga los mandos y enciende las manos.
+   *
+   * Es el otro modo de entrada del visor, y el que deja fuera a quien no tiene mandos a
+   * mano o no puede sostenerlos. IWER las trae con sus articulaciones, así que lo que se
+   * prueba con esto es exactamente lo que hace el juego con una mano de verdad.
+   */
+  useHands(): void {
+    for (const mando of [device.controllers.left, device.controllers.right]) {
+      if (mando) mando.connected = false
+    }
+    device.primaryInputMode = 'hand'
+    const { left, right } = device.hands
+    if (left) {
+      left.connected = true
+      left.position.set(-0.25, 1.1, -0.5)
+    }
+    if (right) {
+      right.connected = true
+      right.position.set(0.25, 1.1, -0.5)
+    }
+  },
+
+  /** Lleva una mano a ese punto del espacio del visor. */
+  placeHand(handedness: 'left' | 'right', x: number, y: number, z: number): void {
+    device.hands[handedness]?.position.set(x, y, z)
+  },
+
+  /** Junta o separa el pulgar y el índice: es el «agarrar» de una mano desnuda. */
+  pinch(handedness: 'left' | 'right', pressed: boolean): void {
+    const mano = device.hands[handedness]
+    if (mano == null) return
+    mano.poseId = pressed ? 'pinch' : 'default'
+    mano.updateHandPose()
+    mano.updatePinchValue(pressed ? 1 : 0)
+  },
+
   /** Cierra la sesión, como cuando el jugador se quita el visor. */
   async endSession() {
     await device.activeSession?.end()

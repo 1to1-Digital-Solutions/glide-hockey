@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
+import { XRUiHeight } from '../xr/XRUiHeight'
 import { useXR } from '@react-three/xr'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
 import { useGame } from '../../lib/gameStore'
@@ -164,8 +165,10 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
               botones cazarían clics del ratón por delante de la mesa. Montado
               en el salón —que no pone DOM— va siempre, o el juego se queda sin
               forma de empezar la partida. */}
+          {/* A la altura de los ojos de quien juega: las cotas se midieron con una
+              persona delante y esa persona se quedó dentro del código (ver `XRUiHeight`). */}
           {showPanels ? (
-            <>
+            <XRUiHeight>
               <group position={XR_UI.scoreboard} rotation={[-0.18, 0, 0]}>
                 <XRScoreboard />
               </group>
@@ -183,7 +186,7 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
               <group position={XR_UI.quit} rotation={[-0.3, 0, 0]}>
                 <XRQuitButton />
               </group>
-            </>
+            </XRUiHeight>
           ) : null}
         </group>
       </WorldAnchor>

@@ -46,7 +46,7 @@
 
 ## Del visor — segunda ronda
 
-- [ ] [urgente] La partida empieza sin que el mazo esté en la mano
+- [x] [urgente] La partida empieza sin que el mazo esté en la mano
   Con el visor puesto no se llega a agarrar el mazo y la partida arranca igual: se juega con el
   disco moviéndose y sin nada con que pararlo. No debería empezar la cuenta atrás hasta que el
   mazo esté cogido. Ver `components/game/MalletHand.tsx` y `lib/malletGrab.ts`.

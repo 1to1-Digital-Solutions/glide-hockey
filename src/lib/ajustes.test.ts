@@ -2,16 +2,22 @@ import { describe, expect, it } from 'vitest'
 
 import {
   DEFAULT_LANG,
+  DEFAULT_PLAY_HEIGHT,
   DEFAULT_VOLUMES,
   DEFAULT_VOLUME_SETTINGS,
   LANGS,
   LANG_COOKIE,
+  PLAY_HEIGHTS,
+  PLAY_HEIGHT_KEY,
   VOLUME_KEYS,
   langFromCookies,
   parseLang,
+  parsePlayHeight,
   parseVolume,
+  readPlayHeight,
   readVolumes,
   volumeFactor,
+  writePlayHeight,
   writeVolume,
 } from './ajustes'
 
@@ -192,5 +198,51 @@ describe('el volumen que entiende el audio', () => {
   it('no se sale aunque le llegue un número imposible', () => {
     expect(volumeFactor(-20)).toBe(0)
     expect(volumeFactor(400)).toBe(1)
+  })
+})
+
+describe('a qué altura se juega', () => {
+  it('la clave y la altura de partida son las que escribe xrcade', () => {
+    // Escritas a mano a propósito, como el resto: es el puente entre
+    // repositorios, y contra la propia constante esto pasaría siempre.
+    expect(PLAY_HEIGHT_KEY).toBe('xrcade:play-height')
+    expect(DEFAULT_PLAY_HEIGHT).toBe('standing')
+    expect(PLAY_HEIGHTS).toEqual(['standing', 'eyes'])
+  })
+
+  it('solo cuenta una altura que exista', () => {
+    expect(parsePlayHeight('eyes')).toBe('eyes')
+    expect(parsePlayHeight('standing')).toBe('standing')
+    // Almacenamiento manipulado o de otra versión: se juega de pie, que es
+    // como se jugaba antes de haber esto.
+    for (const basura of ['sentado', '', null, undefined]) {
+      expect(parsePlayHeight(basura)).toBe('standing')
+    }
+  })
+
+  it('se lee de donde el arcade la deja', () => {
+    expect(readPlayHeight(almacen({ [PLAY_HEIGHT_KEY]: 'eyes' }))).toBe('eyes')
+    expect(readPlayHeight(almacen())).toBe('standing')
+  })
+
+  it('sin sitio donde mirar se juega de pie, y no revienta', () => {
+    expect(readPlayHeight(null)).toBe('standing')
+    expect(readPlayHeight(almacen({}, true))).toBe('standing')
+  })
+
+  it('se guarda al apartarse de pie, y se olvida al volver', () => {
+    // Así el almacenamiento tiene algo solo cuando alguien ha decidido algo.
+    const storage = almacen()
+
+    expect(writePlayHeight(storage, 'eyes')).toBe(true)
+    expect(storage.getItem(PLAY_HEIGHT_KEY)).toBe('eyes')
+
+    expect(writePlayHeight(storage, 'standing')).toBe(true)
+    expect(storage.getItem(PLAY_HEIGHT_KEY)).toBeNull()
+  })
+
+  it('dice que no sin sitio donde guardar, y no revienta', () => {
+    expect(writePlayHeight(null, 'eyes')).toBe(false)
+    expect(writePlayHeight(almacen({}, true), 'eyes')).toBe(false)
   })
 })

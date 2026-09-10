@@ -16,9 +16,11 @@ import {
   DEFAULT_VOLUME_SETTINGS,
   LANG_COOKIE,
   langFromCookies,
+  readPlayHeight,
   readVolumes,
   writeVolume,
   type Lang,
+  type PlayHeight,
   type SoundChannel,
   type Volumes,
 } from './ajustes'
@@ -28,6 +30,20 @@ const LANG_MAX_AGE = 60 * 60 * 24 * 365
 
 /** El evento con el que un cambio recorre esta misma página. */
 const EVENTO = 'xrcade:ajustes'
+
+/**
+ * Avisa a **esta misma página** de que un ajuste ha cambiado.
+ *
+ * El navegador avisa por su cuenta de los cambios de `localStorage`, pero solo a
+ * las *otras* pestañas. Y la que escribe es justo la que tiene el juego montado
+ * dentro, así que sin este evento el ajuste se guardaría y no se notaría hasta
+ * recargar. Está en un sitio y no repetido en cada `set…` porque olvidarlo en
+ * uno no rompe nada visible: simplemente ese ajuste tarda una recarga en llegar.
+ */
+function avisarDelCambio(): void {
+  /* v8 ignore next -- los ajustes solo se cambian desde el navegador. */
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(EVENTO))
+}
 
 /** El almacenamiento del navegador, o nada si no lo hay o está capado. */
 export function settingsStorage(): Storage | null {
@@ -94,7 +110,7 @@ export function setVolume(channel: SoundChannel, value: number): void {
   // almacenamiento. Se invalida aquí y no en el oyente porque puede que todavía
   // no haya ninguno, y aun así el siguiente `getSnapshot` tiene que ver lo nuevo.
   snapshot = null
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event(EVENTO))
+  avisarDelCambio()
 }
 
 /**
@@ -139,5 +155,24 @@ export function setLang(lang: Lang): void {
   // Una cookie no dispara ningún evento al cambiar, así que lo damos nosotros:
   // sin esto, lo que ya está pintado en el navegador se quedaría en el idioma
   // anterior aunque el servidor devolviera la página traducida.
-  window.dispatchEvent(new Event(EVENTO))
+  avisarDelCambio()
+}
+
+/**
+ * A qué altura se juega, y React se entera cuando cambia.
+ *
+ * Se lee del almacenamiento en cada lectura en vez de cachearse, como el modo
+ * inmersivo y por lo mismo: es un valor primitivo, y ahí `useSyncExternalStore`
+ * compara bien sin ayuda.
+ */
+export function usePlayHeight(): PlayHeight {
+  // La misma lectura en los dos lados: en el servidor no hay almacenamiento y
+  // `readPlayHeight` devuelve la de partida, así que no hace falta una segunda
+  // función que pueda apartarse de esta sin que nadie se entere.
+  return useSyncExternalStore(subscribe, leerAltura, leerAltura)
+}
+
+/** Lo guardado, o de pie si no hay nada o hay basura. */
+function leerAltura(): PlayHeight {
+  return readPlayHeight(settingsStorage())
 }

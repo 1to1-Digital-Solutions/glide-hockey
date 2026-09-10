@@ -177,3 +177,71 @@ export function writeVolume(storage: Storage | null, channel: SoundChannel, valu
 export function volumeFactor(value: number): number {
   return Math.min(100, Math.max(0, value)) / 100
 }
+
+/**
+ * A qué altura se juega.
+ *
+ * **El problema.** Las cotas de los trece juegos se eligieron con una persona de pie
+ * delante: el aro a 3,05 m, la diana a 1,73, la mesa de air hockey a la altura de su
+ * cintura. De pie y midiendo lo que ella medía, está bien. Sentado —en una silla, en un
+ * sofá, en una silla de ruedas— el mundo entero queda un palmo por encima de donde llega
+ * el brazo, y no falla nada: simplemente no se puede jugar. A quien es más bajo que la
+ * persona que estaba delante le pasa lo mismo en pequeño, y no tiene forma de nivelarlo,
+ * al contrario que el modo, la dificultad o la mano, que sí se eligen.
+ *
+ * **Qué hace `eyes`.** Baja el mundo hasta los ojos de quien lleva el visor, que es la
+ * misma corrección que ya se le hace a la interfaz inmersiva para que el menú no quede
+ * fuera de la vista. No mueve al jugador —el origen es de quien monta la escena, y en el
+ * salón hay un arco de cabinas plantado ahí—, mueve el decorado: la geometría que se ve es
+ * idéntica y las puntuaciones no cambian, porque la relación entre el objetivo y la mano
+ * es la misma.
+ *
+ * **Por qué es del arcade y no de cada juego.** Quien se sienta se sienta para toda la
+ * visita. Decirlo trece veces, una por cabina, sería no poder decirlo.
+ */
+export const PLAY_HEIGHTS = ['standing', 'eyes'] as const
+export type PlayHeight = (typeof PLAY_HEIGHTS)[number]
+
+/** Dónde se recuerda. El prefijo es del arcade, no de un juego. */
+export const PLAY_HEIGHT_KEY = 'xrcade:play-height'
+
+/** De pie: el mundo donde ha estado siempre. */
+export const DEFAULT_PLAY_HEIGHT: PlayHeight = 'standing'
+
+/**
+ * Interpreta la altura leída del almacenamiento. Como el modo inmersivo: solo cuenta una
+ * que exista, y cualquier otra cosa cae a la de partida.
+ */
+export function parsePlayHeight(raw: string | null | undefined): PlayHeight {
+  return (PLAY_HEIGHTS as readonly string[]).includes(raw ?? '')
+    ? (raw as PlayHeight)
+    : DEFAULT_PLAY_HEIGHT
+}
+
+/** La altura elegida, leída de un almacenamiento que puede no estar. */
+export function readPlayHeight(storage: Pick<Storage, 'getItem'> | null): PlayHeight {
+  if (storage === null) return DEFAULT_PLAY_HEIGHT
+  try {
+    return parsePlayHeight(storage.getItem(PLAY_HEIGHT_KEY))
+  } catch {
+    // Almacenamiento capado: se juega de pie, que es como se jugaba antes de haber esto.
+    return DEFAULT_PLAY_HEIGHT
+  }
+}
+
+/**
+ * Guarda la altura, o la olvida cuando vuelve a ser la de partida.
+ *
+ * @returns si quedó guardada. Un `false` no es un error: significa que este navegador no
+ *   guarda nada y la elección vivirá lo que dure la visita.
+ */
+export function writePlayHeight(storage: Storage | null, value: PlayHeight): boolean {
+  if (storage === null) return false
+  try {
+    if (value === DEFAULT_PLAY_HEIGHT) storage.removeItem(PLAY_HEIGHT_KEY)
+    else storage.setItem(PLAY_HEIGHT_KEY, value)
+    return true
+  } catch {
+    return false
+  }
+}

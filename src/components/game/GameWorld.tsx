@@ -26,6 +26,7 @@ import { Rink } from './Rink'
 import { Room } from './Room'
 import { Table } from './Table'
 import { WorldAnchor } from './WorldAnchor'
+import { XRWorldHeight } from '../xr/XRWorldHeight'
 
 /**
  * El juego entero como OBJETOS DE THREE, sin Canvas y sin sesión propia.
@@ -118,8 +119,11 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
   /** Si toca dibujar los paneles de dentro de la escena. */
   const showPanels = !hasDomUi || immersive
 
+  // TODO EL MUNDO cuelga de `XRWorldHeight`, que lo baja hasta quien juega si
+  // lo ha pedido en los ajustes del arcade. Envuelve la escena entera, luces
+  // incluidas: mover solo el objetivo lo dejaría flotando sobre su decorado.
   return (
-    <>
+    <XRWorldHeight>
       {/* Arranca y cierra partidas según el estado de la sesión inmersiva. */}
       <XRSessionController />
 
@@ -190,6 +194,6 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
           ) : null}
         </group>
       </WorldAnchor>
-    </>
+    </XRWorldHeight>
   )
 }

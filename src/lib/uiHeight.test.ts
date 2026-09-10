@@ -11,6 +11,8 @@ import {
   startTracking,
   trackHeight,
   uiRise,
+  uiRiseOverWorld,
+  worldRise,
 } from './uiHeight'
 
 /**
@@ -103,5 +105,51 @@ describe('cuándo se vuelve a medir', () => {
     for (let t = 0; t < RETAKE_SECONDS * 2; t += 1 / 72) state = paso(state, 1.2)
 
     expect(state.held).toBeCloseTo(1.2, 6)
+  })
+})
+
+describe('el mundo a la altura de quien juega', () => {
+  it('de pie no se mueve nada, mida lo que mida', () => {
+    // Es lo que ve quien no ha pedido nada, que son casi todos: la escena
+    // exactamente donde ha estado siempre.
+    expect(worldRise(1.2, false)).toBe(0)
+    expect(worldRise(1.6, false)).toBe(0)
+    expect(worldRise(2.0, false)).toBe(0)
+  })
+
+  it('sentado, el mundo baja hasta los ojos', () => {
+    // Un jugador sentado mide sobre metro veinte de ojos: el mundo tiene que
+    // bajar los cuarenta centímetros que le faltan para alcanzarlo.
+    expect(worldRise(1.2, true)).toBeCloseTo(-0.4, 10)
+  })
+
+  it('a quien es más alto le sube, por lo mismo', () => {
+    expect(worldRise(1.8, true)).toBeCloseTo(0.2, 10)
+  })
+
+  it('sin medida buena no se inventa nada', () => {
+    // Sin suelo en el espacio de referencia, o con el visor sobre la mesa, la
+    // cota no es una estatura: se juega con la escena donde estaba.
+    for (const cota of [null, undefined, Number.NaN, 0, 5]) {
+      expect(worldRise(cota, true)).toBe(0)
+    }
+  })
+})
+
+describe('la interfaz cuando el mundo ya se ha movido', () => {
+  it('con el mundo quieto, la interfaz se coloca ella sola', () => {
+    expect(uiRiseOverWorld(1.4, false)).toBeCloseTo(uiRise(1.4), 10)
+  })
+
+  it('con el mundo bajado, no se corrige otra vez', () => {
+    // Sumar las dos correcciones dejaba el menú a la altura de las rodillas,
+    // justo para quien menos puede agacharse a buscarlo.
+    expect(uiRiseOverWorld(1.2, true)).toBe(0)
+    expect(uiRiseOverWorld(1.9, true)).toBe(0)
+  })
+
+  it('sin medida buena no se mueve nada, se pida lo que se pida', () => {
+    expect(uiRiseOverWorld(null, true)).toBe(0)
+    expect(uiRiseOverWorld(null, false)).toBe(0)
   })
 })

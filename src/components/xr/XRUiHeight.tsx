@@ -5,12 +5,13 @@ import { useRef, type ReactNode } from 'react'
 import { useXR } from '@react-three/xr'
 import type { Group } from 'three'
 
+import { usePlayHeight } from '../../lib/ajustesCliente'
 import {
   hasFloorReference,
   isPlausibleEyeHeight,
   startTracking,
   trackHeight,
-  uiRise,
+  uiRiseOverWorld,
   type HeightTracker,
 } from '../../lib/uiHeight'
 
@@ -38,6 +39,9 @@ export function XRUiHeight({ children }: { children: ReactNode }) {
   const seguimiento = useRef<HeightTracker>(startTracking())
   const mode = useXR((state) => state.mode)
   const conSuelo = useXR((state) => hasFloorReference(state.session?.enabledFeatures))
+  // Si el mundo entero ya ha bajado, la interfaz vino con él y no le hace
+  // falta corrección propia (ver `uiRiseOverWorld`).
+  const aLaAlturaDeLosOjos = usePlayHeight() === 'eyes'
 
   useFrame(({ camera }, delta) => {
     const node = grupo.current
@@ -54,7 +58,7 @@ export function XRUiHeight({ children }: { children: ReactNode }) {
     // mide desde el suelo: no es una estatura y no se puede usar como tal.
     const medida = conSuelo && isPlausibleEyeHeight(camera.position.y) ? camera.position.y : null
     seguimiento.current = trackHeight(seguimiento.current, medida, 1 - Math.exp(-3.5 * delta), delta)
-    node.position.y = uiRise(seguimiento.current.held)
+    node.position.y = uiRiseOverWorld(seguimiento.current.held, aLaAlturaDeLosOjos)
   })
 
   return <group ref={grupo}>{children}</group>

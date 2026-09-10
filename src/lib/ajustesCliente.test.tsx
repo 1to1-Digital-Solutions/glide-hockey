@@ -7,6 +7,7 @@ import {
   DEFAULT_VOLUMES,
   DEFAULT_VOLUME_SETTINGS,
   LANG_COOKIE,
+  PLAY_HEIGHT_KEY,
   VOLUME_KEYS,
 } from './ajustes'
 import {
@@ -15,6 +16,7 @@ import {
   setVolume,
   settingsStorage,
   useLang,
+  usePlayHeight,
   useVolumes,
 } from './ajustesCliente'
 
@@ -193,5 +195,39 @@ describe('el idioma', () => {
     act(() => setLang('es'))
 
     expect(result.current).toBe('es')
+  })
+})
+
+describe('a qué altura se juega', () => {
+  it('empieza de pie, que es como se jugaba antes de haber esto', () => {
+    const { result } = renderHook(() => usePlayHeight())
+
+    expect(result.current).toBe('standing')
+  })
+
+  it('lo que se elige en el arcade llega a la cabina sin recargar', () => {
+    // Es lo que hace que valga de algo: quien lo pide está **dentro** del
+    // salón, con el visor puesto, y el juego montado en esta misma página.
+    // Recargar para enterarse sería cerrar la sesión inmersiva.
+    const { result } = renderHook(() => usePlayHeight())
+
+    act(() => {
+      window.localStorage.setItem(PLAY_HEIGHT_KEY, 'eyes')
+      window.dispatchEvent(new Event('xrcade:ajustes'))
+    })
+
+    expect(result.current).toBe('eyes')
+  })
+
+  it('una altura que no existe deja el mundo donde estaba', () => {
+    // Almacenamiento manipulado o de otra versión: la escena no se mueve.
+    const { result } = renderHook(() => usePlayHeight())
+
+    act(() => {
+      window.localStorage.setItem(PLAY_HEIGHT_KEY, 'de-rodillas')
+      window.dispatchEvent(new Event('xrcade:ajustes'))
+    })
+
+    expect(result.current).toBe('standing')
   })
 })

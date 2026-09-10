@@ -51,13 +51,27 @@ export const TABLE_HEIGHT = 0.9
  */
 export const TABLE_CENTER_Z = -1.2
 
-/** Ancho del hueco de cada portería, centrado en la banda del fondo. */
-export const GOAL_WIDTH = 0.4
+/**
+ * Ancho del hueco de cada portería, centrado en la banda del fondo.
+ *
+ * Medio metro y no cuarenta centímetros. Con el mazo de quince de diámetro, la portería
+ * antigua se tapaba sola: el disco entraba por una rendija de doce centímetros y meter gol
+ * —o encajarlo— pasaba de raro a improbable. Aquí lo que se busca no es el reglamento de un
+ * salón, es que una partida de cinco minutos tenga goles.
+ */
+export const GOAL_WIDTH = 0.55
 /** Alto de las bandas que rodean la mesa, medido desde la superficie. */
 export const RAIL_HEIGHT = 0.05
 
 export const PUCK_RADIUS = 0.05
-export const MALLET_RADIUS = 0.075
+/**
+ * Radio del mazo.
+ *
+ * Algo más pequeño que antes (era 7,5 cm): tapaba media portería él solo, y con la mano
+ * puesta encima uno no ve el disco pasar por debajo. Sigue siendo mayor que el disco, que
+ * es lo que hace que golpear sea fácil y parar, un poco menos.
+ */
+export const MALLET_RADIUS = 0.066
 
 /**
  * Rozamiento del disco sobre el colchón de aire, como fracción de velocidad

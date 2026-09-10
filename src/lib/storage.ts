@@ -3,11 +3,11 @@
  * viven en él.
  *
  * En modo privado, o con el almacenamiento vetado por política, leer
- * `window.localStorage` **lanza** en vez de devolver `null`. Lo único que el
- * juego guarda es el récord, que es prescindible, así que aquí ese fallo se
- * traduce a «no hay almacenamiento» y se juega sin marca. En el servidor
- * tampoco lo hay, y eso es lo que mantiene igual el HTML que se prerenderiza y
- * el que se hidrata.
+ * `window.localStorage` **lanza** en vez de devolver `null`. Todo lo que el
+ * juego guarda —el récord y lo que se elige en el menú— es prescindible, así
+ * que aquí ese fallo se traduce a «no hay almacenamiento» y cada cosa decide
+ * con qué valor se queda. En el servidor tampoco lo hay, y eso es lo que
+ * mantiene igual el HTML que se prerenderiza y el que se hidrata.
  */
 export function gameStorage(): Storage | null {
   try {
@@ -70,9 +70,11 @@ interface PreferenceSpec<T, Args extends unknown[]> {
  * Monta una preferencia sobre el almacenamiento del navegador.
  *
  * Aquí vive lo que no se ve al copiar una preferencia en otra: **avisar a quien
- * mira después de escribir** —sin eso, un récord batido en el visor deja al
- * menú de escritorio enseñando el anterior— y **escuchar el evento `storage`**,
- * que es como el navegador cuenta que ha sido otra pestaña.
+ * mira después de escribir** —sin eso, un ajuste que se cambia en el menú del
+ * visor deja al de escritorio enseñando el anterior, un fallo que solo se ve
+ * con las gafas puestas— y **escuchar el evento `storage`**, que es como el
+ * navegador cuenta que ha sido otra pestaña. Cada preferencia solo pone su
+ * clave y cómo se traduce.
  *
  * El acceso es tolerante a fallos: con el almacenamiento bloqueado se juega con
  * el valor de entrada, que es una función de menos y no una razón para
@@ -86,13 +88,29 @@ export function createStoredPreference<T, Args extends unknown[] = []>({
   const keyFor: (...args: Args) => string =
     typeof key === 'string' ? () => key : key
   const listeners = new Set<() => void>()
+  /**
+   * Lo último que se quiso guardar y el almacenamiento no aceptó, por clave.
+   * Sin esto, con el almacenamiento bloqueado —ventana privada, cuota agotada,
+   * política del navegador— pulsar «izquierda» o el silencio no hacía nada: la
+   * escritura fallaba en silencio y la relectura devolvía lo de antes. Mientras
+   * el almacenamiento responda sigue mandando él, para que dos pestañas no
+   * discrepen; esto solo cubre la elección que él no pudo recoger, y se vacía
+   * en cuanto una escritura vuelve a entrar.
+   */
+  const pendientes = new Map<string, string>()
 
   return {
     get(...args) {
+      const clave = keyFor(...args)
+      const pendiente = pendientes.get(clave)
+      if (pendiente !== undefined) return parse(pendiente)
       const storage = gameStorage()
+      // Con lo pendiente en memoria ya se ha devuelto arriba: esto solo actúa
+      // en el prerenderizado, donde no hay nada pendiente.
+      /* v8 ignore next */
       if (!storage) return parse(null)
       try {
-        return parse(storage.getItem(keyFor(...args)))
+        return parse(storage.getItem(clave))
       } catch {
         return parse(null)
       }
@@ -110,12 +128,20 @@ export function createStoredPreference<T, Args extends unknown[] = []>({
     },
 
     save(value, ...args) {
+      const clave = keyFor(...args)
+      const serializado = serialize(value)
       try {
-        gameStorage()?.setItem(keyFor(...args), serialize(value))
+        const storage = gameStorage()
+        // En el prerenderizado no se guarda nada: no hay menú que pulsar.
+        /* v8 ignore next */
+        if (storage == null) throw new Error('no storage')
+        storage.setItem(clave, serializado)
+        pendientes.delete(clave)
       } catch {
-        // Cuota agotada o escritura prohibida: el récord no llega a guardarse.
-        // Se avisa igual, para que quien mira vuelva a leer y enseñe lo que hay
-        // de verdad.
+        // Cuota agotada o escritura prohibida: esa elección no llega a
+        // guardarse, pero vale al menos para esta visita. Se avisa igual, para
+        // que quien mira vuelva a leer y enseñe lo que hay de verdad.
+        pendientes.set(clave, serializado)
       }
       for (const listener of listeners) listener()
     },

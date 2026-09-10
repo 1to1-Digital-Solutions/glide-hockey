@@ -140,9 +140,12 @@ describe('una preferencia guardada entre visitas', () => {
       expect(contador().get()).toBe(0)
     })
 
-    it('guardar no rompe, y avisa igual para que se vuelva a leer', () => {
-      // Quien mira tiene que enseñar lo que hay de verdad, no lo que se quiso
-      // guardar: sin el aviso se quedaría enseñando un número que no existe.
+    it('guardar no rompe, y lo elegido vale al menos para esta visita', () => {
+      // Sin esto, con el almacenamiento bloqueado pulsar una opción del menú no hacía
+      // **nada**: la escritura fallaba en silencio y la relectura devolvía lo de antes,
+      // así que el botón se quedaba sin marcar. Lo que no se pudo guardar se recuerda en
+      // memoria hasta que se cierre la pestaña; entre visitas se pierde, que es lo que
+      // significa no tener almacenamiento.
       vi.spyOn(window, 'localStorage', 'get').mockReturnValue(blockedStorage())
       const pref = contador()
       const listener = vi.fn()
@@ -150,7 +153,7 @@ describe('una preferencia guardada entre visitas', () => {
 
       expect(() => pref.save(9)).not.toThrow()
 
-      expect(pref.get()).toBe(0)
+      expect(pref.get()).toBe(9)
       expect(listener).toHaveBeenCalledTimes(1)
     })
 
@@ -160,7 +163,7 @@ describe('una preferencia guardada entre visitas', () => {
       })
       const pref = contador()
       expect(() => pref.save(9)).not.toThrow()
-      expect(pref.get()).toBe(0)
+      expect(pref.get()).toBe(9)
     })
   })
 })

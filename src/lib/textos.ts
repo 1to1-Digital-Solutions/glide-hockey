@@ -119,6 +119,10 @@ const ES = {
   // Mientras se juega
   'End run': 'Terminar tanda',
   'Leave the game': 'Dejar la partida',
+  'Leave the game?': '¿Dejar la partida?',
+  'You lose the goals you have scored.': 'Pierdes los goles que lleves.',
+  'Keep playing': 'Seguir jugando',
+  Leave: 'Salir',
   'Setting up the table…': 'Montando la mesa…',
 } as const
 

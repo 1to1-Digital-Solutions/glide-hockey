@@ -44,7 +44,10 @@ test('dejar la partida devuelve al menú sin esperar al final', async ({
   await abrirJuego(page)
   await jugarPartida(page, { goles: 15, nivel: 'Easy' })
 
+  // Pregunta antes: el botón se pulsa sin querer y salir pierde los goles.
   await page.getByRole('button', { name: 'Leave the game' }).click()
+  await expect(page.getByRole('alertdialog')).toBeVisible()
+  await page.getByRole('button', { name: 'Leave', exact: true }).click()
 
   await expect(page.getByRole('heading', { name: 'Air Hockey' })).toBeVisible()
 })

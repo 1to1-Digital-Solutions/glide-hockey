@@ -1,6 +1,11 @@
 'use client'
 
+import { useCallback } from 'react'
+
 import { useGame } from '../../lib/gameStore'
+import { useLang } from '../../lib/ajustesCliente'
+import { traductor } from '../../lib/textos'
+import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
 import { isEndless } from '../../lib/gameMode'
 import { PALETTE } from '../../lib/palette'
 import { useExit } from '../../game/exit'
@@ -197,13 +202,14 @@ export function XRGameOver() {
 
 /** Dejar la partida sin llegar al final; y en la sin fin, terminarla con resumen. */
 export function XRQuitButton() {
-  const { gameState, resetGame, endRun, activeGoalTarget } = useGame()
+  const { gameState, askToQuit, endRun, activeGoalTarget } = useGame()
 
   if (gameState !== 'playing' && gameState !== 'countdown') return null
 
   return (
     <group>
-      <XRPressable box={hitBox(0, 0, SMALL_BUTTON)} onSelect={resetGame}>
+      {/* Pregunta antes de dejarla: el brazo pasa por aquí y salir pierde los goles. */}
+      <XRPressable box={hitBox(0, 0, SMALL_BUTTON)} onSelect={askToQuit}>
         <XRPlate
           width={SMALL_BUTTON[0]}
           height={SMALL_BUTTON[1]}
@@ -226,6 +232,98 @@ export function XRQuitButton() {
           </mesh>
         </XRPressable>
       ) : null}
+    </group>
+  )
+}
+
+/** Lo que ocupa el aviso, en metros. */
+const CONFIRM_SIZE: [number, number] = [0.72, 0.36]
+
+/** Sus dos botones, en coordenadas del propio aviso. */
+const CONFIRM_BOXES = {
+  /** Seguir jugando va a la derecha y más grande: es la respuesta que no pierde nada. */
+  stay: hitBox(0.16, -0.09, [0.3, 0.1]),
+  leave: hitBox(-0.18, -0.09, [0.26, 0.1]),
+}
+
+/**
+ * El aviso antes de dejar la partida.
+ *
+ * **No se sale de golpe.** El botón se pulsa sin querer —con el visor puesto no se ve lo
+ * que hay a los lados y el brazo pasa por donde pasa—, y salir pierde los goles que se
+ * lleven. Así que se para la mesa y se pregunta; mientras se pregunta el disco no corre,
+ * porque si no, decidir costaría goles.
+ *
+ * Va donde el menú, en medio de la mesa y a la altura de la vista: es donde ya se está
+ * mirando, y lo que se decide aquí no es un detalle.
+ *
+ * Es la única parte de la interfaz inmersiva de este juego con letras. El resto son cifras
+ * y placas de color a propósito, pero una pregunta no se dibuja: hay que leerla.
+ */
+export function XRQuitConfirm() {
+  const { prompt, resetGame, keepPlaying } = useGame()
+  const t = traductor(useLang())
+
+  const escribir = useCallback(
+    (ctx: CanvasRenderingContext2D) => {
+      drawParagraph(ctx, t('Leave the game?'), 0, 0.09, {
+        size: 0.05,
+        color: PALETTE.foreground,
+        weight: '700',
+        maxWidth: CONFIRM_SIZE[0] - 0.08,
+      })
+      drawParagraph(ctx, t('You lose the goals you have scored.'), 0, 0.01, {
+        size: 0.034,
+        color: DIM_COLOR,
+        maxWidth: CONFIRM_SIZE[0] - 0.08,
+      })
+      drawText(ctx, t('Leave'), CONFIRM_BOXES.leave.position[0], CONFIRM_BOXES.leave.position[1], {
+        size: 0.034,
+        color: PALETTE.foreground,
+        maxWidth: CONFIRM_BOXES.leave.size[0] - 0.03,
+      })
+      drawText(ctx, t('Keep playing'), CONFIRM_BOXES.stay.position[0], CONFIRM_BOXES.stay.position[1], {
+        size: 0.034,
+        color: PALETTE.background,
+        weight: '700',
+        maxWidth: CONFIRM_BOXES.stay.size[0] - 0.03,
+      })
+    },
+    [t],
+  )
+
+  if (prompt !== 'quit') return null
+
+  return (
+    <group>
+      <XRPanel width={CONFIRM_SIZE[0]} height={CONFIRM_SIZE[1]} opacity={0.96} />
+
+      <XRPressable box={CONFIRM_BOXES.leave} onSelect={resetGame}>
+        <XRPlate
+          width={CONFIRM_BOXES.leave.size[0]}
+          height={CONFIRM_BOXES.leave.size[1]}
+          color={PALETTE.rail}
+          opacity={0.9}
+        />
+      </XRPressable>
+
+      <XRPressable box={CONFIRM_BOXES.stay} onSelect={keepPlaying}>
+        <XRPlate
+          width={CONFIRM_BOXES.stay.size[0]}
+          height={CONFIRM_BOXES.stay.size[1]}
+          color={PALETTE.primary}
+        />
+      </XRPressable>
+
+      {/* El texto va encima de las placas: el lienzo es transparente salvo donde escribe. */}
+      <group position={[0, 0, 0.03]}>
+        <CanvasPanel
+          width={CONFIRM_SIZE[0]}
+          height={CONFIRM_SIZE[1]}
+          draw={escribir}
+          fallbackColor={PALETTE.background}
+        />
+      </group>
     </group>
   )
 }

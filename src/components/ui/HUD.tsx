@@ -256,7 +256,7 @@ function GameOver() {
 
 /** Dejar la partida a medias, sin esperar al final. */
 function QuitButton() {
-  const { resetGame, immersive, endRun, activeGoalTarget, gameState } = useGame()
+  const { askToQuit, immersive, endRun, activeGoalTarget, gameState } = useGame()
   const exit = useExit()
   const t = traductor(useLang())
 
@@ -275,7 +275,7 @@ function QuitButton() {
       ) : null}
       <button
         type="button"
-        onClick={resetGame}
+        onClick={askToQuit}
         className="pointer-events-auto min-h-11 rounded-xl border border-white/15 bg-[color-mix(in_srgb,var(--color-background)_75%,transparent)] px-4 py-2.5 text-sm font-semibold text-white/70 backdrop-blur-sm transition hover:border-white/40 hover:text-white"
       >
         {t('Leave the game')}
@@ -293,8 +293,54 @@ function QuitButton() {
   )
 }
 
+/**
+ * El aviso antes de dejar la partida.
+ *
+ * **No se sale de golpe.** El botón se pulsa sin querer —con el visor puesto no se ve lo
+ * que hay a los lados y el brazo pasa por donde pasa—, y salir pierde los goles que se
+ * lleven. La mesa se para mientras se pregunta (ver `gameStore`), así que decidir no cuesta
+ * goles.
+ */
+function QuitConfirm() {
+  const { resetGame, keepPlaying } = useGame()
+  const t = traductor(useLang())
+
+  return (
+    <div
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="quit-title"
+      className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 p-4"
+    >
+      <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-[var(--color-background)] p-6 text-center shadow-2xl">
+        <h2 id="quit-title" className="text-xl font-bold text-white">
+          {t('Leave the game?')}
+        </h2>
+        <p className="mt-2 text-sm text-white/60">{t('You lose the goals you have scored.')}</p>
+        <div className="mt-6 flex flex-col gap-2.5">
+          <button
+            type="button"
+            autoFocus
+            onClick={keepPlaying}
+            className="min-h-12 w-full rounded-xl bg-[var(--color-primary)] px-6 py-3 text-base font-bold text-[var(--color-background)]"
+          >
+            {t('Keep playing')}
+          </button>
+          <button
+            type="button"
+            onClick={resetGame}
+            className="min-h-11 w-full rounded-xl border border-white/15 px-6 py-2.5 text-sm font-semibold text-white/70 hover:border-white/40 hover:text-white"
+          >
+            {t('Leave')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function HUD() {
-  const { gameState } = useGame()
+  const { gameState, prompt } = useGame()
 
   return (
     <>
@@ -304,6 +350,7 @@ export function HUD() {
       {gameState === 'playing' || gameState === 'countdown' ? (
         <QuitButton />
       ) : null}
+      {prompt === 'quit' ? <QuitConfirm /> : null}
     </>
   )
 }

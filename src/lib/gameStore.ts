@@ -170,6 +170,20 @@ export interface GameStore {
    */
   setScenery: (scenery: Scenery) => void
 
+  /**
+   * Lo que se está preguntando ahora mismo, o `null` si no se pregunta nada.
+   *
+   * Dejar la partida a medias **pierde lo que se lleva**, y el botón se pulsa sin querer:
+   * con el visor puesto no se ve lo que hay a los lados y el brazo pasa por donde pasa. Así
+   * que no se sale de golpe: se para la mesa y se pregunta. Mientras se pregunta el disco no
+   * corre, porque si no, decidir costaría goles.
+   */
+  prompt: 'quit' | null
+  /** Para la partida y pregunta si de verdad se quiere dejar. */
+  askToQuit: () => void
+  /** No: se sigue jugando desde donde estaba. */
+  keepPlaying: () => void
+
   startGame: () => void
   /** Gol del jugador: suma puntos y alarga la racha. */
   scorePlayer: () => void
@@ -200,6 +214,7 @@ export function useGameStoreValue(): GameStore {
   const [endedByPlayer, setEndedByPlayer] = useState(false)
   const [running, setRunning] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  const [prompt, setPrompt] = useState<'quit' | null>(null)
   const [malletHeld, setMalletHeld] = useState(false)
   const [runId, setRunId] = useState(0)
   // Ronda del reto. Vive aquí y no se deriva porque es lo único que sobrevive
@@ -319,10 +334,10 @@ export function useGameStoreValue(): GameStore {
   // mazo en la mesa es empezar a perder.
   const esperandoElMazo = immersive && !malletHeld && countdown <= 1
   useEffect(() => {
-    if (!running || countdown <= 0 || esperandoElMazo) return
+    if (!running || countdown <= 0 || esperandoElMazo || prompt !== null) return
     const timer = setTimeout(() => setCountdown((value) => value - 1), 1000)
     return () => clearTimeout(timer)
-  }, [running, countdown, esperandoElMazo])
+  }, [running, countdown, esperandoElMazo, prompt])
 
   // De qué ronda se subió ya el escalón. Sin esta marca, dos ejecuciones del
   // efecto por la misma ronda —Strict Mode las provoca en desarrollo— sumarían
@@ -436,6 +451,7 @@ export function useGameStoreValue(): GameStore {
   }, [])
 
   const startGame = useCallback(() => {
+    setPrompt(null)
     clearRun()
     advancedRound.current = 0
     setEndedByPlayer(false)
@@ -471,7 +487,11 @@ export function useGameStoreValue(): GameStore {
 
   const setScenery = useCallback((value: Scenery) => saveScenery(value), [])
 
+  const askToQuit = useCallback(() => setPrompt('quit'), [])
+  const keepPlaying = useCallback(() => setPrompt(null), [])
+
   const resetGame = useCallback(() => {
+    setPrompt(null)
     clearRun()
     setCountdown(0)
     setEndedByPlayer(false)
@@ -479,6 +499,9 @@ export function useGameStoreValue(): GameStore {
   }, [clearRun])
   return useMemo(
     () => ({
+      prompt,
+      askToQuit,
+      keepPlaying,
       goalTarget,
       difficulty,
       gameMode,
@@ -527,6 +550,9 @@ export function useGameStoreValue(): GameStore {
       resetGame,
     }),
     [
+      prompt,
+      askToQuit,
+      keepPlaying,
       malletHeld,
       goalTarget,
       difficulty,

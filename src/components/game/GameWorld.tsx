@@ -15,6 +15,7 @@ import {
   XRCountdown,
   XRGameOver,
   XRQuitButton,
+  XRQuitConfirm,
   XRScoreboard,
 } from '../xr/XRHud'
 import { XRMenu } from '../xr/XRMenu'
@@ -171,6 +172,7 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
               <group position={XR_UI.panel} rotation={[-0.2, 0, 0]}>
                 <XRMenu />
                 <XRGameOver />
+                <XRQuitConfirm />
               </group>
               <group position={XR_UI.countdown}>
                 <XRCountdown />

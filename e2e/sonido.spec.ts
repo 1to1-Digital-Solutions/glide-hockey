@@ -102,6 +102,7 @@ test('la partida suena: la mesa pide sus sonidos al navegador', async ({
   // contexto en el mismo fotograma en que sonaba el gol que la ganaba.
   const sonados = (await leerElAudio(page))?.sonidos ?? 0
   await page.getByRole('button', { name: 'Leave the game' }).click()
+  await page.getByRole('button', { name: 'Leave', exact: true }).click()
   await page.getByRole('button', { name: 'Play' }).click()
   await expect(page.getByText('Machine')).toBeVisible()
 

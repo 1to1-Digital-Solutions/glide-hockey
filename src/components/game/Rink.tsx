@@ -69,6 +69,7 @@ export function Rink({
 }) {
   const {
     gameState,
+    prompt,
     activeDifficulty,
     lastScorer,
     scoreOpponent,
@@ -134,7 +135,9 @@ export function Rink({
       // Cogido con la mano el mazo no persigue: está donde está la mano.
       inHand: enLaMano.current,
       skill,
-      playing: gameState === 'playing',
+      // Con la pregunta de salir en pantalla el disco se queda quieto: decidir no puede
+      // costar goles.
+      playing: gameState === 'playing' && prompt === null,
     })
     table.current = next
 
@@ -153,7 +156,7 @@ export function Rink({
     // El disco deslizándose se oye y se ve según lo rápido que va; parado, o
     // con la partida en pausa, nada.
     const { x: vx, z: vz } = next.puck.velocity
-    const speed = gameState === 'playing' ? Math.hypot(vx, vz) : 0
+    const speed = gameState === 'playing' && prompt === null ? Math.hypot(vx, vz) : 0
     puckSpeed.current = speed
     slide(speed)
     place(puckObject.current, next.puck.position)

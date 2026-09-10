@@ -46,10 +46,10 @@
 
 ## Del visor — segunda ronda
 
-- [x] [urgente] La partida empieza sin que el mazo esté en la mano
-  Con el visor puesto no se llega a agarrar el mazo y la partida arranca igual: se juega con el
-  disco moviéndose y sin nada con que pararlo. No debería empezar la cuenta atrás hasta que el
-  mazo esté cogido. Ver `components/game/MalletHand.tsx` y `lib/malletGrab.ts`.
+- [ ] [urgente] La partida no espera a que el mazo esté en la mano
+  **Media tarea hecha**: el mazo ya se puede agarrar —el juego no sabía dónde estaba la mano, ver
+  `XRControllerGrip`—. Queda lo otro: la cuenta atrás arranca igual aunque no lo hayas cogido, así
+  que la partida puede empezar contigo sin nada con que parar el disco. Tiene que esperar.
 - [ ] [alta] La portería es demasiado pequeña para lo grande que es el mazo
   Con el mazo actual tapando casi toda la boca, meter gol —y que te lo metan— es muy difícil, y
   una partida sin goles no es divertida. Hay que revisar la proporción entre `GOAL_WIDTH` y el

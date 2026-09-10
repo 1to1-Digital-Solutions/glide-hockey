@@ -125,6 +125,14 @@ const ES = {
   'Keep playing': 'Seguir jugando',
   Leave: 'Salir',
   'Setting up the table…': 'Montando la mesa…',
+
+  // Lo que dice la demostración del gesto, tramo a tramo.
+  'Bring your hand to the mallet and squeeze the side trigger':
+    'Lleva la mano hasta el mazo y aprieta el gatillo lateral',
+  'Held, it goes wherever your hand goes':
+    'Cogido, va donde vaya tu mano',
+  'Let go of the trigger and the mallet stays where it is':
+    'Suelta el gatillo y el mazo se queda donde está',
 } as const
 
 /** Cada frase que el juego sabe decir, escrita como se dice en inglés. */

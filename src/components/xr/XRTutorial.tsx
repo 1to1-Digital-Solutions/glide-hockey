@@ -6,6 +6,8 @@ import { useCallback, useRef, useState } from 'react'
 import type { Group, Mesh } from 'three'
 
 import { useGame } from '../../lib/gameStore'
+import { useLang } from '../../lib/ajustesCliente'
+import { traductor, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawParagraph } from './canvasPanel'
 import { PALETTE } from '../../lib/palette'
 import {
@@ -63,7 +65,7 @@ function manoX(step: 'hand' | 'draw' | 'release', progress: number): number {
 }
 
 /** Lo que hay que hacer en cada tramo, dicho con palabras. */
-const FRASES: Record<TutorialStepKey, string> = {
+const FRASES: Record<TutorialStepKey, TextKey> = {
   hand: 'Bring your hand to the mallet and squeeze the side trigger',
   draw: 'Held, it goes wherever your hand goes',
   release: 'Let go of the trigger and the mallet stays where it is',
@@ -74,6 +76,7 @@ const TEXT_HEIGHT = 0.2
 
 export function XRTutorial() {
   const { gameState } = useGame()
+  const t = traductor(useLang())
   const enSesion = useXR((state) => state.mode != null)
 
   // Se decide una sola vez al montar: leerlo en cada render lo apagaría a mitad, en cuanto
@@ -117,14 +120,14 @@ export function XRTutorial() {
     (ctx: CanvasRenderingContext2D) => {
       const step = frame.step
       if (step == null) return
-      drawParagraph(ctx, FRASES[step], 0, 0, {
+      drawParagraph(ctx, t(FRASES[step]), 0, 0, {
         size: 0.045,
         color: PALETTE.foreground,
         weight: '600',
         maxWidth: PANEL_WIDTH - 0.08,
       })
     },
-    [frame],
+    [frame, t],
   )
 
   if (!activo) return null

@@ -2,16 +2,18 @@
 
 import { useFrame } from '@react-three/fiber'
 import { useXR } from '@react-three/xr'
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { Group, Mesh } from 'three'
 
 import { useGame } from '../../lib/gameStore'
+import { CanvasPanel, drawParagraph } from './canvasPanel'
 import { PALETTE } from '../../lib/palette'
 import {
   markTutorialSeen,
   tutorialFrameAt,
   tutorialSeen,
   TUTORIAL_SECONDS,
+  type TutorialStepKey,
 } from '../../lib/tutorial'
 import { DIM_COLOR, XRCloseIcon, XRPanel, XRPlate, XRPressable, type XrHitBox } from './XRUi'
 
@@ -60,6 +62,16 @@ function manoX(step: 'hand' | 'draw' | 'release', progress: number): number {
   return MAZO + (HASTA - MAZO) * (step === 'draw' ? progress : 1)
 }
 
+/** Lo que hay que hacer en cada tramo, dicho con palabras. */
+const FRASES: Record<TutorialStepKey, string> = {
+  hand: 'Bring your hand to the mallet and squeeze the side trigger',
+  draw: 'Held, it goes wherever your hand goes',
+  release: 'Let go of the trigger and the mallet stays where it is',
+}
+
+/** Alto de la banda de texto, encima del dibujo. */
+const TEXT_HEIGHT = 0.2
+
 export function XRTutorial() {
   const { gameState } = useGame()
   const enSesion = useXR((state) => state.mode != null)
@@ -99,10 +111,36 @@ export function XRTutorial() {
     if (marca.current !== null) marca.current.visible = step === 'draw'
   })
 
+  // La frase del tramo, en un lienzo aparte: el resto del tutorial es geometría y ahí no
+  // cabe una letra. Sin ella, el dibujo enseña un gesto y nadie sabe de qué gesto habla.
+  const escribir = useCallback(
+    (ctx: CanvasRenderingContext2D) => {
+      const step = frame.step
+      if (step == null) return
+      drawParagraph(ctx, FRASES[step], 0, 0, {
+        size: 0.045,
+        color: PALETTE.foreground,
+        weight: '600',
+        maxWidth: PANEL_WIDTH - 0.08,
+      })
+    },
+    [frame],
+  )
+
   if (!activo) return null
 
   return (
     <group>
+      {/* Lo que hay que hacer, escrito. El dibujo enseña el gesto y la frase lo nombra. */}
+      <group position={[0, PANEL_HEIGHT / 2 + TEXT_HEIGHT / 2 + 0.01, 0]}>
+        <CanvasPanel
+          width={PANEL_WIDTH}
+          height={TEXT_HEIGHT}
+          draw={escribir}
+          fallbackColor={PALETTE.background}
+        />
+      </group>
+
       <XRPanel width={PANEL_WIDTH} height={PANEL_HEIGHT} />
 
       {/* La mesa, de canto: da referencia de por dónde se mueve todo. */}

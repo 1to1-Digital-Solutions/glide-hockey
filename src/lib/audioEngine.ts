@@ -101,10 +101,18 @@ export interface AirHockeyAudio {
 }
 
 /**
- * Volumen general, de 0 a 1. Por debajo de la mitad a propósito: es un juego
- * que se juega con un visor puesto y a un palmo de las orejas.
+ * Volumen general, de 0 a 1.
+ *
+ * **El mismo número en los trece juegos**, y ese es el punto: el volumen de efectos se elige
+ * una vez en el arcade y saltar de cabina no puede cambiar lo que se oye. Estaba en 0,28 en
+ * ocho, 0,40 en tres y 0,45 en dos —con este mismo comentario en todos—, así que la misma
+ * posición del deslizador sonaba tres o cuatro decibelios distinta según el juego.
+ *
+ * Por debajo de la mitad a propósito: se juega con un visor puesto y el sonido va a un palmo
+ * de las orejas. Si un juego suena flojo o fuerte comparado con los demás, lo que hay que
+ * mover es **su receta**, no este número: moverlo aquí vuelve a descuadrar los trece.
  */
-const MASTER_GAIN = 0.4
+const MASTER_GAIN = 0.35
 
 /** Valor al que se apaga una envolvente. Cero no vale: las rampas
  * exponenciales de la Web Audio API lo prohíben. */

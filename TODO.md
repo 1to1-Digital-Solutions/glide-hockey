@@ -43,3 +43,14 @@
   `components/game/Room.tsx` levanta paredes de 3,4-4 m pero no techo, y `GameCanvas.tsx` no fija
   `<color attach="background">`. En realidad virtual, mirar por encima de las paredes enseña el
   negro del compositor. Dentro del salón no pasa: el hub sí lo pone.
+
+## Del visor — segunda ronda
+
+- [ ] [urgente] La partida empieza sin que el mazo esté en la mano
+  Con el visor puesto no se llega a agarrar el mazo y la partida arranca igual: se juega con el
+  disco moviéndose y sin nada con que pararlo. No debería empezar la cuenta atrás hasta que el
+  mazo esté cogido. Ver `components/game/MalletHand.tsx` y `lib/malletGrab.ts`.
+- [ ] [alta] La portería es demasiado pequeña para lo grande que es el mazo
+  Con el mazo actual tapando casi toda la boca, meter gol —y que te lo metan— es muy difícil, y
+  una partida sin goles no es divertida. Hay que revisar la proporción entre `GOAL_WIDTH` y el
+  radio del mazo en `lib/gameConfig.ts`.

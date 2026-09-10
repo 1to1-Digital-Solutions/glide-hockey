@@ -50,7 +50,7 @@
   **Media tarea hecha**: el mazo ya se puede agarrar —el juego no sabía dónde estaba la mano, ver
   `XRControllerGrip`—. Queda lo otro: la cuenta atrás arranca igual aunque no lo hayas cogido, así
   que la partida puede empezar contigo sin nada con que parar el disco. Tiene que esperar.
-- [ ] [alta] La portería es demasiado pequeña para lo grande que es el mazo
+- [x] [alta] La portería es demasiado pequeña para lo grande que es el mazo
   Con el mazo actual tapando casi toda la boca, meter gol —y que te lo metan— es muy difícil, y
   una partida sin goles no es divertida. Hay que revisar la proporción entre `GOAL_WIDTH` y el
   radio del mazo en `lib/gameConfig.ts`.

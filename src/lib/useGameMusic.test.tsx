@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GameContext, useGameStoreValue } from './gameStore'
 import { MUSIC_VOLUME, musicUrl } from './music'
+import { MUSIC_FADE_MS } from './musicFade'
 import { useGameMusic } from './useGameMusic'
 import { DEFAULT_VOLUMES, volumeFactor } from './ajustes'
 import { setVolume } from './ajustesCliente'
@@ -66,13 +67,30 @@ function Harness({ children }: { children: ReactNode }) {
 
 const renderMusic = () => renderHook(() => useGameMusic(), { wrapper: Harness })
 
+
+/**
+ * Espera a que termine el fundido.
+ *
+ * La música ya no entra ni se va de golpe (`lib/musicFade.ts`), así que el volumen final y
+ * el `pause()` llegan al acabar la rampa y no en la misma línea. Se espera de verdad y no
+ * con relojes falsos porque la rampa va por fotogramas: falsear el reloj sin falsear
+ * `requestAnimationFrame` la dejaría parada, y falsear los dos es más maquinaria que los
+ * setecientos milisegundos que cuesta esperarla.
+ */
+async function trasElFundido() {
+  await act(async () => {
+    await new Promise((listo) => setTimeout(listo, MUSIC_FADE_MS + 120))
+  })
+}
+
 describe('la música de fondo', () => {
   // Cada prueba desmonta lo suyo: la preferencia avisa a todo el que esté
   // escuchando, así que un hook de una prueba anterior que siguiera montado
   // reaccionaría a los cambios de la siguiente y crearía reproductores de más.
 
-  it('suena en bucle y bajita, desde donde le toque', () => {
+  it('suena en bucle y bajita, desde donde le toque', async () => {
     const hook = renderMusic()
+    await trasElFundido()
 
     expect(players).toHaveLength(1)
     expect(players[0].src).toBe(musicUrl())
@@ -101,9 +119,10 @@ describe('la música de fondo', () => {
     hook.unmount()
   })
 
-  it('apagarla la para, y volver a encenderla la reanuda con el mismo reproductor', () => {
+  it('apagarla la para, y volver a encenderla la reanuda con el mismo reproductor', async () => {
     const hook = renderMusic()
     act(() => setVolume('ambience', 0))
+    await trasElFundido()
     expect(players[0].pause).toHaveBeenCalled()
 
     act(() => setVolume('ambience', DEFAULT_VOLUMES.ambience))
@@ -113,9 +132,11 @@ describe('la música de fondo', () => {
     hook.unmount()
   })
 
-  it('quitar la escena se lleva la música', () => {
+  it('quitar la escena se lleva la música', async () => {
     const hook = renderMusic()
     hook.unmount()
+    // Bajándola, no cortándola: el salón devuelve la suya justo detrás.
+    await trasElFundido()
 
     expect(players[0].pause).toHaveBeenCalled()
   })

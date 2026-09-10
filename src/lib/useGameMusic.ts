@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { MUSIC_FADE_MS, fadeVolume } from './musicFade'
 import { useGame } from './gameStore'
 import { MUSIC_VOLUME, musicUrl } from './music'
 
@@ -26,6 +27,28 @@ import { MUSIC_VOLUME, musicUrl } from './music'
  * los ajustes dicen cuánto de eso se quiere oír, no lo suben por encima de lo
  * que es un fondo.
  */
+/**
+ * Lleva el volumen de `audio` hasta `hasta` en `MUSIC_FADE_MS`, y hace `alAcabar` al llegar.
+ *
+ * Devuelve cómo se corta: la rampa siguiente empieza donde esta se quedó, que es lo que
+ * evita el salto si se enciende y se apaga la música a toda prisa.
+ */
+function rampa(audio: HTMLAudioElement, hasta: number, alAcabar?: () => void): () => void {
+  const desde = audio.volume
+  const inicio = performance.now()
+  let id = 0
+
+  const paso = () => {
+    const t = (performance.now() - inicio) / MUSIC_FADE_MS
+    audio.volume = fadeVolume(desde, hasta, t)
+    if (t < 1) id = requestAnimationFrame(paso)
+    else alAcabar?.()
+  }
+  paso()
+
+  return () => cancelAnimationFrame(id)
+}
+
 export function useGameMusic(): void {
   const { music, ambienceVolume } = useGame()
   const player = useRef<HTMLAudioElement | null>(null)
@@ -36,14 +59,22 @@ export function useGameMusic(): void {
     // El elemento se crea al pedir música por primera vez, no al montar: quien
     // entra con la música apagada no descarga un megabyte para nada.
     if (!wanted) {
-      player.current?.pause()
-      return
+      const saliendo = player.current
+      if (saliendo == null) return
+      // Se baja y **entonces** se para: `pause()` en seco es un chasquido con los
+      // auriculares del visor puestos.
+      return rampa(saliendo, 0, () => saliendo.pause())
     }
 
+    const estrenada = player.current == null
     const audio = player.current ?? new Audio(musicUrl())
     player.current = audio
     audio.loop = true
-    audio.volume = MUSIC_VOLUME * ambienceVolume
+    // Un elemento de audio nace a todo volumen: recién creado se pone a cero antes de
+    // subir, que si no la música entra de golpe y es justo lo que se está quitando. Volviendo
+    // de un apagado a medias se sube desde donde se quedó.
+    if (estrenada) audio.volume = 0
+    const cortar = rampa(audio, MUSIC_VOLUME * ambienceVolume)
 
     /** Intenta sonar. El navegador puede decir que no, y no es un error. */
     const start = () => {
@@ -58,6 +89,7 @@ export function useGameMusic(): void {
     for (const event of events) window.addEventListener(event, start, { once: true })
 
     return () => {
+      cortar()
       for (const event of events) window.removeEventListener(event, start)
     }
   }, [wanted, ambienceVolume])
@@ -66,8 +98,11 @@ export function useGameMusic(): void {
   // desmonta a cada visita, y si no, seguiría sonando sobre el juego siguiente.
   useEffect(
     () => () => {
-      player.current?.pause()
+      const saliendo = player.current
       player.current = null
+      // Al salir de la cabina la música se va bajando, no se corta: el salón devuelve la
+      // suya justo detrás y dos cortes seguidos se oyen como un error.
+      if (saliendo != null) rampa(saliendo, 0, () => saliendo.pause())
     },
     [],
   )

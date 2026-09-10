@@ -35,7 +35,7 @@
   `useRoomEnvironment()` se pasa a `Table` y `Puck`, no a `components/game/Mallet.tsx` ni
   `MalletHand.tsx`. El objeto que está a centímetros de los ojos todo el rato tiene menos acabado
   que la mesa, y eso se nota más que al revés. Lo mismo en ping-pong con la pala.
-- [ ] Terminar la partida no suena
+- [x] Terminar la partida no suena
   El HUD pinta estrellas, nivel desbloqueado o récord en silencio: solo se repite el último sonido
   normal de la partida. Comparte el hueco con ping-pong, whack-a-mole, bow-shooting, skeet y
   stick-rush.

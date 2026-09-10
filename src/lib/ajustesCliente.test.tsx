@@ -6,6 +6,7 @@ import {
   DEFAULT_LANG,
   DEFAULT_VOLUMES,
   DEFAULT_VOLUME_SETTINGS,
+  GRAB_MODE_KEY,
   LANG_COOKIE,
   PLAY_HEIGHT_KEY,
   VOLUME_KEYS,
@@ -15,6 +16,7 @@ import {
   setLang,
   setVolume,
   settingsStorage,
+  useGrabMode,
   useLang,
   usePlayHeight,
   useVolumes,
@@ -229,5 +231,35 @@ describe('a qué altura se juega', () => {
     })
 
     expect(result.current).toBe('standing')
+  })
+})
+
+describe('cómo se sujeta lo que se coge', () => {
+  it('empieza manteniendo el gatillo, como enseña el tutorial', () => {
+    const { result } = renderHook(() => useGrabMode())
+
+    expect(result.current).toBe('hold')
+  })
+
+  it('lo que se elige en el arcade llega a la cabina sin recargar', () => {
+    const { result } = renderHook(() => useGrabMode())
+
+    act(() => {
+      window.localStorage.setItem(GRAB_MODE_KEY, 'toggle')
+      window.dispatchEvent(new Event('xrcade:ajustes'))
+    })
+
+    expect(result.current).toBe('toggle')
+  })
+
+  it('un agarre que no existe deja el de siempre', () => {
+    const { result } = renderHook(() => useGrabMode())
+
+    act(() => {
+      window.localStorage.setItem(GRAB_MODE_KEY, 'con-la-boca')
+      window.dispatchEvent(new Event('xrcade:ajustes'))
+    })
+
+    expect(result.current).toBe('hold')
   })
 })

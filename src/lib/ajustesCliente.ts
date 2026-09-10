@@ -16,9 +16,11 @@ import {
   DEFAULT_VOLUME_SETTINGS,
   LANG_COOKIE,
   langFromCookies,
+  readGrabMode,
   readPlayHeight,
   readVolumes,
   writeVolume,
+  type GrabMode,
   type Lang,
   type PlayHeight,
   type SoundChannel,
@@ -175,4 +177,20 @@ export function usePlayHeight(): PlayHeight {
 /** Lo guardado, o de pie si no hay nada o hay basura. */
 function leerAltura(): PlayHeight {
   return readPlayHeight(settingsStorage())
+}
+
+/**
+ * Cómo se sujeta lo que se coge, y React se entera cuando cambia.
+ *
+ * Como la altura de juego: se lee del almacenamiento en cada lectura en vez de
+ * cachearse, porque es un valor primitivo y ahí `useSyncExternalStore` compara
+ * bien sin ayuda.
+ */
+export function useGrabMode(): GrabMode {
+  return useSyncExternalStore(subscribe, leerAgarre, leerAgarre)
+}
+
+/** Lo guardado, o manteniendo si no hay nada o hay basura. */
+function leerAgarre(): GrabMode {
+  return readGrabMode(settingsStorage())
 }

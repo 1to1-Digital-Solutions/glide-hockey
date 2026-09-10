@@ -3,6 +3,9 @@
 import { useFrame } from '@react-three/fiber'
 import { useXR, useXRInputSourceState } from '@react-three/xr'
 
+import { startGrab, stepGrab, type GrabLatch } from '../../lib/agarre'
+import { useGrabMode } from '../../lib/ajustesCliente'
+import type { GrabMode } from '../../lib/ajustes'
 import { isPinching } from '../../lib/pellizco'
 import { useRef } from 'react'
 import { Vector3, type Group, type Object3D } from 'three'
@@ -51,6 +54,15 @@ export function MalletHand({
   const referenceSpace = useXR((state) => state.originReferenceSpace)
   const origin = useXR((state) => state.origin)
   const pellizcando = useRef({ left: false, right: false })
+  // Cómo se sujeta el mazo: manteniendo el gatillo (o el pellizco) toda la partida, o con
+  // un toque para cogerlo y otro para soltarlo. Una partida entera con la mano cerrada es
+  // el agarre más largo de las trece cabinas, así que es donde más se nota (ver
+  // `lib/agarre.ts`). El enganche se lleva por lado, porque el mazo se cambia de mano.
+  const agarre = useGrabMode()
+  const enganche = useRef<{ left: GrabLatch; right: GrabLatch }>({
+    left: startGrab(),
+    right: startGrab(),
+  })
 
   /** Si el mazo va en la mano. Dónde está lo dice `destino`, que es de la mesa. */
   const cogido = useRef(false)
@@ -61,33 +73,52 @@ export function MalletHand({
     const grupo = rink.current
     if (grupo == null) return
 
-    const mano = manoQueManda(izquierda, derecha, cogido.current)
+    // Lo que dice cada lado en este fotograma, **antes** de decidir nada: el enganche solo
+    // avanza una vez por lado y por fotograma, o el flanco que enciende «un toque» se
+    // contaría dos veces y el mazo se cogería y se soltaría en el mismo gesto.
+    const conMando = izquierda?.object != null || derecha?.object != null
     let enLaMesa: ManoEnLaMesa | null = null
 
-    if (mano?.object != null) {
-      // La pose del mando llega en coordenadas del mundo; la mesa puede estar movida y
-      // girada (el salón la coloca donde le toca), así que se trae a las suyas.
-      const local = grupo.worldToLocal(punto.current.setFromMatrixPosition(mano.object.matrixWorld))
-      enLaMesa = {
-        posicion: { x: local.x, z: local.z },
-        agarrando: mano.gamepad['xr-standard-squeeze']?.state === 'pressed',
+    if (conMando) {
+      const apretado = {
+        left: aprietaElGatillo(izquierda),
+        right: aprietaElGatillo(derecha),
+      }
+      const sujeta = pasarElEnganche(enganche.current, apretado, agarre)
+      const mano = manoQueManda(izquierda, derecha, cogido.current, sujeta)
+
+      if (mano?.object != null) {
+        // La pose del mando llega en coordenadas del mundo; la mesa puede estar movida y
+        // girada (el salón la coloca donde le toca), así que se trae a las suyas.
+        const local = grupo.worldToLocal(
+          punto.current.setFromMatrixPosition(mano.object.matrixWorld),
+        )
+        enLaMesa = {
+          posicion: { x: local.x, z: local.z },
+          agarrando: mano === izquierda ? sujeta.left : sujeta.right,
+        }
       }
     } else {
       // Sin mando, la mano desnuda. Aquí no hay botón que apretar: agarrar es juntar el
-      // pulgar y el índice (ver `lib/pellizco.ts`), y el mazo va donde va la palma.
-      for (const candidata of [manoIzquierda, manoDerecha]) {
-        const leida = leerLaMano(
-          candidata,
-          frame,
-          referenceSpace,
-          origin,
-          pellizcando.current,
-          grupo,
-          punto.current,
-        )
+      // pulgar y el índice (ver `lib/pellizco.ts`), y el mazo va donde va la palma. El
+      // pellizco pasa por el mismo enganche: quien no puede mantener un gatillo tampoco
+      // tiene por qué poder mantener los dedos juntos una partida entera.
+      const leidas = {
+        left: leerLaMano(manoIzquierda, frame, referenceSpace, origin, pellizcando.current, grupo, punto.current),
+        right: leerLaMano(manoDerecha, frame, referenceSpace, origin, pellizcando.current, grupo, punto.current),
+      }
+      const sujeta = pasarElEnganche(
+        enganche.current,
+        { left: leidas.left?.agarrando ?? false, right: leidas.right?.agarrando ?? false },
+        agarre,
+      )
+      for (const lado of ['left', 'right'] as const) {
+        const leida = leidas[lado]
+        if (leida == null) continue
+        const conAgarre = { ...leida, agarrando: sujeta[lado] }
         // La que esté agarrando manda; si ninguna, vale la primera que haya para saber si
         // está encima del mazo cuando pellizque.
-        if (leida != null && (leida.agarrando || enLaMesa == null)) enLaMesa = leida
+        if (conAgarre.agarrando || enLaMesa == null) enLaMesa = conAgarre
       }
     }
 
@@ -110,19 +141,41 @@ export function MalletHand({
  * Con el mazo ya cogido manda la que siga apretando —cambiar de mano a mitad de un golpe
  * porque la otra rozó el botón sería perderlo—; libre, la primera que apriete.
  */
-function manoQueManda<T extends { gamepad: { 'xr-standard-squeeze'?: { state: string } } }>(
+function manoQueManda<T>(
   izquierda: T | undefined,
   derecha: T | undefined,
   cogido: boolean,
+  sujeta: { left: boolean; right: boolean },
 ): T | undefined {
-  const aprieta = (m: T | undefined) => m?.gamepad['xr-standard-squeeze']?.state === 'pressed'
-
-  if (cogido) return aprieta(izquierda) ? izquierda : aprieta(derecha) ? derecha : undefined
-  if (aprieta(izquierda)) return izquierda
-  if (aprieta(derecha)) return derecha
-  // Sin nadie apretando se devuelve una cualquiera: hace falta su posición para saber si
-  // la mano está encima del mazo cuando apriete.
+  if (cogido) return sujeta.left ? izquierda : sujeta.right ? derecha : undefined
+  if (sujeta.left) return izquierda
+  if (sujeta.right) return derecha
+  // Sin nadie agarrando se devuelve una cualquiera: hace falta su posición para saber si
+  // la mano está encima del mazo cuando agarre.
   return izquierda ?? derecha
+}
+
+/** Si el gatillo lateral de ese mando está apretado ahora mismo. */
+function aprietaElGatillo(
+  mando: { gamepad: { 'xr-standard-squeeze'?: { state: string } } } | undefined,
+): boolean {
+  return mando?.gamepad['xr-standard-squeeze']?.state === 'pressed'
+}
+
+/**
+ * Avanza el enganche de los dos lados y dice cuál sujeta el mazo.
+ *
+ * Muta el objeto que recibe a propósito: es el mismo `ref` que vive entre fotogramas, y
+ * copiarlo por pasada sería basura que recoger noventa veces por segundo.
+ */
+function pasarElEnganche(
+  enganche: { left: GrabLatch; right: GrabLatch },
+  apretado: { left: boolean; right: boolean },
+  agarre: GrabMode,
+): { left: boolean; right: boolean } {
+  enganche.left = stepGrab(enganche.left, apretado.left, agarre)
+  enganche.right = stepGrab(enganche.right, apretado.right, agarre)
+  return { left: enganche.left.holding, right: enganche.right.holding }
 }
 
 /**

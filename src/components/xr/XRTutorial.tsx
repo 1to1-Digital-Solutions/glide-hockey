@@ -5,6 +5,7 @@ import { useXR } from '@react-three/xr'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Group, Mesh } from 'three'
 
+import { useGrabMode } from '../../lib/ajustesCliente'
 import { useGame } from '../../lib/gameStore'
 import { useLang } from '../../lib/ajustesCliente'
 import { traductor, type TextKey } from '../../lib/textos'
@@ -71,12 +72,27 @@ const FRASES: Record<TutorialStepKey, TextKey> = {
   release: 'Let go of the trigger and the mallet stays where it is',
 }
 
+/**
+ * Y lo que hay que hacer cuando se agarra **con un toque** en vez de manteniendo el
+ * gatillo (ver `lib/agarre.ts`). La demostración es la única pantalla que explica el
+ * gesto: enseñar el de mantener a quien no puede mantener nada sería explicarle el
+ * juego al revés.
+ */
+const FRASES_CON_UN_TOQUE: Record<TutorialStepKey, TextKey> = {
+  hand: 'Bring your hand to the mallet and press the side trigger',
+  draw: 'It goes wherever your hand goes, with nothing held',
+  release: 'Press it again and the mallet stays where it is',
+}
+
 /** Alto de la banda de texto, encima del dibujo. */
 const TEXT_HEIGHT = 0.2
 
 export function XRTutorial() {
   const { gameState, setTutorialRunning } = useGame()
   const t = traductor(useLang())
+  // La demostración es la única pantalla que explica el gesto, así que enseña el
+  // que de verdad va a hacer quien juega: mantener el gatillo, o un toque y otro.
+  const frases = useGrabMode() === 'toggle' ? FRASES_CON_UN_TOQUE : FRASES
   const enSesion = useXR((state) => state.mode != null)
 
   // Se decide una sola vez al montar: leerlo en cada render lo apagaría a mitad, en cuanto
@@ -120,14 +136,14 @@ export function XRTutorial() {
     (ctx: CanvasRenderingContext2D) => {
       const step = frame.step
       if (step == null) return
-      drawParagraph(ctx, t(FRASES[step]), 0, 0, {
+      drawParagraph(ctx, t(frases[step]), 0, 0, {
         size: 0.045,
         color: PALETTE.foreground,
         weight: '600',
         maxWidth: PANEL_WIDTH - 0.08,
       })
     },
-    [frame, t],
+    [frame, frases, t],
   )
 
   // La partida espera: empezar mientras esto explica el gesto es empezar sin él.

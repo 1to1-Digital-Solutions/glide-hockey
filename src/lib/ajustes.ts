@@ -245,3 +245,64 @@ export function writePlayHeight(storage: Storage | null, value: PlayHeight): boo
     return false
   }
 }
+
+/**
+ * Cómo se sujeta lo que se coge.
+ *
+ * **El problema.** Nueve de los trece piden **mantener apretado** el gatillo durante todo
+ * el gesto: el dardo, el hacha, la bola, el palo, el mazo, la cuerda del arco. Un lanzamiento
+ * de bolos son tres o cuatro segundos con la mano cerrada; una partida entera son ciento y
+ * pico. Quien tiene poca fuerza de agarre —artritis, temblor, una mano cansada— se queda
+ * fuera del juego, y no de una parte: del gesto entero, que es el juego.
+ *
+ * **Qué hace `toggle`.** Un toque para cogerlo y otro para soltarlo. El gesto de en medio
+ * —el brazo— es el mismo, y por eso no cambia ninguna puntuación: lo que decide el
+ * lanzamiento sigue siendo la velocidad de la mano al soltar.
+ *
+ * **Por qué es del arcade y no de cada juego.** Quien no puede mantener el gatillo no puede
+ * mantenerlo en ninguna cabina. Y porque cambiar de cabina ya obliga a reaprender cómo se
+ * coge cada cosa: al menos que la forma de sujetarla sea la misma en todas.
+ */
+export const GRAB_MODES = ['hold', 'toggle'] as const
+export type GrabMode = (typeof GRAB_MODES)[number]
+
+/** Dónde se recuerda. El prefijo es del arcade, no de un juego. */
+export const GRAB_MODE_KEY = 'xrcade:grab'
+
+/** Manteniendo, que es lo que enseñan los tutoriales y lo que espera casi todo el mundo. */
+export const DEFAULT_GRAB_MODE: GrabMode = 'hold'
+
+/** Interpreta el agarre leído del almacenamiento: solo cuenta uno que exista. */
+export function parseGrabMode(raw: string | null | undefined): GrabMode {
+  return (GRAB_MODES as readonly string[]).includes(raw ?? '')
+    ? (raw as GrabMode)
+    : DEFAULT_GRAB_MODE
+}
+
+/** El agarre elegido, leído de un almacenamiento que puede no estar. */
+export function readGrabMode(storage: Pick<Storage, 'getItem'> | null): GrabMode {
+  if (storage === null) return DEFAULT_GRAB_MODE
+  try {
+    return parseGrabMode(storage.getItem(GRAB_MODE_KEY))
+  } catch {
+    // Almacenamiento capado: se agarra manteniendo, como se agarraba siempre.
+    return DEFAULT_GRAB_MODE
+  }
+}
+
+/**
+ * Guarda el agarre, o lo olvida cuando vuelve a ser el de partida.
+ *
+ * @returns si quedó guardado. Un `false` no es un error: significa que este navegador no
+ *   guarda nada y la elección vivirá lo que dure la visita.
+ */
+export function writeGrabMode(storage: Storage | null, value: GrabMode): boolean {
+  if (storage === null) return false
+  try {
+    if (value === DEFAULT_GRAB_MODE) storage.removeItem(GRAB_MODE_KEY)
+    else storage.setItem(GRAB_MODE_KEY, value)
+    return true
+  } catch {
+    return false
+  }
+}

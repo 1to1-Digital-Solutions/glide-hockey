@@ -1,22 +1,28 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  DEFAULT_GRAB_MODE,
   DEFAULT_LANG,
   DEFAULT_PLAY_HEIGHT,
   DEFAULT_VOLUMES,
   DEFAULT_VOLUME_SETTINGS,
+  GRAB_MODES,
+  GRAB_MODE_KEY,
   LANGS,
   LANG_COOKIE,
   PLAY_HEIGHTS,
   PLAY_HEIGHT_KEY,
   VOLUME_KEYS,
   langFromCookies,
+  parseGrabMode,
   parseLang,
   parsePlayHeight,
   parseVolume,
+  readGrabMode,
   readPlayHeight,
   readVolumes,
   volumeFactor,
+  writeGrabMode,
   writePlayHeight,
   writeVolume,
 } from './ajustes'
@@ -244,5 +250,46 @@ describe('a qué altura se juega', () => {
   it('dice que no sin sitio donde guardar, y no revienta', () => {
     expect(writePlayHeight(null, 'eyes')).toBe(false)
     expect(writePlayHeight(almacen({}, true), 'eyes')).toBe(false)
+  })
+})
+
+describe('cómo se sujeta lo que se coge', () => {
+  it('la clave y el agarre de partida son los que escribe xrcade', () => {
+    expect(GRAB_MODE_KEY).toBe('xrcade:grab')
+    expect(DEFAULT_GRAB_MODE).toBe('hold')
+    expect(GRAB_MODES).toEqual(['hold', 'toggle'])
+  })
+
+  it('solo cuenta un agarre que exista', () => {
+    expect(parseGrabMode('toggle')).toBe('toggle')
+    expect(parseGrabMode('hold')).toBe('hold')
+    for (const basura of ['mantener', '', null, undefined]) {
+      expect(parseGrabMode(basura)).toBe('hold')
+    }
+  })
+
+  it('se lee de donde el arcade lo deja', () => {
+    expect(readGrabMode(almacen({ [GRAB_MODE_KEY]: 'toggle' }))).toBe('toggle')
+    expect(readGrabMode(almacen())).toBe('hold')
+  })
+
+  it('sin sitio donde mirar se agarra manteniendo, y no revienta', () => {
+    expect(readGrabMode(null)).toBe('hold')
+    expect(readGrabMode(almacen({}, true))).toBe('hold')
+  })
+
+  it('se guarda al apartarse de mantener, y se olvida al volver', () => {
+    const storage = almacen()
+
+    expect(writeGrabMode(storage, 'toggle')).toBe(true)
+    expect(storage.getItem(GRAB_MODE_KEY)).toBe('toggle')
+
+    expect(writeGrabMode(storage, 'hold')).toBe(true)
+    expect(storage.getItem(GRAB_MODE_KEY)).toBeNull()
+  })
+
+  it('dice que no sin sitio donde guardar, y no revienta', () => {
+    expect(writeGrabMode(null, 'toggle')).toBe(false)
+    expect(writeGrabMode(almacen({}, true), 'toggle')).toBe(false)
   })
 })

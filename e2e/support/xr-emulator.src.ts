@@ -42,6 +42,23 @@ const api = {
     }
   },
 
+  /**
+   * Pone un mando donde se le diga, en metros y en coordenadas del mundo.
+   *
+   * Es lo que hace falta para probar lo que se coge llevando la mano: sin poder mover el
+   * mando, el único camino que se ejercita es el del ratón, que es código distinto.
+   */
+  placeController(handedness: 'left' | 'right', x: number, y: number, z: number) {
+    device.controllers[handedness]?.position.set(x, y, z)
+  },
+
+  /** Aprieta o suelta el gatillo lateral, que es con lo que se agarra. */
+  squeeze(handedness: 'left' | 'right', pressed: boolean) {
+    // El emulador nombra sus botones como su propio mapa (`squeeze`), no como los llama
+    // el perfil estándar de WebXR (`xr-standard-squeeze`), que es como los lee el juego.
+    device.controllers[handedness]?.setButtonValueImmediate('squeeze', pressed ? 1 : 0)
+  },
+
   /** Cierra la sesión, como cuando el jugador se quita el visor. */
   async endSession() {
     await device.activeSession?.end()

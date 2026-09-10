@@ -1,6 +1,7 @@
 'use client'
 
 import { createXRStore } from '@react-three/xr'
+import { XRControllerGrip } from './XRControllerGrip'
 import { assetUrl } from '../../lib/assets'
 
 /** Dónde viven los perfiles de mando, servidos junto al resto de ficheros. */
@@ -52,15 +53,11 @@ let store: ReturnType<typeof createXRStore> | null = null
 export function getXrStore(): ReturnType<typeof createXRStore> {
   store ??= createXRStore({
     baseAssetPath: profilesBasePath(),
-    controller: {
-      model: false,
-      rayPointer: {
-        rayModel: { maxLength: 6, opacity: 0.35 },
-        cursorModel: true,
-      },
-      grabPointer: false,
-      teleportPointer: false,
-    },
+    // Un mando propio y no las opciones por defecto: con `model: false` la librería no monta
+    // `XRControllerModel`, que es **el único que escribe `state.object`**, y sin ese objeto
+    // el juego no sabe dónde está la mano — el mazo no se podía agarrar. Ver
+    // `XRControllerGrip.tsx`.
+    controller: XRControllerGrip,
     hand: {
       model: false,
       rayPointer: {

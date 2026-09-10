@@ -4,6 +4,8 @@ import { XR_EMULATOR_BUNDLE } from './globalSetup'
 interface XRTestApi {
   hasSession: () => boolean
   connectControllers: () => void
+  placeController: (handedness: 'left' | 'right', x: number, y: number, z: number) => void
+  squeeze: (handedness: 'left' | 'right', pressed: boolean) => void
   endSession: () => Promise<void>
 }
 

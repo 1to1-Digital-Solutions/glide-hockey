@@ -560,7 +560,7 @@ export function useGameStoreValue(): GameStore {
 export function useGame(): GameStore {
   const store = useContext(GameContext)
   if (!store) {
-    throw new Error('useGame debe usarse dentro de <GameProvider>')
+    throw new Error('useGame must be used inside a <GameProvider>')
   }
   return store
 }

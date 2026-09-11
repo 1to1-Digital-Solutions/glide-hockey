@@ -179,6 +179,24 @@ export function resolveMalletHit(puck: Body, mallet: Body): MalletHit | null {
   }
 }
 
+/**
+ * Dónde estaba el mazo a la fracción `t` del paso.
+ *
+ * El mazo llega a `position` con `velocity`, así que de dónde salió se deduce:
+ * `position - velocity * dt`. Barrerlo por ese segmento es lo que hace que un
+ * golpe se detecte donde se dio y no donde acabó la mano.
+ */
+function malletAt(mallet: Body, dt: number, t: number): Body {
+  const queda = (1 - t) * dt
+  return {
+    position: {
+      x: mallet.position.x - mallet.velocity.x * queda,
+      z: mallet.position.z - mallet.velocity.z * queda,
+    },
+    velocity: mallet.velocity,
+  }
+}
+
 export interface StepInput {
   puck: Body
   /** Los mazos que pueden golpearlo, con la velocidad que llevan. */
@@ -216,9 +234,18 @@ export function stepPuck({ puck, mallets, dt }: StepInput): StepResult {
     return { puck, goal: null, bounced: false, struckBy: [], impact: NO_IMPACT }
   }
 
+  // Lo que se mueve dentro del paso no es solo el disco: **el mazo también**, y
+  // con el visor puesto va en la mano, sin tope de velocidad. Si se le diera por
+  // hecho quieto en su sitio de llegada, una mano rápida aparecería al otro lado
+  // del disco sin haberlo rozado. Así que los sub-pasos los marca el que más
+  // corra de los dos.
   const speed = magnitude(puck.velocity)
+  const malletTravel = mallets.reduce(
+    (mayor, mallet) => Math.max(mayor, magnitude(mallet.velocity) * dt),
+    0,
+  )
   const steps = clamp(
-    Math.ceil((speed * dt) / MAX_STEP_DISTANCE),
+    Math.ceil(Math.max(speed * dt, malletTravel) / MAX_STEP_DISTANCE),
     1,
     MAX_SUBSTEPS,
   )
@@ -239,7 +266,7 @@ export function stepPuck({ puck, mallets, dt }: StepInput): StepResult {
     }
 
     for (let index = 0; index < mallets.length; index++) {
-      const hit = resolveMalletHit(current, mallets[index])
+      const hit = resolveMalletHit(current, malletAt(mallets[index], dt, (i + 1) / steps))
       if (hit == null) continue
       // Un contacto que no cambia la velocidad es el rastro del golpe anterior:
       // el disco ya se estaba separando y aquí solo se le recoloca. Anotarlo

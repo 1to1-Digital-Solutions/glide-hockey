@@ -25,7 +25,27 @@
   panel se aparta de la mesa al empezar la partida y salir pregunta antes de perderla.
 - [x] Etiquetar v0.1.0 para que xrcade pueda instalarlo <!-- org:a9e1801d-5e30-4e29-9c98-72e3a10537df -->
 - [x] Dar de alta Air Hockey en el catálogo de xrcade <!-- org:1f04c5f5-0cb2-4954-a7ba-c1ab0b7d00a3 -->
-- [ ] Probar con el visor y decidir cómo se lleva el mazo en VR <!-- org:21be71e0-2f09-4ed1-b78c-e10038d5433a -->
+- [x] Probar con el visor y decidir cómo se lleva el mazo en VR <!-- org:21be71e0-2f09-4ed1-b78c-e10038d5433a -->
+  **Decidido: se coge por proximidad y va donde va la mano.** Se lleva la mano hasta el mazo y
+  se cierra —apretar desde lejos no lo teletransporta, que es lo que volvería a convertirlo en
+  un cursor—, y una vez cogido no se suelta por alejarse, solo al abrir la mano. Vale con las
+  dos manos y se puede cambiar a media partida, como en una mesa de verdad.
+  **Y probándolo salieron dos fallos que solo pasan con la mano**, los dos medibles:
+  1. *Un manotazo rápido atravesaba el disco sin tocarlo.* El contacto entre mazo y disco mide
+     11,6 cm y el mazo en la mano no tiene tope de velocidad: en un paso de 1/60 una mano a 9
+     m/s recorre 20 cm y aparecía al otro lado. Medido barriendo por encima del disco: a 45
+     fotogramas por segundo un barrido a 7 m/s fallaba **siempre**, y a 9 el disco se quedaba
+     quieto siete de cada diez veces —y dependía de dónde cayera el golpe dentro del paso, así
+     que el mismo manotazo unas veces entraba y otras no—. Ahora el mazo se **barre** dentro del
+     paso, de donde salió a donde llegó, y toca el 100 % de las veces a cualquier velocidad.
+  2. *La fuerza del golpe dependía de los fotogramas por segundo.* El mazo recorría el camino de
+     un fotograma entero dentro de un paso de 1/60, así que su velocidad salía multiplicada por
+     `60/fps`: la misma mano a 0,6 m/s mandaba el disco a 0,9 m/s a 72 fotogramas y a 1,5 a 45
+     —un 60 % más fuerte cuando el visor iba peor—, y en los pasos sobrantes golpeaba con el
+     mazo parado. Ahora el camino de la mano se reparte entre los pasos del fotograma: el mismo
+     golpe pega **lo mismo a 45, 72 y 90**, y sale a `(1 + restitución)` veces la mano, que es
+     la cuenta de un choque de verdad.
+  Los dos tienen su test en `matchLoop.test.ts`; quitando cada arreglo, falla el suyo.
 - [x] Vibración del mando al golpear el disco y en el gol <!-- org:21e1e9e3-c714-4341-9165-49c6ead31d28 -->
 - [x] Hay jugadas que no se acaban nunca con el mazo del jugador parado <!-- org:51dc609f-88b3-4494-b2c8-74f89a4cdff6 -->
 - [x] El triángulo de «jugar» del menú del visor apunta hacia abajo <!-- org:7c94674a-818f-400d-81a4-11c76871baf6 -->

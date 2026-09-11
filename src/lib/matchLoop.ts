@@ -209,8 +209,17 @@ export function advanceTable(
   let struck = false
   let bounced = false
   let impact: Impact = NO_IMPACT
+  // Con el mazo en la mano, el camino que ha hecho la mano desde el fotograma
+  // anterior se **reparte** entre los pasos de este, en vez de recorrerse entero
+  // en el primero. Es lo que hace que la velocidad del mazo sea la de la mano y
+  // no la de la máquina: metiendo el movimiento de un fotograma en un paso de
+  // 1/60, el mazo iba `60/fps` veces más rápido de lo que iba la mano —a 45
+  // fotogramas por segundo golpeaba un tercio más fuerte, a 90 un tercio más
+  // flojo, y en los pasos sobrantes golpeaba con el mazo parado—.
+  const manoDesde = table.player.position
+  const repartido = steps * STEP_SECONDS
   for (let i = 0; i < steps; i++) {
-    const step = advanceStep(current, input, STEP_SECONDS)
+    const step = advanceStep(current, input, STEP_SECONDS, camino(manoDesde, input, repartido / pending, (i + 1) / steps))
     current = step.table
     if (step.goal != null) goals.push(step.goal)
     struck = struck || step.struck
@@ -233,11 +242,30 @@ interface StepOutcome {
 /** Un paso en el que no pasa nada digno de contarse. */
 const QUIET = { goal: null, struck: false, bounced: false, impact: NO_IMPACT } as const
 
+/**
+ * Hasta dónde ha llegado la mano en el paso `parte` de los de este fotograma.
+ *
+ * `avance` es la porción del fotograma que se llega a simular: lo que sobra sin
+ * llenar un paso lo juega el fotograma siguiente, así que ese trozo de camino
+ * tampoco se recorre todavía. Sin mazo en la mano no hay camino que repartir:
+ * el puntero es el destino y el mazo va detrás a su propio ritmo.
+ */
+function camino(desde: Vec2, { pointer, inHand = false }: FrameInput, avance: number, parte: number): Vec2 {
+  if (!inHand) return pointer
+  const t = avance * parte
+  return {
+    x: desde.x + (pointer.x - desde.x) * t,
+    z: desde.z + (pointer.z - desde.z) * t,
+  }
+}
+
 /** Un paso de simulación: lo que de verdad mueve la mesa. */
 function advanceStep(
   table: TableState,
-  { pointer, skill, playing, inHand = false }: FrameInput,
+  { skill, playing, inHand = false }: FrameInput,
   dt: number,
+  /** A dónde va el mazo del jugador en este paso. */
+  pointer: Vec2,
 ): StepOutcome {
   const player = movePlayer(table.player, pointer, dt, inHand)
 

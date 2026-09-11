@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   GOAL_PAUSE_SECONDS,
+  MALLET_RESTITUTION,
   MAX_PUCK_SPEED,
   OPPONENT_SKILLS,
   PLAYER_MALLET_SPEED,
@@ -519,6 +520,86 @@ describe('el mazo cogido con la mano', () => {
     )
     expect(recorrido).toBeGreaterThan(0)
     expect(recorrido).toBeLessThan(0.1)
+  })
+
+  /**
+   * Lo que sigue mide las dos cosas que se rompieron al meter el mazo en la mano, y que no
+   * se pueden ver desde una pantalla porque con el ratón no pasan: allí el mazo persigue con
+   * un tope de velocidad y todo esto se cumple solo.
+   */
+  const DISCO_QUIETO: Vec2 = { x: 0, z: 0.5 }
+  /** Desde dónde arranca la mano, a la izquierda del disco y a su altura. */
+  const ARRANQUE: Vec2 = { x: -0.45, z: 0.5 }
+
+  /** Barre la mano en línea recta por encima del disco parado. */
+  function manotazo({
+    velocidad,
+    fps,
+    fase = 0,
+  }: {
+    /** A cuántos metros por segundo va la mano. */
+    velocidad: number
+    fps: number
+    /** Un empujón inicial: mueve el barrido dentro del paso de simulación. */
+    fase?: number
+  }): { tocado: boolean; salida: number } {
+    const dt = 1 / fps
+    let mesa: TableState = {
+      ...startTable({ skill, lastScorer: null }),
+      puck: { position: DISCO_QUIETO, velocity: { x: 0, z: 0 } },
+      player: { position: ARRANQUE, velocity: { x: 0, z: 0 } },
+    }
+    let x = ARRANQUE.x + fase
+    for (let i = 0; i < Math.ceil(0.95 / velocidad / dt) + 3; i++) {
+      x += velocidad * dt
+      mesa = advanceTable(mesa, frame(dt, { pointer: { x, z: ARRANQUE.z }, inHand: true })).table
+      if (mesa.playerHits > 0) {
+        return { tocado: true, salida: Math.hypot(mesa.puck.velocity.x, mesa.puck.velocity.z) }
+      }
+    }
+    return { tocado: false, salida: 0 }
+  }
+
+  /** Veinte barridos iguales, desplazados dentro del paso de simulación. */
+  const FASES = Array.from({ length: 20 }, (_, i) => (i / 20) * 0.02)
+
+  it('un manotazo rápido no atraviesa el disco sin tocarlo', () => {
+    // El contacto entre mazo y disco mide 11,6 cm. Una mano a 9 m/s recorre 20 cm en un
+    // paso de 1/60, así que el mazo aparecía al otro lado sin haberlo rozado: medido, a 45
+    // fotogramas por segundo un barrido a 7 m/s fallaba **siempre** y a 9 el disco se
+    // quedaba quieto siete de cada diez veces. Y dependía de la fase, así que el mismo
+    // golpe unas veces entraba y otras no, que es lo que no se puede jugar.
+    for (const fps of [45, 72, 90]) {
+      for (const velocidad of [6, 9, 12]) {
+        const fallos = FASES.filter((fase) => !manotazo({ velocidad, fps, fase }).tocado)
+        expect(fallos, `${velocidad} m/s a ${fps} fotogramas`).toEqual([])
+      }
+    }
+  })
+
+  it('el mismo manotazo pega igual a 45, 72 y 90 fotogramas', () => {
+    // El mazo recorría el camino de un fotograma entero dentro de un paso de 1/60, así que
+    // su velocidad salía multiplicada por `60/fps`: a 45 pegaba un tercio más fuerte que a
+    // 60 y a 90 un tercio más flojo. La misma mano tiene que pegar lo mismo en las tres.
+    const velocidad = 1.5
+    const salidas = [45, 72, 90].map((fps) => manotazo({ velocidad, fps }).salida)
+    for (const salida of salidas) expect(salida).toBeCloseTo(salidas[0], 2)
+    expect(salidas[0]).toBeGreaterThan(0)
+  })
+
+  it('y pega lo mismo caiga donde caiga dentro del paso', () => {
+    const salidas = FASES.map((fase) => manotazo({ velocidad: 1.5, fps: 90, fase }).salida)
+    expect(Math.max(...salidas) - Math.min(...salidas)).toBeLessThan(0.05)
+  })
+
+  it('la fuerza del golpe es la de la mano, ni más ni menos', () => {
+    // Un choque elástico: el disco sale a `(1 + restitución)` veces lo que va la mano. Es
+    // la cuenta que hace que mover despacio empuje y mover deprisa dispare.
+    for (const velocidad of [0.6, 1.5, 3]) {
+      const { salida } = manotazo({ velocidad, fps: 72 })
+      const esperado = Math.min((1 + MALLET_RESTITUTION) * velocidad, MAX_PUCK_SPEED)
+      expect(salida, `${velocidad} m/s`).toBeCloseTo(esperado, 1)
+    }
   })
 
   it('un golpe con la mano pega con la velocidad de la mano', () => {

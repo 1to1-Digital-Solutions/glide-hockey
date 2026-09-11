@@ -48,14 +48,14 @@
   cambiar. Se apunta porque el repaso fue de los trece: los cinco que lo hacían con el gatillo
   —hachas, baloncesto, bolos, dardos y minigolf— ya lo hacen con el agarre.
 
-- [ ] [alta] El rayo del mando se sigue viendo con el mazo agarrado
+- [ ] [alta] El rayo del mando se sigue viendo con el mazo agarrado <!-- org:73147f52-c503-4d26-b463-a3eb108ed9f6 -->
   Apunta a algún sitio mientras se está sujetando algo, que es justo lo contrario de lo que
   pasa. En cuanto se agarra el objeto, el rayo tendría que apagarse.
-- [ ] [alta] No hay tutorial
+- [ ] [alta] No hay tutorial <!-- org:28c0e6a6-6ad4-4fe9-af13-b5e73d346ff6 -->
   Es de los pocos que no explica su gesto, y el mazo no se entiende mirándolo.
-- [ ] [alta] Las letras del menú de ajustes salen solapadas
+- [ ] [alta] Las letras del menú de ajustes salen solapadas <!-- org:77653e48-ff5d-4b1c-979a-ce9f3c343030 -->
   Con el visor puesto se pisan unas a otras y no ayuda a elegir nada.
-- [ ] [media] La configuración no explica nada antes de empezar
+- [ ] [media] La configuración no explica nada antes de empezar <!-- org:5ec4c247-f584-4b39-a694-90169956253b -->
   Las otras cabinas tienen una línea que dice a qué se juega; esta no.
 
 ## Revisión de mejoras

@@ -92,7 +92,17 @@ describe('si ya se ha visto', () => {
 
     markTutorialSeen(storage)
     expect(tutorialSeen(storage)).toBe(true)
-    expect(storage.getItem(TUTORIAL_SEEN_KEY)).toBe('1')
+  })
+
+  it('lo guardado es la versión de la lección, no un sí', () => {
+    // Por eso subirla la vuelve a enseñar: quien aprendió el gesto del gatillo tiene que
+    // volver a verla ahora que lo que se aprieta es el botón de agarre.
+    const storage = almacen()
+    markTutorialSeen(storage)
+    const guardado = storage.getItem(TUTORIAL_SEEN_KEY)
+
+    expect(guardado).not.toBe('1')
+    expect(tutorialSeen(almacen({ [TUTORIAL_SEEN_KEY]: '1' }))).toBe(false)
   })
 
   it('un valor raro lo vuelve a enseñar', () => {

@@ -110,7 +110,15 @@ export function tutorialFrameAt(elapsed: number): TutorialFrame {
 export const TUTORIAL_SEEN_KEY = 'air-hockey:tutorial-seen'
 
 /** Lo que se escribe cuando ya se ha visto. */
-const SEEN_VALUE = '1'
+/**
+ * Qué se guarda como «ya visto»: **la versión de la lección**, no un sí.
+ *
+ * Cualquier otro valor la vuelve a enseñar, así que subir este número es la forma de que
+ * quien ya la vio la vuelva a ver cuando lo que enseña ha cambiado. La 2 es la del agarre:
+ * la demostración decía «mantén el gatillo» y ahora lo que se aprieta es el botón de agarre,
+ * de modo que quien se quedó con la 1 aprendió un gesto que ya no existe.
+ */
+const SEEN_VALUE = '2'
 
 /**
  * ¿Ya se ha visto la demostración?

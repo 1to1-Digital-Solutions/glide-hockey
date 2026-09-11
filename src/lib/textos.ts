@@ -28,8 +28,8 @@ const ES = {
     'Air hockey contra la máquina: elige el nivel y los goles a los que jugar, y mete el disco en su portería. Juega en el navegador o en realidad mixta (VR/AR).',
 
   // Portada
-  'You against the machine. Move the mallet with the mouse and put the puck in its goal.':
-    'Tú contra la máquina. Mueve el mazo con el ratón y mete el disco en su portería.',
+  'You against the machine. Move the mallet with the mouse and put the puck in its goal. In the headset, take it with the grip button and the mallet follows your hand.':
+    'Tú contra la máquina. Mueve el mazo con el ratón y mete el disco en su portería. Con el visor, cógelo con el botón de agarre y el mazo sigue a tu mano.',
   'Game mode': 'Modo de juego',
   Mode: 'Modo',
   'Machine level': 'Nivel de la máquina',

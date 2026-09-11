@@ -15,7 +15,16 @@ import { CanvasPanel, drawText } from './canvasPanel'
 import { GAME_MODE_ORDER, type GameMode } from '../../lib/gameMode'
 import { LEVEL_COUNT } from '../../lib/levels'
 import { DIFFICULTY_COLORS, PALETTE } from '../../lib/palette'
-import { LEVEL_BAR_BOTTOM, LEVEL_BUTTON, levelBarHeight } from '../../lib/xrMenuLayout'
+import {
+  LEVEL_BAR_BOTTOM,
+  LEVEL_BUTTON,
+  MENU_BUTTON,
+  MENU_PANEL,
+  MENU_ROW,
+  MENU_ROW_LABEL_RISE,
+  MENU_ROW_LABEL_SIZE,
+  levelBarHeight,
+} from '../../lib/xrMenuLayout'
 import { useExit } from '../../game/exit'
 import {
   DIM_COLOR,
@@ -47,10 +56,10 @@ import {
  */
 
 /** Medidas del panel y de sus filas, en metros. */
-const PANEL = { width: 0.78, height: 0.86 }
-const MODE_BUTTON: [number, number] = [0.22, 0.13]
-const SMALL_BUTTON: [number, number] = [0.11, 0.11]
-const PLAY_BUTTON: [number, number] = [0.28, 0.12]
+const PANEL = MENU_PANEL
+const MODE_BUTTON = MENU_BUTTON.mode
+const SMALL_BUTTON = MENU_BUTTON.small
+const PLAY_BUTTON = MENU_BUTTON.play
 
 /**
  * Altura de cada fila dentro del panel.
@@ -61,17 +70,9 @@ const PLAY_BUTTON: [number, number] = [0.28, 0.12]
  * goles —dos planos en la misma z, parpadeando— en cuanto hubiera un récord que
  * enseñar, que es a partir de la primera partida.
  */
-const ROW = { record: 0.39, mode: 0.25, level: 0.05, goals: -0.14, actions: -0.32 }
+const ROW = MENU_ROW
 
-/**
- * Cuánto sube el nombre de una fila por encima de sus botones, en metros.
- *
- * Las filas son iconos y barras, y un icono dice **qué pasa** pero no **de qué es la
- * fila**: cinco barras en línea no se leen como «nivel» hasta que alguien lo dice. El
- * panel creció para hacerles sitio, que quitárselo a los botones es quitárselo a lo que
- * cuesta apuntar.
- */
-const ROW_LABEL_RISE = 0.09
+const ROW_LABEL_RISE = MENU_ROW_LABEL_RISE
 
 
 
@@ -173,7 +174,7 @@ export function XRMenu() {
       ] as const
       for (const [y, nombre] of filas) {
         drawText(ctx, nombre, -PANEL.width / 2 + 0.05, y + ROW_LABEL_RISE, {
-          size: 0.03,
+          size: MENU_ROW_LABEL_SIZE,
           color: DIM_COLOR,
           align: 'left',
           maxWidth: PANEL.width / 2,

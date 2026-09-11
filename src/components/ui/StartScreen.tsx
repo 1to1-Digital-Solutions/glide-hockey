@@ -118,7 +118,7 @@ export function StartScreen() {
           </h1>
           <p className="mt-1.5 text-sm text-white/60">
             {t(
-              'You against the machine. Move the mallet with the mouse and put the puck in its goal.',
+              'You against the machine. Move the mallet with the mouse and put the puck in its goal. In the headset, take it with the grip button and the mallet follows your hand.',
             )}
           </p>
         </header>

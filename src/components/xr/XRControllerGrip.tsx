@@ -9,6 +9,8 @@ import {
 } from '@react-three/xr'
 import type { Object3D } from 'three'
 
+import { useManoOcupada } from './manosOcupadas'
+
 /**
  * El mando dentro del visor: su sitio en el espacio y sus punteros, **sin modelo**.
  *
@@ -26,6 +28,10 @@ import type { Object3D } from 'three'
  *
  * **El puntero de agarre también vuelve.** Es el que usa `stick-rush` para atrapar los
  * palos; apagado, ese juego no se puede jugar.
+ *
+ * **Y el rayo se apaga con algo en la mano** (`manosOcupadas.ts`): con el objeto cogido
+ * seguía encendido apuntando a la pared, como si se estuviera señalando un sitio. Se apaga
+ * el dibujo, no el puntero: soltar y volver a pulsar un botón del menú funciona igual.
  */
 /**
  * Deja apuntado en el estado del mando el objeto que va pegado al puño.
@@ -57,6 +63,7 @@ export function XRControllerGrip({
   rayLength?: number
 }) {
   const state = useXRInputSourceStateContext('controller')
+  const ocupada = useManoOcupada(state.inputSource.handedness as 'left' | 'right' | undefined)
 
   return (
     <>
@@ -76,8 +83,8 @@ export function XRControllerGrip({
         <DefaultXRInputSourceRayPointer
           makeDefault
           minDistance={0.2}
-          rayModel={{ maxLength: rayLength, opacity: 0.35 }}
-          cursorModel
+          rayModel={ocupada ? false : { maxLength: rayLength, opacity: 0.35 }}
+          cursorModel={!ocupada}
         />
       </CombinedPointer>
     </>

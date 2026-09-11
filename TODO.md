@@ -48,15 +48,29 @@
   cambiar. Se apunta porque el repaso fue de los trece: los cinco que lo hacían con el gatillo
   —hachas, baloncesto, bolos, dardos y minigolf— ya lo hacen con el agarre.
 
-- [ ] [alta] El rayo del mando se sigue viendo con el mazo agarrado <!-- org:73147f52-c503-4d26-b463-a3eb108ed9f6 -->
-  Apunta a algún sitio mientras se está sujetando algo, que es justo lo contrario de lo que
-  pasa. En cuanto se agarra el objeto, el rayo tendría que apagarse.
-- [ ] [alta] No hay tutorial <!-- org:28c0e6a6-6ad4-4fe9-af13-b5e73d346ff6 -->
-  Es de los pocos que no explica su gesto, y el mazo no se entiende mirándolo.
-- [ ] [alta] Las letras del menú de ajustes salen solapadas <!-- org:77653e48-ff5d-4b1c-979a-ce9f3c343030 -->
-  Con el visor puesto se pisan unas a otras y no ayuda a elegir nada.
-- [ ] [media] La configuración no explica nada antes de empezar <!-- org:5ec4c247-f584-4b39-a694-90169956253b -->
-  Las otras cabinas tienen una línea que dice a qué se juega; esta no.
+- [x] [alta] El rayo del mando se sigue viendo con el mazo agarrado <!-- org:73147f52-c503-4d26-b463-a3eb108ed9f6 -->
+  Ya se apaga. El bucle del juego apunta qué mano lleva el mazo (`xr/manosOcupadas.ts`) y el
+  mando de ese lado deja de dibujar su rayo y su cursor. Se apaga **el dibujo, no el
+  puntero**: soltar el mazo y volver a pulsar un botón del menú funciona igual. Y al quitar
+  la escena se sueltan las dos, o el rayo se quedaría apagado en el arco, que es lo único con
+  lo que se elige cabina.
+- [x] [alta] No hay tutorial <!-- org:28c0e6a6-6ad4-4fe9-af13-b5e73d346ff6 -->
+  Haberlo, lo hay: sale entre «empezar» y el saque, la primera vez. Lo que pasaba es que ya
+  se había visto, y lo visto no se repite. Ahora lo guardado es **la versión de la lección**
+  y no un sí, así que subirla la vuelve a enseñar — y había que subirla, porque la
+  demostración decía «mantén el gatillo» y lo que se aprieta ahora es el botón de agarre.
+  Subida también en hachas, baloncesto, bolos, dardos y minigolf, por lo mismo.
+- [x] [alta] Las letras del menú de ajustes salen solapadas <!-- org:77653e48-ff5d-4b1c-979a-ce9f3c343030 -->
+  Se pisaban de verdad, y se puede medir: el rótulo «Modo» llegaba a 0,355 y la banda del
+  récord empezaba en 0,335, así que la palabra se pintaba encima del botón del decorado. El
+  panel ha crecido de 0,86 a 1,00 y las filas se han repartido con aire para sus nombres.
+  Lo vigila `xrMenuLayout.filas.test.ts`, que ordena las bandas de arriba abajo y falla si
+  una entra en la anterior; con las medidas viejas falla señalando exactamente esa.
+- [x] [media] La configuración no explica nada antes de empezar <!-- org:5ec4c247-f584-4b39-a694-90169956253b -->
+  La tenía, pero solo hablaba del ratón: «mueve el mazo con el ratón y mete el disco». Con el
+  visor puesto eso no dice nada, y encima esa pantalla no se ve. Ahora la frase cuenta las dos
+  mitades —con el ratón y con el visor— como en las otras doce, y dentro del visor quien
+  explica el gesto es la demostración, que vuelve a salir (ver arriba).
 
 ## Revisión de mejoras
 

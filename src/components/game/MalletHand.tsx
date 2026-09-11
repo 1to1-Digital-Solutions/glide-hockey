@@ -7,10 +7,11 @@ import { startGrab, stepGrab, type GrabLatch } from '../../lib/agarre'
 import { useGrabMode } from '../../lib/ajustesCliente'
 import type { GrabMode } from '../../lib/ajustes'
 import { isPinching } from '../../lib/pellizco'
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { Vector3, type Group, type Object3D } from 'three'
 
 import { siguienteAgarre, type ManoEnLaMesa } from '../../lib/malletGrab'
+import { marcarManoOcupada, soltarLasManos } from '../xr/manosOcupadas'
 import { constrainMallet, type Vec2 } from '../../lib/puckPhysics'
 
 /**
@@ -78,6 +79,9 @@ export function MalletHand({
     // contaría dos veces y el mazo se cogería y se soltaría en el mismo gesto.
     const conMando = izquierda?.object != null || derecha?.object != null
     let enLaMesa: ManoEnLaMesa | null = null
+    // De qué lado es la mano que manda este fotograma: es lo que apaga el rayo de ESE mando
+    // y no el del otro (ver `xr/manosOcupadas.ts`).
+    let lado: 'left' | 'right' | null = null
 
     if (conMando) {
       const apretado = {
@@ -93,9 +97,10 @@ export function MalletHand({
         const local = grupo.worldToLocal(
           punto.current.setFromMatrixPosition(mano.object.matrixWorld),
         )
+        lado = mano === izquierda ? 'left' : 'right'
         enLaMesa = {
           posicion: { x: local.x, z: local.z },
-          agarrando: mano === izquierda ? sujeta.left : sujeta.right,
+          agarrando: sujeta[lado],
         }
       }
     } else {
@@ -112,13 +117,16 @@ export function MalletHand({
         { left: leidas.left?.agarrando ?? false, right: leidas.right?.agarrando ?? false },
         agarre,
       )
-      for (const lado of ['left', 'right'] as const) {
-        const leida = leidas[lado]
+      for (const lado_ of ['left', 'right'] as const) {
+        const leida = leidas[lado_]
         if (leida == null) continue
-        const conAgarre = { ...leida, agarrando: sujeta[lado] }
+        const conAgarre = { ...leida, agarrando: sujeta[lado_] }
         // La que esté agarrando manda; si ninguna, vale la primera que haya para saber si
         // está encima del mazo cuando pellizque.
-        if (conAgarre.agarrando || enLaMesa == null) enLaMesa = conAgarre
+        if (conAgarre.agarrando || enLaMesa == null) {
+          enLaMesa = conAgarre
+          lado = lado_
+        }
       }
     }
 
@@ -128,9 +136,17 @@ export function MalletHand({
     )
     const soltado = cogido.current && !siguiente.cogido
     cogido.current = siguiente.cogido
+    // Con el mazo en la mano, el rayo de ese mando se apaga: apuntar a la pared mientras se
+    // sostiene algo es justo lo contrario de lo que está pasando.
+    marcarManoOcupada('left', siguiente.cogido && lado === 'left')
+    marcarManoOcupada('right', siguiente.cogido && lado === 'right')
     if (siguiente.cogido) onMove(constrainMallet(siguiente.destino, 'player'), true)
     else if (soltado) onRelease()
   })
+
+  // Al quitar la escena —volver al salón, acabar la partida— nadie lleva nada: si no, el
+  // rayo se quedaría apagado en el arco, donde es lo único con lo que se elige cabina.
+  useEffect(() => () => soltarLasManos(), [])
 
   return null
 }

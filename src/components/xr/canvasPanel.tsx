@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { CanvasTexture, SRGBColorSpace } from 'three'
 import { NO_RAYCAST } from '../raycast'
 
@@ -199,16 +200,25 @@ export function CanvasPanel({
   height,
   draw,
   fallbackColor,
+  everyFrame = false,
 }: {
   width: number
   height: number
   draw: (ctx: CanvasRenderingContext2D) => void
   fallbackColor: string
+  /**
+   * El dibujo se mueve solo: se repinta cada fotograma, sin pasar por React.
+   *
+   * Lo pide quien anima algo dentro del panel. Sin esto habría que guardar el avance en
+   * estado y `setState` a noventa hercios repinta el árbol entero del juego noventa veces por
+   * segundo, que es como se veía: la pantalla parpadeando y sin poder elegir nada.
+   */
+  everyFrame?: boolean
 }) {
   const canvas = usePanelCanvas(width, height)
   const texture = useRef<CanvasTexture>(null)
 
-  usePintarAntesDeVer(() => {
+  const pintar = useCallback(() => {
     const ctx = canvas?.getContext('2d')
     if (canvas == null || ctx == null) return
 
@@ -224,6 +234,19 @@ export function CanvasPanel({
     const map = texture.current
     if (map != null) map.needsUpdate = true
   }, [canvas, draw])
+
+  usePintarAntesDeVer(() => {
+    if (everyFrame) return
+    pintar()
+  }, [everyFrame, pintar])
+
+  // Un panel que se anima se repinta **por fotograma y sin pasar por React**. Es para lo que
+  // existe `everyFrame`: la demostración del gesto movía su dibujo guardando el avance en
+  // estado, y un `setState` a noventa hercios repinta el árbol entero del juego noventa veces
+  // por segundo. Eso es lo que se veía como «la pantalla parpadea y no deja seleccionar nada».
+  useFrame(() => {
+    if (everyFrame) pintar()
+  })
 
   return (
     <mesh raycast={NO_RAYCAST}>

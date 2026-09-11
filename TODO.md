@@ -39,10 +39,14 @@
   El HUD pinta estrellas, nivel desbloqueado o récord en silencio: solo se repite el último sonido
   normal de la partida. Comparte el hueco con ping-pong, whack-a-mole, bow-shooting, skeet y
   stick-rush.
-- [ ] Sin techo ni fondo de cielo jugando desde su propia web
-  `components/game/Room.tsx` levanta paredes de 3,4-4 m pero no techo, y `GameCanvas.tsx` no fija
-  `<color attach="background">`. En realidad virtual, mirar por encima de las paredes enseña el
-  negro del compositor. Dentro del salón no pasa: el hub sí lo pone.
+- [x] Sin techo ni fondo de cielo jugando desde su propia web
+  Ya hay techo, y sobre todo hay fondo: lo pone el juego con `Backdrop`, no el `<Canvas>`.
+  **Dentro del salón sí pasaba**, al revés de lo que decía esta nota: el `Entorno` del hub se
+  retira al entrar en la cabina, así que un juego sin fondo propio se quedaba igual de negro
+  allí que aquí.
+  El atajo `<color attach="background">` no habría servido: adjunta el color a **su padre**, y
+  aquí el padre es un grupo, donde no significa nada —ni falla ni avisa—. Lo vigila
+  `e2e/sala.spec.ts`, mirando con qué color se limpia el lienzo.
 
 ## Del visor — segunda ronda
 

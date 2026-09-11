@@ -233,8 +233,8 @@ export function Rink({
       ) : null}
 
       <Puck ref={puckObject} speedRef={puckSpeed} environment={environment} />
-      <Mallet ref={playerObject} color={PALETTE.primary} />
-      <Mallet ref={opponentObject} color={PALETTE.rival} />
+      <Mallet ref={playerObject} color={PALETTE.primary} environment={environment} />
+      <Mallet ref={opponentObject} color={PALETTE.rival} environment={environment} />
 
       <pointLight
         ref={goalLight}

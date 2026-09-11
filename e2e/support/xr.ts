@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test'
-import { TUTORIAL_SEEN_KEY } from '../../src/lib/tutorial'
+import { TUTORIAL_SEEN_KEY, TUTORIAL_SEEN_VALUE } from '../../src/lib/tutorial'
 import { XR_EMULATOR_BUNDLE } from './globalSetup'
 
 interface XRTestApi {
@@ -78,16 +78,19 @@ export async function startGameInsideSession(page: Page, attempts = 8) {
  * no sabe todavía el gesto no juega (ver `lib/gameStore.ts`). Un test que va a hacer el
  * gesto no está probando eso, y esperar seis segundos en cada uno solo alarga la suite.
  *
- * Lo que se escribe es lo mismo que escribe el juego al terminarla (`lib/tutorial.ts`), y
- * por eso la clave se importa de ahí en vez de copiarse.
+ * Lo que se escribe es lo mismo que escribe el juego al terminarla (`lib/tutorial.ts`), y por
+ * eso **la clave y el valor** se importan de ahí en vez de copiarse. El valor es la versión de
+ * la lección: se copiaba a mano como `'1'`, y en cuanto se subió a `'2'` —la demostración pasó
+ * a enseñar el botón de agarre en vez del gatillo— los tests dejaron de saltársela y se
+ * quedaron esperando seis segundos a una explicación.
  */
 export async function skipTutorial(page: Page) {
-  await page.addInitScript((key: string) => {
+  await page.addInitScript(([key, value]: readonly string[]) => {
     try {
-      window.localStorage.setItem(key, '1')
+      window.localStorage.setItem(key!, value!)
     } catch {
       // Almacenamiento capado: la demostración saldrá, y el test que la necesite fuera ya
       // se enterará al no ver el gesto.
     }
-  }, TUTORIAL_SEEN_KEY)
+  }, [TUTORIAL_SEEN_KEY, TUTORIAL_SEEN_VALUE])
 }

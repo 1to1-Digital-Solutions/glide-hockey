@@ -118,7 +118,7 @@ export const TUTORIAL_SEEN_KEY = 'air-hockey:tutorial-seen'
  * la demostración decía «mantén el gatillo» y ahora lo que se aprieta es el botón de agarre,
  * de modo que quien se quedó con la 1 aprendió un gesto que ya no existe.
  */
-const SEEN_VALUE = '2'
+export const TUTORIAL_SEEN_VALUE = '2'
 
 /**
  * ¿Ya se ha visto la demostración?
@@ -130,7 +130,7 @@ const SEEN_VALUE = '2'
 export function tutorialSeen(storage: Pick<Storage, 'getItem'> | null = gameStorage()): boolean {
   if (storage === null) return false
   try {
-    return storage.getItem(TUTORIAL_SEEN_KEY) === SEEN_VALUE
+    return storage.getItem(TUTORIAL_SEEN_KEY) === TUTORIAL_SEEN_VALUE
   } catch {
     // Almacenamiento capado: se enseña otra vez. Ver de más es mejor que no entender.
     return false
@@ -146,7 +146,7 @@ export function tutorialSeen(storage: Pick<Storage, 'getItem'> | null = gameStor
 export function markTutorialSeen(storage: Storage | null = gameStorage()): boolean {
   if (storage === null) return false
   try {
-    storage.setItem(TUTORIAL_SEEN_KEY, SEEN_VALUE)
+    storage.setItem(TUTORIAL_SEEN_KEY, TUTORIAL_SEEN_VALUE)
     return true
   } catch {
     return false

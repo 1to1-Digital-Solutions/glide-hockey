@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { CanvasTexture, SRGBColorSpace } from 'three'
 import { NO_RAYCAST } from '../raycast'
 
@@ -17,6 +17,22 @@ import { NO_RAYCAST } from '../raycast'
  * coordenadas con las que se colocan las cajas que recogen la pulsación—, para
  * que lo que se pinta y lo que se pulsa no puedan separarse.
  */
+
+/**
+ * Pinta el panel **antes** de que se vea, no después.
+ *
+ * El lienzo se borra entero y se vuelve a pintar en cada cambio, y el material del panel es
+ * transparente —las esquinas del rectángulo redondeado lo piden—. Con un efecto normal,
+ * entre el borrado y el repintado cabe un fotograma con el lienzo en blanco: el panel se ve
+ * **transparente**, y en realidad aumentada eso no es negro, es la habitación de quien
+ * juega. Reportado con el visor puesto: «al pulsar un botón es como que el botón desaparece
+ * y se ve mi salón». Un efecto de diseño corre antes de que el navegador pinte, así que ese
+ * hueco no existe.
+ *
+ * En el servidor no hay nada que pintar y `useLayoutEffect` avisaría por consola; el salón
+ * de xrcade prerenderiza la página que contiene el Canvas, así que allí se usa el otro.
+ */
+const usePintarAntesDeVer = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 /** Cuántos píxeles de textura por metro de panel. A un brazo de distancia se lee. */
 export const PANEL_PIXELS_PER_METER = 1024
@@ -192,7 +208,7 @@ export function CanvasPanel({
   const canvas = usePanelCanvas(width, height)
   const texture = useRef<CanvasTexture>(null)
 
-  useEffect(() => {
+  usePintarAntesDeVer(() => {
     const ctx = canvas?.getContext('2d')
     if (canvas == null || ctx == null) return
 

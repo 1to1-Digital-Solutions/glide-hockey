@@ -23,7 +23,8 @@ import { XRMenu } from '../xr/XRMenu'
 import { XRTutorial } from '../xr/XRTutorial'
 import { XRSessionController } from '../xr/XRSessionController'
 import { Rink } from './Rink'
-import { Room } from './Room'
+import { Backdrop } from './Backdrop'
+import { ROOM_BACKDROP, Room } from './Room'
 import { Table } from './Table'
 import { WorldAnchor } from './WorldAnchor'
 import { XRWorldHeight } from '../xr/XRWorldHeight'
@@ -167,7 +168,18 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
       />
 
       <WorldAnchor>
-        {!passthrough ? <Room /> : null}
+        {/* El sitio, y **el fondo del sitio**. El color va aquí y no en el
+            `<Canvas>` por dos razones: en passthrough no puede haber ninguno —un
+            fondo opaco tapa la habitación de verdad— y montado en el salón el
+            hub retira el suyo al entrar en la cabina, así que si el juego no
+            trae el fondo, no lo trae nadie. Sin él, mirar por encima de las
+            paredes enseña el negro del compositor. */}
+        {!passthrough ? (
+          <>
+            <Backdrop color={ROOM_BACKDROP} />
+            <Room />
+          </>
+        ) : null}
 
         <group position={[0, TABLE_HEIGHT, TABLE_CENTER_Z]}>
           <Table environment={environment} />

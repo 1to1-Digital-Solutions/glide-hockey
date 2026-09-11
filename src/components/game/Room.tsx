@@ -30,6 +30,24 @@ const CARPET_STRIPE_COLOR = '#1b2748'
 /** Las paredes y su zócalo. */
 const WALL_COLOR = '#0b1220'
 const WALL_TRIM_COLOR = '#070d17'
+/**
+ * El techo, un punto más oscuro que las paredes.
+ *
+ * **No es decoración.** Sin él, levantar la vista con el visor puesto enseñaba el negro del
+ * compositor: no el negro de una sala a oscuras, sino la nada, que es lo que le dice al ojo
+ * que esto no es un sitio. Cierra la sala por arriba y ya está.
+ */
+const CEILING_COLOR = '#070b14'
+
+/**
+ * El fondo de la escena: lo que se ve donde no hay nada dibujado.
+ *
+ * Sale de aquí y no del `<Canvas>` porque es del sitio, no del anfitrión: montado en el
+ * salón, el hub retira el suyo al entrar en la cabina, y el juego que no traiga el suyo se
+ * queda con el negro del compositor. Del tono del techo, para que el borde de la sala no se
+ * recorte contra él.
+ */
+export const ROOM_BACKDROP = CEILING_COLOR
 /** Los muebles de las máquinas, y la pantalla apagada de cada una. */
 const CABINET_COLOR = '#24304d'
 const SCREEN_COLOR = '#0a1424'
@@ -237,6 +255,15 @@ export function Room() {
         <planeGeometry args={[1, 1]} />
         <meshStandardMaterial color={WALL_TRIM_COLOR} roughness={1} />
       </instancedMesh>
+
+      {/* El techo, que cierra la sala por arriba. Sin él, levantar la vista era
+          ver el negro del compositor —la nada, no una sala a oscuras—, y eso es
+          lo que le dice al ojo que el sitio no es un sitio. Mira hacia abajo
+          (`Math.PI / 2`), o se vería desde fuera y no desde dentro. */}
+      <mesh position={[0, ROOM_HEIGHT, centre]} rotation={[Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[ROOM_WIDTH, ROOM_DEPTH]} />
+        <meshStandardMaterial color={CEILING_COLOR} roughness={1} />
+      </mesh>
 
       {/* Los neones de la pared del fondo: dos rayas de luz, que es lo que se
           ve al levantar la vista en un recreativo. */}

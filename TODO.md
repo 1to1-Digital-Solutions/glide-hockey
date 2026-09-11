@@ -35,6 +35,29 @@
 - [x] Práctica sin fin: partida que no acaba hasta que sales, con récord de racha <!-- org:37e6f302-159b-46e7-9130-5bad022155ab -->
 - [x] Brillo del disco y reflejo de la mesa con un mapa de entorno barato <!-- org:38455675-8fea-4c54-bd3c-cb8e09c76d11 -->
 
+## Del visor — tercera ronda
+
+- [x] [urgente] El botón de volver al arcade estaba en medio de la pantalla
+  Lo ponía el salón además del que trae este juego, colgado de la mirada a metro y pico, así
+  que se quedaba delante de la cara toda la partida y además salía sin preguntar. Retirado en
+  `xrcade`: la salida es la de aquí —el botón de las tres rayitas, fuera de la línea de juego
+  y con su confirmación—, que es lo que ya llamaba a `onExit`.
+
+- [x] [urgente] Los objetos se cogen con el botón de agarre y no con el gatillo
+  Aquí ya se cogía cerrando la mano (`xr-standard-squeeze`), así que no había nada que
+  cambiar. Se apunta porque el repaso fue de los trece: los cinco que lo hacían con el gatillo
+  —hachas, baloncesto, bolos, dardos y minigolf— ya lo hacen con el agarre.
+
+- [ ] [alta] El rayo del mando se sigue viendo con el mazo agarrado
+  Apunta a algún sitio mientras se está sujetando algo, que es justo lo contrario de lo que
+  pasa. En cuanto se agarra el objeto, el rayo tendría que apagarse.
+- [ ] [alta] No hay tutorial
+  Es de los pocos que no explica su gesto, y el mazo no se entiende mirándolo.
+- [ ] [alta] Las letras del menú de ajustes salen solapadas
+  Con el visor puesto se pisan unas a otras y no ayuda a elegir nada.
+- [ ] [media] La configuración no explica nada antes de empezar
+  Las otras cabinas tienen una línea que dice a qué se juega; esta no.
+
 ## Revisión de mejoras
 
 - [x] El reflejo del entorno llega a la mesa pero no al mazo

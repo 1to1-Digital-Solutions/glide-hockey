@@ -13,10 +13,16 @@
 - [x] Música de fondo, con interruptor propio <!-- org:1861b239-ccc9-4cb1-a805-f4b4be0d197c -->
 - [x] Medir la cobertura de los tests y ponerle un suelo <!-- org:834ea662-d9c7-4f14-bfe0-18439ea455d7 -->
 - [x] Cambiar entre el escenario y tu habitación sin salir de la sesión <!-- org:aa66bbbb-1e01-41ff-96fe-b982c006bd83 -->
-- [ ] El mazo se agarra con la mano, no se maneja con el rayo <!-- org:b559d6d8-bf3b-49fa-9958-9a8b4f021b04 -->
+- [x] El mazo se agarra con la mano, no se maneja con el rayo <!-- org:b559d6d8-bf3b-49fa-9958-9a8b4f021b04 -->
+  `MalletHand` lee las dos manos cada fotograma y el mazo va donde va la que lo lleva, con
+  mando o con la mano desnuda. No hay rayo en el mazo: el rayo es del menú.
 - [x] El juego va a cámara lenta por debajo de 30 fps, y el CI está en rojo por eso <!-- org:dbe8773d-2a8d-4b71-8661-f5ea51132645 -->
-- [ ] El botón de volver está en medio de la mesa y estorba <!-- org:1ae6c967-4503-4864-bcbe-8a575e1b3831 -->
-- [ ] El menú es poco intuitivo: repasar su usabilidad <!-- org:47bd9aea-6905-4589-9202-e3f94ffcc1f9 -->
+- [x] El botón de volver está en medio de la mesa y estorba <!-- org:1ae6c967-4503-4864-bcbe-8a575e1b3831 -->
+  Fuera del tablero: cuelga a un palmo del borde largo (`XR_UI.quit`), inclinado hacia quien
+  juega, así que el brazo que va a por el disco no pasa por encima. Y pulsarlo pregunta antes.
+- [x] El menú es poco intuitivo: repasar su usabilidad <!-- org:47bd9aea-6905-4589-9202-e3f94ffcc1f9 -->
+  Cada fila del panel del visor dice de qué es —eran hileras de iconos sin una palabra—, el
+  panel se aparta de la mesa al empezar la partida y salir pregunta antes de perderla.
 - [x] Etiquetar v0.1.0 para que xrcade pueda instalarlo <!-- org:a9e1801d-5e30-4e29-9c98-72e3a10537df -->
 - [x] Dar de alta Air Hockey en el catálogo de xrcade <!-- org:1f04c5f5-0cb2-4954-a7ba-c1ab0b7d00a3 -->
 - [ ] Probar con el visor y decidir cómo se lleva el mazo en VR <!-- org:21be71e0-2f09-4ed1-b78c-e10038d5433a -->

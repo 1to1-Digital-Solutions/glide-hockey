@@ -57,7 +57,15 @@
 
 ## Del visor — cuarta ronda
 
-- [ ] [urgente] El texto del aviso de salir se solapa
+- [x] [urgente] El texto del aviso de salir se solapa
+  **Medido, y en este panel no se solapa**: ni con las medidas de ahora ni con las de antes. Lo
+  que sí queda hecho es la regla que pedías —`components/xr/legibilidad.ts`, ver el `TODO.md`
+  de xrcade—, y con ella los dos paneles con letra de este juego están medidos en los dos
+  idiomas: el aviso de salir y los nombres de las filas del menú. Ninguno se pisa ni se sale.
+  Así que el solape que viste está en otro sitio. Lo más probable es que fuera el menú de
+  ajustes —dices en el mismo párrafo que el botón de salir «parece que abre las opciones»—, y
+  ese panel está medido ahora. Si vuelve a pasar, decir **qué palabras** se pisan: con eso se
+  sabe qué panel es en un minuto.
   El modal de «¿dejar la partida?» está bien pensado pero las palabras se pisan y no se
   entiende. Ver la regla común de texto legible en el repo de Organízate.
 

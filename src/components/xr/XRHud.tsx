@@ -4,7 +4,7 @@ import { useCallback } from 'react'
 
 import { useGame } from '../../lib/gameStore'
 import { useLang } from '../../lib/ajustesCliente'
-import { traductor } from '../../lib/textos'
+import { traductor, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
 import { isEndless } from '../../lib/gameMode'
 import { PALETTE } from '../../lib/palette'
@@ -237,7 +237,7 @@ export function XRQuitButton() {
 }
 
 /** Lo que ocupa el aviso, en metros. */
-const CONFIRM_SIZE: [number, number] = [0.72, 0.36]
+export const CONFIRM_SIZE: [number, number] = [0.72, 0.36]
 
 /** Sus dos botones, en coordenadas del propio aviso. */
 const CONFIRM_BOXES = {
@@ -260,37 +260,44 @@ const CONFIRM_BOXES = {
  * Es la única parte de la interfaz inmersiva de este juego con letras. El resto son cifras
  * y placas de color a propósito, pero una pregunta no se dibuja: hay que leerla.
  */
+/**
+ * Lo que pone el aviso, fuera del componente **para poder medirlo**.
+ *
+ * Un panel del visor se pinta en un lienzo que nadie mira al tamaño al que se lee, así que
+ * un texto que se sale o dos que se pisan solo se descubren con las gafas puestas — y así
+ * se descubrió este. Sacado aquí, `legibilidad.test.ts` lo escribe en un lienzo que apunta
+ * y comprueba que ni se pisa ni se sale.
+ */
+export function dibujarElAviso(ctx: CanvasRenderingContext2D, t: (clave: TextKey) => string): void {
+  drawParagraph(ctx, t('Leave the game?'), 0, 0.1, {
+    size: 0.05,
+    color: PALETTE.foreground,
+    weight: '700',
+    maxWidth: CONFIRM_SIZE[0] - 0.08,
+  })
+  drawParagraph(ctx, t('You lose the goals you have scored.'), 0, 0.005, {
+    size: 0.034,
+    color: DIM_COLOR,
+    maxWidth: CONFIRM_SIZE[0] - 0.08,
+  })
+  drawText(ctx, t('Leave'), CONFIRM_BOXES.leave.position[0], CONFIRM_BOXES.leave.position[1], {
+    size: 0.034,
+    color: PALETTE.foreground,
+    maxWidth: CONFIRM_BOXES.leave.size[0] - 0.03,
+  })
+  drawText(ctx, t('Keep playing'), CONFIRM_BOXES.stay.position[0], CONFIRM_BOXES.stay.position[1], {
+    size: 0.034,
+    color: PALETTE.background,
+    weight: '700',
+    maxWidth: CONFIRM_BOXES.stay.size[0] - 0.03,
+  })
+}
+
 export function XRQuitConfirm() {
   const { prompt, resetGame, keepPlaying } = useGame()
   const t = traductor(useLang())
 
-  const escribir = useCallback(
-    (ctx: CanvasRenderingContext2D) => {
-      drawParagraph(ctx, t('Leave the game?'), 0, 0.09, {
-        size: 0.05,
-        color: PALETTE.foreground,
-        weight: '700',
-        maxWidth: CONFIRM_SIZE[0] - 0.08,
-      })
-      drawParagraph(ctx, t('You lose the goals you have scored.'), 0, 0.01, {
-        size: 0.034,
-        color: DIM_COLOR,
-        maxWidth: CONFIRM_SIZE[0] - 0.08,
-      })
-      drawText(ctx, t('Leave'), CONFIRM_BOXES.leave.position[0], CONFIRM_BOXES.leave.position[1], {
-        size: 0.034,
-        color: PALETTE.foreground,
-        maxWidth: CONFIRM_BOXES.leave.size[0] - 0.03,
-      })
-      drawText(ctx, t('Keep playing'), CONFIRM_BOXES.stay.position[0], CONFIRM_BOXES.stay.position[1], {
-        size: 0.034,
-        color: PALETTE.background,
-        weight: '700',
-        maxWidth: CONFIRM_BOXES.stay.size[0] - 0.03,
-      })
-    },
-    [t],
-  )
+  const escribir = useCallback((ctx: CanvasRenderingContext2D) => dibujarElAviso(ctx, t), [t])
 
   if (prompt !== 'quit') return null
 

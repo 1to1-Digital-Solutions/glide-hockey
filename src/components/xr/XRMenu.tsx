@@ -10,7 +10,7 @@ import {
 } from '../../lib/gameConfig'
 import { useGame } from '../../lib/gameStore'
 import { useLang } from '../../lib/ajustesCliente'
-import { traductor } from '../../lib/textos'
+import { traductor, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawText } from './canvasPanel'
 import { GAME_MODE_ORDER, type GameMode } from '../../lib/gameMode'
 import { LEVEL_COUNT } from '../../lib/levels'
@@ -130,6 +130,33 @@ function ModeIcon({ mode, lit }: { mode: GameMode; lit: boolean }) {
   )
 }
 
+/**
+ * De qué es cada fila del menú, fuera del componente **para poder medirlo**.
+ *
+ * Los rótulos de este menú ya se pisaron una vez —«Modo» se pintaba encima del botón del
+ * récord— y eso no se ve desde una pantalla. Sacado aquí, `legibilidad.test.ts` los escribe
+ * en un lienzo que apunta y comprueba que ninguno se pisa con otro ni se sale del panel.
+ */
+export function dibujarLosNombres(
+  ctx: CanvasRenderingContext2D,
+  t: (clave: TextKey) => string,
+  levels: boolean,
+): void {
+  const filas = [
+    [ROW.mode, t('Mode')],
+    [ROW.level, t('Level')],
+    [ROW.goals, levels ? t('Stage') : t('Goals')],
+  ] as const
+  for (const [y, nombre] of filas) {
+    drawText(ctx, nombre, -PANEL.width / 2 + 0.05, y + ROW_LABEL_RISE, {
+      size: MENU_ROW_LABEL_SIZE,
+      color: DIM_COLOR,
+      align: 'left',
+      maxWidth: PANEL.width / 2,
+    })
+  }
+}
+
 export function XRMenu() {
   const {
     gameMode,
@@ -166,21 +193,7 @@ export function XRMenu() {
   // cabe una letra. La tercera fila cambia de pregunta con el modo, así que cambia de
   // nombre con ella.
   const nombrarFilas = useCallback(
-    (ctx: CanvasRenderingContext2D) => {
-      const filas = [
-        [ROW.mode, t('Mode')],
-        [ROW.level, t('Level')],
-        [ROW.goals, levels ? t('Stage') : t('Goals')],
-      ] as const
-      for (const [y, nombre] of filas) {
-        drawText(ctx, nombre, -PANEL.width / 2 + 0.05, y + ROW_LABEL_RISE, {
-          size: MENU_ROW_LABEL_SIZE,
-          color: DIM_COLOR,
-          align: 'left',
-          maxWidth: PANEL.width / 2,
-        })
-      }
-    },
+    (ctx: CanvasRenderingContext2D) => dibujarLosNombres(ctx, t, levels),
     [levels, t],
   )
 

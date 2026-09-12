@@ -16,7 +16,7 @@ import {
   tutorialStep,
   type TutorialStepKey,
 } from '../../lib/tutorial'
-import { CanvasPanel, drawParagraph, drawText, roundedRect } from './canvasPanel'
+import { CanvasPanel, drawParagraph, drawText, roundedRect, alturaDelParrafo } from './canvasPanel'
 import { dibujarMando } from './mandoDibujado'
 import { NO_RAYCAST } from '../raycast'
 
@@ -39,9 +39,13 @@ import { NO_RAYCAST } from '../raycast'
  * El guion vive en `lib/tutorial.ts`, probado sin navegador; aquí solo se pinta y se escucha.
  */
 
-/** Medidas del panel, en metros. Como el del menú de ancho, más alto: ahora lleva botones. */
-const PANEL_WIDTH = 0.78
-const PANEL_HEIGHT = 0.5
+/**
+ * Medidas del panel, en metros. Como el del menú de ancho, y bastante más alto: lleva
+ * contador, frase, el mando dibujado y dos botones, y la frase ocupa **tres líneas en
+ * español donde ocupa dos en inglés**.
+ */
+export const PANEL_WIDTH = 0.78
+export const PANEL_HEIGHT = 0.62
 
 /** Dónde se planta: a un brazo, a la altura de la vista y algo a la derecha de la diana. */
 const POSITION: [number, number, number] = [0.34, 1.5, -1.05]
@@ -55,7 +59,7 @@ const BOTONES = [
 ]
 
 /** Lo que se pide en cada paso. */
-const FRASES: Record<TutorialStepKey, TextKey> = {
+export const FRASES: Record<TutorialStepKey, TextKey> = {
   grab: 'Close your hand on the mallet to pick it up',
   hit: 'Push the puck with it',
   goal: 'Score a goal',
@@ -66,10 +70,88 @@ const FRASES: Record<TutorialStepKey, TextKey> = {
  * pantalla que explica el gesto: enseñar el de mantener a quien no puede mantener nada sería
  * explicarle el juego al revés.
  */
-const FRASES_CON_UN_TOQUE: Record<TutorialStepKey, TextKey> = {
+export const FRASES_CON_UN_TOQUE: Record<TutorialStepKey, TextKey> = {
   grab: 'Press the grip button on the mallet to pick it up',
   hit: 'Push the puck with it',
   goal: 'Score a goal',
+}
+
+/** Cómo se llama la frase, para medirla igual que se pinta. */
+const FRASE = { size: 0.042, maxWidth: PANEL_WIDTH - 0.1 }
+
+/**
+ * Dónde cae cada cosa en el panel de un paso.
+ *
+ * Se calcula y no se escribe a mano porque **la frase no ocupa lo mismo en los dos
+ * idiomas**: la misma línea son dos renglones en inglés y tres en español, y el mando
+ * dibujado tiene que bajar con ella. Sale de aquí y no de dentro del dibujo para que
+ * el test pueda comprobar los mismos números que se pintan, y no una copia suya.
+ */
+export function repartoDelPaso(
+  ctx: CanvasRenderingContext2D,
+  step: TutorialStepKey,
+  frases: Record<TutorialStepKey, TextKey>,
+  t: (clave: TextKey) => string,
+): { techoDeLaFrase: number; sueloDeLaFrase: number; mando: number } {
+  const techoDeLaFrase = PANEL_HEIGHT / 2 - 0.13
+  const sueloDeLaFrase = techoDeLaFrase - alturaDelParrafo(ctx, t(frases[step]), FRASE)
+  const techoDeLosBotones = BOTON.y + BOTON.height / 2
+  return { techoDeLaFrase, sueloDeLaFrase, mando: (sueloDeLaFrase + techoDeLosBotones) / 2 }
+}
+
+/**
+ * El panel del tutorial: el paso por el que va, lo que pide, el botón del mando que
+ * lo hace y los dos botones de abajo. Sale del componente para que un test lo pueda
+ * medir con un lienzo de mentira —`legibilidad.ts`—: es texto que nadie ha visto aún
+ * con el visor puesto, y la frase larga en español es donde se sale.
+ */
+export function dibujarElPaso(
+  ctx: CanvasRenderingContext2D,
+  step: TutorialStepKey | null,
+  frases: Record<TutorialStepKey, TextKey>,
+  t: (clave: TextKey) => string,
+): void {
+  roundedRect(ctx, 0, 0, PANEL_WIDTH, PANEL_HEIGHT, 0.02)
+  ctx.fillStyle = PALETTE.background
+  ctx.fill()
+
+  if (step == null) return
+
+  // Por cuál se va, que es lo que dice cuánto queda.
+  drawText(ctx, `${TUTORIAL_STEPS.indexOf(step) + 1}/${TUTORIAL_STEPS.length}`, 0, PANEL_HEIGHT / 2 - 0.05, {
+    size: 0.03,
+    color: DIM_COLOR,
+  })
+
+  // En párrafo y no en una línea: encogida hasta caber de una, la frase quedaba en letra
+  // de dos centímetros y con el visor puesto no se entendía nada.
+  //
+  // **Anclado por arriba**, no centrado: centrado, la frase que pasa de dos líneas a tres
+  // crece hacia arriba y se mete debajo del contador. El español las tiene casi siempre.
+  const reparto = repartoDelPaso(ctx, step, frases, t)
+  drawParagraph(ctx, t(frases[step]), 0, reparto.techoDeLaFrase, {
+    ...FRASE,
+    color: PALETTE.foreground,
+    weight: '600',
+    anchor: 'top',
+  })
+
+  dibujarMando(ctx, 0, reparto.mando, TUTORIAL_BUTTONS[step], {
+    cuerpo: DIM_COLOR,
+    resaltado: PALETTE.foreground,
+  })
+
+  for (const boton of BOTONES) {
+    roundedRect(ctx, boton.x, BOTON.y, BOTON.width, BOTON.height, 0.016)
+    ctx.fillStyle = DIM_COLOR
+    ctx.fill()
+    drawText(ctx, t(boton.texto), boton.x, BOTON.y, {
+      size: 0.032,
+      color: PALETTE.background,
+      weight: '700',
+      maxWidth: BOTON.width - 0.03,
+    })
+  }
 }
 
 export function XRTutorial() {
@@ -105,45 +187,7 @@ export function XRTutorial() {
   }, [setTutorialRunning])
 
   const draw = useCallback(
-    (ctx: CanvasRenderingContext2D) => {
-      roundedRect(ctx, 0, 0, PANEL_WIDTH, PANEL_HEIGHT, 0.02)
-      ctx.fillStyle = PALETTE.background
-      ctx.fill()
-
-      if (step == null) return
-
-      // Por cuál se va, que es lo que dice cuánto queda.
-      drawText(ctx, `${TUTORIAL_STEPS.indexOf(step) + 1}/${TUTORIAL_STEPS.length}`, 0, PANEL_HEIGHT / 2 - 0.05, {
-        size: 0.03,
-        color: DIM_COLOR,
-      })
-
-      // En párrafo y no en una línea: encogida hasta caber de una, la frase quedaba en letra
-      // de dos centímetros y con el visor puesto no se entendía nada.
-      drawParagraph(ctx, t(frases[step]), 0, PANEL_HEIGHT / 2 - 0.13, {
-        size: 0.042,
-        color: PALETTE.foreground,
-        weight: '600',
-        maxWidth: PANEL_WIDTH - 0.1,
-      })
-
-      dibujarMando(ctx, 0, -0.03, TUTORIAL_BUTTONS[step], {
-        cuerpo: DIM_COLOR,
-        resaltado: PALETTE.foreground,
-      })
-
-      for (const boton of BOTONES) {
-        roundedRect(ctx, boton.x, BOTON.y, BOTON.width, BOTON.height, 0.016)
-        ctx.fillStyle = DIM_COLOR
-        ctx.fill()
-        drawText(ctx, t(boton.texto), boton.x, BOTON.y, {
-          size: 0.032,
-          color: PALETTE.background,
-          weight: '700',
-          maxWidth: BOTON.width - 0.03,
-        })
-      }
-    },
+    (ctx: CanvasRenderingContext2D) => dibujarElPaso(ctx, step, frases, t),
     [step, frases, t],
   )
 

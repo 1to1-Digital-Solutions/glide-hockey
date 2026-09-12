@@ -45,6 +45,17 @@ describe('el lienzo que apunta', () => {
     expect([...alturas].sort((a, b) => b - a)).toEqual(alturas)
   })
 
+  it('devolver la transformación deja lo siguiente en las coordenadas del panel', () => {
+    const { ctx, escritos } = lienzoQueApunta()
+    // Un trozo del panel se pinta desplazado —el mando dibujado, un marcador— y
+    // luego se vuelve. Lo que se escriba después no puede arrastrar ese desplazamiento.
+    ctx.translate(0.3, 0.2)
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    drawText(ctx, 'Salir', 0, 0, { size: 0.04, color: '#fff' })
+    expect(escritos[0].x).toBeCloseTo(0, 6)
+    expect(escritos[0].y).toBeCloseTo(0, 6)
+  })
+
   it('coloca según la alineación: a la izquierda empieza donde se le dice', () => {
     const { ctx, escritos } = lienzoQueApunta()
     drawText(ctx, 'Modo', -0.3, 0, { size: 0.03, color: '#fff', align: 'left' })

@@ -17,6 +17,8 @@
  * Todo en metros, que es como están escritas las medidas de los paneles.
  */
 
+import { ALTO_DE_LINEA } from './canvasPanel'
+
 /**
  * Lo ancho que es una letra respecto a su alto, en la tipografía del sistema.
  *
@@ -26,15 +28,6 @@
  * como mucho obliga a dejar un dedo más de aire.
  */
 const AVANCE = 0.62
-
-/**
- * Alto de la caja de una línea respecto al tamaño de la letra.
- *
- * No es 1: entre el alto declarado y lo que ocupan de verdad las mayúsculas y los
- * rabos de las letras hay aire, y contarlo entero daría por pisadas dos líneas
- * que se leen perfectamente.
- */
-const ALTO_DE_LINEA = 0.8
 
 /**
  * Lo más pequeña que puede salir una letra, en metros.
@@ -92,6 +85,8 @@ export function lienzoQueApunta(): { ctx: CanvasRenderingContext2D; escritos: Es
     fillStyle: '',
     strokeStyle: '',
     lineWidth: 0,
+    lineCap: 'butt' as CanvasLineCap,
+    lineJoin: 'miter' as CanvasLineJoin,
     textAlign: 'center' as CanvasTextAlign,
     textBaseline: 'alphabetic' as CanvasTextBaseline,
     save: () => {
@@ -120,8 +115,16 @@ export function lienzoQueApunta(): { ctx: CanvasRenderingContext2D; escritos: Es
             : estado.x + x
       escritos.push({ texto, x: centro, y: estado.y, ancho, alto: alto * ALTO_DE_LINEA })
     },
-    // Lo que dibuja formas no se apunta: aquí se revisa el texto.
+    // Devolver la transformación a la de partida es lo único que se sigue de
+    // las formas: lo escrito después va en las coordenadas del lienzo, no en las
+    // del trozo que se estuviera pintando.
+    setTransform: () => {
+      estado = { ...estado, x: 0, y: 0, escalaY: 1 }
+    },
+    // Lo demás que dibuja formas no se apunta: aquí se revisa el texto.
     clearRect: () => {},
+    fillRect: () => {},
+    strokeRect: () => {},
     beginPath: () => {},
     closePath: () => {},
     moveTo: () => {},

@@ -58,6 +58,17 @@ function usePanelCanvas(width: number, height: number): HTMLCanvasElement | null
  * El texto se pinta siempre con la `y` hacia abajo, así que hay que deshacer la
  * inversión justo aquí y solo aquí; si no, todo saldría del revés.
  */
+/**
+ * Lo que ocupa de alto la caja de una línea, en fracción del tamaño pedido.
+ *
+ * No es el tamaño entero: entre las mayúsculas de un renglón y los rabos de las
+ * letras del de abajo hay aire, y contarlo entero daría por pisadas dos líneas que
+ * se leen perfectamente. Lo usa quien coloca —para saber cuánto baja lo siguiente—
+ * y lo usa el instrumento que mide (`legibilidad.ts`), que lee esta misma y no una
+ * copia: dos copias acabarían midiendo algo distinto de lo que se pinta.
+ */
+export const ALTO_DE_LINEA = 0.8
+
 export function drawText(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -152,24 +163,65 @@ export function drawParagraph(
     weight = '600',
     maxWidth,
     lineHeight = 1.35,
+    anchor = 'middle',
   }: {
     size: number
     color: string
     weight?: string
     maxWidth: number
     lineHeight?: number
+    /**
+     * Dónde cae la `y` que se le da: en el centro del bloque (lo de siempre) o en su
+     * **borde de arriba**.
+     *
+     * Centrado, un párrafo que pasa de dos líneas a tres crece hacia arriba y se
+     * mete en lo que tenga encima —y con el visor puesto eso es un rótulo pisado
+     * que nadie ve hasta la sesión de pruebas—. Anclado arriba, crece solo hacia
+     * abajo y quien lo coloca sabe cuánto ocupa (`alturaDelParrafo`).
+     */
+    anchor?: 'middle' | 'top'
   },
 ): void {
+  const lineas = medirLineas(ctx, text, { size, weight, maxWidth })
+  const paso = size * lineHeight
+  const centrado = y + (paso * (lineas.length - 1)) / 2
+  const arriba = anchor === 'top' ? y - (size * ALTO_DE_LINEA) / 2 : centrado
+  lineas.forEach((linea, index) => {
+    drawText(ctx, linea, x, arriba - index * paso, { size, color, weight })
+  })
+}
+
+/** En cuántas líneas se reparte un texto, sin pintarlo. */
+function medirLineas(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  { size, weight, maxWidth }: { size: number; weight: string; maxWidth: number },
+): string[] {
   ctx.save()
   ctx.font = `${weight} ${size}px system-ui, sans-serif`
   const lineas = wrapText(ctx, text, maxWidth)
   ctx.restore()
+  return lineas
+}
 
-  const paso = size * lineHeight
-  const arriba = y + (paso * (lineas.length - 1)) / 2
-  lineas.forEach((linea, index) => {
-    drawText(ctx, linea, x, arriba - index * paso, { size, color, weight })
-  })
+/**
+ * Cuánto ocupa un párrafo de alto, para poder colocar lo que va debajo.
+ *
+ * Hay que medirlo y no suponerlo: el mismo texto ocupa dos líneas en inglés y tres
+ * en español, y lo de debajo tiene que bajar con él.
+ */
+export function alturaDelParrafo(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  {
+    size,
+    weight = '600',
+    maxWidth,
+    lineHeight = 1.35,
+  }: { size: number; weight?: string; maxWidth: number; lineHeight?: number },
+): number {
+  const lineas = medirLineas(ctx, text, { size, weight, maxWidth })
+  return (lineas.length - 1) * size * lineHeight + size * ALTO_DE_LINEA
 }
 
 /** Un rectángulo con las esquinas redondeadas, que es la forma de todo aquí. */

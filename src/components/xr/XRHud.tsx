@@ -236,14 +236,23 @@ export function XRQuitButton() {
   )
 }
 
-/** Lo que ocupa el aviso, en metros. */
-export const CONFIRM_SIZE: [number, number] = [0.72, 0.36]
+/** Lo que ocupa el panel, en metros. */
+export const CONFIRM_SIZE: [number, number] = [0.72, 0.42]
 
-/** Sus dos botones, en coordenadas del propio aviso. */
+/**
+ * Sus tres botones, en coordenadas del propio panel.
+ *
+ * **Tres y no dos.** El botón de las tres rayitas dice «opciones» y lo que hacía era
+ * preguntar si salir: reportado con el visor puesto, «el botón de salir parece que abre las
+ * opciones». Ahora abre esto, y salir es una de las cosas que hay dentro — que es el orden
+ * que la gente espera.
+ *
+ * Seguir jugando va el primero y más ancho: es la respuesta que no pierde nada.
+ */
 const CONFIRM_BOXES = {
-  /** Seguir jugando va a la derecha y más grande: es la respuesta que no pierde nada. */
-  stay: hitBox(0.16, -0.09, [0.3, 0.1]),
-  leave: hitBox(-0.18, -0.09, [0.26, 0.1]),
+  stay: hitBox(0, -0.04, [0.44, 0.1]),
+  menu: hitBox(-0.16, -0.16, [0.28, 0.1]),
+  leave: hitBox(0.17, -0.16, [0.26, 0.1]),
 }
 
 /**
@@ -269,21 +278,16 @@ const CONFIRM_BOXES = {
  * y comprueba que ni se pisa ni se sale.
  */
 export function dibujarElAviso(ctx: CanvasRenderingContext2D, t: (clave: TextKey) => string): void {
-  drawParagraph(ctx, t('Leave the game?'), 0, 0.1, {
+  drawParagraph(ctx, t('Leave the game?'), 0, 0.15, {
     size: 0.05,
     color: PALETTE.foreground,
     weight: '700',
     maxWidth: CONFIRM_SIZE[0] - 0.08,
   })
-  drawParagraph(ctx, t('You lose the goals you have scored.'), 0, 0.005, {
-    size: 0.034,
+  drawParagraph(ctx, t('You lose the goals you have scored.'), 0, 0.075, {
+    size: 0.032,
     color: DIM_COLOR,
     maxWidth: CONFIRM_SIZE[0] - 0.08,
-  })
-  drawText(ctx, t('Leave'), CONFIRM_BOXES.leave.position[0], CONFIRM_BOXES.leave.position[1], {
-    size: 0.034,
-    color: PALETTE.foreground,
-    maxWidth: CONFIRM_BOXES.leave.size[0] - 0.03,
   })
   drawText(ctx, t('Keep playing'), CONFIRM_BOXES.stay.position[0], CONFIRM_BOXES.stay.position[1], {
     size: 0.034,
@@ -291,10 +295,21 @@ export function dibujarElAviso(ctx: CanvasRenderingContext2D, t: (clave: TextKey
     weight: '700',
     maxWidth: CONFIRM_BOXES.stay.size[0] - 0.03,
   })
+  drawText(ctx, t('Back to the menu'), CONFIRM_BOXES.menu.position[0], CONFIRM_BOXES.menu.position[1], {
+    size: 0.03,
+    color: PALETTE.foreground,
+    maxWidth: CONFIRM_BOXES.menu.size[0] - 0.03,
+  })
+  drawText(ctx, t('Leave'), CONFIRM_BOXES.leave.position[0], CONFIRM_BOXES.leave.position[1], {
+    size: 0.03,
+    color: PALETTE.foreground,
+    maxWidth: CONFIRM_BOXES.leave.size[0] - 0.03,
+  })
 }
 
 export function XRQuitConfirm() {
   const { prompt, resetGame, keepPlaying } = useGame()
+  const exit = useExit()
   const t = traductor(useLang())
 
   const escribir = useCallback((ctx: CanvasRenderingContext2D) => dibujarElAviso(ctx, t), [t])
@@ -305,7 +320,18 @@ export function XRQuitConfirm() {
     <group>
       <XRPanel width={CONFIRM_SIZE[0]} height={CONFIRM_SIZE[1]} opacity={0.96} />
 
-      <XRPressable box={CONFIRM_BOXES.leave} onSelect={resetGame}>
+      {/* Volver al menú del juego y salirse del todo son cosas distintas, y hasta ahora solo
+          estaba la primera con el nombre de la segunda. */}
+      <XRPressable box={CONFIRM_BOXES.menu} onSelect={resetGame}>
+        <XRPlate
+          width={CONFIRM_BOXES.menu.size[0]}
+          height={CONFIRM_BOXES.menu.size[1]}
+          color={PALETTE.rail}
+          opacity={0.9}
+        />
+      </XRPressable>
+
+      <XRPressable box={CONFIRM_BOXES.leave} onSelect={exit}>
         <XRPlate
           width={CONFIRM_BOXES.leave.size[0]}
           height={CONFIRM_BOXES.leave.size[1]}

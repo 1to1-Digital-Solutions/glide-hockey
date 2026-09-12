@@ -69,10 +69,15 @@
   El modal de «¿dejar la partida?» está bien pensado pero las palabras se pisan y no se
   entiende. Ver la regla común de texto legible en el repo de Organízate.
 
-- [ ] [alta] El botón de salir debería abrir las opciones, y salir estar dentro
-  Ahora el botón que parece de salir abre las opciones, así que hace lo que no dice. Que el
-  botón abra las opciones —y lo diga— y que dentro esté el de salir.
-
+- [x] [alta] El botón de salir debería abrir las opciones, y salir estar dentro
+  **Y el icono ya decía «opciones»**: era el de las tres rayitas y lo que hacía era preguntar
+  si salir. De ahí lo de «parece que abre las opciones».
+  Ahora abre un panel con **tres** salidas en vez de dos: seguir jugando —la primera y la más
+  ancha, que es la que no pierde nada—, volver al menú del juego, y salirse del todo. Volver
+  al menú y salir eran cosas distintas y hasta ahora solo estaba la primera con el nombre de
+  la segunda.
+  El panel está medido con la regla de legibilidad en los dos idiomas: ninguno de los cinco
+  textos se pisa ni se sale.
 - [ ] [alta] Los ajustes no tienen texto: el botón de VR/AR no se entiende
   Son iconos sin nombre. El de pasar de realidad virtual a aumentada no hay forma de
   adivinarlo.

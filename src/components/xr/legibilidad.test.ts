@@ -3,6 +3,8 @@ import { drawParagraph, drawText } from './canvasPanel'
 import { CONFIRM_SIZE, dibujarElAviso } from './XRHud'
 import { dibujarLosNombres } from './XRMenu'
 import { MENU_PANEL } from '../../lib/xrMenuLayout'
+import { GAME_MODE_HINTS, GAME_MODE_ORDER } from '../../lib/gameMode'
+import { SCENERY_IDS, SCENERY_LABELS } from '../../lib/scenery'
 import { traductor } from '../../lib/textos'
 import { MIN_ALTO, lienzoQueApunta, problemasDeLegibilidad } from './legibilidad'
 
@@ -115,12 +117,42 @@ describe('los paneles de este juego se leen', () => {
     }
   })
 
-  it('los nombres de las filas del menú', () => {
+  it('los nombres de las filas del menú, con cada modo y cada decorado', () => {
     for (const lang of IDIOMAS) {
       for (const levels of [false, true]) {
+        for (const gameMode of GAME_MODE_ORDER) {
+          for (const scenery of SCENERY_IDS) {
+            const { ctx, escritos } = lienzoQueApunta()
+            dibujarLosNombres(ctx, traductor(lang), levels, gameMode, scenery)
+            const donde = `${lang} ${levels ? 'niveles' : 'práctica'} ${gameMode} ${scenery}`
+            expect(problemasDeLegibilidad(escritos, { panel: MENU_PANEL }), donde).toEqual([])
+          }
+        }
+      }
+    }
+  })
+
+  /**
+   * Y lo que se ha venido a arreglar: dentro del visor los modos eran **solo nombres**
+   * y el interruptor del decorado **solo un icono**. Los dos dicen ya lo que son.
+   */
+  it('dicen qué es el modo elegido y qué decorado está puesto', () => {
+    for (const lang of IDIOMAS) {
+      const t = traductor(lang)
+      for (const gameMode of GAME_MODE_ORDER) {
         const { ctx, escritos } = lienzoQueApunta()
-        dibujarLosNombres(ctx, traductor(lang), levels)
-        expect(problemasDeLegibilidad(escritos, { panel: MENU_PANEL }), `${lang} ${levels}`).toEqual([])
+        dibujarLosNombres(ctx, t, false, gameMode, 'place')
+        const frase = t(GAME_MODE_HINTS[gameMode])
+        expect(escritos.some((e) => frase.startsWith(e.texto.trim())), `${lang} ${gameMode}`).toBe(
+          true,
+        )
+      }
+      for (const scenery of SCENERY_IDS) {
+        const { ctx, escritos } = lienzoQueApunta()
+        dibujarLosNombres(ctx, t, false, 'practice', scenery)
+        expect(escritos.map((e) => e.texto), `${lang} ${scenery}`).toContain(
+          t(SCENERY_LABELS[scenery]),
+        )
       }
     }
   })

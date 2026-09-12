@@ -31,8 +31,20 @@ export function levelBarHeight(index: number, total: number = DIFFICULTY_ORDER.l
   return minimo + (index / (total - 1)) * (maximo - minimo)
 }
 
+/**
+ * Lo que ocupa la línea que explica el modo elegido.
+ *
+ * El panel crece por abajo en vez de apretar las filas: apretarlas las pisaría entre
+ * sí, y eso solo se ve con el visor puesto. Lo de arriba se queda donde estaba, así
+ * que quien ya sabía dónde pulsar lo sigue encontrando en el mismo sitio.
+ */
+export const MENU_HINT_BAND = 0.18
+
 /** El panel del menú, en metros. */
-export const MENU_PANEL = { width: 0.78, height: 1.0 }
+export const MENU_PANEL = { width: 0.78, height: 1.0 + MENU_HINT_BAND }
+
+/** Dónde empieza la línea del modo, por su borde de arriba. */
+export const MENU_HINT_Y = -0.37
 
 /** Lo que mide cada clase de botón del menú. */
 export const MENU_BUTTON = {
@@ -51,11 +63,11 @@ export const MENU_BUTTON = {
  * letras solapadas, y deja el menú sin poder leerse.
  */
 export const MENU_ROW = {
-  record: 0.44,
-  mode: 0.245,
-  level: 0.02,
-  goals: -0.2,
-  actions: -0.38,
+  record: 0.44 + MENU_HINT_BAND / 2,
+  mode: 0.245 + MENU_HINT_BAND / 2,
+  level: 0.02 + MENU_HINT_BAND / 2,
+  goals: -0.2 + MENU_HINT_BAND / 2,
+  actions: -0.38 + MENU_HINT_BAND / 2,
 } as const
 
 /**

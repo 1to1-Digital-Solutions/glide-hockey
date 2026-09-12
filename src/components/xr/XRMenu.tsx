@@ -11,20 +11,22 @@ import {
 import { useGame } from '../../lib/gameStore'
 import { useLang } from '../../lib/ajustesCliente'
 import { traductor, type TextKey } from '../../lib/textos'
-import { CanvasPanel, drawText } from './canvasPanel'
-import { GAME_MODE_ORDER, type GameMode } from '../../lib/gameMode'
+import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
+import { GAME_MODE_HINTS, GAME_MODE_ORDER, type GameMode } from '../../lib/gameMode'
 import { LEVEL_COUNT } from '../../lib/levels'
 import { DIFFICULTY_COLORS, PALETTE } from '../../lib/palette'
 import {
   LEVEL_BAR_BOTTOM,
   LEVEL_BUTTON,
   MENU_BUTTON,
+  MENU_HINT_Y,
   MENU_PANEL,
   MENU_ROW,
   MENU_ROW_LABEL_RISE,
   MENU_ROW_LABEL_SIZE,
   levelBarHeight,
 } from '../../lib/xrMenuLayout'
+import { SCENERY_LABELS, type Scenery } from '../../lib/scenery'
 import { useExit } from '../../game/exit'
 import {
   DIM_COLOR,
@@ -141,6 +143,8 @@ export function dibujarLosNombres(
   ctx: CanvasRenderingContext2D,
   t: (clave: TextKey) => string,
   levels: boolean,
+  gameMode: GameMode = 'practice',
+  scenery: Scenery = 'place',
 ): void {
   const filas = [
     [ROW.mode, t('Mode')],
@@ -155,6 +159,26 @@ export function dibujarLosNombres(
       maxWidth: PANEL.width / 2,
     })
   }
+
+  // El interruptor del decorado era **un icono y nada más**: con las gafas puestas no
+  // hay forma de saber qué hace hasta pulsarlo. Al lado va lo que está puesto ahora —a la
+  // derecha y no debajo: debajo caía justo encima del rótulo «Modo»—.
+  drawText(ctx, t(SCENERY_LABELS[scenery]), -0.28 + MENU_BUTTON.small[0] / 2 + 0.02, ROW.record, {
+    size: 0.024,
+    color: DIM_COLOR,
+    align: 'left',
+    maxWidth: 0.26,
+  })
+
+  // Y qué es el modo elegido. Los tres se llamaban «Práctica», «Niveles» y «Reto» y
+  // nada más: lo que los distingue solo lo contaba la pantalla de la web, que con el
+  // visor puesto no se ve.
+  drawParagraph(ctx, t(GAME_MODE_HINTS[gameMode]), 0, MENU_HINT_Y, {
+    size: 0.024,
+    color: DIM_COLOR,
+    maxWidth: PANEL.width - 0.1,
+    anchor: 'top',
+  })
 }
 
 export function XRMenu() {
@@ -193,8 +217,8 @@ export function XRMenu() {
   // cabe una letra. La tercera fila cambia de pregunta con el modo, así que cambia de
   // nombre con ella.
   const nombrarFilas = useCallback(
-    (ctx: CanvasRenderingContext2D) => dibujarLosNombres(ctx, t, levels),
-    [levels, t],
+    (ctx: CanvasRenderingContext2D) => dibujarLosNombres(ctx, t, levels, gameMode, scenery),
+    [levels, t, gameMode, scenery],
   )
 
   if (gameState !== 'menu') return null

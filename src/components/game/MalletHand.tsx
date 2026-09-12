@@ -13,6 +13,7 @@ import { Vector3, type Group, type Object3D } from 'three'
 import { siguienteAgarre, type ManoEnLaMesa } from '../../lib/malletGrab'
 import { marcarManoOcupada, soltarLasManos } from '../xr/manosOcupadas'
 import { constrainMallet, type Vec2 } from '../../lib/puckPhysics'
+import { useGame } from '../../lib/gameStore'
 
 /**
  * El mazo en la mano, con el visor puesto.
@@ -46,6 +47,7 @@ export function MalletHand({
   /** Se ha soltado: el mazo vuelve a perseguir en vez de ir en la mano. */
   onRelease: () => void
 }) {
+  const { apuntarHito } = useGame()
   const izquierda = useXRInputSourceState('controller', 'left')
   const derecha = useXRInputSourceState('controller', 'right')
   // Y las manos desnudas, que son el otro modo de entrada del visor: sin esto, quien no
@@ -138,6 +140,8 @@ export function MalletHand({
     cogido.current = siguiente.cogido
     // Con el mazo en la mano, el rayo de ese mando se apaga: apuntar a la pared mientras se
     // sostiene algo es justo lo contrario de lo que está pasando.
+    // El primer paso del tutorial se supera cogiendo el mazo de verdad.
+    if (siguiente.cogido) apuntarHito('grab')
     marcarManoOcupada('left', siguiente.cogido && lado === 'left')
     marcarManoOcupada('right', siguiente.cogido && lado === 'right')
     if (siguiente.cogido) onMove(constrainMallet(siguiente.destino, 'player'), true)

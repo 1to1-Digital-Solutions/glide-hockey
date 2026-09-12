@@ -126,21 +126,17 @@ const ES = {
   Leave: 'Salir',
   'Setting up the table…': 'Montando la mesa…',
 
-  // Lo que dice la demostración del gesto, tramo a tramo.
-  'Bring your hand to the mallet and squeeze the side trigger':
-    'Lleva la mano hasta el mazo y aprieta el gatillo lateral',
-  'Held, it goes wherever your hand goes':
-    'Cogido, va donde vaya tu mano',
-  'Let go of the trigger and the mallet stays where it is':
-    'Suelta el gatillo y el mazo se queda donde está',
-
-  // Y lo mismo con «un toque» en vez de manteniendo el gatillo (ver `lib/agarre.ts`).
-  'Bring your hand to the mallet and press the side trigger':
-    'Lleva la mano al mazo y pulsa el gatillo lateral',
-  'It goes wherever your hand goes, with nothing held':
-    'Va a donde vaya tu mano, sin sujetar nada',
-  'Press it again and the mallet stays where it is':
-    'Vuelve a pulsarlo y el mazo se queda donde está',
+  // Lo que pide el tutorial en cada paso, y sus dos salidas.
+  'Close your hand on the mallet to pick it up':
+    'Cierra la mano sobre el mazo para cogerlo',
+  'Push the puck with it':
+    'Empuja el disco con él',
+  'Score a goal':
+    'Marca un gol',
+  'Press the grip button on the mallet to pick it up':
+    'Pulsa el botón de agarre sobre el mazo para cogerlo',
+  Next: 'Siguiente',
+  'Skip tutorial': 'Saltar tutorial',
 } as const
 
 /** Cada frase que el juego sabe decir, escrita como se dice en inglés. */

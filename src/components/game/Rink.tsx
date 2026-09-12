@@ -68,6 +68,7 @@ export function Rink({
   environment?: Texture
 }) {
   const {
+    apuntarHito,
     gameState,
     prompt,
     activeDifficulty,
@@ -149,6 +150,8 @@ export function Rink({
     // Lo que se oye de la mesa, en el orden en que pasa: el mazo lanza el
     // disco, el disco choca donde vaya a chocar y, si entra, se canta el gol.
     // Silenciado, `play` no hace nada (ver `lib/useGameAudio.ts`).
+    // El segundo paso del tutorial: darle al disco. El golpe ya se cuenta aquí.
+    if (next.playerHits > 0) apuntarHito('hit')
     if (struck) play('strike', impactStrength(impact.strike))
     if (bounced) play('bounce', impactStrength(impact.bounce))
     if (goals.length > 0) play('goal')

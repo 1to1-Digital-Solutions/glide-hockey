@@ -1,5 +1,6 @@
 'use client'
 
+import { SIN_HITOS, apuntarHito, type TutorialHitos, type TutorialStepKey } from './tutorial'
 import {
   createContext,
   useCallback,
@@ -117,6 +118,16 @@ export interface GameStore {
   outcome: RunOutcome | null
 
   gameState: GameState
+
+  /**
+   * Lo que quien juega ya ha hecho.
+   *
+   * Lo escriben los mismos sitios que ya apuntan lo que pasa, y lo lee el tutorial: cada paso
+   * suyo se supera **haciéndolo de verdad**, así que no necesita ni pararle el juego a nadie
+   * ni escuchar nada aparte. Se acumula: hacer algo no se deshace.
+   */
+  hitos: TutorialHitos
+  apuntarHito: (hito: TutorialStepKey) => void
   /** Segundos para el saque. Solo tiene sentido en `countdown`. */
   countdown: number
   /**
@@ -210,6 +221,10 @@ export function clampGoalTarget(goals: number): number {
 
 export function useGameStoreValue(): GameStore {
   const [goalTarget, setGoalTargetState] = useState(DEFAULT_GOALS)
+  const [hitos, setHitos] = useState<TutorialHitos>(SIN_HITOS)
+  const anotarHito = useCallback((hito: TutorialStepKey) => {
+    setHitos((actuales) => apuntarHito(actuales, hito))
+  }, [])
   const [difficulty, setDifficulty] = useState<Difficulty>('easy')
   // Se entra en prueba: quien acaba de llegar no tiene por qué estrenarse en un
   // reto que se acaba a la primera derrota. El reto está a un toque, al lado.
@@ -474,6 +489,8 @@ export function useGameStoreValue(): GameStore {
     setRunning(true)
   }, [clearRun, gameMode, endless, selectedLevel])
   const scorePlayer = useCallback(() => {
+    // Y el tercero: marcar.
+    anotarHito('goal')
     setPlayerGoals((value) => value + 1)
     setLastScorer('player')
     // La racha se calcula aquí dentro porque los puntos dependen de ella: leer
@@ -485,7 +502,7 @@ export function useGameStoreValue(): GameStore {
       setPoints((total) => scoreGoal(total, { difficulty: activeDifficulty, streak: next }))
       return next
     })
-  }, [activeDifficulty])
+  }, [activeDifficulty, anotarHito])
 
   const scoreOpponent = useCallback(() => {
     setOpponentGoals((value) => value + 1)
@@ -537,6 +554,8 @@ export function useGameStoreValue(): GameStore {
       isRecord,
       outcome,
       gameState,
+      hitos,
+      apuntarHito: anotarHito,
       countdown,
       malletHeld,
       setMalletHeld,
@@ -607,6 +626,8 @@ export function useGameStoreValue(): GameStore {
       scorePlayer,
       scoreOpponent,
       resetGame,
+      hitos,
+      anotarHito,
     ],
   )
 }

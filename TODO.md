@@ -93,15 +93,11 @@
   usan los paneles—, incluidas las mallas de dentro de un modelo cargado, que no lo heredan
   del `<primitive>`.
 
-- [ ] [alta] El tutorial: botón de siguiente, botón de saltar, y que enseñe el mando
-  **Hecho en hachas, que queda de referencia** (`lib/tutorial.ts`, `xr/mandoDibujado.ts`,
-  `xr/XRTutorial.tsx`). Aquí falta lo mismo, y lo que cambia de un juego a otro son dos cosas:
-  1. **Los pasos y sus hitos**: qué tiene que pasar para dar cada uno por superado. En hachas
-     son coger, lanzar y clavar; aquí serán los suyos.
-  2. **Dónde se apuntan**: en los mismos sitios del store que ya registran lo que pasa, con
-     `apuntarHito`. No hay que escuchar nada ni parar el juego.
-  Lo demás —el dibujo del mando, los dos botones, calcular el paso en vez de guardarlo y subir
-  la versión de la lección— se copia tal cual.
+- [x] [alta] El tutorial: botón de siguiente, botón de saltar, y que enseñe el mando
+  **Hecho, con el modelo de hachas.** Cada paso se supera **haciéndolo** —coger el mazo, darle al disco y marcar—, el juego no se
+  para mientras tanto y el paso se **calcula** de lo que la partida ya apunta (`hitos`), así
+  que no puede discrepar de ella. Dibuja el mando con el botón resaltado, lleva siguiente y
+  saltar, y la versión de la lección sube: quien vio la anterior hará este.
 - [ ] [alta] Los rótulos se solapan y la letra es pequeña y apretada
   Es lo que más se repite en la cuarta ronda y pasa en casi todos: las palabras se pisan y no
   se entiende nada. Ver la regla común en el repo de Organízate: **todo texto que se añada se

@@ -1,118 +1,136 @@
 import { describe, expect, it } from 'vitest'
 import {
-  TUTORIAL_MAX_SECONDS,
-  TUTORIAL_MIN_SECONDS,
-  TUTORIAL_SECONDS,
+  SIN_HITOS,
+  TUTORIAL_BUTTONS,
   TUTORIAL_SEEN_KEY,
+  TUTORIAL_SEEN_VALUE,
   TUTORIAL_STEPS,
+  apuntarHito,
   markTutorialSeen,
-  tutorialFrameAt,
   tutorialSeen,
+  tutorialStep,
+  type TutorialHitos,
 } from './tutorial'
 
-/** Un almacenamiento de mentira, con lo justo. */
-function almacen(inicial: Record<string, string> = {}) {
-  const datos = new Map(Object.entries(inicial))
-  return {
-    getItem: (k: string) => datos.get(k) ?? null,
-    setItem: (k: string, v: string) => void datos.set(k, v),
-  } as unknown as Storage
+/**
+ * El guion del tutorial.
+ *
+ * Lo que se vigila aquí es que **se avance haciendo**. El de antes iba por reloj: se podía
+ * mirar sin hacer nada y al acabar el tiempo se daba por aprendido. Reportado con el visor
+ * puesto: el paso de lanzar no debería pasar hasta que se consiga lo último.
+ *
+ * Y que el paso se **calcule** de lo que ha pasado en la partida en vez de guardarse aparte:
+ * un tutorial que lleva su propia cuenta acaba discrepando del juego.
+ */
+
+/** Los hitos con estos conseguidos. */
+function hechos(...cuales: readonly (keyof TutorialHitos)[]): TutorialHitos {
+  return cuales.reduce(apuntarHito, SIN_HITOS)
 }
 
-/** Uno que lanza al tocarlo, como el de un navegador en modo privado. */
-const roto = {
-  getItem() {
-    throw new Error('bloqueado')
-  },
-  setItem() {
-    throw new Error('bloqueado')
-  },
-} as unknown as Storage
-
-describe('el guion', () => {
-  it('dura lo que se puede aguantar antes de tirar', () => {
-    // El tope no es decorativo: alargar un tramo obliga a acortar otro, en vez de ir
-    // estirando la demostración sin que nadie lo note.
-    expect(TUTORIAL_SECONDS).toBeGreaterThanOrEqual(TUTORIAL_MIN_SECONDS)
-    expect(TUTORIAL_SECONDS).toBeLessThanOrEqual(TUTORIAL_MAX_SECONDS)
+describe('qué paso toca', () => {
+  it('sin hacer nada, el primero', () => {
+    expect(tutorialStep(SIN_HITOS, 0)).toBe(TUTORIAL_STEPS[0])
   })
 
-  it('dedica más tiempo a tensar que a nada más', () => {
-    // Es el único tramo que hay que ver *pasar*: si la cuerda no recorre el camino
-    // entero, no se entiende que aguantar sirva de algo.
-    const tensar = TUTORIAL_STEPS.find((s) => s.key === 'draw')!
-    for (const otro of TUTORIAL_STEPS) {
-      if (otro.key !== 'draw') expect(tensar.seconds).toBeGreaterThan(otro.seconds)
+  it('haciendo cada cosa se recorren todos y se acaba', () => {
+    let hitos = SIN_HITOS
+    const recorridos = [tutorialStep(hitos, 0)]
+    for (const paso of TUTORIAL_STEPS) {
+      hitos = apuntarHito(hitos, paso)
+      recorridos.push(tutorialStep(hitos, 0))
     }
+    expect(recorridos).toEqual([...TUTORIAL_STEPS, null])
   })
 
-  it('enseña el gesto entero: de qué mano, tensar y soltar', () => {
-    expect(TUTORIAL_STEPS.map((s) => s.key)).toEqual(['hand', 'draw', 'release'])
+  it('esperar no adelanta nada: el tutorial no lleva reloj', () => {
+    // El control de lo que se cambió: sin hitos, el paso es el mismo para siempre.
+    expect(tutorialStep(SIN_HITOS, 0)).toBe(tutorialStep(SIN_HITOS, 0))
+  })
+
+  it('conseguir algo de más adelante no salta lo de antes', () => {
+    // Conseguir lo último sin haber pasado por coger deja el paso de coger donde estaba.
+    expect(tutorialStep(hechos('goal'), 0)).toBe('grab')
+  })
+
+  it('un hito no se deshace', () => {
+    const hitos = hechos(TUTORIAL_STEPS[0])
+    expect(apuntarHito(hitos, TUTORIAL_STEPS[0])).toBe(hitos)
+    expect(tutorialStep(hitos, 0)).toBe(TUTORIAL_STEPS[1])
   })
 })
 
-describe('tutorialFrameAt', () => {
-  it('empieza por el primer tramo', () => {
-    const frame = tutorialFrameAt(0)
-    expect(frame.step).toBe('hand')
-    expect(frame.stepProgress).toBe(0)
-    expect(frame.done).toBe(false)
+describe('las dos salidas', () => {
+  it('siguiente pasa al siguiente aunque no se haya conseguido', () => {
+    // Un paso que no se consigue dejaría a alguien encerrado en él.
+    expect(tutorialStep(SIN_HITOS, 1)).toBe(TUTORIAL_STEPS[1])
   })
 
-  it('recorre los tramos en orden', () => {
-    const vistos = new Set<string | null>()
-    for (let t = 0; t < TUTORIAL_SECONDS; t += 0.1) vistos.add(tutorialFrameAt(t).step)
-    expect([...vistos]).toEqual(['hand', 'draw', 'release'])
+  it('saltarlos todos lo termina', () => {
+    expect(tutorialStep(SIN_HITOS, TUTORIAL_STEPS.length)).toBeNull()
   })
 
-  it('cada tramo avanza de cero a uno', () => {
-    const draw = TUTORIAL_STEPS[0].seconds
-    expect(tutorialFrameAt(draw).stepProgress).toBeCloseTo(0)
-    expect(tutorialFrameAt(draw + TUTORIAL_STEPS[1].seconds - 0.001).stepProgress).toBeCloseTo(1, 2)
+  it('saltar de más no rompe nada', () => {
+    expect(tutorialStep(SIN_HITOS, 99)).toBeNull()
+    expect(tutorialStep(SIN_HITOS, -3)).toBe(TUTORIAL_STEPS[0])
+  })
+})
+
+describe('qué botón enseña cada paso', () => {
+  it('el de agarrar enseña el botón de agarre', () => {
+    expect(TUTORIAL_BUTTONS.grab).toBe('agarre')
   })
 
-  it('pasado el final no queda nada que enseñar', () => {
-    expect(tutorialFrameAt(TUTORIAL_SECONDS).done).toBe(true)
-    expect(tutorialFrameAt(TUTORIAL_SECONDS + 100).step).toBeNull()
-  })
-
-  it('aguanta un reloj que se vuelve loco', () => {
-    // El reloj lo lleva el fotograma: un salto raro no puede dejar la demostración
-    // colgada tapando el juego.
-    expect(tutorialFrameAt(Number.NaN).done).toBe(true)
-    expect(tutorialFrameAt(Number.POSITIVE_INFINITY).done).toBe(true)
-    expect(tutorialFrameAt(-5).step).toBe('hand')
+  it('todos los pasos dicen algo, aunque sea que no hay botón', () => {
+    // Un paso sin entrada aquí saldría dibujando el mando sin resaltar nada.
+    for (const paso of TUTORIAL_STEPS) expect(paso in TUTORIAL_BUTTONS).toBe(true)
   })
 })
 
 describe('si ya se ha visto', () => {
-  it('se enseña la primera vez y no la segunda', () => {
-    const storage = almacen()
-    expect(tutorialSeen(storage)).toBe(false)
+  const almacen = (valor: string | null) => ({ getItem: () => valor })
 
-    markTutorialSeen(storage)
-    expect(tutorialSeen(storage)).toBe(true)
+  it('solo el valor exacto cuenta como visto', () => {
+    expect(tutorialSeen(almacen(TUTORIAL_SEEN_VALUE))).toBe(true)
+    expect(tutorialSeen(almacen('2'))).toBe(false)
+    expect(tutorialSeen(almacen(null))).toBe(false)
   })
 
-  it('lo guardado es la versión de la lección, no un sí', () => {
-    // Por eso subirla la vuelve a enseñar: quien aprendió el gesto del gatillo tiene que
-    // volver a verla ahora que lo que se aprieta es el botón de agarre.
-    const storage = almacen()
-    markTutorialSeen(storage)
-    const guardado = storage.getItem(TUTORIAL_SEEN_KEY)
-
-    expect(guardado).not.toBe('1')
-    expect(tutorialSeen(almacen({ [TUTORIAL_SEEN_KEY]: '1' }))).toBe(false)
-  })
-
-  it('un valor raro lo vuelve a enseñar', () => {
-    expect(tutorialSeen(almacen({ [TUTORIAL_SEEN_KEY]: 'sí' }))).toBe(false)
-  })
-
-  it('sin almacenamiento se enseña: ver de más es mejor que no entender', () => {
+  it('sin almacenamiento se vuelve a enseñar: ver de más es mejor que no entender', () => {
     expect(tutorialSeen(null)).toBe(false)
-    expect(tutorialSeen(roto)).toBe(false)
+    expect(
+      tutorialSeen({
+        getItem: () => {
+          throw new Error('capado')
+        },
+      }),
+    ).toBe(false)
+  })
+
+  it('la versión sube cuando la lección cambia, y esta cambió entera', () => {
+    expect(Number(TUTORIAL_SEEN_VALUE)).toBeGreaterThan(2)
+  })
+
+  it('se deja constancia con la clave del juego', () => {
+    const escrito: Record<string, string> = {}
+    const guardado = markTutorialSeen({
+      getItem: () => null,
+      setItem: (clave: string, valor: string) => {
+        escrito[clave] = valor
+      },
+    } as unknown as Storage)
+    expect(guardado).toBe(true)
+    expect(escrito[TUTORIAL_SEEN_KEY]).toBe(TUTORIAL_SEEN_VALUE)
+  })
+
+  it('y si el navegador no guarda, se dice que no se guardó', () => {
     expect(markTutorialSeen(null)).toBe(false)
-    expect(markTutorialSeen(roto)).toBe(false)
+    expect(
+      markTutorialSeen({
+        setItem: () => {
+          throw new Error('capado')
+        },
+      } as unknown as Storage),
+    ).toBe(false)
   })
 })

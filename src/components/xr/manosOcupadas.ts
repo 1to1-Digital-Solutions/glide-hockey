@@ -21,11 +21,41 @@ import { useCallback, useSyncExternalStore } from 'react'
 
 type Mano = 'left' | 'right'
 
-const ocupadas = new Set<Mano>()
-const oyentes = new Set<() => void>()
+interface Registro {
+  ocupadas: Set<Mano>
+  oyentes: Set<() => void>
+}
+
+declare global {
+  interface Window {
+    /**
+     * Quién lleva algo en la mano, **compartido entre el juego y quien lo monte**.
+     *
+     * Va en `window` y no en el módulo porque son dos módulos. Este fichero está copiado en
+     * los trece juegos y en el hub, y montado dentro del salón el que dibuja el mando es el
+     * del salón: el juego marcaba la mano en su copia y el salón leía la suya, que estaba
+     * siempre vacía. Desde dentro del visor eso se ve como que **el rayo no se apaga jugando
+     * desde el arcade** aunque sí lo haga en la web del juego, que es donde se probó.
+     *
+     * Un `window` compartido es feo y es el canal que hay: son dos paquetes que se empaquetan
+     * juntos pero no comparten módulo. Lo crea el primero que llegue.
+     */
+    __xrManosOcupadas?: Registro
+  }
+}
+
+/** El registro de siempre, o uno nuevo. Sin `window` —en el servidor— uno propio. */
+const propio: Registro = { ocupadas: new Set(), oyentes: new Set() }
+
+function registro(): Registro {
+  if (typeof window === 'undefined') return propio
+  window.__xrManosOcupadas ??= propio
+  return window.__xrManosOcupadas
+}
 
 /** Apunta si esa mano lleva algo. Se puede llamar cada fotograma: solo avisa si cambia. */
 export function marcarManoOcupada(mano: Mano, ocupada: boolean): void {
+  const { ocupadas, oyentes } = registro()
   if (ocupada === ocupadas.has(mano)) return
   if (ocupada) ocupadas.add(mano)
   else ocupadas.delete(mano)
@@ -34,6 +64,7 @@ export function marcarManoOcupada(mano: Mano, ocupada: boolean): void {
 
 /** Suelta todas: al acabar la partida o al desmontar la escena nadie lleva nada. */
 export function soltarLasManos(): void {
+  const { ocupadas, oyentes } = registro()
   if (ocupadas.size === 0) return
   ocupadas.clear()
   for (const oyente of oyentes) oyente()
@@ -41,6 +72,7 @@ export function soltarLasManos(): void {
 
 /** Se avisa aquí de los cambios. Exportado para poder probar que no avisa de más. */
 export function suscribirseAManos(oyente: () => void): () => void {
+  const { oyentes } = registro()
   oyentes.add(oyente)
   return () => {
     oyentes.delete(oyente)
@@ -49,6 +81,6 @@ export function suscribirseAManos(oyente: () => void): () => void {
 
 /** Si esa mano lleva algo, para quien lo tenga que pintar. Fuera del visor, nunca. */
 export function useManoOcupada(mano: Mano | undefined): boolean {
-  const leer = useCallback(() => (mano == null ? false : ocupadas.has(mano)), [mano])
+  const leer = useCallback(() => (mano == null ? false : registro().ocupadas.has(mano)), [mano])
   return useSyncExternalStore(suscribirseAManos, leer, () => false)
 }

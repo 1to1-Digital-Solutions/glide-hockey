@@ -3,10 +3,8 @@
 import { useRef, type Ref, type RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import {
-  AdditiveBlending,
   type Group,
   type Mesh,
-  type MeshBasicMaterial,
   type MeshStandardMaterial,
   type Texture,
 } from 'three'
@@ -23,7 +21,7 @@ const PUCK_HEIGHT = 0.022
  * `Rink`). Así la posición no pasa por el estado de React, que a sesenta
  * fotogramas por segundo repintaría el árbol entero. Lo que sí sabe es lo
  * rápido que va (`speedRef`, que escribe el bucle): con la velocidad crece
- * su brillo y un halo alrededor (`lib/puckGlow.ts`), que es lo que deja
+ * su brillo con la velocidad (`lib/puckGlow.ts`), que es lo que deja
  * seguirlo en el visor cuando cruza la mesa en medio segundo.
  */
 export function Puck({
@@ -38,18 +36,12 @@ export function Puck({
   environment?: Texture
 }) {
   const body = useRef<Mesh>(null)
-  const halo = useRef<Mesh>(null)
 
   useFrame(() => {
     const glow = puckGlow(speedRef?.current ?? 0)
     const material = body.current?.material as MeshStandardMaterial | undefined
     if (material != null) material.emissiveIntensity = glow.emissive
-    const ring = halo.current
-    if (ring != null) {
-      ;(ring.material as MeshBasicMaterial).opacity = glow.halo
-      ring.scale.setScalar(glow.haloScale)
-      ring.visible = glow.halo > 0.01
-    }
+
   })
 
   return (
@@ -69,19 +61,6 @@ export function Puck({
         />
       </mesh>
 
-      {/* El halo: un anillo aditivo pegado al tablero que se enciende y se
-          ensancha con la velocidad. Sin velocidad no se ve (ni se dibuja). */}
-      <mesh ref={halo} position={[0, 0.0015, 0]} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
-        <ringGeometry args={[PUCK_RADIUS * 0.9, PUCK_RADIUS * 1.6, 32]} />
-        <meshBasicMaterial
-          color={PALETTE.puck}
-          transparent
-          opacity={0}
-          blending={AdditiveBlending}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </mesh>
       {/* Tapa más clara: da la cara superior del disco y le pone un punto de
           referencia al ojo cuando cruza la mesa a toda velocidad. */}
       <mesh position={[0, PUCK_HEIGHT + 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>

@@ -94,16 +94,14 @@
   del `<primitive>`.
 
 - [ ] [alta] El tutorial: botón de siguiente, botón de saltar, y que enseñe el mando
-  Cuatro cosas, y las cuatro cambian cómo se aprende:
-  1. **Un botón de «siguiente»** para pasar de punto sin esperar, y otro de **«saltar
-     tutorial»**.
-  2. **Más gráfico que texto**: si hay que apretar el botón de agarre, enseñar un mando con
-     ese botón resaltado, no una frase que lo nombre.
-  3. **El juego no se para mientras explica**: si el paso es agarrar y se agarra, el objeto
-     tiene que aparecer en la mano de verdad mientras el tutorial sigue.
-  4. **El paso se supera haciéndolo**: si el paso es lanzar, no se pasa al siguiente hasta que
-     el hacha se clave o el balón entre —o hasta que se pulse siguiente o saltar—.
-
+  **Hecho en hachas, que queda de referencia** (`lib/tutorial.ts`, `xr/mandoDibujado.ts`,
+  `xr/XRTutorial.tsx`). Aquí falta lo mismo, y lo que cambia de un juego a otro son dos cosas:
+  1. **Los pasos y sus hitos**: qué tiene que pasar para dar cada uno por superado. En hachas
+     son coger, lanzar y clavar; aquí serán los suyos.
+  2. **Dónde se apuntan**: en los mismos sitios del store que ya registran lo que pasa, con
+     `apuntarHito`. No hay que escuchar nada ni parar el juego.
+  Lo demás —el dibujo del mando, los dos botones, calcular el paso en vez de guardarlo y subir
+  la versión de la lección— se copia tal cual.
 - [ ] [alta] Los rótulos se solapan y la letra es pequeña y apretada
   Es lo que más se repite en la cuarta ronda y pasa en casi todos: las palabras se pisan y no
   se entiende nada. Ver la regla común en el repo de Organízate: **todo texto que se añada se

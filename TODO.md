@@ -55,6 +55,62 @@
 - [x] Práctica sin fin: partida que no acaba hasta que sales, con récord de racha <!-- org:37e6f302-159b-46e7-9130-5bad022155ab -->
 - [x] Brillo del disco y reflejo de la mesa con un mapa de entorno barato <!-- org:38455675-8fea-4c54-bd3c-cb8e09c76d11 -->
 
+## Del visor — cuarta ronda
+
+- [ ] [urgente] El texto del aviso de salir se solapa
+  El modal de «¿dejar la partida?» está bien pensado pero las palabras se pisan y no se
+  entiende. Ver la regla común de texto legible en el repo de Organízate.
+
+- [ ] [alta] El botón de salir debería abrir las opciones, y salir estar dentro
+  Ahora el botón que parece de salir abre las opciones, así que hace lo que no dice. Que el
+  botón abra las opciones —y lo diga— y que dentro esté el de salir.
+
+- [ ] [alta] Los ajustes no tienen texto: el botón de VR/AR no se entiende
+  Son iconos sin nombre. El de pasar de realidad virtual a aumentada no hay forma de
+  adivinarlo.
+
+- [ ] [media] El disco tiene una aureola de luz que sobra
+  Un haz alrededor del disco que no gusta. Quitarlo.
+
+- [x] [urgente] Lo que se lleva en la mano se come el rayo del propio mando
+  **Arreglado en los trece.** El hacha, el balón, el bate, el arco, la bola, el dardo, la pala,
+  el putter, el mazo y la pistola van con `raycast={NO_RAYCAST}`: se ven igual y dejan pasar
+  el rayo.
+  Encontrado leyendo el código y es el mismo fallo en varios juegos: **nada de lo que cuelga
+  de la mano se excluye del raycasting**. El rayo del mando arranca a 20 cm (`minDistance`
+  del salón) y lo primero que se encuentra es la pistola, el mazo, el putter o el palo que
+  esa misma mano sostiene, así que el evento se lo queda el objeto y al menú no le llega
+  nada. Desde fuera parece que «el mando no funciona» o que «hay algo invisible por medio».
+  Arreglo: todo lo que vaya en la mano se marca `raycast={NO_RAYCAST}` —el mecanismo que ya
+  usan los paneles—, incluidas las mallas de dentro de un modelo cargado, que no lo heredan
+  del `<primitive>`.
+
+- [ ] [alta] El tutorial: botón de siguiente, botón de saltar, y que enseñe el mando
+  Cuatro cosas, y las cuatro cambian cómo se aprende:
+  1. **Un botón de «siguiente»** para pasar de punto sin esperar, y otro de **«saltar
+     tutorial»**.
+  2. **Más gráfico que texto**: si hay que apretar el botón de agarre, enseñar un mando con
+     ese botón resaltado, no una frase que lo nombre.
+  3. **El juego no se para mientras explica**: si el paso es agarrar y se agarra, el objeto
+     tiene que aparecer en la mano de verdad mientras el tutorial sigue.
+  4. **El paso se supera haciéndolo**: si el paso es lanzar, no se pasa al siguiente hasta que
+     el hacha se clave o el balón entre —o hasta que se pulse siguiente o saltar—.
+
+- [ ] [alta] Los rótulos se solapan y la letra es pequeña y apretada
+  Es lo que más se repite en la cuarta ronda y pasa en casi todos: las palabras se pisan y no
+  se entiende nada. Ver la regla común en el repo de Organízate: **todo texto que se añada se
+  mide antes de darlo por bueno**.
+
+- [ ] [alta] Los modos —práctica y desafío— no se distinguen en el menú
+  Están, pero no se entiende cuál es cuál ni en qué se diferencian.
+
+- [ ] [alta] El botón de salir parece un cuadrado y no una X ni una flecha
+  El icono no dice lo que hace. Una X para cerrar o una flecha hacia atrás para volver.
+
+- [ ] [media] Cambiar entre realidad virtual y aumentada desde el propio juego
+  Hoy unos dejan y otros no. Decidido: el salón pone el modo por defecto y **cada juego puede
+  cambiarlo para él**, así que hay que ofrecerlo en los trece.
+
 ## Del visor — tercera ronda
 
 - [x] [urgente] El botón de volver al arcade estaba en medio de la pantalla

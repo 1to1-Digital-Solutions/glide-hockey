@@ -6,6 +6,7 @@ import { XR, XROrigin, useXR } from '@react-three/xr'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
 import { useGame } from '../../lib/gameStore'
 import { getXrStore } from '../xr/xrStore'
+import { Calentar } from './Calentar'
 import { GameWorld } from './GameWorld'
 
 /**
@@ -64,6 +65,7 @@ export function GameCanvas() {
         <XROrigin position={[0, 0, 0]} />
         <GameWorld hasDomUi />
         <DesktopControls />
+        <Calentar />
       </XR>
     </Canvas>
   )

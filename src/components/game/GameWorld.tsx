@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { XRUiHeight } from '../xr/XRUiHeight'
 import { useXR } from '@react-three/xr'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
+import { contarMontaje } from '../../lib/montajes'
 import { useGame } from '../../lib/gameStore'
 import { showsPlace } from '../../lib/scenery'
 import { HALF_LENGTH, HALF_WIDTH } from '../../lib/puckPhysics'
@@ -88,6 +89,12 @@ export interface GameWorldProps {
 }
 
 export function GameWorld({ hasDomUi = false }: GameWorldProps) {
+  // Cuántas veces se monta el mundo, cuando alguien lo está contando (`lib/montajes.ts`).
+  // Montarlo dos veces al entrar en la sesión **es** el parpadeo que se reporta del visor.
+  useEffect(() => {
+    contarMontaje('mundo')
+  }, [])
+
   const {
     gameState,
     runId,

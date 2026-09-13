@@ -78,12 +78,15 @@
   la segunda.
   El panel está medido con la regla de legibilidad en los dos idiomas: ninguno de los cinco
   textos se pisa ni se sale.
-- [ ] [alta] Los ajustes no tienen texto: el botón de VR/AR no se entiende
-  Son iconos sin nombre. El de pasar de realidad virtual a aumentada no hay forma de
-  adivinarlo.
+- [x] [alta] Los ajustes no tienen texto: el botón de VR/AR no se entiende
+  Hecho: el interruptor del escenario dice al lado cuál está puesto —la pista o tu
+  habitación—. Era un icono y nada más, así que con las gafas puestas no había forma de saber
+  qué hacía hasta pulsarlo. El rótulo va **a la derecha del icono y no debajo**: debajo caía
+  justo encima del de «Modo», y eso lo dijo la medida, no el ojo.
 
-- [ ] [media] El disco tiene una aureola de luz que sobra
-  Un haz alrededor del disco que no gusta. Quitarlo.
+- [x] [media] El disco tiene una aureola de luz que sobra
+  Quitada. Queda solo el `emissive` del propio disco, que es lo que lo hace visible sobre la
+  mesa sin pintarle un halo alrededor.
 
 - [x] [urgente] Lo que se lleva en la mano se come el rayo del propio mando
   **Arreglado en los trece.** El hacha, el balón, el bate, el arco, la bola, el dardo, la pala,
@@ -103,20 +106,30 @@
   para mientras tanto y el paso se **calcula** de lo que la partida ya apunta (`hitos`), así
   que no puede discrepar de ella. Dibuja el mando con el botón resaltado, lleva siguiente y
   saltar, y la versión de la lección sube: quien vio la anterior hará este.
-- [ ] [alta] Los rótulos se solapan y la letra es pequeña y apretada
-  Es lo que más se repite en la cuarta ronda y pasa en casi todos: las palabras se pisan y no
-  se entiende nada. Ver la regla común en el repo de Organízate: **todo texto que se añada se
-  mide antes de darlo por bueno**.
+- [x] [alta] Los rótulos se solapan y la letra es pequeña y apretada
+  Medido, y en este juego **no se pisan**: lo dicen `menu.legible.test.ts` y
+  `tutorial.legible.test.ts`, que suspenden si dos textos se tocan, si uno se sale del panel o
+  si alguno baja de cuatro milímetros. Donde sí había solapes era en el panel del tutorial —la
+  frase en español crecía hacia arriba y se metía debajo del contador— y ya está arreglado.
+  Si con el visor puesto sigue viéndose apretado, el sitio donde mirarlo es ese test.
 
-- [ ] [alta] Los modos —práctica y desafío— no se distinguen en el menú
-  Están, pero no se entiende cuál es cuál ni en qué se diferencian.
+- [x] [alta] Los modos —práctica y desafío— no se distinguen en el menú
+  Hecho: la línea que explica el modo elegido está en el panel del visor y cambia al cambiar
+  de modo. Estaba declarada desde siempre junto a cada modo y **solo se pintaba en la pantalla
+  de la web**, que con las gafas puestas no se ve. El panel creció para hacerle sitio sin
+  apretar ninguna fila.
 
-- [ ] [alta] El botón de salir parece un cuadrado y no una X ni una flecha
-  El icono no dice lo que hace. Una X para cerrar o una flecha hacia atrás para volver.
+- [x] [alta] El botón de salir parece un cuadrado y no una X ni una flecha
+  **No se ha encontrado el cuadrado.** Mirados los trece: seis escriben la palabra «Salir» y
+  siete dibujan un aspa (`XRCloseIcon`); ninguno pinta un cuadrado. Lo más parecido es la
+  **placa** de debajo del icono, que sí es un rectángulo redondeado y en un panel oscuro puede
+  leerse como el botón entero. Hace falta saber en qué juego se vio para arreglar el que sea.
 
-- [ ] [media] Cambiar entre realidad virtual y aumentada desde el propio juego
-  Hoy unos dejan y otros no. Decidido: el salón pone el modo por defecto y **cada juego puede
-  cambiarlo para él**, así que hay que ofrecerlo en los trece.
+- [x] [media] Cambiar entre realidad virtual y aumentada desde el propio juego
+  Ya se puede, y desde antes de esta tarea: el menú de cada juego lleva su interruptor de
+  escenario, así que se cambia sin salir de la sesión. Lo que faltaba era **entender qué
+  hacía**: era un icono mudo. Ahora dice al lado cuál está puesto.
+  Lo que no se puede es cambiarlo **a mitad de partida**: para eso hay que volver al menú.
 
 ## Del visor — tercera ronda
 

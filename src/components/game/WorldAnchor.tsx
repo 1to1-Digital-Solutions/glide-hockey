@@ -32,6 +32,21 @@ export function WorldAnchor({ children }: { children: ReactNode }) {
   useEffect(() => {
     placed.current = false
   }, [mode])
+  /**
+   * **Y al recentrar la sala.** Mantener pulsado el botón del sistema recoloca el espacio de
+   * referencia del visor: el mundo entero gira bajo la colocación, que sigue apuntando a
+   * donde se miraba antes, y la escena acaba a la espalda. Es el gesto que se hace al volver
+   * a ponerse el visor. WebXR lo avisa con el evento `reset` del espacio de referencia.
+   */
+  const referenceSpace = useXR((state) => state.originReferenceSpace)
+  useEffect(() => {
+    if (referenceSpace == null) return
+    const alRecentrar = () => {
+      placed.current = false
+    }
+    referenceSpace.addEventListener('reset', alRecentrar)
+    return () => referenceSpace.removeEventListener('reset', alRecentrar)
+  }, [referenceSpace])
 
   useFrame((state) => {
     const group = ref.current

@@ -47,24 +47,80 @@ contrato de montaje —escena, no aplicación— está en `docs/xrcade.md` del r
   por tag. Antes del tag: typecheck, lint, tests, e2e y el test del contrato del paquete
   (`peerDependencies`, `exports`, `files`).
 
+## El texto del visor se mide, no se mira
+
+**La queja que más se ha repetido en cuatro tandas de pruebas con gafas es la misma**: «el texto
+se superpone», «las letras están muy pegadas», «no se entiende nada». Ha pasado en el aviso de
+salir, en los menús de ajustes, en el marcador y en los tutoriales. Y siempre se ha descubierto
+igual: con el visor puesto, nunca antes.
+
+No es descuido de quien lo escribió. Un panel del visor se pinta en un lienzo que **nadie mira al
+tamaño al que se lee**: en el navegador se ve una textura de 1024 píxeles por metro dentro de una
+escena 3D, y que dos renglones se pisen o que una etiqueta se salga de su botón no se nota hasta
+que se tiene delante de la cara.
+
+Así que no hay regla de estilo, hay un instrumento: `components/xr/legibilidad.ts`, el mismo
+fichero en los trece juegos.
+
+- `lienzoQueApunta()` es un lienzo de mentira que **mide como uno de verdad y apunta lo que se
+  escribe**: qué texto, dónde y qué caja ocupa, ya en coordenadas del panel.
+- `problemasDeLegibilidad(escritos, { panel })` devuelve **frases**, no un `false`: qué palabra se
+  pisa con cuál, qué se sale del panel y qué sale por debajo del tamaño mínimo. Un test que solo
+  dijera «no se lee» no serviría de nada.
+
+**La regla, entonces:**
+
+1. Toda tarea que **añada o cambie texto** de un panel del visor deja ese panel medido. Si el
+   dibujo está dentro de un componente, se saca a una función exportada —`dibujarElAviso(ctx, t)`,
+   `dibujarLosNombres(ctx, t, …)`— y se le pasa el lienzo que apunta.
+2. Se mide **en los dos idiomas**. El español es más largo que el inglés y es donde se sale: una
+   etiqueta que cabe en «Mode» no cabe en «Modo de juego».
+3. Se miden también las **variantes**: la fila que cambia de nombre con el modo, el marcador con
+   dos cifras y con tres, el nombre más largo de la lista.
+4. El ancho de letra que usa la regla va **tirando a ancho** a propósito. Quedándose corta daría
+   por bueno lo que en el visor se pisa, que es exactamente lo que ha estado pasando.
+
+Lo que la regla **no** cubre y sigue pidiendo gafas: si el panel está a una distancia cómoda, si
+lo tapa el decorado y si el contraste aguanta la luz de la escena. Eso va a
+`docs/pendiente-de-visor.md`.
+
 ## Lo que enseñó probar con el visor puesto
 
 Nada de esto se ve desde una pantalla, y todo salió de la primera tanda de pruebas con gafas.
 Un juego nuevo empieza cumpliéndolo; no es una lista de arreglos, es cómo se hace desde el
 principio.
 
-- **La escena va DELANTE de quien entra.** Al abrir la sesión, lo primero que se ve tiene que
+- **La escena va DELANTE de quien entra, y el decorado también.** Al abrir la sesión, lo primero que se ve tiene que
   ser aquello a lo que se juega: la mesa, la diana, la pista. Si el mundo se coloca respecto
   del origen y no respecto de hacia dónde mira quien lleva el visor, la mitad de las veces se
   entra mirando a una pared y hay que darse la vuelta para encontrar el juego. Lo mismo vale
-  para el menú: se ancla a la mirada la primera vez, no a un punto fijo del mundo.
+  para el menú: se ancla a la mirada la primera vez, no a un punto fijo del mundo. **No basta
+  con colocar la interfaz**: en skeet y en el arco el menú se plantaba delante y el prado y el
+  claro se quedaban en el origen, así que los platos y los objetos salían por la espalda. Y hay
+  una diferencia entre los dos: la interfaz sigue a la mirada mientras se juega —es un panel al
+  que hay que poder volver—, pero el decorado se coloca **una sola vez, al entrar**; un mundo
+  que se recoloca solo mientras apuntas es justo lo que hace imposible apuntar.
+- **Anclar el decorado crea un espacio nuevo, y hay que traducir lo que lo cruza.** Lo que va en
+  la mano cuelga del origen que pone el anfitrión; lo que vuela vive dentro del decorado
+  girado. Mientras los dos fueron el mismo espacio no hacía falta nada, y en cuanto uno se mueve
+  deja de poder faltar: una flecha que nace en uno y vuela en el otro sale girada exactamente lo
+  que se giró el mundo al entrar, así que apuntar bien no sirve de nada. Se traduce con
+  `worldToLocal` y el quaternion inverso —no a mano con la posición y el giro del grupo, que
+  eso solo vale mientras nadie cuelgue nada por encima— y se prueba sin navegador.
 - **El botón de volver, arriba a la izquierda y fuera del juego.** En medio de la escena tapa
   justo lo que hay que mirar y se pulsa sin querer. No es parte de la partida: es la salida.
 - **El menú de ajustes desaparece al jugar.** Si sigue puesto durante la partida, compite con
   la pelota por la atención y por los píxeles. Se enseña antes de empezar y al terminar.
 - **Un solo panel, y en el mismo sitio en todos los juegos.** Dos placas —una a cada mano—
   obligan a aprenderse cada juego por separado. Quien ya sabe usar uno tiene que saber usar el
-  siguiente: mismo sitio, mismo orden, mismos gestos.
+  siguiente: mismo sitio, mismo orden, mismos gestos. En la práctica: el menú y el marcador
+  **comparten columna** —el marcador a la altura de la vista, lo que se pulsa debajo— y nunca
+  están los dos llenos a la vez; sin partida no hay puntos que enseñar y el panel de ajustes
+  ocupa la columna entera. Para eso, **el alto del panel sale del reparto y no de una
+  constante**: con altura fija, durante la partida queda un metro de placa con dos botones
+  perdidos en medio. Y ese alto no puede cambiar al aparecer un botón: mueve el centro, y con
+  él los demás botones — que se recoloque uno que no has tocado se lleva por delante la
+  pulsación que ya ibas a hacer.
 - **Lo que se coge, se coge con la mano.** Agarrar con el gatillo y sostener —como el palo de
   stick-rush— se entiende sin explicación. Mover un objeto con el rayo del mando a distancia
   se siente como manejar un cursor, no como jugar.
@@ -86,8 +142,71 @@ principio.
   tragando— y no se despacha como «cosa del visor».
 - **Avisar del sitio real antes de entrar.** Se juega de pie y con los brazos: el hub avisa de
   que se mire alrededor antes de ponerse las gafas. Un juego cuyos gestos barren mucho espacio
-  lo dice también en su menú.
+  lo dice también en su menú. El visor pinta su propio guardián, pero eso pasa **después** de
+  ponérselo, y para entonces ya te has levantado. Se pregunta **una sola vez** —quien juega a
+  diario no necesita que le recuerden su salón cada tarde— y después queda una línea junto al
+  botón, porque el sitio que había ayer puede estar hoy ocupado por una silla.
 - **Idioma y sonido NO se preguntan en el juego.** Se eligen una sola vez en xrcade y viajan
   por `localStorage` y por una cookie (`lib/ajustes.ts`, el mismo fichero en los trece repos).
   El menú del juego es para lo suyo: nivel, dificultad, modo, escenario. Los efectos y el
-  ambiente son dos canales con volumen propio, y a cero ni se abre el `AudioContext`.
+  ambiente son dos canales con volumen propio, y a cero ni se abre el `AudioContext`. Un
+  volumen que solo enciende y apaga **no está cableado**: si el deslizador de ambiente no
+  baja la música ni el de efectos llega al nodo maestro, la mitad del ajuste no existe. Y
+  cambiarlo no puede rehacer el audio —cerrar el `AudioContext` y abrir otro a cada paso del
+  deslizador es un corte de sonido por empujón—: se le dice al nodo maestro y ya.
+- **Traducir es del juego entero, no solo del DOM.** La mitad de lo que se lee con el visor
+  puesto se pinta dentro del Canvas: en unos juegos es geometría —y entonces no hay nada que
+  traducir— y en otros es un lienzo con letras, que sí. Traducir solo la web deja el juego a
+  medias justo donde se juega.
+- **El texto que sale de `lib/` no se traduce desde fuera.** Un marcador dice «Clavada · 4» o
+  «Gana el jugador 1 · 148 a 132»: son plantillas, y traducirlas por trozos obliga al español
+  a fingir la sintaxis inglesa. La función que arma la frase recibe el traductor y la compone
+  entera, con sus huecos por nombre (`{points}`, nunca por orden). Entra como parámetro **con
+  valor por defecto —el inglés—**, y así sus tests siguen leyéndose como lo que comprueban: el
+  texto que se canta, no una lista de claves.
+- **El código va en inglés hasta donde se lee fuera del repo.** Los comentarios y las
+  descripciones de los tests se quedan en el idioma en que se mantiene el repo —se leen donde
+  están—, pero **los errores lanzados van en inglés**: salen por la consola, se pegan en un
+  informe y acaban leyéndolos otros. Y no se traducen nunca las claves de almacenamiento:
+  traducirlas borra los récords de quien juega.
+- **La clave del diccionario es el propio texto en inglés.** `t('Back to the menu')` se lee en
+  el punto de uso, y TypeScript vigila lo que una librería de i18n no vigila: cambiar la frase
+  y olvidarse del diccionario **no compila**. El inglés no se guarda dos veces —si el idioma es
+  inglés, se devuelve la clave—. Para el texto que llega como **dato** (una etiqueta de una
+  tabla, un «501») hace falta un traductor suave que devuelva tal cual lo que no conozca: ahí
+  la clave es un `string` y no se puede comprobar en compilación.
+- **Y un guardián más, en el hub: el puente.** Los ajustes viajan por el navegador y no por
+  una API —el arcade escribe una cookie y los juegos la leen del mismo origen—, así que no hay
+  contrato que compile. Si un juego cambiara el nombre de la cookie, o si el hub lo cambiara y
+  un juego se quedara con el anterior, **no fallaría nada**: el juego no se enteraría y
+  seguiría en inglés con el volumen entero. Se comprueba sobre los paquetes **instalados**, no
+  sobre el repo de al lado, para que un juego atrasado en una versión vieja también caiga.
+- **Tres guardianes por juego, porque los tres fallos son silenciosos.** Que las etiquetas de
+  las tablas estén todas traducidas —se añade una dificultad y nadie se acuerda—; que no sobre
+  ninguna frase —se cambia el texto del componente y la vieja se queda traducida para siempre—;
+  y un e2e con la cookie puesta, porque la cadena (cookie, servidor, hidratación) puede estar
+  bien a trozos y no llegar. El resto de los tests corren **sin** cookie, que es como se sirve
+  el juego por defecto: en inglés, y así traducir no obliga a tocarlos.
+- **Lo que se copia entre repos se prueba en cada repo.** `lib/ajustes.ts` y sus dos vecinos
+  están duplicados a propósito en xrcade y en los doce juegos, porque son repositorios
+  sueltos que se despliegan por su cuenta. Lo que hay que probar entonces no es la lógica
+  —esa ya está probada al lado— sino **el puente**: las claves y los valores de partida
+  escritos a mano en las expectativas. Comparándolos contra su propia constante, el test pasa
+  siempre y una clave que se aparte de la del arcade rompe el ajuste en silencio.
+- **Cada juego enseña su gesto la primera vez, y solo la primera.** Unos segundos entre
+  «empezar» y el primer lanzamiento, con botón de saltar y sin volver a salir (una marca en
+  `localStorage` con el prefijo del juego). Lo que enseña es **lo que no se adivina**: que el
+  mazo se coge llevando la mano, que no hay ningún botón que devuelva la pelota, que al plato
+  hay que adelantarse, que el palo sale despacio. Y lo enseña **con movimiento**, no con
+  letras: `<Text>` de drei baja las fuentes de un CDN que la CSP del salón bloquea, así que
+  o es geometría o es un lienzo 2D con las fuentes del documento.
+- **El guion del tutorial vive fuera de la escena.** Qué se enseña, cuánto dura cada tramo y
+  si ya se ha visto van en `lib/tutorial.ts`, sin three ni React, con su test. Así se puede
+  comprobar sin navegador que dura lo justo —hay un mínimo y un máximo, y alargar un paso
+  obliga a acortar otro— y que un almacenamiento capado lo vuelve a enseñar en vez de
+  romperse.
+- **No atar lo que dura una demostración a lo que dura la cuenta atrás.** Son dos relojes
+  distintos: la cuenta dura tres segundos y la demostración seis y pico, así que atarla al
+  estado `countdown` la corta a la mitad —y la mitad que se pierde es siempre el final, que
+  es lo que de verdad no se adivina. Se mantiene también durante los primeros lanzamientos y
+  se retira sola al acabar su guion.

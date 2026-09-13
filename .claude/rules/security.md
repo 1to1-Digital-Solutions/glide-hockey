@@ -48,3 +48,24 @@ regla de "no silenciar la verificación" prohíbe.
   el candado los marcará.
 - Nunca uses `git push --force`; si algún día hace falta forzar, solo `--force-with-lease` y
   lo decide el humano, no un agente.
+
+## Lo irreversible se pregunta, no se ejecuta
+
+Si nadie revisa el diff, el único riesgo que no se recupera es el irreversible. Por eso hay
+acciones que el agente **no tiene**: `rm -rf`, `git reset --hard`, `git clean`, `git rebase`,
+`git filter-branch`/`filter-repo`, `supabase db reset` y cualquier reescritura de historial
+están denegadas por el CLI. Si de verdad hace falta una, se pide con `ask_user` explicando qué y
+por qué, y la ejecuta la persona.
+
+Y hay cambios que **no se integran solos** aunque los gates pasen: Organízate los para antes
+del merge y los manda a la bandeja con el motivo exacto.
+
+- **SQL destructivo en migraciones**: `drop table/column/schema`, `truncate`, `delete` sin
+  `where`. Si la tarea lo necesita, deja la migración escrita y explícalo en tu respuesta: la
+  integra una persona.
+- **Ficheros de despliegue**: `.github/workflows/`, `vercel.json`, `Dockerfile`,
+  `docker-compose`, `netlify.toml`, `fly.toml`… Cambiarlos es cambiar qué llega a producción
+  y con qué permisos.
+- **Dependencias nuevas** sí se integran, pero quedan registradas en el changelog. Antes de
+  añadir una, mira si lo que hace ya está en el proyecto o cabe en veinte líneas propias.
+

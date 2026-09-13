@@ -32,10 +32,21 @@ declare global {
      * Quién lleva algo en la mano, **compartido entre el juego y quien lo monte**.
      *
      * Va en `window` y no en el módulo porque son dos módulos. Este fichero está copiado en
-     * los trece juegos y en el hub, y montado dentro del salón el que dibuja el mando es el
-     * del salón: el juego marcaba la mano en su copia y el salón leía la suya, que estaba
-     * siempre vacía. Desde dentro del visor eso se ve como que **el rayo no se apaga jugando
-     * desde el arcade** aunque sí lo haga en la web del juego, que es donde se probó.
+     * los **diez juegos que dejan coger algo** y en el hub, y montado dentro del salón el que
+     * dibuja el mando es el del salón: el juego marcaba la mano en su copia y el salón leía
+     * la suya, que estaba siempre vacía. Desde dentro del visor eso se ve como que **el rayo
+     * no se apaga jugando desde el arcade** aunque sí lo haga en la web del juego, que es
+     * donde se probó.
+     *
+     * **Diez y no trece**, y el docstring decía trece: los otros tres no tienen nada que
+     * marcar. En ping-pong y en skeet la pala y la escopeta están *siempre* en la mano, así
+     * que apagar el rayo ahí lo apagaría toda la partida y no quedaría con qué pulsar el
+     * menú; en stick-rush los palos se atrapan de un toque, no se llevan.
+     *
+     * En la web propia de cada juego, además, el rayo lo dibuja el mando por defecto de la
+     * librería, que no lee esto: solo air-hockey y whack-a-mole traen su propio
+     * `XRControllerGrip`. Dentro del arcade —que es donde se juega— lo dibuja el del salón,
+     * que sí lo lee. Lo compara `scripts/repos/comunes.py`.
      *
      * Un `window` compartido es feo y es el canal que hay: son dos paquetes que se empaquetan
      * juntos pero no comparten módulo. Lo crea el primero que llegue.

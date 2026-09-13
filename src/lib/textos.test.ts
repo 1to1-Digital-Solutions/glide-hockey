@@ -57,6 +57,20 @@ describe('el diccionario', () => {
     expect(sinTraducir).toEqual([])
   })
 
+  it('ni le falta ninguna de las que se dicen', () => {
+    // El reverso del otro, y el que faltaba: aquel caza una clave declarada que ya no usa
+    // nadie —molesta pero inofensiva—, y este una que **se usa y no está declarada**, que es
+    // la que se ve. En bateo, `t('Fastest')` devolvía `undefined` y el marcador del reto
+    // pintaba una fila con su cifra y sin nombre, solo en español.
+    const fuente = codigo()
+    const usadas = [...fuente.matchAll(/\bt\(\s*'([^']+)'/g)].map((m) => m[1])
+    const faltan = [...new Set(usadas)].filter(
+      (clave) => !(TEXT_KEYS as readonly string[]).includes(clave),
+    )
+
+    expect(faltan).toEqual([])
+  })
+
   it('no guarda frases que ya no dice nadie', () => {
     // Una frase cambia en el componente y la vieja se queda aquí traducida para siempre:
     // no rompe nada, y por eso nadie la quita nunca.

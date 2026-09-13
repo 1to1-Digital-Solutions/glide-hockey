@@ -47,7 +47,14 @@ import { NO_RAYCAST } from '../raycast'
 export const PANEL_WIDTH = 0.78
 export const PANEL_HEIGHT = 0.62
 
-/** Dónde se planta: a un brazo, a la altura de la vista y algo a la derecha de la diana. */
+/**
+ * Dónde se planta, **cuando el juego no lo dice**.
+ *
+ * Este valor viene de darts —«algo a la derecha de la diana»— y se copió tal cual a los
+ * doce. Los juegos que saben dónde va su panel se lo pasan y este no se usa: aparecer en un
+ * sitio distinto de donde estaba el menú obliga a buscarlo, y quien acaba de entrar es
+ * justamente quien no sabe dónde mirar.
+ */
 const POSITION: [number, number, number] = [0.34, 1.5, -1.05]
 const ROTATION: [number, number, number] = [0, -0.3, 0]
 
@@ -154,7 +161,14 @@ export function dibujarElPaso(
   }
 }
 
-export function XRTutorial() {
+export function XRTutorial({
+  position = POSITION,
+  rotation = ROTATION,
+}: {
+  /** Dónde lo pone el juego. Sin esto se coloca solo, donde nació (ver `POSITION`). */
+  position?: [number, number, number]
+  rotation?: [number, number, number]
+} = {}) {
   const { gameState, hitos, setTutorialRunning } = useGame()
   const t = traductor(useLang())
   const frases = useGrabMode() === 'toggle' ? FRASES_CON_UN_TOQUE : FRASES
@@ -194,7 +208,7 @@ export function XRTutorial() {
   if (!activo) return null
 
   return (
-    <group position={POSITION} rotation={ROTATION}>
+    <group position={position} rotation={rotation}>
       <CanvasPanel width={PANEL_WIDTH} height={PANEL_HEIGHT} draw={draw} fallbackColor={PALETTE.background} />
       {BOTONES.map((boton) => (
         <mesh

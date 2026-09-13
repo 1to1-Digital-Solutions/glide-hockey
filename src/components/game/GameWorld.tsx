@@ -226,9 +226,11 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
               <group position={XR_UI.countdown}>
                 <XRCountdown />
               </group>
-              <group position={XR_UI.tutorial} rotation={[-0.2, 0, 0]}>
-                <XRTutorial />
-              </group>
+              {/* La demostración va **donde estaba el menú**: quien la ve acaba de pulsar «empezar» y
+                  está mirando ahí. Se le pasa el sitio en vez de dejar que se coloque sola —el valor
+                  con el que nació es el de darts, y sumado a este grupo la dejaba a tres metros del
+                  suelo, girada, metro y medio por encima del menú del que venía—. */}
+              <XRTutorial position={XR_UI.tutorial} rotation={[-0.2, 0, 0]} />
               <group position={XR_UI.quit} rotation={[-0.3, 0, 0]}>
                 <XRQuitButton />
               </group>

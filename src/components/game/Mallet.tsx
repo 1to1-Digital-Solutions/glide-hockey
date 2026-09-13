@@ -2,6 +2,7 @@
 
 import { type Ref } from 'react'
 import { type Group, type Texture } from 'three'
+import { NO_RAYCAST } from '../raycast'
 import { MALLET_RADIUS } from '../../lib/gameConfig'
 
 /** Alto de la base que roza la mesa y del pomo que se agarra. */
@@ -19,6 +20,13 @@ const KNOB_HEIGHT = 0.045
  * está a un palmo de los ojos toda la partida: sin ellos tenía menos acabado que la mesa que
  * hay debajo, y eso se nota mucho más que al revés. No cuesta una llamada de dibujo más — el
  * mapa ya está cargado y se comparte.
+ *
+ * **Fuera del alcance de los rayos.** Con el visor puesto el mazo va en la mano, y el rayo
+ * con el que se pulsa el menú sale de esa misma mano: lo primero que se encuentra es el mazo,
+ * que se queda con el evento y deja al botón sin enterarse. Desde dentro eso no se ve como
+ * «el mazo está en medio», se ve como que **el botón no funciona**. El arreglo llegó a los
+ * demás juegos y a este no —el mismo mazo, el mismo fallo, y en whack-a-mole ya estaba
+ * escrito—. En escritorio no se pierde nada: ahí no hay rayo.
  */
 export function Mallet({
   color,
@@ -32,7 +40,7 @@ export function Mallet({
 }) {
   return (
     <group ref={ref}>
-      <mesh position={[0, BASE_HEIGHT / 2, 0]} castShadow>
+      <mesh position={[0, BASE_HEIGHT / 2, 0]} castShadow raycast={NO_RAYCAST}>
         <cylinderGeometry
           args={[MALLET_RADIUS, MALLET_RADIUS, BASE_HEIGHT, 32]}
         />
@@ -45,7 +53,7 @@ export function Mallet({
         />
       </mesh>
 
-      <mesh position={[0, BASE_HEIGHT + KNOB_HEIGHT / 2, 0]} castShadow>
+      <mesh position={[0, BASE_HEIGHT + KNOB_HEIGHT / 2, 0]} castShadow raycast={NO_RAYCAST}>
         <cylinderGeometry
           args={[MALLET_RADIUS * 0.45, MALLET_RADIUS * 0.55, KNOB_HEIGHT, 24]}
         />

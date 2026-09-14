@@ -31,11 +31,20 @@ const KNOB_HEIGHT = 0.045
 export function Mallet({
   color,
   environment,
+  resaltado = false,
   ref,
 }: {
   color: string
   /** Los reflejos de la sala, los mismos que lleva el tablero. */
   environment?: Texture
+  /**
+   * Que hay que cogerlo **ahora**: se enciende para que se vea cuál es.
+   *
+   * Lo pide la cuenta atrás mientras espera a tenerlo en la mano. Sin esto, lo único que
+   * pasaba era que el 1 se quedaba clavado: «el countdown se queda parado en el 1 sin
+   * ninguna explicación. Se podría ayudar al usuario, o que el objeto brille más».
+   */
+  resaltado?: boolean
   ref?: Ref<Group>
 }) {
   return (
@@ -50,6 +59,8 @@ export function Mallet({
           metalness={0.1}
           envMap={environment ?? null}
           envMapIntensity={0.5}
+          emissive={color}
+          emissiveIntensity={resaltado ? 0.9 : 0}
         />
       </mesh>
 
@@ -62,6 +73,8 @@ export function Mallet({
           roughness={0.55}
           envMap={environment ?? null}
           envMapIntensity={0.4}
+          emissive={color}
+          emissiveIntensity={resaltado ? 0.9 : 0}
         />
       </mesh>
     </group>

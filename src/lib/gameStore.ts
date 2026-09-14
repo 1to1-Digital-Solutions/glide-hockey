@@ -140,6 +140,15 @@ export interface GameStore {
   malletHeld: boolean
   setMalletHeld: (held: boolean) => void
   /**
+   * La cuenta atrás está parada esperando a que se coja el mazo.
+   *
+   * **Se para y hay que decirlo.** Sin esto, el 1 se quedaba clavado sin explicación y desde
+   * dentro parece que el juego se ha colgado: «si no se coge el objeto para empujar el disco,
+   * el countdown se queda parado en el 1 sin ninguna explicación». Lo leen la cuenta atrás
+   * —que escribe qué falta— y el mazo, que se enciende para que se vea cuál es.
+   */
+  esperandoElMazo: boolean
+  /**
    * Identificador de partida. Sube al empezar una nueva, y en reto también al
    * pasar de ronda: es lo que remonta la mesa y devuelve el disco al centro.
    */
@@ -559,6 +568,7 @@ export function useGameStoreValue(): GameStore {
       countdown,
       malletHeld,
       setMalletHeld,
+      esperandoElMazo,
       runId,
       immersive,
       muted,
@@ -585,6 +595,7 @@ export function useGameStoreValue(): GameStore {
       askToQuit,
       keepPlaying,
       malletHeld,
+      esperandoElMazo,
       goalTarget,
       difficulty,
       gameMode,

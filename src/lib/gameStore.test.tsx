@@ -312,6 +312,29 @@ describe('el saque con el visor puesto', () => {
     expect(hook.result.current.gameState).toBe('countdown')
   })
 
+  it('y lo dice: mientras espera, el juego avisa de que falta cogerlo', () => {
+    // El 1 clavado sin explicación es lo que se reportó del visor: «el countdown se queda
+    // parado en el 1 sin ninguna explicación». La cuenta atrás escribe qué falta y el mazo se
+    // enciende, y las dos cosas cuelgan de esta señal.
+    const hook = renderHook(() => useGameStoreValue())
+    act(() => hook.result.current.setImmersive(true))
+    act(() => hook.result.current.startGame())
+    for (let i = 0; i < 8; i += 1) act(() => void vi.advanceTimersByTime(1000))
+
+    expect(hook.result.current.esperandoElMazo).toBe(true)
+
+    act(() => hook.result.current.setMalletHeld(true))
+    expect(hook.result.current.esperandoElMazo).toBe(false)
+  })
+
+  it('fuera del visor no espera a nadie: ahí el mazo va con el ratón', () => {
+    const hook = renderHook(() => useGameStoreValue())
+    act(() => hook.result.current.startGame())
+    for (let i = 0; i < 8; i += 1) act(() => void vi.advanceTimersByTime(1000))
+
+    expect(hook.result.current.esperandoElMazo).toBe(false)
+  })
+
   it('en cuanto se coge, saca', () => {
     const hook = renderHook(() => useGameStoreValue())
     act(() => hook.result.current.setImmersive(true))

@@ -3,15 +3,16 @@
 import { useCallback } from 'react'
 
 import { useGame } from '../../lib/gameStore'
-import { useLang } from '../../lib/ajustesCliente'
+import { useGrabMode, useLang } from '../../lib/ajustesCliente'
 import { traductor, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
+import { MandoDeVerdad } from './MandoDeVerdad'
 import { isEndless } from '../../lib/gameMode'
 import { PALETTE } from '../../lib/palette'
 import { useExit } from '../../game/exit'
 import {
   DIM_COLOR,
-  XRCloseIcon,
+  XRSalirIcon,
   XRMenuIcon,
   XRNumber,
   XRPanel,
@@ -102,11 +103,67 @@ export function XRScoreboard() {
   )
 }
 
-/** La cuenta atrás antes del saque, grande y sobre la mesa. */
+/** Lo ancho y lo alto del aviso de coger el mazo, en metros. */
+const AVISO_DEL_MAZO: [number, number] = [0.62, 0.16]
+
+/**
+ * La cuenta atrás antes del saque, grande y sobre la mesa.
+ *
+ * **Y cuando se para, dice por qué.** En el último segundo espera a que el mazo esté en la
+ * mano —sacar con el mazo en la mesa es empezar a perder—, y eso no se contaba: el 1 se
+ * quedaba clavado y desde dentro parece que el juego se ha colgado. Reportado con el visor
+ * puesto: «el countdown se queda parado en el 1 sin ninguna explicación». La frase es la
+ * misma que enseña el tutorial, y cambia con la forma de agarrar elegida en el arcade.
+ *
+ * **Y enseña qué botón es.** Decir «el botón de agarre» solo sirve a quien ya sabe cuál es, y
+ * aquí el tutorial no puede ayudar: su paso de coger se supera **en la cuenta atrás**, antes
+ * de que el panel llegue a salir. Así que el botón se enciende donde está, sobre el mando que
+ * se tiene en la mano (`MandoDeVerdad.tsx`). En las dos manos: el mazo se coge con
+ * cualquiera.
+ */
 export function XRCountdown() {
-  const { gameState, countdown } = useGame()
+  const { gameState, countdown, esperandoElMazo } = useGame()
+  const t = traductor(useLang())
+  const conUnToque = useGrabMode() === 'toggle'
+
+  const escribir = useCallback(
+    (ctx: CanvasRenderingContext2D) => {
+      drawParagraph(
+        ctx,
+        t(
+          conUnToque
+            ? 'Press the grip button on the mallet to pick it up'
+            : 'Close your hand on the mallet to pick it up',
+        ),
+        0,
+        AVISO_DEL_MAZO[1] / 2 - 0.03,
+        { size: 0.036, color: PALETTE.foreground, weight: '700', maxWidth: AVISO_DEL_MAZO[0] - 0.06 },
+      )
+    },
+    [t, conUnToque],
+  )
 
   if (gameState !== 'countdown') return null
+
+  if (esperandoElMazo) {
+    return (
+      <>
+        {/* Fuera del grupo del aviso a propósito: esto no vive en el panel, vive en la mano.
+            Se coloca solo, deshaciendo lo que le pongan sus padres. */}
+        <MandoDeVerdad mano="left" boton="agarre" />
+        <MandoDeVerdad mano="right" boton="agarre" />
+        <group>
+          <XRPanel width={AVISO_DEL_MAZO[0]} height={AVISO_DEL_MAZO[1]} />
+          <CanvasPanel
+            width={AVISO_DEL_MAZO[0]}
+            height={AVISO_DEL_MAZO[1]}
+            draw={escribir}
+            fallbackColor={PALETTE.background}
+          />
+        </group>
+      </>
+    )
+  }
 
   return (
     <XRNumber value={countdown} size={0.26} color={PALETTE.primaryBright} />
@@ -194,7 +251,7 @@ export function XRGameOver() {
           color={PALETTE.rail}
           opacity={0.8}
         />
-        <XRCloseIcon />
+        <XRSalirIcon />
       </XRPressable>
     </group>
   )

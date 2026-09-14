@@ -76,6 +76,7 @@ export function Rink({
     scoreOpponent,
     scorePlayer,
     setMalletHeld,
+    esperandoElMazo,
   } = useGame()
 
   const skill = OPPONENT_SKILLS[activeDifficulty]
@@ -236,7 +237,12 @@ export function Rink({
       ) : null}
 
       <Puck ref={puckObject} speedRef={puckSpeed} environment={environment} />
-      <Mallet ref={playerObject} color={PALETTE.primary} environment={environment} />
+      <Mallet
+        ref={playerObject}
+        color={PALETTE.primary}
+        environment={environment}
+        resaltado={esperandoElMazo}
+      />
       <Mallet ref={opponentObject} color={PALETTE.rival} environment={environment} />
 
       <pointLight

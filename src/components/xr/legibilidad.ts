@@ -30,13 +30,35 @@ import { ALTO_DE_LINEA } from './canvasPanel'
 const AVANCE = 0.62
 
 /**
- * Lo más pequeña que puede salir una letra, en metros.
+ * Lo más pequeña que puede verse una letra, en **grados** de ángulo visual.
  *
- * Un panel del visor se lee a un brazo o a metro y pico. Cuatro milímetros a un
- * metro son 0,23°, por debajo del límite de agudeza de un ojo sano —y muy por
- * debajo de lo que resuelve un visor—. Es el suelo, no el objetivo.
+ * **Antes era una medida en metros, y en metros no se lee.** Lo que decide si una letra se
+ * lee no es lo que mide, es lo que ocupa en el ojo: los mismos cuatro milímetros son una
+ * mancha en un panel a metro y medio y se leen de sobra en uno a un palmo. El suelo estaba
+ * puesto en 4 mm —0,23° a un metro, que es lo que un ojo sano **distingue**, parado y con
+ * buena luz, no lo que alguien lee de un vistazo mientras juega—, así que el instrumento
+ * daba por bueno lo que dentro del visor es una mancha. Reportado así: «la mayoría de los
+ * textos de dentro de los juegos se solapan y no son legibles».
+ *
+ * Tres cuartos de grado es la altura de una letra cómoda de leer sin acercarse. Los botones
+ * de los menús se pintan a 25 mm y los paneles están a metro y pico —1,2° de sobra—, así
+ * que esto no aprieta lo que está bien: caza lo que `drawText` **encoge para que quepa** en
+ * un botón demasiado estrecho, que es donde salían letras de 8 mm.
  */
-export const MIN_ALTO = 0.004
+export const MIN_ANGULO = 0.75
+
+/**
+ * A qué distancia se mira un panel cuando quien lo mide no dice otra cosa, en metros.
+ *
+ * Es donde están los paneles de casi todos: delante, a metro y pico. Los juegos de mesa
+ * —la torre de stick-pull— los tienen mucho más cerca y lo dicen al medir.
+ */
+export const DISTANCIA_TIPICA = 1.2
+
+/** Lo más pequeña que puede salir una letra en un panel a esa distancia, en metros. */
+export function altoMinimo(distancia: number): number {
+  return 2 * distancia * Math.tan((MIN_ANGULO * Math.PI) / 180 / 2)
+}
 
 /** Un texto que se ha escrito en el panel: qué, dónde y qué caja ocupa. */
 export interface Escrito {
@@ -156,14 +178,18 @@ export interface Panel {
  */
 export function problemasDeLegibilidad(
   escritos: readonly Escrito[],
-  { panel, minAlto = MIN_ALTO }: { panel: Panel; minAlto?: number },
+  {
+    panel,
+    distancia = DISTANCIA_TIPICA,
+    minAlto = altoMinimo(distancia),
+  }: { panel: Panel; distancia?: number; minAlto?: number },
 ): string[] {
   const problemas: string[] = []
 
   for (const escrito of escritos) {
     if (escrito.alto / ALTO_DE_LINEA < minAlto) {
       problemas.push(
-        `«${escrito.texto}» sale a ${(escrito.alto / ALTO_DE_LINEA * 1000).toFixed(1)} mm, por debajo de ${minAlto * 1000} mm`,
+        `«${escrito.texto}» sale a ${((escrito.alto / ALTO_DE_LINEA) * 1000).toFixed(1)} mm, por debajo de ${(minAlto * 1000).toFixed(1)} mm a ${distancia} m`,
       )
     }
     const fuera =

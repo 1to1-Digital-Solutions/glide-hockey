@@ -6,7 +6,7 @@ import { MENU_PANEL } from '../../lib/xrMenuLayout'
 import { GAME_MODE_HINTS, GAME_MODE_ORDER } from '../../lib/gameMode'
 import { SCENERY_IDS, SCENERY_LABELS } from '../../lib/scenery'
 import { traductor } from '../../lib/textos'
-import { MIN_ALTO, lienzoQueApunta, problemasDeLegibilidad } from './legibilidad'
+import { DISTANCIA_TIPICA, altoMinimo, lienzoQueApunta, problemasDeLegibilidad } from './legibilidad'
 
 /**
  * El instrumento con el que se comprueba que un panel se lee.
@@ -91,8 +91,16 @@ describe('qué se da por ilegible', () => {
 
   it('y la letra que no se lee de pequeña, también', () => {
     const { ctx, escritos } = lienzoQueApunta()
-    drawText(ctx, 'tres', 0, 0, { size: MIN_ALTO / 2, color: '#fff' })
+    drawText(ctx, 'tres', 0, 0, { size: altoMinimo(DISTANCIA_TIPICA) / 2, color: '#fff' })
     expect(problemasDeLegibilidad(escritos, { panel: PANEL }).join(' ')).toContain('por debajo de')
+  })
+
+  it('y lo que se lee depende de a qué distancia esté el panel', () => {
+    // La misma letra: una mancha en un panel a metro y medio, y de sobra en uno a un palmo.
+    const { ctx, escritos } = lienzoQueApunta()
+    drawText(ctx, 'tres', 0, 0, { size: 0.012, color: '#fff' })
+    expect(problemasDeLegibilidad(escritos, { panel: PANEL }).join(' ')).toContain('por debajo de')
+    expect(problemasDeLegibilidad(escritos, { panel: PANEL, distancia: 0.5 })).toEqual([])
   })
 
   it('un panel bien puesto no da problemas', () => {

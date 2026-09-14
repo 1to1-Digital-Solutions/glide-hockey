@@ -18,6 +18,7 @@ import {
 } from '../../lib/tutorial'
 import { CanvasPanel, drawParagraph, drawText, roundedRect, alturaDelParrafo } from './canvasPanel'
 import { dibujarMando } from './mandoDibujado'
+import { MandoDeVerdad } from './MandoDeVerdad'
 import { NO_RAYCAST } from '../raycast'
 
 /**
@@ -55,11 +56,14 @@ export const PANEL_HEIGHT = 0.62
  * sitio distinto de donde estaba el menú obliga a buscarlo, y quien acaba de entrar es
  * justamente quien no sabe dónde mirar.
  */
-const POSITION: [number, number, number] = [0.34, 1.5, -1.05]
-const ROTATION: [number, number, number] = [0, -0.3, 0]
+const POSITION: [number, number, number] = [0.68, 1.5, -1.05]
+const ROTATION: [number, number, number] = [0, -0.57, 0]
 
 /** Los dos botones, abajo del panel. */
 const BOTON = { width: 0.3, height: 0.09, y: -PANEL_HEIGHT / 2 + 0.08 }
+/** Cuánto se adelanta el marco de encendido para no pelearse con el panel. */
+const HOVER_Z = 0.004
+
 const BOTONES = [
   { id: 'next' as const, x: 0.19, texto: 'Next' as TextKey },
   { id: 'skip' as const, x: -0.19, texto: 'Skip tutorial' as TextKey },
@@ -179,6 +183,8 @@ export function XRTutorial({
   const [pendiente] = useState(() => !tutorialSeen())
   /** Cuántos pasos se ha saltado con el botón. Lo único que este panel recuerda. */
   const [saltados, setSaltados] = useState(0)
+  /** A cuál de los dos botones está apuntando el rayo, para encenderlo. */
+  const [apuntado, setApuntado] = useState<string | null>(null)
 
   // **El paso se calcula, no se guarda.** Sale de lo que ya ha hecho quien juega (`hitos`) y
   // de lo que se haya saltado a botón: un tutorial que llevara su propia cuenta acabaría
@@ -208,23 +214,41 @@ export function XRTutorial({
   if (!activo) return null
 
   return (
-    <group position={position} rotation={rotation}>
-      <CanvasPanel width={PANEL_WIDTH} height={PANEL_HEIGHT} draw={draw} fallbackColor={PALETTE.background} />
-      {BOTONES.map((boton) => (
-        <mesh
-          key={boton.id}
-          position={[boton.x, BOTON.y, 0.002]}
-          onClick={boton.id === 'next' ? siguiente : saltar}
-        >
-          <planeGeometry args={[BOTON.width, BOTON.height]} />
+    <>
+      {/* Fuera del grupo del panel a propósito: esto no vive en el panel, vive en la mano.
+          Se coloca solo, deshaciendo lo que le pongan sus padres. En las dos manos porque
+          aquí vale cualquiera de ellas: encender solo una sería decir que la otra no sirve. */}
+      <MandoDeVerdad mano="left" boton={TUTORIAL_BUTTONS[step]} />
+      <MandoDeVerdad mano="right" boton={TUTORIAL_BUTTONS[step]} />
+      <group position={position} rotation={rotation}>
+        <CanvasPanel width={PANEL_WIDTH} height={PANEL_HEIGHT} draw={draw} fallbackColor={PALETTE.background} />
+        {BOTONES.map((boton) => (
+          <group key={boton.id} position={[boton.x, BOTON.y, 0.002]}>
+            <mesh
+              onClick={boton.id === 'next' ? siguiente : saltar}
+              onPointerOver={() => setApuntado(boton.id)}
+              onPointerOut={() => setApuntado((actual) => (actual === boton.id ? null : actual))}
+            >
+              <planeGeometry args={[BOTON.width, BOTON.height]} />
+              <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
+            {/* **Encenderse al apuntar es lo que dice que el botón responde.** El resto de
+                paneles del juego ya lo hacen y estos no, así que con el visor puesto el
+                tutorial parecía un cartel: «los botones no se marcan cuando se apuntan». */}
+            {apuntado === boton.id ? (
+              <mesh position={[0, 0, HOVER_Z]} raycast={NO_RAYCAST}>
+                <planeGeometry args={[BOTON.width + 0.014, BOTON.height + 0.014]} />
+                <meshBasicMaterial color={PALETTE.foreground} transparent opacity={0.28} />
+              </mesh>
+            ) : null}
+          </group>
+        ))}
+        {/* El panel no se puede pulsar entero: solo sus botones. */}
+        <mesh position={[0, 0, -0.001]} raycast={NO_RAYCAST}>
+          <planeGeometry args={[PANEL_WIDTH, PANEL_HEIGHT]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
-      ))}
-      {/* El panel no se puede pulsar entero: solo sus botones. */}
-      <mesh position={[0, 0, -0.001]} raycast={NO_RAYCAST}>
-        <planeGeometry args={[PANEL_WIDTH, PANEL_HEIGHT]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
-    </group>
+      </group>
+    </>
   )
 }

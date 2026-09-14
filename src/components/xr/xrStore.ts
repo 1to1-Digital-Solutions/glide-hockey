@@ -47,6 +47,10 @@ function profilesBasePath(): string {
  *   se descarga igual, porque de él sale el mapa de botones. Auto-hospedar esos
  *   modelos costaría los 97 MB del paquete y aquí no aportan nada: el mazo va
  *   sobre la mesa, no en la mano.
+ * - **Salvo en el tutorial**, que sí lo enseña: a tamaño real, encima del mando
+ *   que se tiene en la mano y con el botón que toca encendido
+ *   (`xr/MandoDeVerdad.tsx`). De los 97 MB del paquete se copian los dos mandos
+ *   de Quest —1,7 MB, `scripts/sync-xr-profiles.mjs`— y solo se piden en ese paso.
  */
 let store: ReturnType<typeof createXRStore> | null = null
 

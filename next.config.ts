@@ -19,6 +19,12 @@ import type { NextConfig } from 'next'
  * WebAssembly, revienta aquí y no en el salón (ver `docs/xrcade.md`).
  *
  * `blob:` en img-src y worker-src lo necesitan three.js y sus loaders.
+ *
+ * Y `connect-src blob:` lo pide el modelo del mando que enseña el tutorial: el
+ * `.glb` se sirve desde el propio origen, pero sus texturas van dentro del
+ * fichero y three las saca a una URL `blob:` que después **pide con `fetch`**
+ * (`ImageBitmapLoader`). Sin ella el mando sale en negro y la consola escupe un
+ * error de política. Sigue siendo de casa: no abre el paso a nada de fuera.
  */
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
@@ -31,7 +37,7 @@ const CONTENT_SECURITY_POLICY = [
   "style-src 'self' 'unsafe-inline'",
   "script-src 'self' 'unsafe-inline'",
   "worker-src 'self' blob:",
-  "connect-src 'self'",
+  "connect-src 'self' blob:",
   // La música de fondo se sirve desde el propio origen, como todo lo demás.
   "media-src 'self'",
 ].join('; ')

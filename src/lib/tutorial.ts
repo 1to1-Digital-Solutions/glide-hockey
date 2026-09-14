@@ -52,6 +52,20 @@ export const TUTORIAL_BUTTONS: Record<TutorialStepKey, BotonDelMando | null> = {
 }
 
 /**
+ * Cómo llama WebXR a cada uno de esos botones.
+ *
+ * Es el puente entre el nombre de andar por casa —el que se usa al escribir la lección— y el
+ * identificador del perfil de mando, que es con el que se encuentra la pieza dentro del
+ * modelo 3D cuando el tutorial lo enseña a tamaño real sobre la mano (`MandoDeVerdad.tsx`).
+ * Los dos nombres son los del estándar y valen para cualquier mando, no solo para los de
+ * Quest.
+ */
+export const COMPONENTE_DEL_BOTON: Record<BotonDelMando, string> = {
+  agarre: 'xr-standard-squeeze',
+  gatillo: 'xr-standard-trigger',
+}
+
+/**
  * Lo que quien juega ya ha hecho. Se **acumula**: hacer algo no se deshace.
  *
  * Vive en el estado de la partida y no aquí porque lo escriben los mismos sitios que ya

@@ -30,7 +30,7 @@ import { SCENERY_LABELS, type Scenery } from '../../lib/scenery'
 import { useExit } from '../../game/exit'
 import {
   DIM_COLOR,
-  XRCloseIcon,
+  XRSalirIcon,
   XRNumber,
   XRPanel,
   XRPlate,
@@ -424,7 +424,7 @@ export function XRMenu() {
           color={PALETTE.rail}
           opacity={0.8}
         />
-        <XRCloseIcon />
+        <XRSalirIcon />
       </XRPressable>
     </group>
   )

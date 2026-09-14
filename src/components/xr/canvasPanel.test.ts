@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { drawParagraph, drawText, wrapText } from './canvasPanel'
 
@@ -174,5 +176,26 @@ describe('escribir un párrafo', () => {
     drawParagraph(ctx, '', 0, 0, { size: 0.03, color: '#fff', maxWidth: 0.2 })
 
     expect(escrito).toEqual([])
+  })
+})
+
+/**
+ * Y lo único del componente que se puede comprobar sin montar la escena: que el lienzo **no
+ * escribe profundidad**.
+ *
+ * Un material transparente apunta su profundidad salvo que se le diga que no, y este plano
+ * va por delante de los botones del panel cubriéndolos enteros: con la profundidad puesta,
+ * todo lo que quede detrás desaparece aunque el lienzo esté vacío ahí. Así es como el botón
+ * de jugar de air-hockey se quedó sin su placa azul —«no se ve en azul, está como
+ * sombreado»— y con él las placas de los botones pequeños de varios juegos.
+ */
+describe('el plano del panel', () => {
+  const fuente = readFileSync(
+    path.join(process.cwd(), 'src/components/xr/canvasPanel.tsx'),
+    'utf8',
+  )
+
+  it('no escribe profundidad: taparía lo que tenga detrás', () => {
+    expect(fuente).toContain('depthWrite={false}')
   })
 })

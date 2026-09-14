@@ -1,5 +1,9 @@
 'use client'
 
+import { FLECHA_DE_SALIR } from './canvasPanel'
+import { NO_RAYCAST } from '../raycast'
+import { Shape } from 'three'
+
 import { type ReactNode, useRef, useState } from 'react'
 import { pulsePressed } from '../../lib/haptics'
 import { type ThreeEvent } from '@react-three/fiber'
@@ -231,8 +235,32 @@ export function XRPlayIcon({ size = 0.06 }: { size?: number }) {
   )
 }
 
-/** Aspa de «salir». */
-export function XRCloseIcon({
+/** La flecha de salir, como forma plana: la misma que se pinta en los lienzos. */
+const FORMA_DE_SALIR = (() => {
+  const { punta, cuerpo, grosor, codo, alas } = FLECHA_DE_SALIR
+  const forma = new Shape()
+  forma.moveTo(punta, 0)
+  forma.lineTo(codo, alas)
+  forma.lineTo(codo, grosor / 2)
+  forma.lineTo(cuerpo, grosor / 2)
+  forma.lineTo(cuerpo, -grosor / 2)
+  forma.lineTo(codo, -grosor / 2)
+  forma.lineTo(codo, -alas)
+  forma.closePath()
+  return forma
+})()
+
+/**
+ * La flecha de **salir del juego**: volver al arcade.
+ *
+ * **Una sola forma para los trece.** Cada juego decía «salir» a su manera —la palabra
+ * «Exit», un aspa, una puerta, una puerta con flecha— y el aspa, además, significa «cerrar
+ * esto» en varios paneles. Reportado con el visor puesto: «no se entiende cuál es el botón de
+ * salir del juego: a veces aparece un cuadrado, otras veces pone "leave"… habría que
+ * unificarlo». La forma sale de `FLECHA_DE_SALIR`, la misma que pintan en su lienzo los
+ * juegos que dibujan el menú con texto.
+ */
+export function XRSalirIcon({
   size = 0.05,
   color = PALETTE.foreground,
 }: {
@@ -240,14 +268,10 @@ export function XRCloseIcon({
   color?: string
 }) {
   return (
-    <group>
-      {[Math.PI / 4, -Math.PI / 4].map((rotation) => (
-        <mesh key={rotation} rotation={[0, 0, rotation]}>
-          <planeGeometry args={[size, size * 0.2]} />
-          <meshBasicMaterial color={color} toneMapped={false} />
-        </mesh>
-      ))}
-    </group>
+    <mesh scale={size} raycast={NO_RAYCAST}>
+      <shapeGeometry args={[FORMA_DE_SALIR]} />
+      <meshBasicMaterial color={color} toneMapped={false} />
+    </mesh>
   )
 }
 

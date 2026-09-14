@@ -303,7 +303,19 @@ export function CanvasPanel({
   return (
     <mesh raycast={NO_RAYCAST}>
       <planeGeometry args={[width, height]} />
-      <meshBasicMaterial transparent color={canvas == null ? fallbackColor : undefined}>
+      {/*
+        **Sin escribir profundidad.** El lienzo es casi todo transparente —solo hay letras—
+        pero un material transparente **sí apunta su profundidad** salvo que se le diga que
+        no, y entonces tapa lo que tenga detrás aunque no se vea nada pintado. Eso es lo que
+        dejaba el botón de jugar de air-hockey sin su placa azul: el lienzo del panel va por
+        delante de los botones, y todo lo que quedaba detrás desaparecía. Reportado con el
+        visor puesto: «el botón de play no se ve en azul, está como sombreado».
+      */}
+      <meshBasicMaterial
+        transparent
+        depthWrite={false}
+        color={canvas == null ? fallbackColor : undefined}
+      >
         {canvas == null ? null : (
           <canvasTexture
             ref={texture}
@@ -316,4 +328,55 @@ export function CanvasPanel({
       </meshBasicMaterial>
     </mesh>
   )
+}
+
+/**
+ * La flecha de **salir del juego**, dibujada en el lienzo.
+ *
+ * **Una sola forma para los trece.** Cada juego decía «salir» a su manera: seis con la
+ * palabra «Exit», tres con un aspa, dos con una puerta, uno con una puerta y una flecha, y
+ * uno con un aspa llamada puerta. Y varios usan además el aspa para otra cosa —cerrar el
+ * panel, volver al menú—, así que el mismo dibujo significaba dos cosas distintas según el
+ * juego. Reportado con el visor puesto: «no se entiende cuál es el botón de salir del juego:
+ * a veces aparece un cuadrado, otras veces pone "leave"… habría que unificarlo».
+ *
+ * Es una flecha hacia atrás porque eso es lo que hace el botón: **volver al arcade**. El
+ * aspa, que era la otra candidata, ya significa «cerrar esto» en varios paneles.
+ *
+ * Las proporciones van en `FLECHA_DE_SALIR` para que el icono de tres dimensiones de los
+ * juegos que no pintan su menú en un lienzo salga con la misma forma.
+ */
+export const FLECHA_DE_SALIR = {
+  /** La punta, a la izquierda del centro, medida en altos del icono. */
+  punta: -0.5,
+  /** Y el final del palo, a la derecha. */
+  cuerpo: 0.42,
+  /** Lo gordo que es el palo. */
+  grosor: 0.3,
+  /** Dónde empieza el palo, que es donde acaban las alas. */
+  codo: -0.06,
+  /** Lo abiertas que van las alas: la mitad del alto del icono. */
+  alas: 0.5,
+}
+
+/** Pinta la flecha de salir centrada en `x, y`, con ese alto y ese color. */
+export function dibujarFlechaDeSalir(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  alto: number,
+  color: string,
+): void {
+  const { punta, cuerpo, grosor, codo, alas } = FLECHA_DE_SALIR
+  ctx.beginPath()
+  ctx.moveTo(x + punta * alto, y)
+  ctx.lineTo(x + codo * alto, y + alas * alto)
+  ctx.lineTo(x + codo * alto, y + (grosor / 2) * alto)
+  ctx.lineTo(x + cuerpo * alto, y + (grosor / 2) * alto)
+  ctx.lineTo(x + cuerpo * alto, y - (grosor / 2) * alto)
+  ctx.lineTo(x + codo * alto, y - (grosor / 2) * alto)
+  ctx.lineTo(x + codo * alto, y - alas * alto)
+  ctx.closePath()
+  ctx.fillStyle = color
+  ctx.fill()
 }

@@ -210,3 +210,76 @@ principio.
   estado `countdown` la corta a la mitad —y la mitad que se pierde es siempre el final, que
   es lo que de verdad no se adivina. Se mantiene también durante los primeros lanzamientos y
   se retira sola al acabar su guion.
+
+## Trampas de three y de WebXR que ya costaron una tanda
+
+Todas se descubrieron con el visor puesto y **ninguna se ve desde una pantalla quieta**. Un
+juego nuevo no tiene por qué volver a encontrárselas.
+
+- **Un material transparente escribe profundidad.** `transparent` en three no implica
+  `depthWrite={false}`: un plano transparente del tamaño del panel —el lienzo con el texto
+  encima de las placas— **borra todo lo que queda detrás**, y lo que se ve es un botón sin
+  color, como apagado. Reportado como «el botón de play no se ve en azul, está como
+  sombreado», y estuvo en los trece a la vez. Todo overlay transparente lleva
+  `depthWrite={false}`; el diagnóstico rápido es meter una placa de color a distintos `z` y
+  ver entre cuáles desaparece.
+- **Dos superficies que acaban en el mismo plano parpadean, y solo con el visor.** No es el
+  caso de los calcos —para eso está `polygonOffset`—, es el empate exacto: un cilindro que
+  acaba en `z = 0` y un círculo en `z = 0`. En una pantalla quieta el empate se resuelve
+  siempre igual y no se nota; con el visor **cada ojo y cada fotograma lo resuelven de otra
+  manera** y la superficie hierve. Medio milímetro deshace el empate sin que se note de lado.
+- **`lookAt` recibe un punto del MUNDO y orienta el `+Z`.** Pasarle coordenadas locales
+  funciona mientras el objeto cuelgue de la raíz y deja de funcionar en cuanto alguien lo
+  mete en un grupo girado —que es justo lo que hace anclar el decorado—. Y orienta el `+Z`,
+  no el eje del modelo: una flecha modelada a lo largo del `-Z`, o un trazo a lo largo del
+  `Y`, quedan cruzados. Para apuntar un modelo por su propio eje,
+  `setFromUnitVectors(ejeDelModelo, rumbo)`, y el rumbo sale de restar dos puntos **del mismo
+  espacio**.
+- **El espacio del puño tiene el `+Y` saliendo del puño.** Lo que se empuña como una vara
+  —un bate, un mazo, una raqueta— crece hacia `+Y`; lo que cuelga —un palo de golf— va hacia
+  `-Y`. Y el espacio del **rayo** no es ese: está girado unos 45° respecto del puño, así que
+  colgar de él lo que debería quedar a plomo lo deja inclinado. Un objeto se cuelga del rayo
+  solo si lo que importa es hacia dónde apunta (un arco, una pistola); si lo que importa es
+  cómo se sostiene, del puño.
+- **Lo que va en la mano no puede colgar del anclaje del decorado.** WebXR da las manos en el
+  espacio del origen que pone el anfitrión; dentro del grupo anclado se le suma el giro del
+  mundo y aparece en otro sitio. Se monta fuera **o** se le deshace la matriz de sus padres
+  —`matrix = padre.matrixWorld⁻¹ · matrizDelEspacio`—, que es lo que deja colocar algo en la
+  mano sin importar de dónde cuelgue en el árbol.
+- **El mando de verdad se puede enseñar, y es la mejor forma de decir qué botón se aprieta.**
+  El paquete de perfiles trae el `.glb` de cada mando; copiando solo los de Quest son 1,7 MB.
+  Puesto en el espacio del puño queda exactamente encima del que se tiene en la mano. Dos
+  cosas que no se adivinan: el nodo que nombra el perfil (`visualResponses[].valueNodeName`)
+  es el **pivote** sobre el que gira el botón y en los mandos de Quest está a dos centímetros
+  y medio de él —lo que hay que marcar es la **caja de lo que cuelga de ese nodo**—, y la
+  textura viaja dentro del `.glb`, así que hace falta `connect-src blob:` en la CSP o el
+  mando sale en negro. Un mando sin modelo copiado no puede romper nada: no se monta y queda
+  el dibujo.
+- **Una cuenta atrás que espera algo tiene que decir qué espera.** Un número que se queda
+  clavado en el 1 porque falta coger el mazo se lee, desde dentro, como que el juego se ha
+  colgado. Lo mismo vale para cualquier espera: se dice con una frase **y** se enciende el
+  botón que la resuelve.
+- **La salida se dibuja igual en los trece.** Llegó a haber cinco: un cuadrado, una X, la
+  palabra «Exit», «Leave» y un icono propio. Con el visor puesto, la pregunta «¿cuál era el
+  de salir?» se repite en cada cabina. Es una flecha de volver, la misma forma
+  (`FLECHA_DE_SALIR` en `canvasPanel.tsx`), en el panel dibujado y en la geometría.
+
+## Lo que aprendieron los tests
+
+- **El tamaño mínimo de una letra es un ángulo, no un milímetro.** La misma letra a 1,1 m y a
+  2,4 m no se lee igual, así que el mínimo se fija en grados de ángulo visual
+  (`MIN_ANGULO`) y el instrumento lo traduce a metros con la distancia a la que se planta ese
+  panel. Un panel que se aleja tiene que crecer, y así se ve en el test en vez de en la cara.
+- **Encoger para que quepa es una avería silenciosa.** `maxWidth` en un lienzo no parte la
+  frase: la **aplasta**, y una etiqueta que se queda en letra de dos centímetros pasa todos
+  los tests. El reparto del menú calcula el ancho que pide cada etiqueta (`loQuePide`) y los
+  botones de una fila **no miden todos lo mismo**: el ancho se reparte según lo que cada uno
+  necesita, y si no cabe, es el reparto el que falla, no el texto el que se encoge.
+- **Un e2e no copia a mano un texto de la interfaz.** Renombrar un modo para que cupiera en un
+  botón dejó cuatro e2e buscando un botón que ya no existía, y el fallo no fue un error claro
+  sino cuatro timeouts de minuto y medio. La etiqueta se importa del código
+  (`MODE_LABELS.clock`), y entonces el renombrado se ve al compilar.
+- **Lo que se copia entre repos entra en `comunes.py`.** Cualquier fichero nuevo que se
+  reparta a mano por los trece —el instrumento que mide, el mando del tutorial, las reglas—
+  se añade a su lista en cuanto se reparte, no después: es la única red que avisa de que una
+  copia se quedó atrás.

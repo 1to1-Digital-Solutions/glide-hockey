@@ -141,5 +141,12 @@ Tres claves en `localStorage`, sin nada que identifique a nadie:
 | `air-hockey:best-points:challenge` | El récord del modo reto. |
 | `air-hockey:muted` | Si el jugador dejó el juego callado (`1`) o sonando (`0`). |
 
+El escenario —la sala o la habitación de quien juega— **no** es suyo: es `xrcade:scenery`, la
+misma clave que escribe el salón (`place` o `room`, y `place` si no hay nada). Los menús del
+juego lo pueden cambiar, pero escriben esa clave: hay una sola preferencia, y fuera del salón
+funciona igual en el origen de la web del juego. La clave propia del juego,
+`air-hockey:scenery`, no la escribe nadie: se borra al montar el estado de la partida, sin
+trasladarla (ver `src/lib/ajustes.ts` y `src/lib/scenery.ts`).
+
 Si el almacenamiento está bloqueado (ventana privada, política del navegador),
 el juego funciona igual: se juega sin récord y sonando.

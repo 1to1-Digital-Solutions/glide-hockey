@@ -1,91 +1,65 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import {
-  DEFAULT_SCENERY,
-  SCENERY_HINTS,
-  SCENERY_IDS,
-  SCENERY_KEY,
-  SCENERY_LABELS,
-  getScenery,
-  getServerScenery,
-  parseScenery,
-  saveScenery,
-  showsPlace,
-  subscribeScenery,
-} from './scenery'
+import { afterEach, describe, expect, it } from 'vitest'
+
+import { SCENERIES, readScenery } from './ajustes'
+import { OWN_SCENERY_KEY, SCENERY_HINTS, SCENERY_LABELS, forgetOwnScenery } from './scenery'
 
 /**
- * Qué se pinta alrededor.
+ * Cómo se ofrece el escenario del arcade en este juego.
  *
- * Lo importante es que se pueda cambiar **sin salir de la sesión**: con el
- * visor puesto, salir y volver a entrar para ver la habitación es justo lo que
- * hace que nadie lo use. Y que se recuerde, para no tener que volver a
- * elegirlo cada vez que uno se pone las gafas.
+ * La preferencia y la regla del decorado se prueban con el puente (`ajustes.test.ts` y
+ * `ajustesCliente.test.tsx`). Lo que queda aquí es lo que es de air-hockey: que la clave propia
+ * del juego no mande y desaparezca.
  */
 
 afterEach(() => {
-  vi.restoreAllMocks()
   window.localStorage.clear()
 })
 
-describe('cuándo se pinta la sala', () => {
-  it('en el navegador, siempre: no hay habitación que enseñar', () => {
-    for (const scenery of SCENERY_IDS) {
-      expect(showsPlace(null, scenery), scenery).toBe(true)
-      expect(showsPlace(undefined, scenery), scenery).toBe(true)
+describe('la clave propia del juego', () => {
+  it('es la del juego, escrita a mano', () => {
+    // Si se apartara, se quedaría sin borrar la de verdad y se borraría una que no existe.
+    expect(OWN_SCENERY_KEY).toBe('air-hockey:scenery')
+  })
+
+  it('no manda: con ella a «habitación» y la del arcade sin poner, se ve la sala', () => {
+    window.localStorage.setItem(OWN_SCENERY_KEY, 'room')
+
+    expect(readScenery(window.localStorage)).toBe('place')
+  })
+
+  it('se borra sin trasladarla a la del arcade', () => {
+    window.localStorage.setItem(OWN_SCENERY_KEY, 'room')
+
+    forgetOwnScenery(window.localStorage)
+
+    expect(window.localStorage.getItem(OWN_SCENERY_KEY)).toBeNull()
+    expect(window.localStorage.getItem('xrcade:scenery')).toBeNull()
+  })
+
+  it('no toca lo que se eligió en el salón', () => {
+    window.localStorage.setItem(OWN_SCENERY_KEY, 'place')
+    window.localStorage.setItem('xrcade:scenery', 'room')
+
+    forgetOwnScenery(window.localStorage)
+
+    expect(readScenery(window.localStorage)).toBe('room')
+  })
+
+  it('sin almacenamiento, o con uno que lanza, no revienta', () => {
+    const roto = {
+      removeItem() {
+        throw new Error('almacenamiento capado')
+      },
     }
-  })
 
-  it('en realidad virtual, también: el visor no da el passthrough ahí', () => {
-    // Quitar la sala en una sesión de realidad virtual dejaría los platos
-    // volando en el vacío, que no es lo que pide quien elige «tu habitación».
-    for (const scenery of SCENERY_IDS) {
-      expect(showsPlace('immersive-vr', scenery), scenery).toBe(true)
-    }
-  })
-
-  it('en realidad aumentada manda lo elegido', () => {
-    expect(showsPlace('immersive-ar', 'place')).toBe(true)
-    expect(showsPlace('immersive-ar', 'room')).toBe(false)
-  })
-})
-
-describe('lo que se recuerda', () => {
-  it('se entra con la sala, que es lo que se ve en cualquier pantalla', () => {
-    expect(DEFAULT_SCENERY).toBe('place')
-    expect(getScenery()).toBe('place')
-    expect(getServerScenery()).toBe('place')
-  })
-
-  it('lo elegido sobrevive a la visita', () => {
-    // Es lo que evita tener que quitar la sala cada vez que uno se pone las
-    // gafas, deshaciendo algo que ya había decidido.
-    saveScenery('room')
-
-    expect(getScenery()).toBe('room')
-    expect(window.localStorage.getItem(SCENERY_KEY)).toBe('room')
-  })
-
-  it('avisa a quien lo mira cuando cambia', () => {
-    const listener = vi.fn()
-    const unsubscribe = subscribeScenery(listener)
-
-    saveScenery('room')
-    expect(listener).toHaveBeenCalled()
-
-    unsubscribe()
-  })
-
-  it('lo guardado es entrada externa: solo el valor exacto cuenta', () => {
-    for (const raw of [null, '', 'prado', 'Room', 'passthrough']) {
-      expect(parseScenery(raw), String(raw)).toBe('place')
-    }
-    expect(parseScenery('room')).toBe('room')
+    expect(() => forgetOwnScenery(null)).not.toThrow()
+    expect(() => forgetOwnScenery(roto)).not.toThrow()
   })
 })
 
 describe('cómo se ofrece', () => {
   it('los dos sitios tienen nombre y explicación', () => {
-    for (const scenery of SCENERY_IDS) {
+    for (const scenery of SCENERIES) {
       expect(SCENERY_LABELS[scenery]).not.toBe('')
       expect(SCENERY_HINTS[scenery]).not.toBe('')
     }

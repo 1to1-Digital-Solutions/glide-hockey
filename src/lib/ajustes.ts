@@ -1,5 +1,5 @@
 /**
- * Los ajustes que **no** son de un juego: idioma y volúmenes.
+ * Los ajustes que **no** son de un juego: idioma, volúmenes, escenario, altura y agarre.
  *
  * **Por qué viven fuera de cada juego.** Quien entra al arcade, elige español y
  * baja el ambiente no quiere volver a decirlo en cada cabina. Antes cada juego
@@ -39,9 +39,8 @@
  * puente, en silencio.
  *
  * **Qué NO decide este fichero.** Nada de lo que va dentro de una partida:
- * nivel, dificultad, modo o escenario siguen siendo de cada juego y siguen
- * guardándose con su prefijo. Aquí solo está lo que se elige una vez y vale
- * para todos.
+ * nivel, dificultad o modo siguen siendo de cada juego y siguen guardándose con
+ * su prefijo. Aquí solo está lo que se elige una vez y vale para todos.
  */
 
 /** Los idiomas que hay. El inglés es la lengua de partida del arcade. */
@@ -73,6 +72,86 @@ export type SoundChannel = (typeof SOUND_CHANNELS)[number]
  * aunque las claves de almacenamiento usen `xrcade:`.
  */
 export const LANG_COOKIE = 'xrcade_lang'
+
+/**
+ * Qué se ve alrededor con el visor puesto: el sitio dibujado o tu habitación.
+ *
+ * `place` es el decorado opaco de quien pinta —la sala del arcade, la bolera, el prado— y
+ * `room` es la habitación de verdad, por *passthrough*, con encima solo lo que hace falta
+ * para jugar. Son los mismos dos nombres con los que cada juego habla de su decorado, a
+ * propósito: que el valor venga del arcade no cambia qué significa.
+ *
+ * **Es un ajuste de lo que se pinta, no del tipo de sesión.** Decidir con él qué sesión se abre
+ * tiene dos fallos, y los dos se vieron con el visor puesto. Una sesión de WebXR no cambia de
+ * tipo, así que cambiar de escenario obligaría a cerrar la sesión y abrir otra: saca del visor y
+ * tarda en volver. Y un juego no puede enterarse mirando el tipo de sesión, que no dice lo que
+ * se eligió. Así que el anfitrión entra en `immersive-ar` siempre que el visor la tiene, y este
+ * ajuste decide si se pinta el decorado: cambiarlo es instantáneo y lo lee cualquiera que monte
+ * escena.
+ *
+ * **Y es uno solo.** Si cada juego guardara el suyo, el salón diría «realidad virtual» y la
+ * cabina entraría en la habitación porque alguna vez se eligió ahí: dos preferencias que se
+ * contradicen sin que nadie sepa cuál manda.
+ */
+export const SCENERIES = ['place', 'room'] as const
+export type Scenery = (typeof SCENERIES)[number]
+
+/** Dónde se recuerda. El prefijo es del arcade, no de un juego. */
+export const SCENERY_KEY = 'xrcade:scenery'
+
+/** Con qué se entra: el sitio dibujado, que es lo que se ve en cualquier pantalla. */
+export const DEFAULT_SCENERY: Scenery = 'place'
+
+/**
+ * Interpreta el escenario leído del almacenamiento. Como el idioma: solo cuenta uno que
+ * exista, y cualquier otra cosa cae al de partida.
+ */
+export function parseScenery(raw: string | null | undefined): Scenery {
+  return (SCENERIES as readonly string[]).includes(raw ?? '') ? (raw as Scenery) : DEFAULT_SCENERY
+}
+
+/** El escenario elegido, leído de un almacenamiento que puede no estar. */
+export function readScenery(storage: Pick<Storage, 'getItem'> | null): Scenery {
+  if (storage === null) return DEFAULT_SCENERY
+  try {
+    return parseScenery(storage.getItem(SCENERY_KEY))
+  } catch {
+    // Almacenamiento capado: se ve el sitio dibujado, que nunca deja a nadie mirando la nada.
+    return DEFAULT_SCENERY
+  }
+}
+
+/**
+ * Guarda el escenario, o lo olvida cuando vuelve a ser el de partida.
+ *
+ * @returns si quedó guardado. Un `false` no es un error: significa que este navegador no
+ *   guarda nada y la elección vivirá lo que dure la visita.
+ */
+export function writeScenery(storage: Storage | null, value: Scenery): boolean {
+  if (storage === null) return false
+  try {
+    if (value === DEFAULT_SCENERY) storage.removeItem(SCENERY_KEY)
+    else storage.setItem(SCENERY_KEY, value)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Si quien pinta tiene que poner su decorado: **la regla que siguen el salón y los juegos**.
+ *
+ * Se quita solo cuando se ha elegido la habitación **y** la sesión es `immersive-ar`. La
+ * segunda condición no sobra: en una `immersive-vr` —un visor sin passthrough— o fuera del
+ * visor no hay habitación detrás, y quitar el decorado dejaría a quien juega mirando negro sin
+ * saber por qué. El tipo de sesión no decide qué se ve; solo dice si la habitación se puede
+ * enseñar.
+ *
+ * @param sessionMode El de `useXR((state) => state.mode)`.
+ */
+export function showsPlace(sessionMode: string | null | undefined, scenery: Scenery): boolean {
+  return scenery === 'place' || sessionMode !== 'immersive-ar'
+}
 
 /** Dónde se recuerda cada volumen. El prefijo es del arcade, no de un juego. */
 export const VOLUME_KEYS: Record<SoundChannel, string> = {
@@ -209,7 +288,7 @@ export const PLAY_HEIGHT_KEY = 'xrcade:play-height'
 export const DEFAULT_PLAY_HEIGHT: PlayHeight = 'standing'
 
 /**
- * Interpreta la altura leída del almacenamiento. Como el modo inmersivo: solo cuenta una
+ * Interpreta la altura leída del almacenamiento. Como el escenario: solo cuenta una
  * que exista, y cualquier otra cosa cae a la de partida.
  */
 export function parsePlayHeight(raw: string | null | undefined): PlayHeight {

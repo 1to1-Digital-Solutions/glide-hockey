@@ -1,27 +1,24 @@
-import { createStoredPreference } from './storage'
+import type { Scenery } from './ajustes'
 
 /**
- * Qué se pinta alrededor: la sala del juego o la habitación de quien juega.
+ * Cómo se ofrece en este juego el escenario del arcade: la sala o la habitación de quien
+ * juega.
  *
- * **Es una elección, no un modo de sesión.** Dentro de una sesión de realidad
- * aumentada las dos son la misma sesión pintada de dos formas, así que se puede
- * cambiar **sin salirse**: con el visor puesto, salir y volver a entrar para
- * ver la habitación es justo lo que hace que nadie lo use.
+ * **La preferencia no es de este juego.** Se guarda en `xrcade:scenery` y la regla de cuándo
+ * se pinta el decorado es `showsPlace`, las dos en `lib/ajustes.ts`, que es la copia del puente
+ * con el salón; el hook y el cambio están en `lib/ajustesCliente.ts`. Aquí solo queda lo que es
+ * de air-hockey: cómo se llama cada opción en sus menús y la clave propia que hay que borrar.
  *
- * **Se recuerda entre visitas**, como el silencio: quien juega en su cuarto tenía
- * que quitar la sala cada vez que se ponía las gafas, deshaciendo algo que ya
- * había decidido. Sigue sin salir nada del navegador.
+ * **Por qué no tiene uno propio.** El salón entra siempre en `immersive-ar` cuando el visor la
+ * tiene, así que el tipo de sesión no dice qué eligió quien juega. Con un escenario por juego,
+ * quien eligiera «tu habitación» en esta cabina entraría sin decorado aunque en el salón hubiera
+ * elegido el sitio dibujado, y no habría forma de saber cuál de las dos manda.
  *
- * **Lo que esto NO decide.** Que la preferencia diga «habitación» no significa
- * que se pueda servir: en una sesión de realidad virtual no hay habitación real
- * detrás y en el navegador no hay cámara, así que quitar la sala dejaría a
- * quien juega mirando la nada. Eso lo resuelve `showsPlace`, que es el único
- * que sabe qué tipo de sesión se ha concedido.
+ * Quien decide la sala es `GameWorld`, con el escenario que le da el estado de la partida
+ * (`lib/gameStore.ts`), que es también lo que leen los dos menús.
  */
 
-export const SCENERY_IDS = ['place', 'room'] as const
-export type Scenery = (typeof SCENERY_IDS)[number]
-
+/** Cómo se llama cada escenario en los menús de este juego. */
 export const SCENERY_LABELS = {
   place: 'The room',
   room: 'Your room',
@@ -32,38 +29,25 @@ export const SCENERY_HINTS = {
   room: 'Headset and augmented reality only: the table stands in your own room.',
 } as const satisfies Record<Scenery, string>
 
-/** Con qué se entra: con la sala, que es lo que se ve en cualquier pantalla. */
-export const DEFAULT_SCENERY: Scenery = 'place'
-
-/** Clave en el almacenamiento, con prefijo para no chocar con nada más. */
-export const SCENERY_KEY = 'air-hockey:scenery'
-
 /**
- * Interpreta lo leído del almacenamiento. Es entrada externa —se edita a mano
- * desde las herramientas del navegador—, así que solo el valor exacto cuenta.
- */
-export function parseScenery(raw: string | null): Scenery {
-  return raw === 'room' ? 'room' : DEFAULT_SCENERY
-}
-
-/**
- * Si toca pintar la sala, con el modo de sesión y lo elegido.
+ * La clave del escenario propio del juego, que no escribe nadie.
  *
- * Fuera de una sesión de realidad aumentada se pinta siempre: no hay habitación
- * que enseñar, así que quitarla dejaría la mesa flotando en el vacío. Dentro
- * de una, manda lo que haya elegido quien juega.
+ * Si está en el navegador, se borra al montar el estado de la partida y **no se traslada** a la
+ * del arcade: la elección que manda es la del salón. Dejarla no rompería nada —no la lee nadie—,
+ * pero borrarla evita que quien mire el almacenamiento crea que hay dos preferencias.
  */
-export function showsPlace(mode: string | null | undefined, scenery: Scenery): boolean {
-  return mode !== 'immersive-ar' || scenery === 'place'
-}
+export const OWN_SCENERY_KEY = 'air-hockey:scenery'
 
-export const {
-  get: getScenery,
-  getServer: getServerScenery,
-  subscribe: subscribeScenery,
-  save: saveScenery,
-} = createStoredPreference<Scenery>({
-  key: SCENERY_KEY,
-  parse: parseScenery,
-  serialize: (scenery) => scenery,
-})
+/**
+ * Olvida el escenario propio del juego.
+ *
+ * Aguanta un almacenamiento que no está o que lanza: no hay nada que olvidar, y el juego sigue
+ * con el del arcade.
+ */
+export function forgetOwnScenery(storage: Pick<Storage, 'removeItem'> | null): void {
+  try {
+    storage?.removeItem(OWN_SCENERY_KEY)
+  } catch {
+    // Almacenamiento capado: tampoco se pudo guardar nada en esa clave.
+  }
+}

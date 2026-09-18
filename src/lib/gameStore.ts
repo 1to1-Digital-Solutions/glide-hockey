@@ -11,8 +11,8 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { volumeFactor } from './ajustes'
-import { useVolumes } from './ajustesCliente'
+import { volumeFactor, type Scenery } from './ajustes'
+import { setScenery as setArcadeScenery, useScenery, useVolumes } from './ajustesCliente'
 import { challengeRound } from './challenge'
 import {
   COUNTDOWN_SECONDS,
@@ -42,13 +42,8 @@ import {
   subscribeStarsList,
   subscribeUnlockedLevel,
 } from './progress'
-import {
-  getScenery,
-  getServerScenery,
-  saveScenery,
-  subscribeScenery,
-  type Scenery,
-} from './scenery'
+import { forgetOwnScenery } from './scenery'
+import { gameStorage } from './storage'
 import { type Scorer } from './puckPhysics'
 import { scoreConceded, scoreGoal } from './scoring'
 
@@ -286,9 +281,15 @@ export function useGameStoreValue(): GameStore {
   const sfxVolume = volumeFactor(volumes.sfx)
   const music = volumes.ambience > 0
   const ambienceVolume = volumeFactor(volumes.ambience)
-  // Lo que se pinta alrededor tampoco es estado de React: se recuerda entre
-  // visitas, como el silencio, y se cambia desde los dos menús.
-  const scenery = useSyncExternalStore(subscribeScenery, getScenery, getServerScenery)
+  // Lo que se pinta alrededor tampoco es estado de React, y además no es del
+  // juego: es el escenario del arcade (`xrcade:scenery`). Se cambia desde el panel
+  // del salón y desde los dos menús de aquí, y los tres tienen que ver lo mismo.
+  const scenery = useScenery()
+  // La clave propia del juego se borra al montar el estado de la partida, sin
+  // trasladarla: la elección que manda es la del salón (ver `lib/scenery.ts`).
+  useEffect(() => {
+    forgetOwnScenery(gameStorage())
+  }, [])
 
   // El progreso de Niveles tampoco es estado de React: vive en el navegador y se
   // lee suscrito, como el récord, para que los dos menús lo vean a la vez.
@@ -520,7 +521,8 @@ export function useGameStoreValue(): GameStore {
     setPoints((total) => scoreConceded(total))
   }, [])
 
-  const setScenery = useCallback((value: Scenery) => saveScenery(value), [])
+  // Escribe la clave del arcade, no una del juego: el botón y el panel del salón son el mismo ajuste.
+  const setScenery = useCallback((value: Scenery) => setArcadeScenery(value), [])
 
   const askToQuit = useCallback(() => setPrompt('quit'), [])
   const keepPlaying = useCallback(() => setPrompt(null), [])

@@ -1,9 +1,11 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { SCENERY_KEY } from './ajustes'
 import { DEFAULT_GOALS, MAX_GOALS, MIN_GOALS } from './gameConfig'
 import { clampGoalTarget, useGame, useGameStoreValue } from './gameStore'
 import { getBestEndlessStreak } from './highScore'
 import { LEVEL_COUNT } from './levels'
+import { OWN_SCENERY_KEY } from './scenery'
 
 /**
  * El estado de la partida. Las reglas viven en sus módulos —el marcador en
@@ -439,5 +441,50 @@ describe('esperar a la demostración', () => {
     act(() => void vi.advanceTimersByTime(1100))
 
     expect(hook.result.current.countdown).toBeLessThan(parada)
+  })
+})
+
+describe('el escenario, que es del arcade', () => {
+  it('el botón del decorado escribe el escenario del arcade', () => {
+    // Es lo que llaman los dos menús —el de la web y el del visor—: una sola preferencia, la
+    // misma que enseña el panel del salón, y no una del juego que la contradiga.
+    window.localStorage.removeItem(SCENERY_KEY)
+    const hook = renderHook(() => useGameStoreValue())
+
+    act(() => hook.result.current.setScenery('room'))
+
+    expect(hook.result.current.scenery).toBe('room')
+    expect(window.localStorage.getItem(SCENERY_KEY)).toBe('room')
+    expect(window.localStorage.getItem(OWN_SCENERY_KEY)).toBeNull()
+
+    act(() => hook.result.current.setScenery('place'))
+    expect(hook.result.current.scenery).toBe('place')
+    expect(window.localStorage.getItem(SCENERY_KEY)).toBeNull()
+  })
+
+  it('lo que se elige en el salón llega a la partida sin recargar', () => {
+    window.localStorage.removeItem(SCENERY_KEY)
+    const hook = renderHook(() => useGameStoreValue())
+
+    act(() => {
+      window.localStorage.setItem(SCENERY_KEY, 'room')
+      window.dispatchEvent(new Event('xrcade:ajustes'))
+    })
+
+    expect(hook.result.current.scenery).toBe('room')
+    window.localStorage.removeItem(SCENERY_KEY)
+  })
+
+  it('la clave propia del juego no manda y se borra al montar la partida, sin trasladarla', () => {
+    // Con «tu habitación» guardada en la clave propia de esta cabina no se puede quedar sin
+    // la sala: manda lo que diga el salón, y sin nada elegido allí, el sitio dibujado.
+    window.localStorage.removeItem(SCENERY_KEY)
+    window.localStorage.setItem(OWN_SCENERY_KEY, 'room')
+
+    const hook = renderHook(() => useGameStoreValue())
+
+    expect(hook.result.current.scenery).toBe('place')
+    expect(window.localStorage.getItem(OWN_SCENERY_KEY)).toBeNull()
+    expect(window.localStorage.getItem(SCENERY_KEY)).toBeNull()
   })
 })

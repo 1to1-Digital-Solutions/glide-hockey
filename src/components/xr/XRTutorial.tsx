@@ -59,14 +59,26 @@ export const PANEL_HEIGHT = 0.62
 const POSITION: [number, number, number] = [0.68, 1.5, -1.05]
 const ROTATION: [number, number, number] = [0, -0.57, 0]
 
-/** Los dos botones, abajo del panel. */
-const BOTON = { width: 0.3, height: 0.09, y: -PANEL_HEIGHT / 2 + 0.08 }
+/**
+ * A qué tamaño se escribe cada cosa del panel, en metros de alto de letra.
+ *
+ * Una sola lista para quien pinta y para quien mide (`tutorial.legible.test.ts`). El contador y
+ * los botones iban a 30 y 32 mm y «Saltar tutorial» se encogía a 29 para caber: con el panel a
+ * metro y medio, se quedaban en 1°.
+ */
+export const TUTORIAL_TEXT = { counter: 0.036, phrase: 0.042, button: 0.036 } as const
+
+/**
+ * Los dos botones, abajo del panel: lo bastante anchos para que «Saltar tutorial» quepa entero a
+ * su tamaño, con dos centímetros entre ellos.
+ */
+export const BOTON = { width: 0.37, height: 0.09, y: -PANEL_HEIGHT / 2 + 0.08 }
 /** Cuánto se adelanta el marco de encendido para no pelearse con el panel. */
 const HOVER_Z = 0.004
 
-const BOTONES = [
-  { id: 'next' as const, x: 0.19, texto: 'Next' as TextKey },
-  { id: 'skip' as const, x: -0.19, texto: 'Skip tutorial' as TextKey },
+export const BOTONES = [
+  { id: 'next' as const, x: 0.195, texto: 'Next' as TextKey },
+  { id: 'skip' as const, x: -0.195, texto: 'Skip tutorial' as TextKey },
 ]
 
 /** Lo que se pide en cada paso. */
@@ -88,7 +100,7 @@ export const FRASES_CON_UN_TOQUE: Record<TutorialStepKey, TextKey> = {
 }
 
 /** Cómo se llama la frase, para medirla igual que se pinta. */
-const FRASE = { size: 0.042, maxWidth: PANEL_WIDTH - 0.1 }
+const FRASE = { size: TUTORIAL_TEXT.phrase, maxWidth: PANEL_WIDTH - 0.1 }
 
 /**
  * Dónde cae cada cosa en el panel de un paso.
@@ -130,7 +142,7 @@ export function dibujarElPaso(
 
   // Por cuál se va, que es lo que dice cuánto queda.
   drawText(ctx, `${TUTORIAL_STEPS.indexOf(step) + 1}/${TUTORIAL_STEPS.length}`, 0, PANEL_HEIGHT / 2 - 0.05, {
-    size: 0.03,
+    size: TUTORIAL_TEXT.counter,
     color: DIM_COLOR,
   })
 
@@ -157,7 +169,7 @@ export function dibujarElPaso(
     ctx.fillStyle = DIM_COLOR
     ctx.fill()
     drawText(ctx, t(boton.texto), boton.x, BOTON.y, {
-      size: 0.032,
+      size: TUTORIAL_TEXT.button,
       color: PALETTE.background,
       weight: '700',
       maxWidth: BOTON.width - 0.03,
@@ -171,7 +183,8 @@ export function XRTutorial({
 }: {
   /** Dónde lo pone el juego. Sin esto se coloca solo, donde nació (ver `POSITION`). */
   position?: [number, number, number]
-  rotation?: [number, number, number]
+  /** Como el `rotation` de three: con el orden, si no es `'XYZ'`. */
+  rotation?: [number, number, number] | [number, number, number, 'YXZ']
 } = {}) {
   const { gameState, hitos, setTutorialRunning } = useGame()
   const t = traductor(useLang())

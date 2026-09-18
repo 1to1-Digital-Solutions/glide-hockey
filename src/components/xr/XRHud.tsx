@@ -103,8 +103,39 @@ export function XRScoreboard() {
   )
 }
 
-/** Lo ancho y lo alto del aviso de coger el mazo, en metros. */
-const AVISO_DEL_MAZO: [number, number] = [0.62, 0.16]
+/**
+ * Lo ancho y lo alto del aviso de coger el mazo, en metros.
+ *
+ * Con el alto de dos renglones de su letra y el párrafo colgado cerca del borde, el primero se
+ * salía de la placa por arriba; y en español, con un toque, la frase ocupa tres. La placa tiene
+ * alto para tres y la frase va centrada en ella.
+ */
+export const AVISO_DEL_MAZO: [number, number] = [0.62, 0.2]
+
+/** A qué tamaño se escribe el aviso de coger el mazo, en metros de alto de letra. */
+export const MALLET_TEXT = { phrase: 0.036 } as const
+
+/**
+ * Lo que pone el aviso de coger el mazo, fuera del componente **para poder medirlo**
+ * (`cuenta.legible.test.ts`): es texto del visor como cualquier otro panel.
+ */
+export function dibujarElAvisoDelMazo(
+  ctx: CanvasRenderingContext2D,
+  t: (clave: TextKey) => string,
+  conUnToque: boolean,
+): void {
+  drawParagraph(
+    ctx,
+    t(
+      conUnToque
+        ? 'Press the grip button on the mallet to pick it up'
+        : 'Close your hand on the mallet to pick it up',
+    ),
+    0,
+    0,
+    { size: MALLET_TEXT.phrase, color: PALETTE.foreground, weight: '700', maxWidth: AVISO_DEL_MAZO[0] - 0.06 },
+  )
+}
 
 /**
  * La cuenta atrás antes del saque, grande y sobre la mesa.
@@ -127,19 +158,7 @@ export function XRCountdown() {
   const conUnToque = useGrabMode() === 'toggle'
 
   const escribir = useCallback(
-    (ctx: CanvasRenderingContext2D) => {
-      drawParagraph(
-        ctx,
-        t(
-          conUnToque
-            ? 'Press the grip button on the mallet to pick it up'
-            : 'Close your hand on the mallet to pick it up',
-        ),
-        0,
-        AVISO_DEL_MAZO[1] / 2 - 0.03,
-        { size: 0.036, color: PALETTE.foreground, weight: '700', maxWidth: AVISO_DEL_MAZO[0] - 0.06 },
-      )
-    },
+    (ctx: CanvasRenderingContext2D) => dibujarElAvisoDelMazo(ctx, t, conUnToque),
     [t, conUnToque],
   )
 
@@ -304,13 +323,18 @@ export const CONFIRM_SIZE: [number, number] = [0.72, 0.42]
  * opciones». Ahora abre esto, y salir es una de las cosas que hay dentro — que es el orden
  * que la gente espera.
  *
- * Seguir jugando va el primero y más ancho: es la respuesta que no pierde nada.
+ * Seguir jugando va el primero y más ancho: es la respuesta que no pierde nada. «Volver al menú»
+ * no cabía en 28 cm con la letra que se lee y se encogía a 25 mm: su botón mide lo que pide la
+ * etiqueta en inglés, que es la larga.
  */
-const CONFIRM_BOXES = {
+export const CONFIRM_BOXES = {
   stay: hitBox(0, -0.04, [0.44, 0.1]),
-  menu: hitBox(-0.16, -0.16, [0.28, 0.1]),
-  leave: hitBox(0.17, -0.16, [0.26, 0.1]),
+  menu: hitBox(-0.155, -0.16, [0.37, 0.1]),
+  leave: hitBox(0.2, -0.16, [0.26, 0.1]),
 }
+
+/** A qué tamaño se escribe el aviso, en metros de alto de letra (`salida.legible.test.ts`). */
+export const CONFIRM_TEXT = { title: 0.05, body: 0.034, button: 0.034 } as const
 
 /**
  * El aviso antes de dejar la partida.
@@ -336,29 +360,29 @@ const CONFIRM_BOXES = {
  */
 export function dibujarElAviso(ctx: CanvasRenderingContext2D, t: (clave: TextKey) => string): void {
   drawParagraph(ctx, t('Leave the game?'), 0, 0.15, {
-    size: 0.05,
+    size: CONFIRM_TEXT.title,
     color: PALETTE.foreground,
     weight: '700',
     maxWidth: CONFIRM_SIZE[0] - 0.08,
   })
   drawParagraph(ctx, t('You lose the goals you have scored.'), 0, 0.075, {
-    size: 0.032,
+    size: CONFIRM_TEXT.body,
     color: DIM_COLOR,
     maxWidth: CONFIRM_SIZE[0] - 0.08,
   })
   drawText(ctx, t('Keep playing'), CONFIRM_BOXES.stay.position[0], CONFIRM_BOXES.stay.position[1], {
-    size: 0.034,
+    size: CONFIRM_TEXT.button,
     color: PALETTE.background,
     weight: '700',
     maxWidth: CONFIRM_BOXES.stay.size[0] - 0.03,
   })
   drawText(ctx, t('Back to the menu'), CONFIRM_BOXES.menu.position[0], CONFIRM_BOXES.menu.position[1], {
-    size: 0.03,
+    size: CONFIRM_TEXT.button,
     color: PALETTE.foreground,
     maxWidth: CONFIRM_BOXES.menu.size[0] - 0.03,
   })
   drawText(ctx, t('Leave'), CONFIRM_BOXES.leave.position[0], CONFIRM_BOXES.leave.position[1], {
-    size: 0.03,
+    size: CONFIRM_TEXT.button,
     color: PALETTE.foreground,
     maxWidth: CONFIRM_BOXES.leave.size[0] - 0.03,
   })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SCENERY_IDS } from './scenery'
+import { SCENERIES } from './ajustes'
 
 /**
  * Los dos menús ofrecen lo mismo: el de la web y el panel de dentro del visor.
@@ -16,7 +16,7 @@ import { SCENERY_IDS } from './scenery'
 describe('lo que el panel del visor resuelve con un interruptor', () => {
   it('el del escenario asume que hay dos y solo dos', () => {
     expect(
-      SCENERY_IDS.length,
+      SCENERIES.length,
       'hay más escenarios que estados tiene el interruptor: el panel tiene que pasar a recorrer la lista',
     ).toBe(2)
   })

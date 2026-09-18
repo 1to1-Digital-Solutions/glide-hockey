@@ -23,10 +23,14 @@ import {
   MENU_PANEL,
   MENU_ROW,
   MENU_ROW_LABEL_RISE,
+  MENU_BOXES,
+  MENU_RECORD_X,
+  MENU_TEXT,
   MENU_ROW_LABEL_SIZE,
   levelBarHeight,
 } from '../../lib/xrMenuLayout'
-import { SCENERY_LABELS, type Scenery } from '../../lib/scenery'
+import type { Scenery } from '../../lib/ajustes'
+import { SCENERY_LABELS } from '../../lib/scenery'
 import { useExit } from '../../game/exit'
 import {
   DIM_COLOR,
@@ -38,7 +42,6 @@ import {
   XRPressable,
   XRSignIcon,
   XRSceneryIcon,
-  type XrHitBox,
 } from './XRUi'
 
 /**
@@ -78,13 +81,6 @@ const ROW_LABEL_RISE = MENU_ROW_LABEL_RISE
 
 
 
-function hitBox(
-  x: number,
-  y: number,
-  [width, height]: [number, number],
-): XrHitBox {
-  return { position: [x, y, 0], size: [width, height, 0.04] }
-}
 
 /** Tres estrellas —rombos— por nivel: las ganadas, encendidas. */
 function StarsRow({ lit, size = 0.02, color = PALETTE.puck }: { lit: number; size?: number; color?: string }) {
@@ -163,18 +159,20 @@ export function dibujarLosNombres(
   // El interruptor del decorado era **un icono y nada más**: con las gafas puestas no
   // hay forma de saber qué hace hasta pulsarlo. Al lado va lo que está puesto ahora —a la
   // derecha y no debajo: debajo caía justo encima del rótulo «Modo»—.
-  drawText(ctx, t(SCENERY_LABELS[scenery]), -0.28 + MENU_BUTTON.small[0] / 2 + 0.02, ROW.record, {
-    size: 0.024,
+  const desde = MENU_BOXES.escenario.position[0] + MENU_BUTTON.small[0] / 2 + 0.02
+  drawText(ctx, t(SCENERY_LABELS[scenery]), desde, ROW.record, {
+    size: MENU_TEXT.scenery,
     color: DIM_COLOR,
     align: 'left',
-    maxWidth: 0.26,
+    // Hasta las cifras del récord, que van a su derecha (`MENU_RECORD_X`).
+    maxWidth: MENU_RECORD_X - 0.07 - desde,
   })
 
   // Y qué es el modo elegido. Los tres se llamaban «Práctica», «Niveles» y «Reto» y
   // nada más: lo que los distingue solo lo contaba la pantalla de la web, que con el
   // visor puesto no se ve.
   drawParagraph(ctx, t(GAME_MODE_HINTS[gameMode]), 0, MENU_HINT_Y, {
-    size: 0.024,
+    size: MENU_TEXT.hint,
     color: DIM_COLOR,
     maxWidth: PANEL.width - 0.1,
     anchor: 'top',
@@ -240,12 +238,12 @@ export function XRMenu() {
         />
       </group>
 
-      {GAME_MODE_ORDER.map((mode, index) => {
+      {GAME_MODE_ORDER.map((mode) => {
         const selected = mode === gameMode
         return (
           <XRPressable
             key={mode}
-            box={hitBox((index - 1) * 0.25, ROW.mode, MODE_BUTTON)}
+            box={MENU_BOXES[`modo ${mode}`]}
             onSelect={() => setGameMode(mode)}
           >
             <XRPlate
@@ -267,7 +265,7 @@ export function XRMenu() {
         return (
           <XRPressable
             key={level}
-            box={hitBox((index - 2) * 0.135, ROW.level, LEVEL_BUTTON)}
+            box={MENU_BOXES[`nivel ${level}`]}
             onSelect={() => setDifficulty(level)}
             disabled={challenge}
           >
@@ -291,7 +289,7 @@ export function XRMenu() {
       {/* La fila de goles: a cuántos se juega en prueba, o el nivel en Niveles
           (con sus estrellas debajo). Los mismos dos botones, otra pregunta. */}
       <XRPressable
-        box={hitBox(-0.19, ROW.goals, SMALL_BUTTON)}
+        box={MENU_BOXES.menos}
         onSelect={() => (levels ? setLevel(activeLevel - 1) : setGoalTarget(goalTarget - 1))}
         disabled={levels ? activeLevel <= 1 : challenge || endless || goalTarget <= MIN_GOALS}
       >
@@ -338,7 +336,7 @@ export function XRMenu() {
       )}
 
       <XRPressable
-        box={hitBox(0.19, ROW.goals, SMALL_BUTTON)}
+        box={MENU_BOXES.mas}
         onSelect={() => (levels ? setLevel(activeLevel + 1) : setGoalTarget(goalTarget + 1))}
         disabled={
           levels ? activeLevel >= unlockedLevel : challenge || endless || goalTarget >= MAX_GOALS
@@ -357,7 +355,7 @@ export function XRMenu() {
           respuesta. En reto y niveles no hay nada que elegir. */}
       {!challenge ? (
         <XRPressable
-          box={hitBox(0.32, ROW.goals, SMALL_BUTTON)}
+          box={MENU_BOXES['sin fin']}
           onSelect={() => setEndless(!endless)}
         >
           <XRPlate
@@ -379,7 +377,7 @@ export function XRMenu() {
           value={bestPoints}
           size={0.04}
           color={DIM_COLOR}
-          position={[0, ROW.record, 0]}
+          position={[MENU_RECORD_X, ROW.record, 0]}
         />
       ) : null}
 
@@ -387,9 +385,10 @@ export function XRMenu() {
           con hueco. Está aquí y no solo en el menú de la web porque es aquí
           donde sirve: con las gafas puestas se cambia sin salir de la sesión.
           Fuera de una sesión de realidad aumentada no hay habitación que
-          enseñar, así que el botón se apaga en vez de prometerla. */}
+          enseñar, así que el botón se apaga en vez de prometerla. Escribe el
+          escenario del arcade: el panel del salón y este botón enseñan lo mismo. */}
       <XRPressable
-        box={hitBox(-0.28, ROW.record, SMALL_BUTTON)}
+        box={MENU_BOXES.escenario}
         onSelect={() => setScenery(scenery === 'room' ? 'place' : 'room')}
         disabled={!passthroughAvailable}
       >
@@ -403,7 +402,7 @@ export function XRMenu() {
       </XRPressable>
 
       <XRPressable
-        box={hitBox(0, ROW.actions, PLAY_BUTTON)}
+        box={MENU_BOXES.jugar}
         onSelect={startGame}
       >
         <XRPlate
@@ -415,7 +414,7 @@ export function XRMenu() {
       </XRPressable>
 
       <XRPressable
-        box={hitBox(0.28, ROW.actions, SMALL_BUTTON)}
+        box={MENU_BOXES.salir}
         onSelect={exit}
       >
         <XRPlate

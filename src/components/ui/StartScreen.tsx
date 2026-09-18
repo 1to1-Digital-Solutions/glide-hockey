@@ -15,7 +15,8 @@ import {
 import { useGame } from '../../lib/gameStore'
 import { useLang } from '../../lib/ajustesCliente'
 import { traductor } from '../../lib/textos'
-import { SCENERY_HINTS, SCENERY_IDS, SCENERY_LABELS } from '../../lib/scenery'
+import { SCENERIES } from '../../lib/ajustes'
+import { SCENERY_HINTS, SCENERY_LABELS } from '../../lib/scenery'
 import { LEVEL_COUNT, levelSpec } from '../../lib/levels'
 import { DIFFICULTY_COLORS } from '../../lib/palette'
 import { useImmersiveSupport } from '../xr/useImmersiveSupport'
@@ -294,7 +295,7 @@ export function StartScreen() {
             <legend className="sr-only">{t('What you see around you')}</legend>
             <FieldLabel>{t('Around you')}</FieldLabel>
             <div className="grid grid-cols-2 gap-2">
-              {SCENERY_IDS.map((option) => (
+              {SCENERIES.map((option) => (
                 <OptionButton
                   key={option}
                   selected={scenery === option}

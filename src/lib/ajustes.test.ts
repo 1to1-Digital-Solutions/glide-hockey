@@ -4,6 +4,7 @@ import {
   DEFAULT_GRAB_MODE,
   DEFAULT_LANG,
   DEFAULT_PLAY_HEIGHT,
+  DEFAULT_SCENERY,
   DEFAULT_VOLUMES,
   DEFAULT_VOLUME_SETTINGS,
   GRAB_MODES,
@@ -12,18 +13,24 @@ import {
   LANG_COOKIE,
   PLAY_HEIGHTS,
   PLAY_HEIGHT_KEY,
+  SCENERIES,
+  SCENERY_KEY,
   VOLUME_KEYS,
   langFromCookies,
   parseGrabMode,
   parseLang,
   parsePlayHeight,
+  parseScenery,
   parseVolume,
   readGrabMode,
   readPlayHeight,
+  readScenery,
   readVolumes,
+  showsPlace,
   volumeFactor,
   writeGrabMode,
   writePlayHeight,
+  writeScenery,
   writeVolume,
 } from './ajustes'
 
@@ -291,5 +298,71 @@ describe('cómo se sujeta lo que se coge', () => {
   it('dice que no sin sitio donde guardar, y no revienta', () => {
     expect(writeGrabMode(null, 'toggle')).toBe(false)
     expect(writeGrabMode(almacen({}, true), 'toggle')).toBe(false)
+  })
+})
+
+describe('qué se ve alrededor con el visor', () => {
+  it('la clave, los valores y el de partida son los que escribe xrcade', () => {
+    // Escritos a mano, como el resto: es el puente entre repositorios, y contra la propia
+    // constante esto pasaría siempre. Una clave que se apartara de la del salón dejaría la
+    // cabina con su decorado aunque en el salón se hubiera elegido la habitación.
+    expect(SCENERY_KEY).toBe('xrcade:scenery')
+    expect(SCENERIES).toEqual(['place', 'room'])
+    expect(DEFAULT_SCENERY).toBe('place')
+  })
+
+  it('solo cuenta un escenario que exista', () => {
+    expect(parseScenery('room')).toBe('room')
+    expect(parseScenery('place')).toBe('place')
+    // `passthrough` y `scene` incluidos: son los nombres con los que stick-rush habla del
+    // escenario dentro de su código, y escritos en la clave del arcade no significan nada.
+    for (const basura of ['ROOM', 'passthrough', 'scene', '', null, undefined]) {
+      expect(parseScenery(basura)).toBe('place')
+    }
+  })
+
+  it('se lee de donde el arcade lo deja', () => {
+    expect(readScenery(almacen({ [SCENERY_KEY]: 'room' }))).toBe('room')
+    expect(readScenery(almacen())).toBe('place')
+  })
+
+  it('sin sitio donde mirar se ve el sitio dibujado, y no revienta', () => {
+    expect(readScenery(null)).toBe('place')
+    expect(readScenery(almacen({}, true))).toBe('place')
+  })
+
+  it('se guarda al elegir la habitación, y se olvida al volver al sitio dibujado', () => {
+    const storage = almacen()
+
+    expect(writeScenery(storage, 'room')).toBe(true)
+    expect(storage.getItem(SCENERY_KEY)).toBe('room')
+
+    expect(writeScenery(storage, 'place')).toBe(true)
+    expect(storage.getItem(SCENERY_KEY)).toBeNull()
+  })
+
+  it('dice que no sin sitio donde guardar, y no revienta', () => {
+    expect(writeScenery(null, 'room')).toBe(false)
+    expect(writeScenery(almacen({}, true), 'room')).toBe(false)
+  })
+
+  describe('cuándo se pinta el decorado', () => {
+    it('con el sitio dibujado elegido, siempre', () => {
+      expect(showsPlace('immersive-ar', 'place')).toBe(true)
+    })
+
+    it('con la habitación elegida y en realidad aumentada, no: se ve la habitación', () => {
+      expect(showsPlace('immersive-ar', 'room')).toBe(false)
+    })
+
+    it('con la habitación elegida pero en realidad virtual, sí: no hay habitación detrás', () => {
+      // Un visor sin passthrough: quitar el decorado dejaría a quien juega mirando negro.
+      expect(showsPlace('immersive-vr', 'room')).toBe(true)
+    })
+
+    it('con la habitación elegida y fuera del visor, también: la pantalla no tiene cámara', () => {
+      expect(showsPlace(null, 'room')).toBe(true)
+      expect(showsPlace(undefined, 'room')).toBe(true)
+    })
   })
 })

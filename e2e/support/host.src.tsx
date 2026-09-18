@@ -25,13 +25,18 @@ const store = createXRStore({
 
 declare global {
   interface Window {
-    __airHockeyHost: { enterVR: () => Promise<void> }
+    __airHockeyHost: { enterVR: () => Promise<void>; enterAR: () => Promise<void> }
   }
 }
 
 window.__airHockeyHost = {
   async enterVR() {
     await store.enterVR()
+  },
+  // Como entra el salón: en realidad aumentada siempre que el visor la tiene, y el decorado lo
+  // decide el escenario del arcade, no el tipo de sesión.
+  async enterAR() {
+    await store.enterAR()
   },
 }
 

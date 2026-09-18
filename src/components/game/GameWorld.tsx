@@ -6,9 +6,18 @@ import { useXR } from '@react-three/xr'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
 import { contarMontaje } from '../../lib/montajes'
 import { useGame } from '../../lib/gameStore'
-import { showsPlace } from '../../lib/scenery'
+import { showsPlace } from '../../lib/ajustes'
 import { HALF_LENGTH, HALF_WIDTH } from '../../lib/puckPhysics'
 import { type GameSound } from '../../lib/audioEngine'
+import {
+  EYE_HEIGHTS,
+  distanceFromEyes,
+  eyesAt,
+  panelRotation,
+  type PanelPose,
+  type Point,
+} from '../../lib/panelReading'
+import { REFERENCE_EYE_HEIGHT, uiRiseOverWorld, worldRise } from '../../lib/uiHeight'
 import { useGameAudio } from '../../lib/useGameAudio'
 import { useGameMusic } from '../../lib/useGameMusic'
 import { useGameHaptics } from '../../lib/useGameHaptics'
@@ -50,19 +59,31 @@ import { XRWorldHeight } from '../xr/XRWorldHeight'
  */
 
 /** Dónde va cada pieza de la interfaz inmersiva, en coordenadas de la mesa. */
-const XR_UI = {
+export const XR_UI = {
   /** Marcador: al fondo, sobre la portería de la máquina. */
   scoreboard: [0, 0.5, -HALF_LENGTH - 0.05] as [number, number, number],
-  /** Menú y final de partida: en medio de la mesa, a la altura de la vista. */
-  panel: [0, 0.52, -0.25] as [number, number, number],
+  /**
+   * Menú, final de partida y aviso de salir: sobre la mitad de la mesa de quien juega, algo por
+   * debajo de la vista.
+   *
+   * **A un metro y no a metro y medio**, que es donde se leen: allí, con el panel de 1,18 m de
+   * alto y medido fila a fila, las letras del menú se quedaban entre 0,79° y 1,15°. Aquí, con
+   * ellas a 34 mm, lo más justo es el nombre del decorado en la esquina de arriba, a 1,5°. Se
+   * enseña sin partida o con ella parada, así que no tapa ningún disco; y su borde de abajo queda
+   * tres centímetros por encima del tablero. Lo miden los `*.legible.test.ts`.
+   */
+  panel: [0, 0.62, 0.2] as [number, number, number],
   /** Cuenta atrás: flotando sobre el punto de saque. */
   countdown: [0, 0.34, 0] as [number, number, number],
   /**
    * La demostración de cómo se coge el mazo: sobre el sitio del menú y algo más arriba,
    * que es donde se está mirando al empezar, y por encima del pasillo por el que va el
    * disco.
+   *
+   * A 1,2 m y a la altura de la vista: a metro y medio su contador se quedaba en 1°. Su borde de
+   * abajo sigue por encima de la vista del fondo de la mesa (`tutorial.legible.test.ts`).
    */
-  tutorial: [0, 0.66, -0.35] as [number, number, number],
+  tutorial: [0, 0.72, 0] as [number, number, number],
   /**
    * Dejar la partida: **fuera de la mesa, arriba y a la izquierda**.
    *
@@ -72,6 +93,54 @@ const XR_UI = {
    * otro momento. La izquierda es a propósito: es la mano con la que menos se juega.
    */
   quit: [-HALF_WIDTH - 0.22, 0.72, HALF_LENGTH * 0.7] as [number, number, number],
+}
+
+/**
+ * Dónde queda una pieza de la interfaz en el espacio de quien juega —los pies en el origen y el
+ * `−Z` delante—: la mesa se planta a `TABLE_CENTER_Z` de él y a `TABLE_HEIGHT` del suelo.
+ */
+export function delEspacioDelJugador(pieza: readonly [number, number, number]): [number, number, number] {
+  return [pieza[0], pieza[1] + TABLE_HEIGHT, pieza[2] + TABLE_CENTER_Z]
+}
+
+/** A cuántos metros de los ojos de quien juega queda el centro de una pieza, contando la altura. */
+export function distanciaDelJugador(pieza: readonly [number, number, number]): number {
+  return distanceFromEyes(delEspacioDelJugador(pieza), eyesAt(REFERENCE_EYE_HEIGHT))
+}
+
+/**
+ * El giro de los paneles con letras: de cara a los ojos de quien juega e inclinados hacia ellos.
+ *
+ * Inclinados a ojo, la fila más lejana se lee escorzada. La interfaz sube y baja con los ojos
+ * (`XRUiHeight`), así que el giro se calcula una vez para los de referencia.
+ */
+export const XR_UI_ROTATION = {
+  panel: panelRotation(delEspacioDelJugador(XR_UI.panel), eyesAt(REFERENCE_EYE_HEIGHT)),
+  tutorial: panelRotation(delEspacioDelJugador(XR_UI.tutorial), eyesAt(REFERENCE_EYE_HEIGHT)),
+}
+
+/**
+ * Desde dónde se lee un panel: con los ojos a cada altura de `EYE_HEIGHTS` y con la altura de
+ * juego del salón de pie o a la de los ojos.
+ *
+ * El panel se mide donde queda de verdad: sube lo que baja o sube el mundo (`XRWorldHeight`) más
+ * lo que sube la interfaz sobre él (`XRUiHeight`). Es lo que usan los `*.legible.test.ts`.
+ */
+export function vistasDelPanel(
+  pieza: readonly [number, number, number],
+  rotation: PanelPose['rotation'],
+): { donde: string; pose: PanelPose; ojos: Point }[] {
+  const [x, y, z] = delEspacioDelJugador(pieza)
+  return EYE_HEIGHTS.flatMap((ojos) =>
+    [false, true].map((aLaAlturaDeLosOjos) => ({
+      donde: `ojos a ${ojos} m${aLaAlturaDeLosOjos ? ', mundo a su altura' : ''}`,
+      pose: {
+        position: [x, y + worldRise(ojos, aLaAlturaDeLosOjos) + uiRiseOverWorld(ojos, aLaAlturaDeLosOjos), z] as const,
+        rotation,
+      },
+      ojos: eyesAt(ojos),
+    })),
+  )
 }
 
 export interface GameWorldProps {
@@ -140,11 +209,11 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
 
   // Los reflejos de la mesa y del disco, calculados una vez (ver el hook).
   const environment = useRoomEnvironment()
-  // Qué se pinta alrededor lo elige quien juega y no el modo de sesión: dentro
-  // de una sesión de realidad aumentada las dos son la misma sesión pintada de
-  // dos formas, así que se puede cambiar sin salirse, que con el visor puesto
-  // es lo que importa. Fuera de ella no hay habitación que enseñar y la sala se
-  // pinta igual.
+  // Qué se pinta alrededor lo dice el escenario del arcade (`xrcade:scenery`) y
+  // no el tipo de sesión: el salón entra siempre en realidad aumentada si el
+  // visor la tiene, así que el tipo no dice qué se eligió. El modo solo hace de
+  // guarda —fuera de `immersive-ar` no hay habitación que enseñar y la sala se
+  // pinta igual— y cambiarlo se ve en el fotograma siguiente, sin salirse.
   const passthrough = !showsPlace(mode, scenery)
   const immersive = mode != null
   /** Si toca dibujar los paneles de dentro de la escena. */
@@ -181,12 +250,16 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
             hub retira el suyo al entrar en la cabina, así que si el juego no
             trae el fondo, no lo trae nadie. Sin él, mirar por encima de las
             paredes enseña el negro del compositor. */}
-        {!passthrough ? (
-          <>
-            <Backdrop color={ROOM_BACKDROP} />
-            <Room />
-          </>
-        ) : null}
+        {/* El fondo sí se monta y se desmonta: es el color con el que se limpia la imagen, no
+            un material, y no compila nada. */}
+        {!passthrough ? <Backdrop color={ROOM_BACKDROP} /> : null}
+        {/* La sala se **oculta** en tu habitación, no se desmonta. Desmontarla libera sus
+            materiales, y los shaders que solo usaba ella se vuelven a compilar al volver: un
+            tirón a cada cambio de escenario, con el visor puesto. Oculta no se pinta ni da
+            sombra, y se le niegan los punteros, que no miran si algo se ve. */}
+        <group visible={!passthrough} pointerEvents={passthrough ? 'none' : undefined}>
+          <Room />
+        </group>
 
         <group position={[0, TABLE_HEIGHT, TABLE_CENTER_Z]}>
           <Table environment={environment} />
@@ -218,7 +291,7 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
               <group position={XR_UI.scoreboard} rotation={[-0.18, 0, 0]}>
                 <XRScoreboard />
               </group>
-              <group position={XR_UI.panel} rotation={[-0.2, 0, 0]}>
+              <group position={XR_UI.panel} rotation={XR_UI_ROTATION.panel}>
                 <XRMenu />
                 <XRGameOver />
                 <XRQuitConfirm />
@@ -230,7 +303,7 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
                   está mirando ahí. Se le pasa el sitio en vez de dejar que se coloque sola —el valor
                   con el que nació es el de darts, y sumado a este grupo la dejaba a tres metros del
                   suelo, girada, metro y medio por encima del menú del que venía—. */}
-              <XRTutorial position={XR_UI.tutorial} rotation={[-0.2, 0, 0]} />
+              <XRTutorial position={XR_UI.tutorial} rotation={XR_UI_ROTATION.tutorial} />
               <group position={XR_UI.quit} rotation={[-0.3, 0, 0]}>
                 <XRQuitButton />
               </group>

@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   DEFAULT_LANG,
@@ -9,16 +9,19 @@ import {
   GRAB_MODE_KEY,
   LANG_COOKIE,
   PLAY_HEIGHT_KEY,
+  SCENERY_KEY,
   VOLUME_KEYS,
 } from './ajustes'
 import {
   currentLang,
   setLang,
+  setScenery,
   setVolume,
   settingsStorage,
   useGrabMode,
   useLang,
   usePlayHeight,
+  useScenery,
   useVolumes,
 } from './ajustesCliente'
 
@@ -261,5 +264,90 @@ describe('cómo se sujeta lo que se coge', () => {
     })
 
     expect(result.current).toBe('hold')
+  })
+})
+
+describe('qué se ve alrededor con el visor', () => {
+  it('empieza con el sitio dibujado', () => {
+    const { result } = renderHook(() => useScenery())
+
+    expect(result.current).toBe('place')
+  })
+
+  it('lo que se elige en el salón llega a la cabina sin recargar', () => {
+    // Lo que hace el panel del salón: escribe la clave y avisa por el evento. El juego está
+    // montado en esta misma página y el visor sigue puesto, así que o llega así o no llega.
+    const { result } = renderHook(() => useScenery())
+
+    act(() => {
+      window.localStorage.setItem(SCENERY_KEY, 'room')
+      window.dispatchEvent(new Event('xrcade:ajustes'))
+    })
+
+    expect(result.current).toBe('room')
+  })
+
+  it('lo que elige el menú del juego escribe la clave del arcade y se ve a la vez', () => {
+    // Una sola preferencia: el botón del juego y el panel del salón leen y escriben lo mismo.
+    const { result } = renderHook(() => useScenery())
+
+    act(() => setScenery('room'))
+    expect(result.current).toBe('room')
+    expect(window.localStorage.getItem(SCENERY_KEY)).toBe('room')
+
+    // Volver a lo de partida borra la clave, como los volúmenes.
+    act(() => setScenery('place'))
+    expect(result.current).toBe('place')
+    expect(window.localStorage.getItem(SCENERY_KEY)).toBeNull()
+  })
+
+  it('un escenario que no existe deja el sitio dibujado', () => {
+    const { result } = renderHook(() => useScenery())
+
+    act(() => {
+      window.localStorage.setItem(SCENERY_KEY, 'passthrough')
+      window.dispatchEvent(new Event('xrcade:ajustes'))
+    })
+
+    expect(result.current).toBe('place')
+  })
+
+  it('con el almacenamiento lleno, lo elegido dura lo que dure la visita', () => {
+    // Si la escritura falla y la lectura va al almacenamiento, el botón se enciende y el
+    // decorado no cambia: la elección se pierde en el mismo fotograma.
+    const { result } = renderHook(() => useScenery())
+    const guarda = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('lleno', 'QuotaExceededError')
+    })
+
+    act(() => setScenery('room'))
+    expect(guarda).toHaveBeenCalled()
+    expect(window.localStorage.getItem(SCENERY_KEY)).toBeNull()
+    expect(result.current).toBe('room')
+
+    // Volver al de partida sí se guarda (borrar no ocupa sitio), y entonces manda lo guardado.
+    act(() => setScenery('place'))
+    expect(result.current).toBe('place')
+
+    // Y si el almacenamiento se recupera, lo guardado vuelve a mandar sobre lo recordado.
+    guarda.mockRestore()
+    act(() => setScenery('room'))
+    act(() => {
+      window.localStorage.removeItem(SCENERY_KEY)
+      window.dispatchEvent(new Event('storage'))
+    })
+    expect(result.current).toBe('place')
+  })
+
+  it('en el servidor se pinta el de partida, para que la hidratación cuadre', () => {
+    // El menú de la web enseña cuál está elegido: si el servidor leyera otra cosa que el primer
+    // render del navegador, React vería dos árboles distintos.
+    window.localStorage.setItem(SCENERY_KEY, 'room')
+
+    function Escenario() {
+      return <output>{useScenery()}</output>
+    }
+
+    expect(renderToString(<Escenario />)).toContain('place')
   })
 })

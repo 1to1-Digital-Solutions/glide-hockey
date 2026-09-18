@@ -79,6 +79,12 @@ fichero en los trece juegos.
    dos cifras y con tres, el nombre más largo de la lista.
 4. El ancho de letra que usa la regla va **tirando a ancho** a propósito. Quedándose corta daría
    por bueno lo que en el visor se pisa, que es exactamente lo que ha estado pasando.
+5. **La fuente se pide en píxeles de verdad.** Pedirla en metros (`0.03px`) sobre un lienzo
+   escalado a 1024 da unas métricas de letra en las que el navegador del visor no se puede fiar,
+   y amontona las letras aunque las cajas no se pisen: fue la causa de la séptima tanda en los
+   trece juegos a la vez. `panelFont(peso, metros)` en `canvasPanel.tsx` escala el lienzo y
+   pide la fuente a su tamaño en píxeles; el lienzo que apunta rechaza cualquier texto pedido
+   por debajo de `MIN_FUENTE_PX`.
 
 Lo que la regla **no** cubre y sigue pidiendo gafas: si el panel está a una distancia cómoda, si
 lo tapa el decorado y si el contraste aguanta la luz de la escena. Eso va a
@@ -235,9 +241,17 @@ juego nuevo no tiene por qué volver a encontrárselas.
   `Y`, quedan cruzados. Para apuntar un modelo por su propio eje,
   `setFromUnitVectors(ejeDelModelo, rumbo)`, y el rumbo sale de restar dos puntos **del mismo
   espacio**.
-- **El espacio del puño tiene el `+Y` saliendo del puño.** Lo que se empuña como una vara
-  —un bate, un mazo, una raqueta— crece hacia `+Y`; lo que cuelga —un palo de golf— va hacia
-  `-Y`. Y el espacio del **rayo** no es ese: está girado unos 45° respecto del puño, así que
+- **En el espacio del puño lo empuñado va por el `−Z`, hacia el pulgar.** Lo dice la
+  especificación de WebXR (`gripSpace`), lo confirman las matrices de Quest 3 del emulador y el
+  `.glb` del mando (su eje largo es Z, con la palanca y los botones hacia `−Z`); el `+Y` sale
+  hacia la cara de quien juega. **Todo lo que se empuña sale hacia `−Z`**, como sale de un puño
+  de verdad por el lado del pulgar; lo que cambia es adónde se apunta el mando: un bate o una
+  raqueta, hacia arriba; un putter, hacia el suelo, como su empuñadura. La regla decía `+Y`
+  para lo empuñado y `−Y` para lo que cuelga: un bate girado así se dibujaba atravesado respecto
+  de las manos («se coge por la parte inferior») y un putter colgado del `−Y` quedaba
+  perpendicular al mango, de modo que un giro de muñeca barría la cabeza de lado y la bola salía
+  torcida. Lo miden con datos del emulador `batting-cage/src/lib/agarreDelBate.test.ts` y, con
+  el `.glb` del mando, `minigolf/src/lib/palo.test.ts`. Y el espacio del **rayo** no es ese: está girado unos 45° respecto del puño, así que
   colgar de él lo que debería quedar a plomo lo deja inclinado. Un objeto se cuelga del rayo
   solo si lo que importa es hacia dónde apunta (un arco, una pistola); si lo que importa es
   cómo se sostiene, del puño.
@@ -245,7 +259,12 @@ juego nuevo no tiene por qué volver a encontrárselas.
   espacio del origen que pone el anfitrión; dentro del grupo anclado se le suma el giro del
   mundo y aparece en otro sitio. Se monta fuera **o** se le deshace la matriz de sus padres
   —`matrix = padre.matrixWorld⁻¹ · matrizDelEspacio`—, que es lo que deja colocar algo en la
-  mano sin importar de dónde cuelgue en el árbol.
+  mano sin importar de dónde cuelgue en el árbol. **Vale igual para `XRWorldHeight`**, que baja
+  el mundo entero a la altura de juego: sacar algo del anclaje pero dejarlo dentro de ese grupo
+  lo pinta, sentado, 40 cm por debajo del mando (le pasó a la pistola de skeet y al arco). Y lo
+  que copia la cámara —un cielo que la sigue, una cinta que mira al ojo— toma
+  `camera.getWorldPosition()` y la pasa al espacio de su padre (`parent.worldToLocal`), nunca
+  `camera.position` a pelo: el cielo de skeet quedaba a metro y medio de la cabeza.
 - **El mando de verdad se puede enseñar, y es la mejor forma de decir qué botón se aprieta.**
   El paquete de perfiles trae el `.glb` de cada mando; copiando solo los de Quest son 1,7 MB.
   Puesto en el espacio del puño queda exactamente encima del que se tiene en la mano. Dos
@@ -259,6 +278,14 @@ juego nuevo no tiene por qué volver a encontrárselas.
   clavado en el 1 porque falta coger el mazo se lee, desde dentro, como que el juego se ha
   colgado. Lo mismo vale para cualquier espera: se dice con una frase **y** se enciende el
   botón que la resuelve.
+- **Una forma invisible que atrapa los disparos se come el rayo.** El salón pone en cada mano,
+  además del rayo, un puntero de agarre esférico. En `@pmndrs/pointer-events` una esfera que
+  queda **dentro** de la caja de un objeto con manejadores cuenta como tocada a distancia cero,
+  y gana el puntero más cercano: una esfera gigante alrededor del jugador para recoger los
+  disparos al aire deja el rayo sin nada que señalar, y no hay forma de abrir los ajustes ni de
+  salir. Así se rompió skeet entero. Todo lo que envuelve al jugador y solo espera el rayo
+  lleva `pointerEventsType={{ deny: ['grab', 'touch'] }}`, y un test con la librería de verdad
+  comprueba que el rayo sigue llegando al menú.
 - **La salida se dibuja igual en los trece.** Llegó a haber cinco: un cuadrado, una X, la
   palabra «Exit», «Leave» y un icono propio. Con el visor puesto, la pregunta «¿cuál era el
   de salir?» se repite en cada cabina. Es una flecha de volver, la misma forma

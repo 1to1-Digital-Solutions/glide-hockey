@@ -60,6 +60,16 @@ export function altoMinimo(distancia: number): number {
   return 2 * distancia * Math.tan((MIN_ANGULO * Math.PI) / 180 / 2)
 }
 
+/**
+ * La fuente más pequeña que se le puede pedir al lienzo, en píxeles.
+ *
+ * No es lo que se lee —eso lo dice `altoMinimo`, en metros—, es lo que el navegador sabe colocar:
+ * por debajo de unos pocos píxeles calcula la posición de cada letra con medidas que no valen, y
+ * el del visor las amontona. Los paneles pedían la letra en metros sobre un lienzo escalado, a
+ * 0,03 px, y así se vieron: «las letras están completamente pegadas, una sobre la otra».
+ */
+export const MIN_FUENTE_PX = 8
+
 /** Un texto que se ha escrito en el panel: qué, dónde y qué caja ocupa. */
 export interface Escrito {
   readonly texto: string
@@ -68,6 +78,8 @@ export interface Escrito {
   readonly y: number
   readonly ancho: number
   readonly alto: number
+  /** El tamaño de la fuente con que se pidió, en píxeles del lienzo. */
+  readonly fuentePx?: number
 }
 
 /** Si dos cajas se pisan. */
@@ -87,11 +99,13 @@ function seTocan(a: Escrito, b: Escrito): boolean {
  */
 export function lienzoQueApunta(): { ctx: CanvasRenderingContext2D; escritos: Escrito[] } {
   const escritos: Escrito[] = []
-  let estado = { x: 0, y: 0, escalaY: 1, font: '' }
+  // `escala` es cuánto mide una unidad del lienzo en coordenadas del panel. Los paneles dibujan
+  // en metros y escriben el texto a su tamaño en píxeles (`panelFont`), así que dentro de
+  // `drawText` una unidad es un píxel de la textura y lo apuntado se pasa a metros con ella.
+  let estado = { x: 0, y: 0, escala: 1, escalaY: 1, font: '' }
   const pila: (typeof estado)[] = []
 
-  // El lienzo del panel va escalado a metros (`CanvasPanel`), así que el tamaño
-  // declarado en la fuente ya viene en metros y no hay nada que convertir.
+  /** El tamaño declarado en la fuente, en unidades del lienzo (píxeles para el texto). */
   const tamano = (): number => {
     const medida = /([\d.]+)px/.exec(estado.font)
     return medida == null ? 0 : Number(medida[1])
@@ -118,30 +132,31 @@ export function lienzoQueApunta(): { ctx: CanvasRenderingContext2D; escritos: Es
       estado = pila.pop() ?? estado
     },
     translate: (x: number, y: number) => {
-      estado = { ...estado, x: estado.x + x, y: estado.y + y * estado.escalaY }
+      estado = { ...estado, x: estado.x + x * estado.escala, y: estado.y + y * estado.escalaY }
     },
-    scale: (_x: number, y: number) => {
-      estado = { ...estado, escalaY: estado.escalaY * y }
+    scale: (x: number, y: number) => {
+      estado = { ...estado, escala: estado.escala * Math.abs(x), escalaY: estado.escalaY * y }
     },
     measureText: (texto: string) => ({ width: texto.length * tamano() * AVANCE }),
     // La `y` que llega es siempre 0: los paneles la ponen con `translate` antes de
     // escribir, que es lo que este lienzo lleva apuntado.
     fillText: (texto: string, x: number) => {
-      const alto = tamano()
+      const alto = tamano() * estado.escala
       const ancho = texto.length * alto * AVANCE
+      const origen = estado.x + x * estado.escala
       const centro =
         ctx.textAlign === 'left'
-          ? estado.x + x + ancho / 2
+          ? origen + ancho / 2
           : ctx.textAlign === 'right'
-            ? estado.x + x - ancho / 2
-            : estado.x + x
-      escritos.push({ texto, x: centro, y: estado.y, ancho, alto: alto * ALTO_DE_LINEA })
+            ? origen - ancho / 2
+            : origen
+      escritos.push({ texto, x: centro, y: estado.y, ancho, alto: alto * ALTO_DE_LINEA, fuentePx: tamano() })
     },
     // Devolver la transformación a la de partida es lo único que se sigue de
     // las formas: lo escrito después va en las coordenadas del lienzo, no en las
     // del trozo que se estuviera pintando.
     setTransform: () => {
-      estado = { ...estado, x: 0, y: 0, escalaY: 1 }
+      estado = { ...estado, x: 0, y: 0, escala: 1, escalaY: 1 }
     },
     // Lo demás que dibuja formas no se apunta: aquí se revisa el texto.
     clearRect: () => {},
@@ -187,6 +202,11 @@ export function problemasDeLegibilidad(
   const problemas: string[] = []
 
   for (const escrito of escritos) {
+    if (escrito.fuentePx != null && escrito.fuentePx < MIN_FUENTE_PX) {
+      problemas.push(
+        `«${escrito.texto}» se pide a ${escrito.fuentePx.toFixed(2)} px: por debajo de ${MIN_FUENTE_PX} el navegador del visor amontona las letras`,
+      )
+    }
     if (escrito.alto / ALTO_DE_LINEA < minAlto) {
       problemas.push(
         `«${escrito.texto}» sale a ${((escrito.alto / ALTO_DE_LINEA) * 1000).toFixed(1)} mm, por debajo de ${(minAlto * 1000).toFixed(1)} mm a ${distancia} m`,

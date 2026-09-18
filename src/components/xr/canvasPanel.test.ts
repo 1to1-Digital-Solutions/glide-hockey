@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { drawParagraph, drawText, wrapText } from './canvasPanel'
+import { PANEL_PIXELS_PER_METER, drawParagraph, drawText, panelFont, wrapText } from './canvasPanel'
 
 /**
  * El texto de los paneles, que es lo único de aquí que se puede comprobar sin
@@ -16,9 +16,14 @@ import { drawParagraph, drawText, wrapText } from './canvasPanel'
 /** Lo ancho que es una letra respecto al alto, más o menos, en este lienzo. */
 const ADVANCE = 0.6
 
-/** El tamaño declarado en una fuente de canvas, en metros. */
-function sizeOf(font: string): number {
+/** El tamaño declarado en una fuente de canvas, en píxeles de la textura. */
+function pixelsOf(font: string): number {
   return Number(font.match(/([\d.]+)px/)?.[1])
+}
+
+/** Y el mismo tamaño en metros del panel, que es en lo que se piden los textos. */
+function sizeOf(font: string): number {
+  return pixelsOf(font) / PANEL_PIXELS_PER_METER
 }
 
 /** Un lienzo de mentira: mide como uno de verdad y apunta lo que se escribe. */
@@ -35,8 +40,9 @@ function lienzo() {
     translate() {},
     scale() {},
     measureText(text: string) {
-      // Lo que mide depende de la letra que haya puesta, como en el navegador.
-      return { width: text.length * sizeOf(ctx.font) * ADVANCE }
+      // Lo que mide depende de la letra que haya puesta, como en el navegador: en píxeles
+      // de la fuente, sin importar la escala del lienzo.
+      return { width: text.length * pixelsOf(ctx.font) * ADVANCE }
     },
     fillText(...args: unknown[]) {
       escrito.push({ texto: String(args[0]), font: ctx.font, argumentos: args.length })
@@ -55,7 +61,19 @@ describe('drawText', () => {
     drawText(ctx, 'Reloj', 0, 0, { size: 0.032, color: NEGRO, maxWidth: 0.2 })
 
     expect(escrito).toHaveLength(1)
-    expect(sizeOf(escrito[0].font)).toBe(0.032)
+    expect(sizeOf(escrito[0].font)).toBeCloseTo(0.032, 9)
+  })
+
+  it('pide la fuente en píxeles de verdad, no en metros', () => {
+    // Una letra de 0,03 px ampliada mil veces es lo que el navegador del visor pintaba con las
+    // letras amontonadas: a ese tamaño las medidas de cada letra no valen. Reportado con el
+    // visor puesto: «las letras están completamente pegadas, una sobre la otra».
+    const { ctx, escrito } = lienzo()
+
+    drawText(ctx, 'Levels', 0, 0, { size: 0.03, color: NEGRO, maxWidth: 0.08 })
+    drawParagraph(ctx, 'Hold the trigger and the ball appears', 0, 0, { size: 0.03, color: NEGRO, maxWidth: 0.2 })
+
+    for (const linea of escrito) expect(pixelsOf(linea.font), linea.texto).toBeGreaterThanOrEqual(8)
   })
 
   it('encoge lo que no cabe hasta que quepa', () => {
@@ -86,7 +104,7 @@ describe('drawText', () => {
 
     drawText(ctx, 'Un título largo de los que no caben', 0, 0, { size: 0.055, color: NEGRO })
 
-    expect(sizeOf(escrito[0].font)).toBe(0.055)
+    expect(sizeOf(escrito[0].font)).toBeCloseTo(0.055, 9)
   })
 })
 
@@ -101,33 +119,35 @@ describe('drawText', () => {
 describe('repartir un texto en líneas', () => {
   it('mete en una línea lo que cabe', () => {
     const { ctx } = lienzo()
-    ctx.font = `600 ${0.03}px system-ui`
+    ctx.font = panelFont('600', 0.03)
 
     expect(wrapText(ctx, 'Dale al topo', 1)).toEqual(['Dale al topo'])
   })
 
   it('parte por espacios lo que no cabe', () => {
     const { ctx } = lienzo()
-    ctx.font = `600 ${0.03}px system-ui`
-    // Con este lienzo, cada letra mide 0,018: caben unas once por línea de 0,2.
+    ctx.font = panelFont('600', 0.03)
+    // Con este lienzo, cada letra mide 0,018 m: caben unas once por línea de 0,2.
     const lineas = wrapText(ctx, 'Hold the trigger and the ball appears', 0.2)
 
     expect(lineas.length).toBeGreaterThan(1)
     expect(lineas.join(' ')).toBe('Hold the trigger and the ball appears')
-    for (const linea of lineas) expect(ctx.measureText(linea).width).toBeLessThanOrEqual(0.2)
+    for (const linea of lineas) {
+      expect(ctx.measureText(linea).width / PANEL_PIXELS_PER_METER).toBeLessThanOrEqual(0.2)
+    }
   })
 
   it('deja entera una palabra que no cabe ella sola', () => {
     // Partirla por la mitad se lee peor que dejarla asomar, y en un visor mucho peor.
     const { ctx } = lienzo()
-    ctx.font = `600 ${0.03}px system-ui`
+    ctx.font = panelFont('600', 0.03)
 
     expect(wrapText(ctx, 'incomprehensiblemente', 0.05)).toEqual(['incomprehensiblemente'])
   })
 
   it('con un texto vacío no escribe nada', () => {
     const { ctx } = lienzo()
-    ctx.font = `600 ${0.03}px system-ui`
+    ctx.font = panelFont('600', 0.03)
 
     expect(wrapText(ctx, '   ', 1)).toEqual([])
   })

@@ -38,6 +38,26 @@ const usePintarAntesDeVer = typeof window === 'undefined' ? useEffect : useLayou
 /** Cuántos píxeles de textura por metro de panel. A un brazo de distancia se lee. */
 export const PANEL_PIXELS_PER_METER = 1024
 
+/**
+ * La fuente de un texto de `size` metros, **pedida en píxeles de verdad**.
+ *
+ * El panel se dibuja en metros sobre un lienzo escalado, y la fuente se pedía igual: una letra
+ * de 0,03 px ampliada mil veces. A ese tamaño el navegador calcula dónde va cada letra con
+ * medidas que no valen —el Chromium de escritorio las separa de más y el del visor las amontona
+ * unas encima de otras—, y lo que se medía para que cupiera tampoco era lo que se pintaba.
+ * Reportado con el visor puesto: «las letras están completamente pegadas, una sobre la otra…
+ * no se lee nada de las settings». Por eso el texto se escribe sin la escala a metros, con la
+ * fuente a su tamaño en píxeles de la textura.
+ */
+export function panelFont(weight: string, size: number): string {
+  return `${weight} ${size * PANEL_PIXELS_PER_METER}px system-ui, sans-serif`
+}
+
+/** Lo que mide de ancho un texto con la fuente puesta, en metros. */
+function measureMeters(ctx: CanvasRenderingContext2D, text: string): number {
+  return ctx.measureText(text).width / PANEL_PIXELS_PER_METER
+}
+
 /** El canvas donde se pinta el panel, del tamaño que le toca a esas medidas. */
 function usePanelCanvas(width: number, height: number): HTMLCanvasElement | null {
   return useMemo(() => {
@@ -95,18 +115,20 @@ export function drawText(
 ): void {
   ctx.save()
   ctx.translate(x, y)
-  ctx.scale(1, -1)
+  // De metros con la `y` hacia arriba a píxeles con la `y` hacia abajo: el texto se escribe a
+  // su tamaño real en la textura (ver `panelFont`).
+  ctx.scale(1 / PANEL_PIXELS_PER_METER, -1 / PANEL_PIXELS_PER_METER)
   ctx.fillStyle = color
   ctx.textAlign = align
   ctx.textBaseline = 'middle'
-  ctx.font = `${weight} ${size}px system-ui, sans-serif`
+  ctx.font = panelFont(weight, size)
 
   // Se encoge la letra en vez de estrecharla —que es lo que hace `fillText` con
   // su propio máximo—: un texto condensado en un panel a un brazo de distancia
   // se lee mucho peor que el mismo texto un punto más pequeño.
   if (maxWidth != null) {
-    const width = ctx.measureText(text).width
-    if (width > maxWidth) ctx.font = `${weight} ${(size * maxWidth) / width}px system-ui, sans-serif`
+    const width = measureMeters(ctx, text)
+    if (width > maxWidth) ctx.font = panelFont(weight, (size * maxWidth) / width)
   }
 
   ctx.fillText(text, 0, 0)
@@ -129,6 +151,7 @@ export function wrapText(
   text: string,
   maxWidth: number,
 ): string[] {
+  // Mide con la fuente que tenga puesta el lienzo, que tiene que ser una de `panelFont`.
   const palabras = text.split(/\s+/).filter((palabra) => palabra.length > 0)
   if (palabras.length === 0) return []
 
@@ -136,7 +159,7 @@ export function wrapText(
   let actual = palabras[0]
   for (const palabra of palabras.slice(1)) {
     const probada = `${actual} ${palabra}`
-    if (ctx.measureText(probada).width <= maxWidth) actual = probada
+    if (measureMeters(ctx, probada) <= maxWidth) actual = probada
     else {
       lineas.push(actual)
       actual = palabra
@@ -198,7 +221,7 @@ function medirLineas(
   { size, weight, maxWidth }: { size: number; weight: string; maxWidth: number },
 ): string[] {
   ctx.save()
-  ctx.font = `${weight} ${size}px system-ui, sans-serif`
+  ctx.font = panelFont(weight, size)
   const lineas = wrapText(ctx, text, maxWidth)
   ctx.restore()
   return lineas

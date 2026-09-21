@@ -356,7 +356,7 @@ juego nuevo no tiene por qué volver a encontrárselas.
 ## Lo que aprendieron los tests
 
 - **Una jugada sin desenlace es un juego colgado.** Todo camino de la simulación tiene que
-  terminar, y un plazo de seguridad no es un desenlace: en ping-pong la pelota posada en la
+  terminar, y un plazo de seguridad no es un desenlace: en table-tennis la pelota posada en la
   mesa devolvía el 82 % en cada bote, así que botaba para siempre —1.723 botes en 30 s de
   reloj medidos— y la jugada solo se cerraba al agotarse el plazo de treinta segundos, que
   desde dentro se lee como que el juego se ha colgado. El test que lo caza recorre cada final

@@ -1,12 +1,22 @@
-# Air Hockey
+# Glide Hockey
 
-Air hockey contra la máquina, en 3D y en el navegador. Se elige el nivel y a
-cuántos goles se juega, y se mueve el mazo con el ratón —o con el rayo del mando
-si se juega con el visor—. Cada gol suma puntos y cada gol encajado los resta.
+Hockey sobre colchón de aire contra la máquina, en 3D y en el navegador. Se
+elige el nivel y a cuántos goles se juega, y se mueve el mazo con el ratón —o con
+el rayo del mando si se juega con el visor—. Cada gol suma puntos y cada gol
+encajado los resta.
 
 Es un juego de **xrcade**: se monta dentro del salón inmersivo del hub, no se
 enlaza. Esta web es uno de sus anfitriones, el que permite probarlo con el visor
 sin levantar el hub entero.
+
+Se llamó `air-hockey` hasta el cambio de nombres
+(`xrcade/docs/nombres-y-marcas.md`): «AIR-HOCKEY» sigue registrada a nombre de
+Brunswick, y aunque hoy el término se comporte como descriptivo, una cabina
+rotulada es justo donde deja de serlo. El nombre cambió entero —repositorio,
+paquete, exportaciones y claves de almacenamiento—, y lo que hubiera guardado con
+las claves viejas se traslada solo la primera vez que se juega
+(`src/lib/legacyKeys.ts`). El mueble se sigue llamando mesa de air hockey en los
+comentarios: ahí es el objeto, no el producto.
 
 ## Cómo se juega
 

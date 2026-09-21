@@ -12,8 +12,8 @@ import { createStoredPreference } from './storage'
  * nuevo cada vez.
  */
 
-export const UNLOCKED_LEVEL_KEY = 'air-hockey:levels:unlocked'
-export const LEVEL_STARS_KEY = 'air-hockey:levels:stars'
+export const UNLOCKED_LEVEL_KEY = 'glide-hockey:levels:unlocked'
+export const LEVEL_STARS_KEY = 'glide-hockey:levels:stars'
 
 /** Entrada externa: solo un nivel que exista; lo demás es «solo el primero». */
 export function parseUnlockedLevel(raw: string | null): number {

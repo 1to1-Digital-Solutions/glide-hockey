@@ -2,7 +2,7 @@
 
 import { Suspense, lazy, useSyncExternalStore } from 'react'
 import { useGame } from '../../lib/gameStore'
-import { AIR_HOCKEY_CSS_VARIABLES } from '../../lib/palette'
+import { GLIDE_HOCKEY_CSS_VARIABLES } from '../../lib/palette'
 import { HUD } from '../ui/HUD'
 import { StartScreen } from '../ui/StartScreen'
 import { useLang } from '../../lib/ajustesCliente'
@@ -59,14 +59,14 @@ export function GameScene() {
     <div
       // Durante la partida el cursor lleva el mazo: una flecha de escritorio
       // encima de la mesa distrae de dónde está de verdad.
-      className={`air-hockey relative h-full w-full ${
+      className={`glide-hockey relative h-full w-full ${
         gameState === 'playing' ? 'cursor-none' : ''
       }`}
       // La paleta, aquí y no en `styles.css`: así el CSS, la escena y la
       // interfaz del visor leen los mismos literales sin ningún paso de build
       // (ver `lib/palette.ts`). Y en este elemento, que es el que lleva la
-      // clase `.air-hockey`: las variables no salen del juego.
-      style={AIR_HOCKEY_CSS_VARIABLES}
+      // clase `.glide-hockey`: las variables no salen del juego.
+      style={GLIDE_HOCKEY_CSS_VARIABLES}
     >
       {onClient ? (
         <Suspense fallback={<SceneLoading />}>

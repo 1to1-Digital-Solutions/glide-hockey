@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Canvas } from '@react-three/fiber'
 import { XR, XROrigin, createXRStore } from '@react-three/xr'
-import { AirHockeyScene } from '../../src/game'
+import { GlideHockeyScene } from '../../src/game'
 
 /**
- * El anfitrión de prueba: monta `<AirHockeyScene>` dentro de un Canvas y una
+ * El anfitrión de prueba: monta `<GlideHockeyScene>` dentro de un Canvas y una
  * sesión que no son suyos, como hace el salón de xrcade. Es el único sitio de la
  * suite que ejercita el contrato de montaje (`docs/montar-el-juego.md`): la web
- * del juego monta `<AirHockey>`, que trae su propio Canvas.
+ * del juego monta `<GlideHockey>`, que trae su propio Canvas.
  */
 const mount = document.getElementById('juego')
 if (mount == null) {
@@ -38,7 +38,7 @@ const store = createXRStore({
 
 declare global {
   interface Window {
-    __airHockeyHost: {
+    __glideHockeyHost: {
       enterVR: () => Promise<void>
       enterAR: () => Promise<void>
       /** Monta la escena, como al elegir cabina. Solo hace algo con `data-cabina`. */
@@ -49,7 +49,7 @@ declare global {
 
 let entrar = () => {}
 
-window.__airHockeyHost = {
+window.__glideHockeyHost = {
   async enterVR() {
     await store.enterVR()
   },
@@ -73,7 +73,7 @@ function Cabina() {
 
   if (!dentro) return null
   // Volver es cosa del anfitrión, y aquí no hay a dónde.
-  return <AirHockeyScene assetsBase={assetsBase} onExit={() => {}} />
+  return <GlideHockeyScene assetsBase={assetsBase} onExit={() => {}} />
 }
 
 function Host() {

@@ -7,15 +7,15 @@ describe('las rutas de los ficheros estáticos', () => {
   })
 
   it('se pegan a la base sin comerse la barra', () => {
-    setAssetsBase('/juegos/air-hockey')
+    setAssetsBase('/juegos/glide-hockey')
 
-    expect(assetUrl('webxr-profiles/')).toBe('/juegos/air-hockey/webxr-profiles/')
+    expect(assetUrl('webxr-profiles/')).toBe('/juegos/glide-hockey/webxr-profiles/')
   })
 
   it('no duplican la barra si la base ya la trae', () => {
-    setAssetsBase('/juegos/air-hockey/')
+    setAssetsBase('/juegos/glide-hockey/')
 
-    expect(assetUrl('/webxr-profiles/')).toBe('/juegos/air-hockey/webxr-profiles/')
+    expect(assetUrl('/webxr-profiles/')).toBe('/juegos/glide-hockey/webxr-profiles/')
   })
 
   it('vuelven a la raíz con una base vacía', () => {

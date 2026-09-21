@@ -8,7 +8,7 @@ export const HOST_BUNDLE = path.join(SUPPORT, 'host.bundle.js')
 /**
  * Empaqueta antes de la suite lo que se inyecta en el navegador: el emulador de
  * WebXR (IWER, un Quest 3 fingido: Chromium no trae WebXR) y el anfitrión de
- * prueba, que monta `<AirHockeyScene>` dentro de un Canvas ajeno como hace el
+ * prueba, que monta `<GlideHockeyScene>` dentro de un Canvas ajeno como hace el
  * salón de xrcade.
  */
 export default async function globalSetup() {

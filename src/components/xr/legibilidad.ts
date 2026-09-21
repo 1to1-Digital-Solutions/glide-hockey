@@ -51,7 +51,7 @@ export const MIN_ANGULO = 0.75
  * A qué distancia se mira un panel cuando quien lo mide no dice otra cosa, en metros.
  *
  * Es donde están los paneles de casi todos: delante, a metro y pico. Los juegos de mesa
- * —la torre de stick-pull— los tienen mucho más cerca y lo dicen al medir.
+ * —la torre de tower-tumble— los tienen mucho más cerca y lo dicen al medir.
  */
 export const DISTANCIA_TIPICA = 1.2
 

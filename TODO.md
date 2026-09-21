@@ -1,4 +1,4 @@
-# TODO — air-hockey
+# TODO — glide-hockey
 
 ## Desde Organízate
 
@@ -24,7 +24,7 @@
   Cada fila del panel del visor dice de qué es —eran hileras de iconos sin una palabra—, el
   panel se aparta de la mesa al empezar la partida y salir pregunta antes de perderla.
 - [x] Etiquetar v0.1.0 para que xrcade pueda instalarlo <!-- org:a9e1801d-5e30-4e29-9c98-72e3a10537df -->
-- [x] Dar de alta Air Hockey en el catálogo de xrcade <!-- org:1f04c5f5-0cb2-4954-a7ba-c1ab0b7d00a3 -->
+- [x] Dar de alta Glide Hockey en el catálogo de xrcade <!-- org:1f04c5f5-0cb2-4954-a7ba-c1ab0b7d00a3 -->
 - [x] Probar con el visor y decidir cómo se lleva el mazo en VR <!-- org:21be71e0-2f09-4ed1-b78c-e10038d5433a -->
   **Decidido: se coge por proximidad y va donde va la mano.** Se lleva la mano hasta el mazo y
   se cierra —apretar desde lejos no lo teletransporta, que es lo que volvería a convertirlo en
@@ -176,7 +176,7 @@
   Sin llamadas de dibujo de más: el mapa ya estaba cargado y se pasa, no se duplica.
 - [x] Terminar la partida no suena
   El HUD pinta estrellas, nivel desbloqueado o récord en silencio: solo se repite el último sonido
-  normal de la partida. Comparte el hueco con ping-pong, whack-a-mole, bow-shooting, skeet y
+  normal de la partida. Comparte el hueco con table-tennis, hole-patrol, bow-shooting, skeet y
   stick-rush.
 - [x] Sin techo ni fondo de cielo jugando desde su propia web
   Ya hay techo, y sobre todo hay fondo: lo pone el juego con `Backdrop`, no el `<Canvas>`.

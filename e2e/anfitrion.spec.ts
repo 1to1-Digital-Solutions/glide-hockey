@@ -7,7 +7,7 @@ import { installXREmulator } from './support/xr'
  * sesión que no es suya y sus ficheros bajo el prefijo del anfitrión.
  *
  * `scripts/scene-contract.test.ts` lee el código y comprueba que desde
- * `<AirHockeyScene>` no se alcanza un Canvas, un XR ni DOM; esto es lo que
+ * `<GlideHockeyScene>` no se alcanza un Canvas, un XR ni DOM; esto es lo que
  * demuestra que la escena funciona de verdad montada en el Canvas de otro, y
  * que montarla y jugar no toca la sesión del anfitrión —que es lo que permite
  * pasar del juego al salón sin quitarse el visor—.
@@ -23,7 +23,7 @@ test.describe('Montado dentro de otro anfitrión', () => {
     await openHost(page)
     await page.waitForTimeout(2_000)
 
-    // Un fallo de la escena no se ve desde fuera: `<AirHockeyScene>` no pinta
+    // Un fallo de la escena no se ve desde fuera: `<GlideHockeyScene>` no pinta
     // DOM y el Canvas se queda igual de negro. Lo que lo dice es la consola, y
     // aquí manda la misma política de seguridad que en el salón.
     expect(errors).toEqual([])
@@ -40,7 +40,7 @@ test.describe('Montado dentro de otro anfitrión', () => {
       .poll(
         () =>
           page.evaluate(() =>
-            window.__airHockeyHost.enterVR().then(
+            window.__glideHockeyHost.enterVR().then(
               () => true,
               () => false,
             ),

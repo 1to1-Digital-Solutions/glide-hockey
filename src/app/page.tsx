@@ -1,6 +1,6 @@
 'use client'
 
-import { AirHockey } from '@/game'
+import { GlideHockey } from '@/game'
 
 /**
  * La web del juego: un envoltorio que le da la pantalla entera y poco más. El
@@ -13,7 +13,7 @@ export default function Home() {
   // anidar dos landmarks deja al lector de pantalla con dos veces el mismo.
   return (
     <div className="h-dvh w-full">
-      <AirHockey />
+      <GlideHockey />
     </div>
   )
 }

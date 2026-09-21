@@ -25,7 +25,7 @@ const KNOB_HEIGHT = 0.045
  * con el que se pulsa el menú sale de esa misma mano: lo primero que se encuentra es el mazo,
  * que se queda con el evento y deja al botón sin enterarse. Desde dentro eso no se ve como
  * «el mazo está en medio», se ve como que **el botón no funciona**. El arreglo llegó a los
- * demás juegos y a este no —el mismo mazo, el mismo fallo, y en whack-a-mole ya estaba
+ * demás juegos y a este no —el mismo mazo, el mismo fallo, y en hole-patrol ya estaba
  * escrito—. En escritorio no se pierde nada: ahí no hay rayo.
  */
 export function Mallet({

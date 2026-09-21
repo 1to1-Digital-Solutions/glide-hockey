@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import {
-  type AirHockeyAudio,
+  type GlideHockeyAudio,
   type GameSound,
-  createAirHockeyAudio,
+  createGlideHockeyAudio,
 } from './audioEngine'
 import { useGame } from './gameStore'
 
@@ -34,7 +34,7 @@ export type SlidePuck = (speed: number) => void
 
 export function useGameAudio(): { play: PlayGameSound; slide: SlidePuck } {
   const { muted, sfxVolume } = useGame()
-  const audio = useRef<AirHockeyAudio | null>(null)
+  const audio = useRef<GlideHockeyAudio | null>(null)
 
   // Silenciar suelta el audio del dispositivo, no solo baja el volumen: un
   // contexto abierto sigue contando como que la página está sonando, y en el
@@ -68,7 +68,7 @@ export function useGameAudio(): { play: PlayGameSound; slide: SlidePuck } {
       // El contexto se crea con el primer sonido, que siempre llega con la
       // partida ya empezada: creado antes de que nadie toque nada, el navegador
       // lo dejaría en suspenso (ver `audioEngine.ts`).
-      const engine = (audio.current ??= createAirHockeyAudio())
+      const engine = (audio.current ??= createGlideHockeyAudio())
     // El motor nace a volumen completo y aquí se le dice el de los
     // ajustes: creado dentro de este efecto, el que sigue al volumen todavía
     // no lo ha visto.

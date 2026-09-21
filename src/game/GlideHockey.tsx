@@ -7,7 +7,7 @@ import { endXrSession } from '../components/xr/xrStore'
 import { setAssetsBase } from '../lib/assets'
 import { ExitProvider } from './exit'
 
-export interface AirHockeyProps {
+export interface GlideHockeyProps {
   /**
    * De dónde cuelgan los ficheros estáticos del juego: los perfiles de mando de
    * WebXR, sin los cuales el visor se queda sin mandos. Por defecto la raíz del
@@ -25,11 +25,11 @@ export interface AirHockeyProps {
  *
  * Para montarlo DENTRO de un Canvas y una sesión que ya existen —lo que hace el
  * salón inmersivo de xrcade, y lo que permite volver sin quitarse el visor— hay
- * que usar `<AirHockeyScene>`. Este de aquí abre su propia sesión, y en un
+ * que usar `<GlideHockeyScene>`. Este de aquí abre su propia sesión, y en un
  * documento solo cabe una. El contrato completo está en
  * `docs/montar-el-juego.md`.
  */
-export function AirHockey({ assetsBase }: AirHockeyProps) {
+export function GlideHockey({ assetsBase }: GlideHockeyProps) {
   if (assetsBase !== undefined) setAssetsBase(assetsBase)
 
   // Quitar el juego tiene que devolver el visor a quien lo montó: la sesión no

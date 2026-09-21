@@ -29,7 +29,7 @@ const numero = (raw: string | null): number => {
 /** Una preferencia de mentira con clave fija. */
 function contador() {
   return createStoredPreference<number>({
-    key: 'air-hockey:test:contador',
+    key: 'glide-hockey:test:contador',
     parse: numero,
     serialize: String,
   })
@@ -38,7 +38,7 @@ function contador() {
 /** Y otra con una clave por variante, como la del récord por modo. */
 function porModo() {
   return createStoredPreference<number, [string]>({
-    key: (mode: string) => `air-hockey:test:${mode}`,
+    key: (mode: string) => `glide-hockey:test:${mode}`,
     parse: numero,
     serialize: String,
   })
@@ -87,7 +87,7 @@ describe('una preferencia guardada entre visitas', () => {
   })
 
   it('lo guardado es entrada externa: solo se acepta lo que vale', () => {
-    localStorage.setItem('air-hockey:test:contador', 'lo que sea')
+    localStorage.setItem('glide-hockey:test:contador', 'lo que sea')
     expect(contador().get()).toBe(0)
   })
 

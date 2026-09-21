@@ -16,7 +16,7 @@ export async function abrirJuego(page: Page): Promise<void> {
   // El Canvas se carga aparte y solo en cliente: hasta que aparece, lo que hay
   // es la pantalla de carga.
   await expect(page.locator('canvas')).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Air Hockey' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Glide Hockey' })).toBeVisible()
 }
 
 /**
@@ -48,7 +48,7 @@ export async function jugarPartida(
  */
 export async function observarLaMesa(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    window.__airHockeyScene = null
+    window.__glideHockeyScene = null
   })
 }
 
@@ -60,7 +60,7 @@ export async function observarLaMesa(page: Page): Promise<void> {
  */
 export async function esperarALaMesa(page: Page): Promise<SceneProbe> {
   await expect
-    .poll(() => page.evaluate(() => window.__airHockeyScene != null), {
+    .poll(() => page.evaluate(() => window.__glideHockeyScene != null), {
       message: 'la escena no llegó a publicar lo que pasa en la mesa',
     })
     .toBe(true)
@@ -70,7 +70,7 @@ export async function esperarALaMesa(page: Page): Promise<SceneProbe> {
 
 /** Lo que la escena está publicando ahora mismo. */
 export async function leerLaMesa(page: Page): Promise<SceneProbe> {
-  const mesa = await page.evaluate(() => window.__airHockeyScene)
+  const mesa = await page.evaluate(() => window.__glideHockeyScene)
   if (mesa == null) {
     throw new Error(
       'La mesa no está publicando nada: ¿se llamó a observarLaMesa antes de abrir el juego?',

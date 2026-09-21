@@ -7,7 +7,7 @@ import { OWN_SCENERY_KEY, SCENERY_HINTS, SCENERY_LABELS, forgetOwnScenery } from
  * Cómo se ofrece el escenario del arcade en este juego.
  *
  * La preferencia y la regla del decorado se prueban con el puente (`ajustes.test.ts` y
- * `ajustesCliente.test.tsx`). Lo que queda aquí es lo que es de air-hockey: que la clave propia
+ * `ajustesCliente.test.tsx`). Lo que queda aquí es lo que es de glide-hockey: que la clave propia
  * del juego no mande y desaparezca.
  */
 
@@ -18,7 +18,7 @@ afterEach(() => {
 describe('la clave propia del juego', () => {
   it('es la del juego, escrita a mano', () => {
     // Si se apartara, se quedaría sin borrar la de verdad y se borraría una que no existe.
-    expect(OWN_SCENERY_KEY).toBe('air-hockey:scenery')
+    expect(OWN_SCENERY_KEY).toBe('glide-hockey:scenery')
   })
 
   it('no manda: con ella a «habitación» y la del arcade sin poner, se ve la sala', () => {

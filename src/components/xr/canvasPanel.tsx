@@ -330,7 +330,7 @@ export function CanvasPanel({
         **Sin escribir profundidad.** El lienzo es casi todo transparente —solo hay letras—
         pero un material transparente **sí apunta su profundidad** salvo que se le diga que
         no, y entonces tapa lo que tenga detrás aunque no se vea nada pintado. Eso es lo que
-        dejaba el botón de jugar de air-hockey sin su placa azul: el lienzo del panel va por
+        dejaba el botón de jugar de glide-hockey sin su placa azul: el lienzo del panel va por
         delante de los botones, y todo lo que quedaba detrás desaparecía. Reportado con el
         visor puesto: «el botón de play no se ve en azul, está como sombreado».
       */}

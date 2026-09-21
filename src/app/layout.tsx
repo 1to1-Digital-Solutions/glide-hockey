@@ -27,8 +27,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = traductor(await idiomaDeLaPeticion())
 
   return {
-    title: t('Air Hockey — you against the machine'),
-    description: t('Air hockey against the machine: choose the level and the goals to play to, and put the puck in its net. Play in the browser or in mixed reality (VR/AR).'),
+    // El nombre no se traduce —es el del producto, el mismo en el salón y en la tienda—;
+    // lo que le sigue sí, que es lo que dice de qué va.
+    title: t('Glide Hockey — you against the machine'),
+    description: t('Glide Hockey against the machine: choose the level and the goals to play to, and put the puck in its net. Play in the browser or in mixed reality (VR/AR).'),
   }
 }
 

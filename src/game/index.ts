@@ -1,5 +1,5 @@
 /**
- * Lo que Air Hockey ofrece a quien quiera montarlo: el juego y nada más.
+ * Lo que Glide Hockey ofrece a quien quiera montarlo: el juego y nada más.
  *
  * Todo lo demás —rutas, layout, metadatos, despliegue— es de la web que lo
  * envuelve (`src/app`), y de eso este punto de entrada no sabe nada. El
@@ -7,9 +7,9 @@
  * aplicación, está en `docs/montar-el-juego.md`.
  */
 
-export { AirHockey, type AirHockeyProps } from './AirHockey'
+export { GlideHockey, type GlideHockeyProps } from './GlideHockey'
 export {
-  AirHockeyScene,
-  type AirHockeySceneProps,
-} from './AirHockeyScene'
-export { mountAirHockey, type AirHockeyHandle } from './mount'
+  GlideHockeyScene,
+  type GlideHockeySceneProps,
+} from './GlideHockeyScene'
+export { mountGlideHockey, type GlideHockeyHandle } from './mount'

@@ -3,7 +3,7 @@ import { expect, type Page } from '@playwright/test'
 import { HOST_BUNDLE } from './globalSetup'
 
 /** Donde el salón sirve los estáticos de este juego. */
-export const ASSETS_BASE = '/juegos/air-hockey/'
+export const ASSETS_BASE = '/juegos/glide-hockey/'
 /** Lo que el anfitrión NO sirve desde la raíz: en el salón, ahí no hay nada. */
 const ASSET_ROOTS = ['/webxr-profiles/']
 const PAGE_PATH = '/anfitrion-de-prueba'
@@ -96,5 +96,5 @@ export async function openHost(
 
 /** Entra en la cabina: monta la escena. Solo hace algo con `aLaCarta`. */
 export async function enterHostBooth(page: Page): Promise<void> {
-  await page.evaluate(() => window.__airHockeyHost.entrarEnLaCabina())
+  await page.evaluate(() => window.__glideHockeyHost.entrarEnLaCabina())
 }

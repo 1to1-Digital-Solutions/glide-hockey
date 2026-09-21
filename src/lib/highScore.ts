@@ -14,9 +14,9 @@ import { createStoredPreference } from './storage'
 
 /** Clave del récord de cada modo, con prefijo para no chocar con nada más. */
 export const HIGH_SCORE_KEYS: Record<GameMode, string> = {
-  practice: 'air-hockey:best-points',
-  levels: 'air-hockey:best-points:levels',
-  challenge: 'air-hockey:best-points:challenge',
+  practice: 'glide-hockey:best-points',
+  levels: 'glide-hockey:best-points:levels',
+  challenge: 'glide-hockey:best-points:challenge',
 }
 
 /**
@@ -24,7 +24,7 @@ export const HIGH_SCORE_KEYS: Record<GameMode, string> = {
  * así que su marca es la mejor racha de goles seguidos. Clave aparte para que
  * no se mezcle con la prueba normal, que sí mide el total.
  */
-export const ENDLESS_STREAK_KEY = 'air-hockey:best-streak:endless'
+export const ENDLESS_STREAK_KEY = 'glide-hockey:best-streak:endless'
 
 /**
  * Interpreta lo leído del almacenamiento.

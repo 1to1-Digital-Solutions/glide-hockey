@@ -2,7 +2,7 @@
 
 Todo lo que hay en `public/` viene de fuera del proyecto. Aquí queda de dónde,
 con qué licencia y qué obliga esa licencia, porque es lo que se copia al
-`public/` de quien monte el juego (`npx air-hockey-assets`) y viaja con él.
+`public/` de quien monte el juego (`npx glide-hockey-assets`) y viaja con él.
 
 El resto del juego —la mesa, el disco, los mazos, la sala— es geometría
 generada en código, y los golpes y los goles son osciladores: no hay modelos ni

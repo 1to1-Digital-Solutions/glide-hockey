@@ -10,7 +10,7 @@ import { type Vec2 } from './puckPhysics'
  * de la máquina en la que corra.
  *
  * Esto lo evita publicando el estado de la partida, pero **solo si alguien lo
- * ha pedido**: la escena escribe en `window.__airHockeyScene` si esa propiedad
+ * ha pedido**: la escena escribe en `window.__glideHockeyScene` si esa propiedad
  * ya existe, y si no existe no hace nada. Ningún navegador la trae de serie,
  * así que quien no la cree —o sea, todo el mundo menos los tests— paga una
  * comprobación por fotograma y nada más.
@@ -51,7 +51,7 @@ declare global {
      * La ranura de la que habla la cabecera. Opcional porque lo normal es que
      * no exista: solo la crea quien quiera mirar dentro de la escena.
      */
-    __airHockeyScene?: SceneProbe | null
+    __glideHockeyScene?: SceneProbe | null
   }
 }
 
@@ -75,11 +75,11 @@ export function screenPointFromNdc(
 
 /** ¿Alguien ha pedido ver lo que pasa en la mesa? */
 export function isSceneProbeRequested(): boolean {
-  return typeof window !== 'undefined' && '__airHockeyScene' in window
+  return typeof window !== 'undefined' && '__glideHockeyScene' in window
 }
 
 /** Publica el estado de la mesa, si alguien lo ha pedido. */
 export function publishSceneProbe(probe: SceneProbe): void {
   if (!isSceneProbeRequested()) return
-  window.__airHockeyScene = probe
+  window.__glideHockeyScene = probe
 }

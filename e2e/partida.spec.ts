@@ -35,7 +35,7 @@ test('desde el resumen se vuelve al menú', async ({ page }) => {
   ).toBeVisible()
   await page.getByRole('button', { name: 'Back to the menu' }).click()
 
-  await expect(page.getByRole('heading', { name: 'Air Hockey' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Glide Hockey' })).toBeVisible()
 })
 
 test('dejar la partida devuelve al menú sin esperar al final', async ({
@@ -49,7 +49,7 @@ test('dejar la partida devuelve al menú sin esperar al final', async ({
   await expect(page.getByRole('alertdialog')).toBeVisible()
   await page.getByRole('button', { name: 'Leave', exact: true }).click()
 
-  await expect(page.getByRole('heading', { name: 'Air Hockey' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Glide Hockey' })).toBeVisible()
 })
 
 test('el reto no deja elegir nivel ni goles', async ({ page }) => {

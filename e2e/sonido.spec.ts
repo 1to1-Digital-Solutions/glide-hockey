@@ -39,7 +39,7 @@ interface UsoDelAudio {
 
 declare global {
   interface Window {
-    __airHockeyAudio?: UsoDelAudio
+    __glideHockeyAudio?: UsoDelAudio
   }
 }
 
@@ -52,7 +52,7 @@ declare global {
 async function contarElAudio(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const uso: UsoDelAudio = { contextos: 0, sonidos: 0 }
-    window.__airHockeyAudio = uso
+    window.__glideHockeyAudio = uso
 
     const Original = window.AudioContext
     window.AudioContext = class extends Original {
@@ -70,7 +70,7 @@ async function contarElAudio(page: Page): Promise<void> {
 }
 
 const leerElAudio = (page: Page) =>
-  page.evaluate(() => window.__airHockeyAudio)
+  page.evaluate(() => window.__glideHockeyAudio)
 
 test('la partida suena: la mesa pide sus sonidos al navegador', async ({
   page,

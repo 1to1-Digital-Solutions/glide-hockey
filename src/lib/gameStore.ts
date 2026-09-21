@@ -42,6 +42,7 @@ import {
   subscribeStarsList,
   subscribeUnlockedLevel,
 } from './progress'
+import { migrateLegacyKeysOnce } from './legacyKeys'
 import { forgetOwnScenery } from './scenery'
 import { gameStorage } from './storage'
 import { type Scorer } from './puckPhysics'
@@ -224,6 +225,11 @@ export function clampGoalTarget(goals: number): number {
 }
 
 export function useGameStoreValue(): GameStore {
+  // Lo guardado cuando el juego se llamaba `air-hockey`, traído a las claves de ahora.
+  // Durante el render y no en un efecto: el récord y los niveles se leen más abajo con
+  // `useSyncExternalStore`, que lee ya en esta misma pasada (ver `lib/legacyKeys.ts`).
+  migrateLegacyKeysOnce()
+
   const [goalTarget, setGoalTargetState] = useState(DEFAULT_GOALS)
   const [hitos, setHitos] = useState<TutorialHitos>(SIN_HITOS)
   const anotarHito = useCallback((hito: TutorialStepKey) => {

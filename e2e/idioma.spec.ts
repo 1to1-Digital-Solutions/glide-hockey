@@ -16,7 +16,7 @@ test.describe('El idioma que viene del arcade', () => {
   test('sin cookie, el juego está en inglés', async ({ page }) => {
     await page.goto('/')
 
-    await expect(page.getByRole('heading', { name: 'Air Hockey' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Glide Hockey' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
     expect(await page.locator('html').getAttribute('lang')).toBe('en')
 
@@ -41,6 +41,9 @@ test.describe('El idioma que viene del arcade', () => {
     expect(await page.locator('meta[name="description"]').getAttribute('content')).toContain(
       'navegador',
     )
+    // El nombre no se traduce: es el del producto, y tiene que leerse igual en la cabina
+    // del salón, en la pestaña y en la ficha de la tienda.
+    await expect(page.getByRole('heading', { name: 'Glide Hockey' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Jugar', exact: true })).toBeVisible()
     await expect(page.getByText('Modo de juego')).toBeVisible()
     await expect(page.getByText('Tú contra la máquina', { exact: false })).toBeVisible()

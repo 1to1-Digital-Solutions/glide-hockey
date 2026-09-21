@@ -3,7 +3,7 @@
 /**
  * Que la escena que se publica siga siendo una escena.
  *
- * `AirHockeyScene` es lo que el salón de xrcade monta dentro de su propio
+ * `GlideHockeyScene` es lo que el salón de xrcade monta dentro de su propio
  * Canvas y de su propia sesión de WebXR. El contrato dice que desde ahí no se
  * puede crear un `<Canvas>`, ni un `<XR>`, ni un `<XROrigin>`, ni pintar una
  * sola etiqueta de DOM (ver `docs/xrcade.md`).
@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const projectRoot = fileURLToPath(new URL('..', import.meta.url))
-const sceneEntry = join(projectRoot, 'src/game/AirHockeyScene.tsx')
+const sceneEntry = join(projectRoot, 'src/game/GlideHockeyScene.tsx')
 
 const SPECIFIER = /(?:\bfrom|\bimport)\s*\(?\s*(['"])([^'"]+)\1/g
 const RESOLUTION_ORDER = ['', '.ts', '.tsx', '/index.ts', '/index.tsx']

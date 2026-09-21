@@ -104,7 +104,7 @@ export function tutorialStep(hitos: TutorialHitos, saltados: number): TutorialSt
  * Dónde se recuerda que el tutorial ya se ha visto. Con prefijo, como el récord, para no
  * chocar con nada más del mismo origen.
  */
-export const TUTORIAL_SEEN_KEY = 'air-hockey:tutorial-seen'
+export const TUTORIAL_SEEN_KEY = 'glide-hockey:tutorial-seen'
 
 /** Lo que se escribe cuando ya se ha visto. */
 /**

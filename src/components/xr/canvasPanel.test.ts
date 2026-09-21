@@ -206,7 +206,7 @@ describe('escribir un párrafo', () => {
  * Un material transparente apunta su profundidad salvo que se le diga que no, y este plano
  * va por delante de los botones del panel cubriéndolos enteros: con la profundidad puesta,
  * todo lo que quede detrás desaparece aunque el lienzo esté vacío ahí. Así es como el botón
- * de jugar de air-hockey se quedó sin su placa azul —«no se ve en azul, está como
+ * de jugar de glide-hockey se quedó sin su placa azul —«no se ve en azul, está como
  * sombreado»— y con él las placas de los botones pequeños de varios juegos.
  */
 describe('el plano del panel', () => {

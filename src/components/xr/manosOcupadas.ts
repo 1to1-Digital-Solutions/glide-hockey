@@ -39,13 +39,13 @@ declare global {
      * donde se probó.
      *
      * **Doce y no trece**: en stick-rush los palos se atrapan de un toque y no se llevan, así
-     * que no hay nada que marcar. Ping-pong entró cuando su pala pasó a cogerse como las
+     * que no hay nada que marcar. Table Tennis entró cuando su pala pasó a cogerse como las
      * demás, y skeet cuando su pistola dejó de estar *siempre* en la mano y pasó a sacarse
      * con el agarre: mientras estuvo siempre puesta, marcarla habría apagado el rayo toda la
      * partida y no habría quedado con qué pulsar el menú.
      *
      * En la web propia de cada juego, además, el rayo lo dibuja el mando por defecto de la
-     * librería, que no lee esto: solo air-hockey y whack-a-mole traen su propio
+     * librería, que no lee esto: solo glide-hockey y hole-patrol traen su propio
      * `XRControllerGrip`. Dentro del arcade —que es donde se juega— lo dibuja el del salón,
      * que sí lo lee. Lo compara `scripts/repos/comunes.py`.
      *

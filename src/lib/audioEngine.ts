@@ -3,7 +3,7 @@
  *
  * Ni un fichero de audio, y no por ahorrar: un juego de xrcade no puede pedir
  * nada a otro origen y todo lo que sirva tiene que copiarlo el anfitrión a su
- * `public/` con `npx air-hockey-assets` (ver `docs/xrcade.md`). Un golpe de
+ * `public/` con `npx glide-hockey-assets` (ver `docs/xrcade.md`). Un golpe de
  * mazo y un rebote en la banda son ruido con una envolvente cortísima —lo que
  * hace la Web Audio API sin descargar nada—, así que aquí no se echa de menos
  * un `.wav`, y de paso no hay ficheros que copiar ni versión que sincronizar.
@@ -76,7 +76,7 @@ const MIN_LEVEL = 0.2
 /** Cuánto sube de tono un golpe fuerte respecto a uno flojo. */
 const PITCH_SPREAD = 0.2
 /** Reproductor de los sonidos del juego. */
-export interface AirHockeyAudio {
+export interface GlideHockeyAudio {
   /**
    * Suelta un sonido. `strength` (0 a 1) es la fuerza del impacto: escala el
    * volumen y un poco el tono del golpe y del rebote; el gol no la mira, que es
@@ -349,9 +349,9 @@ function envelope(
  * Crea el reproductor. Recibe de dónde sale el contexto para poder probarlo
  * sin navegador, que es donde corren los tests de la lógica del juego.
  */
-export function createAirHockeyAudio(
+export function createGlideHockeyAudio(
   createContext: () => AudioContext | null = browserAudioContext,
-): AirHockeyAudio {
+): GlideHockeyAudio {
   let context: AudioContext | null = null
   let master: GainNode | null = null
   let noise: AudioBuffer | null = null

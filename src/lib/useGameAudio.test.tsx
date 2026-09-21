@@ -25,7 +25,7 @@ const audio = vi.hoisted(() => ({
   setVolume: vi.fn(),
 }))
 
-vi.mock('./audioEngine', () => ({ createAirHockeyAudio: audio.create }))
+vi.mock('./audioEngine', () => ({ createGlideHockeyAudio: audio.create }))
 
 /** El juego alrededor del hook: el almacén de verdad, con su contexto. */
 function Harness({ children }: { children: ReactNode }) {

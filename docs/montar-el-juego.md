@@ -1,25 +1,25 @@
-# Montar Air Hockey dentro de otra aplicación
+# Montar Glide Hockey dentro de otra aplicación
 
-Air Hockey se publica como **paquete**, y lo que exporta es una **escena**:
+Glide Hockey se publica como **paquete**, y lo que exporta es una **escena**:
 objetos de three que se pintan dentro del `<Canvas>` del anfitrión. Quien es
 dueño del Canvas es dueño de la sesión de WebXR, y ese es el anfitrión — nunca
 el juego. El porqué está en [`xrcade.md`](./xrcade.md).
 
 Hay dos formas de montarlo, y la que toque depende de si ya hay un Canvas.
 
-## Dentro de un Canvas que ya existe: `<AirHockeyScene>`
+## Dentro de un Canvas que ya existe: `<GlideHockeyScene>`
 
 Es lo que hace el salón de xrcade. No crea Canvas, no abre ni cierra la sesión
 y no pinta una sola etiqueta de DOM.
 
 ```tsx
-import { AirHockeyScene } from 'air-hockey'
+import { GlideHockeyScene } from 'glide-hockey'
 
 <Canvas>
   <XR store={store}>
     <XROrigin position={[0, 0, 0]} />
-    <AirHockeyScene
-      assetsBase="/juegos/air-hockey/"
+    <GlideHockeyScene
+      assetsBase="/juegos/glide-hockey/"
       onExit={() => volverAlSalon()}
     />
   </XR>
@@ -36,7 +36,7 @@ arrancarle el visor al jugador en vez de devolverlo al arco de cabinas.
 
 El store también es del anfitrión, y con él los perfiles de mando: hay que
 crearlo con `baseAssetPath` apuntando a los perfiles que sirva —valen los que
-copia `air-hockey-assets` en `<assetsBase>/webxr-profiles/`—. Por defecto
+copia `glide-hockey-assets` en `<assetsBase>/webxr-profiles/`—. Por defecto
 @react-three/xr los descarga de un CDN, y bajo la política de seguridad del
 salón eso deja al jugador sin mandos: sin rayo no se mueve el mazo ni se pulsa
 nada.
@@ -45,16 +45,16 @@ nada.
 al empezar la sesión (ver `components/game/WorldAnchor.tsx`). El juego no pone
 `<XROrigin>`: mueve su decorado, no al jugador.
 
-## Con su propio Canvas: `<AirHockey>`
+## Con su propio Canvas: `<GlideHockey>`
 
 Para una página web normal que quiera una pantalla de juego. Trae el Canvas, la
 sesión de WebXR, el menú 2D y el botón de entrar al visor.
 
 ```tsx
-import { AirHockey } from 'air-hockey'
+import { GlideHockey } from 'glide-hockey'
 
 <div style={{ height: '100dvh' }}>
-  <AirHockey assetsBase="/juegos/air-hockey/" />
+  <GlideHockey assetsBase="/juegos/glide-hockey/" />
 </div>
 ```
 
@@ -62,7 +62,7 @@ Ocupa lo que mida su contenedor, así que hay que darle altura. Aquí `onExit` n
 existe: salir es cerrar la sesión, porque no hay ningún sitio al que volver.
 
 Para quien no renderiza React por su cuenta está
-`mountAirHockey(elemento, opciones)`, que devuelve un `{ unmount() }`.
+`mountGlideHockey(elemento, opciones)`, que devuelve un `{ unmount() }`.
 
 ## Los tres pasos que hay que dar sí o sí
 
@@ -73,7 +73,7 @@ HTTP al entrar en el visor. Sin ellos, @react-three/xr no llega a registrar
 ningún mando y el jugador se queda sin rayo con el que apuntar.
 
 ```sh
-npx air-hockey-assets public/juegos/air-hockey
+npx glide-hockey-assets public/juegos/glide-hockey
 ```
 
 Y luego se le dice al juego dónde han quedado con `assetsBase`. **Dos juegos en
@@ -91,17 +91,17 @@ monta sin estilos.
 
 ```css
 @import "tailwindcss";
-@source "../node_modules/air-hockey/src";
-@import "air-hockey/styles.css";
+@source "../node_modules/glide-hockey/src";
+@import "glide-hockey/styles.css";
 ```
 
 `styles.css` es cómo el juego usa sus colores y las animaciones de sus
-pantallas. Todo cuelga de la clase `.air-hockey`, así que no le cambia el
+pantallas. Todo cuelga de la clase `.glide-hockey`, así que no le cambia el
 aspecto a nada del anfitrión: los valores de la paleta los pone el propio juego
 sobre su contenedor, y son los mismos que usan la escena y la interfaz del visor
 (`src/lib/palette.ts`).
 
-Montando solo `<AirHockeyScene>` —dentro de un Canvas— no hace falta nada de
+Montando solo `<GlideHockeyScene>` —dentro de un Canvas— no hace falta nada de
 esto: ahí el juego no pinta DOM.
 
 ### 3. No duplicar React ni three
@@ -137,15 +137,15 @@ Tres claves en `localStorage`, sin nada que identifique a nadie:
 
 | Clave | Qué |
 | --- | --- |
-| `air-hockey:best-points` | El récord del modo prueba. |
-| `air-hockey:best-points:challenge` | El récord del modo reto. |
-| `air-hockey:muted` | Si el jugador dejó el juego callado (`1`) o sonando (`0`). |
+| `glide-hockey:best-points` | El récord del modo prueba. |
+| `glide-hockey:best-points:challenge` | El récord del modo reto. |
+| `glide-hockey:muted` | Si el jugador dejó el juego callado (`1`) o sonando (`0`). |
 
 El escenario —la sala o la habitación de quien juega— **no** es suyo: es `xrcade:scenery`, la
 misma clave que escribe el salón (`place` o `room`, y `place` si no hay nada). Los menús del
 juego lo pueden cambiar, pero escriben esa clave: hay una sola preferencia, y fuera del salón
 funciona igual en el origen de la web del juego. La clave propia del juego,
-`air-hockey:scenery`, no la escribe nadie: se borra al montar el estado de la partida, sin
+`glide-hockey:scenery`, no la escribe nadie: se borra al montar el estado de la partida, sin
 trasladarla (ver `src/lib/ajustes.ts` y `src/lib/scenery.ts`).
 
 Si el almacenamiento está bloqueado (ventana privada, política del navegador),

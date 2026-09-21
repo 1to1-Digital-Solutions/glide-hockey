@@ -1,4 +1,4 @@
-# air-hockey dentro de xrcade
+# glide-hockey dentro de xrcade
 
 Este juego se desarrolla en su propio repositorio y el salón de
 [xrcade](https://github.com/1to1-Digital-Solutions/xrcade) lo instala por tag y lo **monta

@@ -40,7 +40,7 @@ async function entrarComoElSalon(page: Page) {
     .poll(
       () =>
         page.evaluate(() =>
-          window.__airHockeyHost.enterAR().then(
+          window.__glideHockeyHost.enterAR().then(
             () => true,
             () => false,
           ),

@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 /**
- * Lo que `npx air-hockey-assets` deja en el `public/` de quien monta el juego.
+ * Lo que `npx glide-hockey-assets` deja en el `public/` de quien monta el juego.
  *
  * Vive aquí, junto al ejecutable, porque el typecheck no mira dentro de un
  * `.mjs` y el lint solo comprueba su sintaxis: sin estos tests, que la copia
@@ -41,7 +41,7 @@ afterEach(async () => {
 })
 
 async function temporaryDir(prefix: string): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), `air-hockey-${prefix}-`))
+  const dir = await mkdtemp(join(tmpdir(), `glide-hockey-${prefix}-`))
   temporary.push(dir)
   return dir
 }
@@ -81,7 +81,7 @@ interface ProfilesList {
   [id: string]: { path?: string }
 }
 
-describe('air-hockey-assets', () => {
+describe('glide-hockey-assets', () => {
   it('deja los perfiles de mando que la lista declara', async () => {
     const destination = await temporaryDir('destino')
 
@@ -151,7 +151,7 @@ describe('air-hockey-assets', () => {
 
   it('crea el destino si no existe', async () => {
     const parent = await temporaryDir('destino')
-    const destination = join(parent, 'public/juegos/air-hockey')
+    const destination = join(parent, 'public/juegos/glide-hockey')
 
     const run = await copyAssets([destination])
 
@@ -173,7 +173,7 @@ describe('air-hockey-assets', () => {
       join(projectRoot, 'public/CREDITS.md'),
       join(root, 'public/CREDITS.md'),
     )
-    const destination = join(await temporaryDir('destino'), 'air-hockey')
+    const destination = join(await temporaryDir('destino'), 'glide-hockey')
 
     const run = await copyAssets([destination], join(root, 'scripts/copy-assets.mjs'))
 
@@ -188,6 +188,6 @@ describe('air-hockey-assets', () => {
     const run = await copyAssets([])
 
     expect(run.code).toBe(1)
-    expect(run.stderr).toContain('air-hockey-assets <directorio de destino>')
+    expect(run.stderr).toContain('glide-hockey-assets <directorio de destino>')
   })
 })

@@ -59,7 +59,7 @@ export const DIFFICULTY_COLORS: Record<Difficulty, string> = {
  * Cuelgan del contenedor y nunca de `:root`: montado dentro de otra aplicación,
  * un `--color-primary` global le cambiaría el aspecto al anfitrión.
  */
-export const AIR_HOCKEY_CSS_VARIABLES = {
+export const GLIDE_HOCKEY_CSS_VARIABLES = {
   '--color-background': PALETTE.background,
   '--color-foreground': PALETTE.foreground,
   '--color-primary': PALETTE.primary,

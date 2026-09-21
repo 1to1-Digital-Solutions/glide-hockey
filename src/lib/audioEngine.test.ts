@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { MAX_PUCK_SPEED } from './gameConfig'
-import { createAirHockeyAudio, impactStrength, slideLevel, slidePitch } from './audioEngine'
+import { createGlideHockeyAudio, impactStrength, slideLevel, slidePitch } from './audioEngine'
 import { STALL_SPEED } from './puckPhysics'
 
 /**
@@ -154,12 +154,12 @@ function fakeAudioContext(
   }
 }
 
-describe('createAirHockeyAudio', () => {
+describe('createGlideHockeyAudio', () => {
   it('no toca el audio del navegador hasta que hay algo que sonar', () => {
     const fake = fakeAudioContext()
     const createContext = vi.fn(() => fake.context)
 
-    const audio = createAirHockeyAudio(createContext)
+    const audio = createGlideHockeyAudio(createContext)
     expect(createContext).not.toHaveBeenCalled()
 
     audio.play('strike')
@@ -172,7 +172,7 @@ describe('createAirHockeyAudio', () => {
   it('reanuda el contexto que el navegador dejó en suspenso', () => {
     const fake = fakeAudioContext('suspended')
 
-    createAirHockeyAudio(() => fake.context).play('strike')
+    createGlideHockeyAudio(() => fake.context).play('strike')
 
     expect(fake.llamadas.resume).toBe(1)
   })
@@ -183,7 +183,7 @@ describe('createAirHockeyAudio', () => {
     // fallos sueltos en la consola —y la consola limpia es lo que vigila
     // `e2e/consola.spec.ts`—, con el juego funcionando igual de mudo.
     const fake = fakeAudioContext('suspended', new Error('NotAllowedError'))
-    const audio = createAirHockeyAudio(() => fake.context)
+    const audio = createGlideHockeyAudio(() => fake.context)
 
     audio.play('strike')
     audio.close()
@@ -194,7 +194,7 @@ describe('createAirHockeyAudio', () => {
 
   it('los tres sonidos se filtran distinto, para que no suenen igual', () => {
     const fake = fakeAudioContext()
-    const audio = createAirHockeyAudio(() => fake.context)
+    const audio = createGlideHockeyAudio(() => fake.context)
 
     audio.play('strike')
     audio.play('bounce')
@@ -208,7 +208,7 @@ describe('createAirHockeyAudio', () => {
 
   it('el gol lleva melodía y los golpes solo cuerpo', () => {
     const fake = fakeAudioContext()
-    const audio = createAirHockeyAudio(() => fake.context)
+    const audio = createGlideHockeyAudio(() => fake.context)
 
     // Un golpe es un tono y nada más: es el cuerpo del impacto.
     audio.play('strike')
@@ -227,7 +227,7 @@ describe('createAirHockeyAudio', () => {
     // pantalla de fin llegaba sin avisar. Con el visor puesto el marcador está donde uno
     // no siempre está mirando.
     const fake = fakeAudioContext()
-    const audio = createAirHockeyAudio(() => fake.context)
+    const audio = createGlideHockeyAudio(() => fake.context)
 
     audio.play('win')
     const ganar = fake.oscillators.map((o) => o.frequency)
@@ -244,7 +244,7 @@ describe('createAirHockeyAudio', () => {
   it('un cierre no golpea nada: va sin siseo', () => {
     // El ruido del impacto en un final sonaría a que se ha roto algo.
     const fake = fakeAudioContext()
-    const audio = createAirHockeyAudio(() => fake.context)
+    const audio = createGlideHockeyAudio(() => fake.context)
 
     // Se cuentan filtros **nuevos** por sonido: el contexto ya monta el suyo para el roce
     // del disco en cuanto se abre, así que el total no dice nada por sí solo.
@@ -263,7 +263,7 @@ describe('createAirHockeyAudio', () => {
   it('la marca batida suena por encima de todo y después del cierre', () => {
     // Va aparte del cierre porque se puede batir ganando o perdiendo el partido.
     const fake = fakeAudioContext()
-    const audio = createAirHockeyAudio(() => fake.context)
+    const audio = createGlideHockeyAudio(() => fake.context)
 
     audio.play('win')
     const ganar = fake.oscillators.map((o) => o.frequency)
@@ -275,7 +275,7 @@ describe('createAirHockeyAudio', () => {
 
   it('sin Web Audio se juega en silencio y no se reintenta a cada golpe', () => {
     const createContext = vi.fn(() => null)
-    const audio = createAirHockeyAudio(createContext)
+    const audio = createGlideHockeyAudio(createContext)
 
     expect(() => {
       audio.play('strike')
@@ -289,7 +289,7 @@ describe('createAirHockeyAudio', () => {
   it('cerrar suelta el contexto y el siguiente sonido estrena otro', () => {
     const fake = fakeAudioContext()
     const createContext = vi.fn(() => fake.context)
-    const audio = createAirHockeyAudio(createContext)
+    const audio = createGlideHockeyAudio(createContext)
 
     audio.play('strike')
     audio.close()
@@ -311,7 +311,7 @@ describe('la fuerza del impacto', () => {
   })
 
   /** Los picos de volumen que se le pidieron a cada ganancia en una reproducción. */
-  function picos(play: (audio: ReturnType<typeof createAirHockeyAudio>) => void): number[] {
+  function picos(play: (audio: ReturnType<typeof createGlideHockeyAudio>) => void): number[] {
     const fake = fakeAudioContext()
     const valores: number[] = []
     const context = fake.context as unknown as { createGain: () => unknown }
@@ -325,7 +325,7 @@ describe('la fuerza del impacto', () => {
       },
       connect: vi.fn(),
     })
-    play(createAirHockeyAudio(() => fake.context))
+    play(createGlideHockeyAudio(() => fake.context))
     return valores
   }
 
@@ -343,7 +343,7 @@ describe('la fuerza del impacto', () => {
 
   it('el golpe flojo suena un poco más grave', () => {
     const fake = fakeAudioContext()
-    const audio = createAirHockeyAudio(() => fake.context)
+    const audio = createGlideHockeyAudio(() => fake.context)
     audio.play('strike', 1)
     audio.play('strike', 0)
     const [fuerte, flojo] = fake.oscillators
@@ -382,7 +382,7 @@ describe('el roce del disco', () => {
 
   it('no abre el contexto por su cuenta: hasta el primer golpe no hay nada que roce', () => {
     const create = vi.fn(() => fakeAudioContext().context)
-    const audio = createAirHockeyAudio(create)
+    const audio = createGlideHockeyAudio(create)
 
     audio.slide(3)
     expect(create).not.toHaveBeenCalled()
@@ -394,7 +394,7 @@ describe('el roce del disco', () => {
 
   it('una sola voz en bucle que sigue la velocidad suavizada, y se para al cerrar', () => {
     const fake = fakeAudioContext()
-    const audio = createAirHockeyAudio(() => fake.context)
+    const audio = createGlideHockeyAudio(() => fake.context)
     audio.play('strike')
     const filtrosAntes = fake.filters.length
 
@@ -418,7 +418,7 @@ describe('el contexto que abre el navegador', () => {
     // el juego tiene que seguir, no llevarse la escena por delante.
     vi.stubGlobal('window', {})
 
-    const audio = createAirHockeyAudio()
+    const audio = createGlideHockeyAudio()
     expect(() => audio.play('strike')).not.toThrow()
 
     vi.unstubAllGlobals()
@@ -427,7 +427,7 @@ describe('el contexto que abre el navegador', () => {
   it('sin ventana ninguna tampoco rompe', () => {
     vi.stubGlobal('window', undefined)
 
-    const audio = createAirHockeyAudio()
+    const audio = createGlideHockeyAudio()
     expect(() => audio.play('strike')).not.toThrow()
 
     vi.unstubAllGlobals()
@@ -442,7 +442,7 @@ describe('el contexto que abre el navegador', () => {
     }
     vi.stubGlobal('window', { AudioContext: Rota })
 
-    const audio = createAirHockeyAudio()
+    const audio = createGlideHockeyAudio()
     expect(() => audio.play('strike')).not.toThrow()
 
     vi.unstubAllGlobals()
@@ -452,7 +452,7 @@ describe('el contexto que abre el navegador', () => {
     const fake = fakeAudioContext()
     vi.stubGlobal('window', { AudioContext: function () { return fake.context } })
 
-    const audio = createAirHockeyAudio()
+    const audio = createGlideHockeyAudio()
     audio.play('strike')
 
     expect(fake.oscillators.length).toBeGreaterThan(0)
@@ -465,7 +465,7 @@ describe('cerrar el reproductor', () => {
     // El navegador lanza si se para dos veces la misma fuente, y eso pasa al
     // salir de la partida justo después de que el roce se apague solo.
     const fake = fakeAudioContext()
-    const audio = createAirHockeyAudio(() => fake.context)
+    const audio = createGlideHockeyAudio(() => fake.context)
     // El primer golpe es quien abre el contexto; sin él no hay roce que parar.
     audio.play('strike')
     audio.slide(5)
@@ -497,7 +497,7 @@ describe('velocidades imposibles', () => {
 describe('el volumen de los efectos del arcade', () => {
   it('llega al nodo maestro, que es por donde pasa todo', () => {
     const fake = fakeAudioContext()
-    const audio = createAirHockeyAudio(() => fake.context)
+    const audio = createGlideHockeyAudio(() => fake.context)
 
     audio.play('goal')
     const completo = fake.maestro().value
@@ -512,7 +512,7 @@ describe('el volumen de los efectos del arcade', () => {
     // antes, en la portada del arcade: pedirlo con el audio aún cerrado no
     // puede perderse.
     const fake = fakeAudioContext()
-    const audio = createAirHockeyAudio(() => fake.context)
+    const audio = createGlideHockeyAudio(() => fake.context)
 
     audio.setVolume(0.5)
     audio.play('goal')
@@ -527,7 +527,7 @@ describe('el volumen de los efectos del arcade', () => {
     // Lo que llega son ajustes de fuera: por encima de uno la ganancia satura,
     // que no es sonar más alto sino sonar roto.
     const fake = fakeAudioContext()
-    const audio = createAirHockeyAudio(() => fake.context)
+    const audio = createGlideHockeyAudio(() => fake.context)
 
     audio.play('goal')
     const completo = fake.maestro().value

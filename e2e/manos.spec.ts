@@ -26,7 +26,7 @@ test('con las manos desnudas el mazo también se coge', async ({ page }) => {
   await page.evaluate(() => window.__xrTest.useHands())
   await startGameInsideSession(page)
 
-  const mazo = async () => page.evaluate(() => window.__airHockeyScene?.playerMallet ?? null)
+  const mazo = async () => page.evaluate(() => window.__glideHockeyScene?.playerMallet ?? null)
   await expect.poll(mazo, { timeout: 20_000 }).not.toBeNull()
   const antes = await mazo()
 

@@ -1,12 +1,12 @@
 {
-  "name": "air-hockey",
+  "name": "glide-hockey",
   "version": "0.20.0",
   "private": true,
-  "description": "Air hockey contra la máquina. Juego web en 3D para navegador y realidad mixta (VR/AR), montable dentro de otra aplicación.",
+  "description": "Glide Hockey: disco y mazos sobre un colchón de aire, contra la máquina. Juego web en 3D para navegador y realidad mixta (VR/AR), montable dentro de otra aplicación.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/1to1-Digital-Solutions/air-hockey.git"
+    "url": "git+https://github.com/1to1-Digital-Solutions/glide-hockey.git"
   },
   "exports": {
     ".": "./src/game/index.ts",
@@ -14,7 +14,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "air-hockey-assets": "scripts/copy-assets.mjs"
+    "glide-hockey-assets": "scripts/copy-assets.mjs"
   },
   "files": [
     "src/game",

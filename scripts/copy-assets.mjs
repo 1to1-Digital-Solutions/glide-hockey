@@ -9,7 +9,7 @@
  *
  * Uso, desde el proyecto que lo consume:
  *
- *   npx air-hockey-assets public/juegos/air-hockey
+ *   npx glide-hockey-assets public/juegos/glide-hockey
  *
  * Es idempotente: se ejecuta otra vez tras subir la versión del juego y deja el
  * destino con los ficheros de la versión nueva.
@@ -34,7 +34,7 @@ const ASSETS = ['audio', 'webxr-profiles', 'CREDITS.md']
 async function main() {
   const target = process.argv[2]
   if (!target) {
-    console.error('Uso: air-hockey-assets <directorio de destino>')
+    console.error('Uso: glide-hockey-assets <directorio de destino>')
     process.exit(1)
   }
 
@@ -45,7 +45,7 @@ async function main() {
   const missing = ASSETS.filter((asset) => !existsSync(join(source, asset)))
   if (missing.length > 0) {
     console.error(
-      `Faltan en el paquete de Air Hockey: ${missing.join(', ')}. ` +
+      `Faltan en el paquete de Glide Hockey: ${missing.join(', ')}. ` +
         'Reinstala la versión del juego; si persiste, es un fallo suyo.',
     )
     process.exit(1)
@@ -63,7 +63,7 @@ async function main() {
     await cp(join(source, asset), to, { recursive: true })
   }
 
-  console.log(`Ficheros de Air Hockey copiados a ${destination}`)
+  console.log(`Ficheros de Glide Hockey copiados a ${destination}`)
 }
 
 await main()

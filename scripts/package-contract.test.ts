@@ -170,7 +170,7 @@ describe('el paquete que se publica', () => {
 
   it('lleva dentro los ficheros estáticos que ese ejecutable copia', async () => {
     // El ejecutable lee de `public/` dentro del paquete instalado: lo que no
-    // suba a npm no está ahí, y `air-hockey-assets` se para diciendo que el
+    // suba a npm no está ahí, y `glide-hockey-assets` se para diciendo que el
     // paquete llegó incompleto (ver `copy-assets.test.ts`).
     const assets = (await filesIn(join(projectRoot, 'public'))).map(
       (file) => `public/${file}`,

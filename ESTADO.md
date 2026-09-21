@@ -1,4 +1,4 @@
-# Estado de la sesión — air-hockey (handoff)
+# Estado de la sesión — glide-hockey (handoff)
 
 > **Cómo continuar tras reiniciar:** di a Claude «revisa `ESTADO.md` y continúa con el siguiente
 > paso». Este fichero es la memoria entre sesiones: mantenlo corto, veraz y al día.
@@ -68,7 +68,7 @@
   (0,25 × 20 ms) no moleste en una jugada larga contra la banda y que el gol
   (0,5 × 120 ms, dos manos) se distinga. Las recetas están en `src/lib/haptics.ts`.
 
-## Qué es air-hockey
+## Qué es glide-hockey
 
 - Air hockey contra la máquina, en 3D, para navegador y visor. Dos modos:
   **prueba** (eliges nivel y goles) y **reto** (escalera que sube sola). Cada gol
@@ -109,14 +109,14 @@
   siguiente; el progreso vive en el navegador (`src/lib/progress.ts`). El Reto queda como estaba
   (del tirón, a la primera derrota). La **partida sin fin** de Prueba es una partida a infinitos
   goles (`ENDLESS`): la cierra el botón «Terminar» (web y visor) y su récord es la mejor racha
-  (`air-hockey:best-streak:endless`). El nivel activo se congela al empezar la partida.
+  (`glide-hockey:best-streak:endless`). El nivel activo se congela al empezar la partida.
 - Primera versión completa y jugable en escritorio: menú, partida, marcador,
   resumen, récord por modo, y los dos modos.
 - Lógica pura y probada: física del disco, máquina rival por niveles, escalera
   del reto, puntuación, estado de la partida.
-- Contrato de xrcade cumplido: `<AirHockeyScene>` (escena), `<AirHockey>` (con su
-  Canvas), `mountAirHockey`, `exports`/`peerDependencies`/`files`/`bin` en el
-  `package.json`, y `npx air-hockey-assets` para los ficheros estáticos.
+- Contrato de xrcade cumplido: `<GlideHockeyScene>` (escena), `<GlideHockey>` (con su
+  Canvas), `mountGlideHockey`, `exports`/`peerDependencies`/`files`/`bin` en el
+  `package.json`, y `npx glide-hockey-assets` para los ficheros estáticos.
 - Interfaz inmersiva en geometría: menú, marcador, cuenta atrás y fin de partida.
 - Sonido: golpe del mazo, rebote en la banda y gol, sintetizados con la Web
   Audio API (`src/lib/audioEngine.ts`), más el ajuste de silencio en los dos
@@ -163,7 +163,7 @@
   esperaba un gol que no llegaba.
 - **Mirar dentro de la escena**: el disco y los mazos son objetos de three y
   desde el DOM no se pueden leer. La escena publica su estado en
-  `window.__airHockeyScene` **solo si el test crea antes esa ranura**
+  `window.__glideHockeyScene` **solo si el test crea antes esa ranura**
   (`src/lib/sceneProbe.ts`); en producción es una comprobación por fotograma.
 - **Disco muerto**: si se queda parado cuatro segundos se saca de centro. Ningún
   mazo cruza la línea de medio campo, así que un disco quieto donde el otro no

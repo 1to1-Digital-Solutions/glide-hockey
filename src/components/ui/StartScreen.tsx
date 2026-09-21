@@ -114,8 +114,9 @@ export function StartScreen() {
     <main className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-y-auto p-4">
       <div className="pointer-events-auto animate-fade-slide-up w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_88%,transparent)] p-6 shadow-2xl backdrop-blur-sm sm:p-8">
         <header className="mb-6">
+          {/* Nombre del producto: no pasa por el traductor, se lee igual en los dos idiomas. */}
           <h1 className="text-glow-primary text-3xl font-bold tracking-tight sm:text-4xl">
-            Air Hockey
+            Glide Hockey
           </h1>
           <p className="mt-1.5 text-sm text-white/60">
             {t(

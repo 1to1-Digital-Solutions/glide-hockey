@@ -25,7 +25,7 @@ test('el mazo va con la mano cuando se aprieta el gatillo', async ({ page }) => 
   await startGameInsideSession(page)
 
   const mazo = async () =>
-    page.evaluate(() => window.__airHockeyScene?.playerMallet ?? null)
+    page.evaluate(() => window.__glideHockeyScene?.playerMallet ?? null)
 
   await expect.poll(mazo, { timeout: 20_000 }).not.toBeNull()
   const antes = await mazo()

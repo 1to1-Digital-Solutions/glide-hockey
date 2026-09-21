@@ -47,21 +47,21 @@ describe('screenPointFromNdc', () => {
 
 describe('publishSceneProbe', () => {
   afterEach(() => {
-    delete window.__airHockeyScene
+    delete window.__glideHockeyScene
   })
 
   it('no crea la ranura: sin pedirla, la escena no toca la ventana', () => {
     publishSceneProbe(FOTO)
 
     expect(isSceneProbeRequested()).toBe(false)
-    expect('__airHockeyScene' in window).toBe(false)
+    expect('__glideHockeyScene' in window).toBe(false)
   })
 
   it('publica la foto de la mesa cuando la ranura existe', () => {
-    window.__airHockeyScene = null
+    window.__glideHockeyScene = null
 
     publishSceneProbe(FOTO)
 
-    expect(window.__airHockeyScene).toEqual(FOTO)
+    expect(window.__glideHockeyScene).toEqual(FOTO)
   })
 })

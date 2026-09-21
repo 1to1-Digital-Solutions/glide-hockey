@@ -4,7 +4,7 @@
  *
  * Montado en su propia web cuelgan de la raíz, pero dentro de otra aplicación
  * el sitio lo decide quien lo monta: los ficheros se copian a su `public/` y la
- * base se pasa como opción (ver `game/AirHockey.tsx`). Por eso las rutas se
+ * base se pasa como opción (ver `game/GlideHockey.tsx`). Por eso las rutas se
  * guardan relativas y se resuelven al pedir cada recurso, no al importar el
  * módulo que las declara.
  *
@@ -22,7 +22,7 @@ let assetsBase = DEFAULT_ASSETS_BASE
 /**
  * Deja la base lista para concatenar: siempre con barra final, y la raíz
  * cuando no se da ninguna. Una base sin barra final convertiría
- * `/juegos/air-hockey` + `webxr-profiles/…` en `/juegos/air-hockeywebxr-…`.
+ * `/juegos/glide-hockey` + `webxr-profiles/…` en `/juegos/glide-hockeywebxr-…`.
  */
 function normalizeBase(base: string): string {
   const trimmed = base.trim()

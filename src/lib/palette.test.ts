@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AIR_HOCKEY_CSS_VARIABLES, DIFFICULTY_COLORS, PALETTE } from './palette'
+import { GLIDE_HOCKEY_CSS_VARIABLES, DIFFICULTY_COLORS, PALETTE } from './palette'
 import { DIFFICULTY_ORDER } from './gameConfig'
 
 /**
@@ -44,7 +44,7 @@ describe('las variables CSS del juego', () => {
   it('salen de la paleta, no de colores escritos otra vez', () => {
     // Escritos a mano en cada capa se desvían sin que nadie lo decida, que es
     // justo lo que este módulo existe para evitar.
-    const valores = Object.values(AIR_HOCKEY_CSS_VARIABLES) as string[]
+    const valores = Object.values(GLIDE_HOCKEY_CSS_VARIABLES) as string[]
     const paleta = new Set<string>(Object.values(PALETTE))
 
     expect(valores.length).toBeGreaterThan(0)
@@ -52,7 +52,7 @@ describe('las variables CSS del juego', () => {
   })
 
   it('todas se llaman como variables CSS', () => {
-    for (const name of Object.keys(AIR_HOCKEY_CSS_VARIABLES)) {
+    for (const name of Object.keys(GLIDE_HOCKEY_CSS_VARIABLES)) {
       expect(name).toMatch(/^--[a-z-]+$/)
     }
   })

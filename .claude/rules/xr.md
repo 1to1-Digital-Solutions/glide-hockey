@@ -106,6 +106,18 @@ principio.
   una diferencia entre los dos: la interfaz sigue a la mirada mientras se juega —es un panel al
   que hay que poder volver—, pero el decorado se coloca **una sola vez, al entrar**; un mundo
   que se recoloca solo mientras apuntas es justo lo que hace imposible apuntar.
+- **Pero dentro del salón la mirada NO es la mejor pista, y el anfitrión presta la suya.** El
+  arco de cabinas lleva plantado un rato, con su sitio y su rumbo, y **elegir una cabina exige
+  girar la cabeza**: las de los extremos están a 75°. Anclando a esa mirada, el juego salía
+  girado hacia allí —de lado respecto del cuerpo— y con el visor puesto había que girarse
+  entero o recentrar la sala para poder jugar: «entro al hub, giro la cabeza para ver los de la
+  izquierda, selecciono air hockey, y la mesa sale como si estuviese mirando a la izquierda».
+  Así que la escena recibe un anclaje opcional (`anchor`, con `lib/hostAnchor.ts`, el mismo
+  fichero en los catorce) y lo usa **en la primera colocación**; a partir de ahí manda la
+  mirada, que es lo que hace falta al recentrar —el espacio de referencia se mueve entero y lo
+  prestado apunta a donde ya no hay nada—. Sin anclaje prestado, todo sigue igual: es lo que
+  pasa en la web propia del juego. El grupo del ancla se llama `world-anchor` para poder medir
+  desde fuera dónde acabó, que es lo único que distingue el arreglo desde una pantalla.
 - **Anclar el decorado crea un espacio nuevo, y hay que traducir lo que lo cruza.** Lo que va en
   la mano cuelga del origen que pone el anfitrión; lo que vuela vive dentro del decorado
   girado. Mientras los dos fueron el mismo espacio no hacía falta nada, y en cuanto uno se mueve
@@ -229,6 +241,31 @@ juego nuevo no tiene por qué volver a encontrárselas.
   sombreado», y estuvo en los trece a la vez. Todo overlay transparente lleva
   `depthWrite={false}`; el diagnóstico rápido es meter una placa de color a distintos `z` y
   ver entre cuáles desaparece.
+- **Y en un panel, el orden en que se pintan sus capas NO se puede deducir: se declara.** Es
+  la segunda mitad de lo anterior y costó otra tanda. three pinta lo transparente de lejos a
+  cerca ordenando por la profundidad **del origen de cada objeto**, no de cada píxel. Un panel
+  es un montón de planos a milímetros unos de otros, así que esa ordenación la decide **hacia
+  dónde se mira**: de frente al centro del panel, un realce 5 mm por delante sale más cerca y
+  se pinta el último, que es lo correcto; pero **apuntar un botón es mirarlo**, la cabeza se
+  inclina hacia él, y un botón a medio metro del centro pasa a estar *más lejos por el eje de
+  la vista* que el centro de la placa. El orden se da la vuelta, el realce se pinta primero y
+  —escribiendo profundidad— borra la placa entera dentro de su rectángulo: la cara del botón,
+  su color y su letra, que van todas en el lienzo. Queda un agujero con forma de botón por el
+  que se ve la escena. Reportado con el visor puesto: «al poner el cursor encima de un botón
+  es como que el botón desaparece, mostrando lo que hay por debajo». Que dependa de la mirada
+  es lo que lo hacía parecer caprichoso —«y a veces también al pulsarlo»—. Hacen falta **las
+  dos cosas**: `depthWrite={false}` para que ninguna capa borre a otra, y `renderOrder` para
+  fijar el orden (fondo → realce de detrás → placa → realce de delante). Quitar solo el
+  `depthWrite` tapa el agujero y deja el otro medio fallo: mirando al botón, la placa se pinta
+  encima del realce y apuntar deja de notarse. La escalera va en `PANEL_ORDER`
+  (`components/xr/buttonHighlight.tsx`, el mismo fichero en los trece), y el test que lo caza
+  no mira el DOM —React no pinta los booleanos de una etiqueta que no conoce, así que ahí
+  `depthWrite` no aparece y el fallo pasaría por bueno— sino el árbol que recibe R3F.
+- **Un botón que contesta se hunde; no basta con que se encienda.** Apuntado crece y se
+  enciende; **pulsado encoge por debajo de su tamaño de reposo y cambia de color**, que a un
+  metro se lee como que se mete hacia dentro. Y el estado de pulsado se limpia también al
+  salirse del botón, no solo al soltar: apuntando a pulso el rayo se va del botón sin soltarlo,
+  y un botón que se quedara hundido para siempre es peor que uno que no se hunde.
 - **Dos superficies que acaban en el mismo plano parpadean, y solo con el visor.** No es el
   caso de los calcos —para eso está `polygonOffset`—, es el empate exacto: un cilindro que
   acaba en `z = 0` y un círculo en `z = 0`. En una pantalla quieta el empate se resuelve
@@ -251,10 +288,18 @@ juego nuevo no tiene por qué volver a encontrárselas.
   de las manos («se coge por la parte inferior») y un putter colgado del `−Y` quedaba
   perpendicular al mango, de modo que un giro de muñeca barría la cabeza de lado y la bola salía
   torcida. Lo miden con datos del emulador `batting-cage/src/lib/agarreDelBate.test.ts` y, con
-  el `.glb` del mando, `minigolf/src/lib/palo.test.ts`. Y el espacio del **rayo** no es ese: está girado unos 45° respecto del puño, así que
-  colgar de él lo que debería quedar a plomo lo deja inclinado. Un objeto se cuelga del rayo
-  solo si lo que importa es hacia dónde apunta (un arco, una pistola); si lo que importa es
-  cómo se sostiene, del puño.
+  el `.glb` del mando, `minigolf/src/lib/palo.test.ts`. Y el espacio del **rayo** no es ese:
+  está girado unos 45° respecto del puño, así que colgar de él lo que debería quedar a plomo lo
+  deja inclinado. **Lo que se sostiene cuelga del puño, aunque lo que importe sea hacia dónde
+  apunta**: el arco colgaba del rayo, «porque lo que importa es apuntar», y salía picado 45°
+  hacia atrás con la flecha mirando al cielo. Del rayo cuelga el rayo. Y esto **no se ve con el
+  emulador**, que entrega los mandos sin girar: sin girarlos, el rayo y la vertical coinciden y
+  el test pasa. Hay que medirlo con las matrices de un Quest de verdad (`iwer`), como
+  `bow-shooting/src/lib/agarreDelArco.test.ts`.
+- **La mano que sostiene no se espeja sola.** La especificación invierte el criterio del eje X
+  según la mano —el dorso de la derecha va a `+X` y el de la izquierda a `−X`—, así que dos
+  posturas en espejo dan el mismo giro de puño. Lo que va en la mano se espeja a mano y se mide
+  para las dos: en el arco faltaba, y la flecha quedaba del lado equivocado del asta.
 - **Lo que va en la mano no puede colgar del anclaje del decorado.** WebXR da las manos en el
   espacio del origen que pone el anfitrión; dentro del grupo anclado se le suma el giro del
   mundo y aparece en otro sitio. Se monta fuera **o** se le deshace la matriz de sus padres
@@ -286,13 +331,37 @@ juego nuevo no tiene por qué volver a encontrárselas.
   salir. Así se rompió skeet entero. Todo lo que envuelve al jugador y solo espera el rayo
   lleva `pointerEventsType={{ deny: ['grab', 'touch'] }}`, y un test con la librería de verdad
   comprueba que el rayo sigue llegando al menú.
-- **La salida se dibuja igual en los trece.** Llegó a haber cinco: un cuadrado, una X, la
-  palabra «Exit», «Leave» y un icono propio. Con el visor puesto, la pregunta «¿cuál era el
-  de salir?» se repite en cada cabina. Es una flecha de volver, la misma forma
-  (`FLECHA_DE_SALIR` en `canvasPanel.tsx`), en el panel dibujado y en la geometría.
+- **La salida se dibuja igual en los trece, y va en el mismo sitio.** Llegó a haber cinco
+  dibujos: un cuadrado, una X, la palabra «Exit», «Leave» y un icono propio. Con el visor
+  puesto, la pregunta «¿cuál era el de salir?» se repite en cada cabina. Es una flecha de
+  volver, la misma forma (`FLECHA_DE_SALIR` en `canvasPanel.tsx`), en el panel dibujado y en
+  la geometría.
+  **Unificar el dibujo no bastó**: seguía cambiando de sitio de un juego a otro —nueve la
+  tenían al final de la fila de abajo, tres en la punta izquierda de esa fila y uno a media
+  altura, en una columna lateral—, y con las gafas puestas eso se nota igual: «el botón para
+  salir debería estar siempre en el mismo sitio en el menú de config». Va en la **esquina de
+  abajo a la derecha** del panel de ajustes: al final de la fila de las acciones, la misma que
+  lleva empezar. Por dos razones, y ninguna es estética: es donde ya estaba en nueve de los
+  trece —mover cuatro deja intacto lo que ya se sabe de memoria—, y es la fila que se está
+  mirando al acabar de elegir, así que salir no obliga a recorrer el panel con el rayo. Fuera
+  de esa fila se cruza con lo que se está eligiendo y se pulsa sin querer.
+  La regla la escribe `lib/exitCorner.ts` —el mismo fichero en los trece— y, como el
+  instrumento que mide la legibilidad, **devuelve frases y no un `false`**: qué botón de su
+  fila le queda más a la derecha, qué botón tiene por debajo, por qué borde se sale. Cada juego
+  le pasa el reparto de su panel desde su propio test de disposición. Mover la salida a esa
+  esquina puede pedir **reflejar la fila entera** en vez de cambiar un botón de sitio: así las
+  distancias entre sus botones —que es lo que evita pulsar uno por otro apuntando a pulso— se
+  quedan como estaban.
 
 ## Lo que aprendieron los tests
 
+- **Una jugada sin desenlace es un juego colgado.** Todo camino de la simulación tiene que
+  terminar, y un plazo de seguridad no es un desenlace: en ping-pong la pelota posada en la
+  mesa devolvía el 82 % en cada bote, así que botaba para siempre —1.723 botes en 30 s de
+  reloj medidos— y la jugada solo se cerraba al agotarse el plazo de treinta segundos, que
+  desde dentro se lee como que el juego se ha colgado. El test que lo caza recorre cada final
+  posible —posada, rodando, en la red, fuera de la mesa, soltada y no golpeada— y exige que
+  **todos** acaben en un par de segundos, no que acaben alguna vez.
 - **El tamaño mínimo de una letra es un ángulo, no un milímetro.** La misma letra a 1,1 m y a
   2,4 m no se lee igual, así que el mínimo se fija en grados de ángulo visual
   (`MIN_ANGULO`) y el instrumento lo traduce a metros con la distancia a la que se planta ese
@@ -310,3 +379,76 @@ juego nuevo no tiene por qué volver a encontrárselas.
   reparta a mano por los trece —el instrumento que mide, el mando del tutorial, las reglas—
   se añade a su lista en cuanto se reparte, no después: es la única red que avisa de que una
   copia se quedó atrás.
+
+## Enseñar el gesto sin palabras: las ayudas visuales
+
+**El tutorial es la red, no el camino.** Lo primero que hace alguien al entrar en una cabina no
+es leer: es mirar alrededor. Si mirando alrededor no se ve dónde ponerse, qué coger y qué hacer
+con ello, el juego empieza con una pregunta — y lo que se lee después ya llega tarde. Las
+**ayudas visuales** son la respuesta dibujada; el tutorial se queda detrás por si alguna falla.
+
+Son siempre las mismas cinco, y es a propósito: quien aprende en un juego que lo que late en
+ámbar es lo que hay que hacer no vuelve a preguntárselo en el siguiente.
+
+1. **Dónde ponerse**: una marca en el suelo, dos huellas con la postura del juego —de frente
+   en una caseta de feria, de lado en un cajón de bateo—. La postura es la mitad del mensaje.
+2. **El gesto**: la silueta de lo que hay que hacer, repitiéndolo.
+3. **Lo que hay que coger, resaltado** hasta que se coge.
+4. **Adónde va lo que se lanza o se golpea**: una raya, un arco o una marca en el objetivo.
+5. **El mando de verdad con su botón encendido** (`MandoDeVerdad.tsx`), junto al objeto.
+
+El motor vive en `lib/ayudas.ts`, el mismo fichero en los trece; el guion de cada juego —qué
+ayudas tiene y qué apaga cada una— en su `lib/guionDeAyudas.ts`. Lo que se aprendió montándolo:
+
+- **Una ayuda declara dos formas de apagarse, y le basta cualquiera**: el **hito** que la
+  vuelve inútil —en cuanto el gesto se hace una vez, sobra— y un **plazo**, por si ese hito no
+  llega nunca. No es un detalle: una ayuda permanente deja de ser ayuda y pasa a ser decorado
+  que tapa el juego y compite por los píxeles. El guardián `problemasDelGuion` devuelve frases
+  —qué ayuda, qué le pasa— y rechaza los plazos de más de veinte segundos, que es como se cuela
+  un «solo mientras lo pruebo» y se queda para siempre.
+- **Nada aparece ni desaparece en un fotograma.** Se cruza en medio segundo (`acercarse`). Es
+  además lo único que la documentación de Meta dice de esto: avisa expresamente contra el
+  realce que parpadea. De apagarlas no dice nada nadie —el realce de lo agarrable se documenta
+  como un estado permanente de la interacción—, y esa es justo la parte que en un juego de un
+  minuto hace falta.
+- **Una ayuda se coloca donde se está mirando, no donde sería realista.** Un bate en posición
+  de espera va por detrás del hombro: puesto ahí, el fantasma le queda a quien entra **a la
+  espalda**; adelantado al pecho, la punta acaba a un palmo del ojo, porque en el visor la
+  cabeza **es** la cámara, y lo que se ve es un manchurrón de color. Y no hay término medio: a
+  un palo de pie pegado al cuerpo se le mira de punta. Acabó flotando sobre el plato, a un
+  brazo y de lado, y ahí sí se lee que es un bate. Se descubrió con tres capturas seguidas del
+  emulador, no razonándolo.
+- **Lo que se queda mientras se juega va pintado en el suelo.** Un calco no puede tapar nada
+  que vuele por encima de él, y eso no hay que volver a comprobarlo. Lo que flota a la altura
+  del pecho está exactamente en la recta que va de los ojos a lo que hay que mirar, así que
+  **solo vale si se apaga antes de que eso exista**: en la jaula, la máquina no lanza hasta que
+  el bate va en las dos manos, y ese es el hito que quita el fantasma. Se comprueba con el
+  guion, no con trayectorias.
+- **Y si la ayuda va sobre el tablero, el techo lo pone el propio juego.** En la caseta la
+  columna de paneles está *detrás* del tablero, así que todo lo que asoma sobre la tabla le
+  come al marcador por abajo. Lo que el juego ya acepta que asome son los topos: una ayuda que
+  no sube más que un topo no tapa nada que no se tapara ya. Medir eso es exacto y no depende de
+  a qué altura mire nadie.
+- **Todo se monta desde el principio y no se desmonta nunca**, aunque no se vea. Montar una
+  malla a mitad de tanda obliga a three a compilar su material, y eso bloquea el hilo justo en
+  el fotograma en que la ayuda quiere que se mire. Lo que se enciende y se apaga es `visible` y
+  la opacidad; invisible tampoco cuesta una llamada de dibujo. Con eso, `Calentar` las compila
+  con el resto.
+- **El mando de verdad lo enseña uno solo.** El tutorial ya lo monta, y dos copias del mismo
+  `.glb` en la misma mano se pintan una encima de otra: la ayuda lo enseña solo si el tutorial
+  ya se ha visto (`tutorialSeen()`). Y se apaga **escondiendo el grupo**, no desmontándolo, que
+  desmontarlo libera los materiales del modelo y volver a enseñarlo los recompila.
+- **Hay ayudas que no significan nada antes de empezar.** En el menú el tablero está vacío a
+  propósito: un halo alrededor de un mazo que no está es peor que ningún halo. Eso se dice con
+  un hecho más en el guion —`tanda`— y no con un `if` en la escena; lo que sí se enseña desde
+  que se entra en la cabina es dónde ponerse y qué botón se aprieta.
+- **Lo que cuestan se mide, y la cara es el mando.** Con el mismo instrumento del decorado
+  —llamadas de dibujo por fotograma, `e2e/support/escenario.ts`—: dos huellas son cuatro
+  llamadas por los dos ojos, y el modelo de los dos mandos, treinta y dos. Por eso el mando es
+  la ayuda que menos dura. **Y la medida se toma con la escena quieta**: con la tanda en marcha
+  lo que cambia entre dos medidas no son las ayudas, son nueve topos asomando — medido así, las
+  ayudas «costaban» setenta llamadas *menos* que sin ellas.
+- **Para verlas en una captura hay que girar la cabeza.** El emulador entra siempre mirando al
+  frente y las ayudas están donde se mira después: al suelo, a los pies, al objeto. Se añade
+  `lookAt(yaw, pitch)` al emulador de cada repo, y **las dos medidas se toman mirando al mismo
+  sitio**, que si no se comparan dos vistas y no dos escenas.

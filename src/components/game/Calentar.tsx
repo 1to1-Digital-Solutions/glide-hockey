@@ -2,20 +2,36 @@
 
 import { useFrame, useThree } from '@react-three/fiber'
 import { useXR } from '@react-three/xr'
-import { useEffect, useRef } from 'react'
+import { useLayoutEffect } from 'react'
 import { apuntarProgramas } from '../../lib/montajes'
 
 /**
- * Compila los shaders del visor **antes** de que haga falta pintarlos.
+ * Compila los shaders de la escena **antes** de que haga falta pintarlos.
  *
- * Al abrir la sesión inmersiva se compilaban tres programas nuevos —los materiales que solo
- * existen dentro del visor: los paneles, el mando dibujado—, y compilar un shader **bloquea
- * el hilo**. En una pantalla eso es un fotograma perdido y no se nota. A 72 por segundo y por
- * ojo, es un fogonazo justo al entrar, que es exactamente cuando se reporta el parpadeo.
+ * Compilar un shader **bloquea el hilo**, y three no lo hace hasta que le toca pintar ese
+ * material por primera vez. En una pantalla eso es un fotograma perdido y no se nota. A 72
+ * por segundo y por ojo, es un fogonazo — y no uno: **uno por material**, repartidos por los
+ * primeros fotogramas según va apareciendo cada cosa. Es el tirón que se reporta al empezar.
  *
  * `compileAsync` no bloquea: con `KHR_parallel_shader_compile` el driver compila en paralelo
- * y la promesa resuelve cuando está. Se llama en cuanto la sesión arranca y los paneles ya
- * están montados, así que lo que quedara por compilar se hace fuera del camino del dibujo.
+ * y la promesa resuelve cuando está. Se llama de una vez para la escena entera, así que en
+ * lugar de ocho compilaciones sueltas —cada una en su fotograma— hay una tanda fuera del
+ * camino del dibujo.
+ *
+ * **Va montado en el mundo, no en el Canvas de la web del juego.** Ahí estuvo, y por eso no
+ * calentaba nada justo donde se juega de verdad: el salón monta `<GameWorld>` dentro de su
+ * propio Canvas, y todo lo que colgara del Canvas propio se quedaba en la web. Peor aún, en
+ * el salón se entra en la cabina **con el visor ya puesto**: la escena nace dentro de una
+ * sesión abierta y sin haber pintado un solo fotograma en pantalla, así que allí no hay nada
+ * compilado de antes y se compila todo en marcha.
+ *
+ * **Y en un efecto de disposición** (`useLayoutEffect`), que React vacía antes de ceder el
+ * control al navegador: con un efecto normal la tanda puede caer después del primer fotograma
+ * de la escena, que es exactamente el fotograma que hay que salvar.
+ *
+ * `compile` recorre la escena **se vea o no lo que hay en ella**, así que el decorado que se
+ * oculta al elegir «tu habitación» entra igual: lo que no entra es lo que se desmonta, y por
+ * eso lo que cambia con el escenario se oculta en vez de quitarse.
  *
  * No arregla nada que no sea compilación: si el parpadeo siguiera, este componente lo
  * descarta como causa, que es la mitad del trabajo de encontrarlo.
@@ -25,17 +41,11 @@ export function Calentar() {
   const scene = useThree((state) => state.scene)
   const camera = useThree((state) => state.camera)
   const mode = useXR((state) => state.mode)
-  /** Solo una vez por sesión: recompilar en cada fotograma sería peor que el problema. */
-  const calentado = useRef(false)
 
-  useEffect(() => {
-    if (mode == null) {
-      // Al salir se olvida, para que la siguiente sesión vuelva a calentar lo suyo.
-      calentado.current = false
-      return
-    }
-    if (calentado.current) return
-    calentado.current = true
+  // Al montarse y cada vez que se abre o se cierra una sesión: entrar al visor estrena los
+  // materiales que solo existen dentro —los paneles, el mando dibujado— y son justo los que
+  // no ha compilado nadie. Repetirlo no cuesta: three devuelve el programa que ya tiene.
+  useLayoutEffect(() => {
     void gl.compileAsync(scene, camera)
   }, [mode, gl, scene, camera])
 

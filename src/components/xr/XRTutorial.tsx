@@ -16,6 +16,7 @@ import {
   tutorialStep,
   type TutorialStepKey,
 } from '../../lib/tutorial'
+import { ButtonHighlight, useButtonFeedback } from './buttonHighlight'
 import { CanvasPanel, drawParagraph, drawText, roundedRect, alturaDelParrafo } from './canvasPanel'
 import { dibujarMando } from './mandoDibujado'
 import { MandoDeVerdad } from './MandoDeVerdad'
@@ -73,8 +74,6 @@ export const TUTORIAL_TEXT = { counter: 0.036, phrase: 0.042, button: 0.036 } as
  * su tamaño, con dos centímetros entre ellos.
  */
 export const BOTON = { width: 0.37, height: 0.09, y: -PANEL_HEIGHT / 2 + 0.08 }
-/** Cuánto se adelanta el marco de encendido para no pelearse con el panel. */
-const HOVER_Z = 0.004
 
 export const BOTONES = [
   { id: 'next' as const, x: 0.195, texto: 'Next' as TextKey },
@@ -196,8 +195,8 @@ export function XRTutorial({
   const [pendiente] = useState(() => !tutorialSeen())
   /** Cuántos pasos se ha saltado con el botón. Lo único que este panel recuerda. */
   const [saltados, setSaltados] = useState(0)
-  /** A cuál de los dos botones está apuntando el rayo, para encenderlo. */
-  const [apuntado, setApuntado] = useState<string | null>(null)
+  // Apuntado y pulsado, que es lo que el botón tiene que contestar (`buttonHighlight.tsx`).
+  const { stateOf, handlersFor } = useButtonFeedback()
 
   // **El paso se calcula, no se guarda.** Sale de lo que ya ha hecho quien juega (`hitos`) y
   // de lo que se haya saltado a botón: un tutorial que llevara su propia cuenta acabaría
@@ -239,8 +238,7 @@ export function XRTutorial({
           <group key={boton.id} position={[boton.x, BOTON.y, 0.002]}>
             <mesh
               onClick={boton.id === 'next' ? siguiente : saltar}
-              onPointerOver={() => setApuntado(boton.id)}
-              onPointerOut={() => setApuntado((actual) => (actual === boton.id ? null : actual))}
+              {...handlersFor(boton.id)}
             >
               <planeGeometry args={[BOTON.width, BOTON.height]} />
               <meshBasicMaterial transparent opacity={0} depthWrite={false} />
@@ -248,12 +246,13 @@ export function XRTutorial({
             {/* **Encenderse al apuntar es lo que dice que el botón responde.** El resto de
                 paneles del juego ya lo hacen y estos no, así que con el visor puesto el
                 tutorial parecía un cartel: «los botones no se marcan cuando se apuntan». */}
-            {apuntado === boton.id ? (
-              <mesh position={[0, 0, HOVER_Z]} raycast={NO_RAYCAST}>
-                <planeGeometry args={[BOTON.width + 0.014, BOTON.height + 0.014]} />
-                <meshBasicMaterial color={PALETTE.foreground} transparent opacity={0.28} />
-              </mesh>
-            ) : null}
+            <ButtonHighlight
+              width={BOTON.width}
+              height={BOTON.height}
+              state={stateOf(boton.id)}
+              glow={PALETTE.foreground}
+              ink={PALETTE.background}
+            />
           </group>
         ))}
         {/* El panel no se puede pulsar entero: solo sus botones. */}

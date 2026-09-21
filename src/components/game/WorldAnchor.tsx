@@ -5,6 +5,8 @@ import { useFrame } from '@react-three/fiber'
 import { useXR } from '@react-three/xr'
 import { Euler, Quaternion, Vector3, type Group } from 'three'
 
+import { entryPlacement, type HostAnchor } from '../../lib/hostAnchor'
+
 /**
  * Planta el mundo del juego delante del jugador al entrar en el visor.
  *
@@ -22,10 +24,29 @@ import { Euler, Quaternion, Vector3, type Group } from 'three'
  * Fuera de sesión inmersiva no transforma nada: en escritorio manda la cámara,
  * que ya mira a la mesa.
  */
-export function WorldAnchor({ children }: { children: ReactNode }) {
+export function WorldAnchor({
+  children,
+  anchor,
+}: {
+  children: ReactNode
+  /**
+   * Dónde y con qué rumbo plantarlo, si quien monta la escena lo sabe: el salón
+   * de xrcade presta el anclaje con el que tiene plantado su arco de cabinas.
+   * Sin él manda la mirada, que es lo único que se sabe en la web del juego.
+   */
+  anchor?: HostAnchor
+}) {
   const ref = useRef<Group>(null)
   const mode = useXR((state) => state.mode)
   const placed = useRef(false)
+  /**
+   * El anclaje prestado, mientras no se haya usado.
+   *
+   * Se gasta en la primera colocación: a partir de ahí manda la mirada, que es lo que hace
+   * falta al recentrar la sala, porque entonces el espacio de referencia se mueve entero y
+   * lo prestado se queda apuntando a donde ya no hay nada.
+   */
+  const lent = useRef(anchor ?? null)
 
   // Cada sesión se coloca de nuevo: al volver a entrar, el jugador puede estar
   // en otro sitio de la habitación y mirando a otro lado.
@@ -75,6 +96,14 @@ export function WorldAnchor({ children }: { children: ReactNode }) {
     // cabeza, que la dejaría torcida.
     gazeEuler.setFromQuaternion(gazeQuaternion, 'YXZ')
 
+    // Dónde y con qué rumbo se planta, todavía en coordenadas del mundo: lo que preste el
+    // anfitrión si presta algo, y si no, los pies y la mirada de ahora. **Anclar a la mirada
+    // dentro del salón descoloca**: leer las cabinas de la izquierda obliga a girar la
+    // cabeza, y así el decorado salía girado hacia allí, de lado respecto del cuerpo.
+    const sitio = entryPlacement(lent.current, { x: gazePosition.x, z: gazePosition.z }, gazeEuler.y)
+    lent.current = null
+    gazePosition.set(sitio.x, 0, sitio.z)
+
     // Se trabaja en el espacio del padre —el `<XROrigin>` de quien monta—, así
     // que hay que descontar su orientación en vez de darla por cero.
     let parentYaw = 0
@@ -89,10 +118,16 @@ export function WorldAnchor({ children }: { children: ReactNode }) {
     // Solo el suelo: la altura de la mesa es la suya, no la de los ojos de
     // quien entra.
     group.position.set(gazePosition.x, 0, gazePosition.z)
-    group.rotation.set(0, gazeEuler.y - parentYaw, 0)
+    group.rotation.set(0, sitio.yaw - parentYaw, 0)
   })
 
-  return <group ref={ref}>{children}</group>
+  // El grupo lleva nombre para poder medir desde fuera dónde acabó plantado el
+  // decorado: es lo que comprueba el e2e del anclaje, que desde una pantalla no se ve.
+  return (
+    <group ref={ref} name="world-anchor">
+      {children}
+    </group>
+  )
 }
 
 // Reutilizados entre fotogramas: crear vectores dentro de `useFrame` genera

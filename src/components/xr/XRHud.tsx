@@ -47,6 +47,15 @@ function hitBox(
   return { position: [x, y, 0], size: [width, height, 0.04] }
 }
 
+/**
+ * Lo que mide la placa del marcador, en metros.
+ *
+ * Sale del componente para poder comprobar desde fuera que no se le pone otro panel delante: el
+ * menú de ajustes lo tapaba entero, y eso solo se ve desde los ojos de quien juega
+ * (`lib/panelOcclusion.ts`).
+ */
+export const SCOREBOARD_SIZE = { width: 0.52, height: 0.34 } as const
+
 /** El marcador de la partida en curso, con los puntos debajo. */
 export function XRScoreboard() {
   const { gameState, playerGoals, opponentGoals, points, round, gameMode, activeLevel } = useGame()
@@ -60,7 +69,7 @@ export function XRScoreboard() {
           cifra ocupa `1,14 × size` contando el grosor de los segmentos, y con
           el panel más corto la ronda se dibujaba encima de los puntos y se
           salía por abajo. */}
-      <XRPanel width={0.52} height={0.34} opacity={0.7} />
+      <XRPanel width={SCOREBOARD_SIZE.width} height={SCOREBOARD_SIZE.height} opacity={0.7} />
 
       <XRNumber
         value={playerGoals}

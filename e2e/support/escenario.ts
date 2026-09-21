@@ -34,6 +34,10 @@ declare global {
     __programasEnlazados?: number
     /** Las combinaciones de luces con las que se ha pintado algo iluminado en la sesión. */
     __lucesDeLosShaders?: string[]
+    /** Cuántas llamadas de dibujo llevaba la página al enlazarse cada shader. Ver abajo. */
+    __cuandoSeEnlazo?: number[]
+    /** De qué material es cada shader enlazado (`MeshStandardMaterial`, `MeshDepthMaterial`…). */
+    __tiposDeShader?: string[]
   }
 }
 
@@ -82,8 +86,8 @@ export async function medianaDeLlamadas(page: Page, count = 30): Promise<number>
 }
 
 /**
- * Empieza a apuntar los programas de shader que se enlazan, y con cuántas luces pinta la escena.
- * Antes de abrir la página.
+ * Empieza a apuntar los programas de shader que se enlazan, **cuándo** se enlaza cada uno y con
+ * cuántas luces pinta la escena. Antes de abrir la página.
  *
  * **Enlazar es el tirón.** three compila un programa la primera vez que pinta un material con una
  * combinación de luces, niebla y entorno, y lo vuelve a compilar si un material se libera al
@@ -101,24 +105,53 @@ export async function medianaDeLlamadas(page: Page, count = 30): Promise<number>
  * **Solo con la sesión abierta**, porque antes de entrar los juegos que reflejan una sala la
  * pintan en una escena aparte (`RoomEnvironment`, con su propia luz) para sacar el mapa de
  * reflejos, y esa escena no es la del juego.
+ *
+ * **Y cuándo se enlaza cada uno, contado en llamadas de dibujo.** Contarlos no basta para ver
+ * el precalentado: los mismos programas se enlazan con él y sin él, y lo que cambia es *cuándo*.
+ * Sin calentar, cada material enlaza el suyo la primera vez que le toca pintarse, así que salen
+ * de uno en uno repartidos por los primeros fotogramas —y cada uno de esos bloquea el hilo, que
+ * con el visor puesto es un tirón—. Calentando, se enlazan **todos en la misma tanda**, antes de
+ * pintar. Las llamadas de dibujo son el reloj porque no paran: dos shaders con el mismo número
+ * se enlazaron sin que se pintara nada entre medias.
  */
 export async function vigilarProgramas(page: Page): Promise<void> {
   await page.addInitScript(() => {
     window.__programasEnlazados = 0
+    const cuando: number[] = []
+    window.__cuandoSeEnlazo = cuando
+    const tipos: string[] = []
+    window.__tiposDeShader = tipos
     const luces = new Set<string>()
     window.__lucesDeLosShaders = []
     const lucesDelShader = new WeakMap<WebGLShader, string>()
     const lucesDelPrograma = new WeakMap<WebGLProgram, string>()
+    const tipoDelShader = new WeakMap<WebGLShader, string>()
+    const tipoDelPrograma = new WeakMap<WebGLProgram, string>()
     const gl = WebGL2RenderingContext.prototype
+
+    // El reloj con el que se fecha cada compilación. Propio y no el de `contarLlamadas`:
+    // los dos se pueden usar sueltos, y encadenar envoltorios del mismo método es inocuo.
+    let dibujos = 0
+    for (const name of ['drawElements', 'drawElementsInstanced', 'drawArrays', 'drawArraysInstanced'] as const) {
+      const original = gl[name] as (...args: unknown[]) => unknown
+      ;(gl as unknown as Record<string, unknown>)[name] = function (this: unknown, ...args: unknown[]) {
+        dibujos++
+        return original.apply(this, args)
+      }
+    }
 
     const enlazar = gl.linkProgram
     gl.linkProgram = function (this: WebGL2RenderingContext, program: WebGLProgram) {
       window.__programasEnlazados = (window.__programasEnlazados ?? 0) + 1
+      cuando.push(dibujos)
+      tipos.push(tipoDelPrograma.get(program) ?? 'desconocido')
       return enlazar.call(this, program)
     }
 
     const fuente = gl.shaderSource
     gl.shaderSource = function (this: WebGL2RenderingContext, shader: WebGLShader, texto: string) {
+      const tipo = /#define SHADER_TYPE (\w+)/.exec(texto)?.[1]
+      if (tipo !== undefined) tipoDelShader.set(shader, tipo)
       if (texto.includes('directionalLights[')) {
         const tipos = ['directionalLights', 'pointLights', 'spotLights', 'rectAreaLights', 'hemisphereLights']
         lucesDelShader.set(
@@ -133,6 +166,8 @@ export async function vigilarProgramas(page: Page): Promise<void> {
     gl.attachShader = function (this: WebGL2RenderingContext, program: WebGLProgram, shader: WebGLShader) {
       const suyas = lucesDelShader.get(shader)
       if (suyas !== undefined) lucesDelPrograma.set(program, suyas)
+      const suyo = tipoDelShader.get(shader)
+      if (suyo !== undefined) tipoDelPrograma.set(program, suyo)
       return adjuntar.call(this, program, shader)
     }
 
@@ -152,6 +187,43 @@ export async function vigilarProgramas(page: Page): Promise<void> {
 /** Cuántos programas de shader se han enlazado desde que cargó la página. */
 export async function programasEnlazados(page: Page): Promise<number> {
   return page.evaluate(() => window.__programasEnlazados ?? 0)
+}
+
+/**
+ * Cuántas llamadas de dibujo llevaba la página al enlazarse cada shader, en orden.
+ *
+ * Dos shaders con el mismo número se compilaron **de una tanda**, sin pintar nada entre
+ * medias: eso es lo que hace el precalentado. Números distintos son compilaciones sueltas,
+ * cada una en mitad de un fotograma.
+ */
+export async function cuandoSeEnlazaron(page: Page): Promise<number[]> {
+  return page.evaluate(() => [...(window.__cuandoSeEnlazo ?? [])])
+}
+
+/**
+ * De qué material es cada shader enlazado, en el mismo orden que `cuandoSeEnlazaron`.
+ *
+ * Sirve para distinguir lo que se pinta de lo que no: `MeshDepthMaterial` es el mapa de
+ * sombras, y ese three solo lo compila cuando hay algo **visible** que proyecte, así que el
+ * precalentado no lo alcanza —`compile()` recorre la escena entera pero solo prepara la
+ * pasada que se ve—.
+ */
+export async function tiposDeShader(page: Page): Promise<string[]> {
+  return page.evaluate(() => [...(window.__tiposDeShader ?? [])])
+}
+
+/**
+ * De esas fechas, cuántos shaders caen en la tanda más grande y cuántos quedan sueltos.
+ *
+ * Es la forma de leer el precalentado sin depender de cuántos materiales tenga cada juego:
+ * calentando, la tanda se lleva casi todo; sin calentar, no hay tanda —cada shader va por su
+ * cuenta— y todo queda suelto.
+ */
+export function enTandas(fechas: readonly number[]): { mayorTanda: number; sueltos: number } {
+  const porFecha = new Map<number, number>()
+  for (const fecha of fechas) porFecha.set(fecha, (porFecha.get(fecha) ?? 0) + 1)
+  const mayorTanda = Math.max(0, ...porFecha.values())
+  return { mayorTanda, sueltos: fechas.length - mayorTanda }
 }
 
 /**

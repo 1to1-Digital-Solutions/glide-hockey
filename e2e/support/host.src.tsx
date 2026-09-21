@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Canvas } from '@react-three/fiber'
 import { XR, XROrigin, createXRStore } from '@react-three/xr'
@@ -15,6 +16,18 @@ if (mount == null) {
 }
 const assetsBase = mount.dataset.assetsBase ?? '/'
 
+/**
+ * Si la escena espera a que la manden entrar, **como en el salón**.
+ *
+ * Por defecto se monta con la página, que es lo cómodo para el resto de la suite. Pero el
+ * salón no hace eso: quien elige cabina ya lleva el visor puesto, así que la escena se monta
+ * **dentro de una sesión que ya está abierta** y sin haber pintado un solo fotograma en
+ * pantalla. Es la diferencia que importa para los shaders —lo que se pinta en la página se
+ * compila ahí, fuera de la sesión, y así ningún fallo de precalentado se nota— y la única
+ * forma de medirla desde aquí.
+ */
+const aLaCarta = mount.dataset.cabina === 'a-la-carta'
+
 const store = createXRStore({
   // Lo que el contrato pide cablear al anfitrión: los perfiles de mando bajo su
   // propio prefijo.
@@ -25,9 +38,16 @@ const store = createXRStore({
 
 declare global {
   interface Window {
-    __airHockeyHost: { enterVR: () => Promise<void>; enterAR: () => Promise<void> }
+    __airHockeyHost: {
+      enterVR: () => Promise<void>
+      enterAR: () => Promise<void>
+      /** Monta la escena, como al elegir cabina. Solo hace algo con `data-cabina`. */
+      entrarEnLaCabina: () => void
+    }
   }
 }
+
+let entrar = () => {}
 
 window.__airHockeyHost = {
   async enterVR() {
@@ -38,6 +58,22 @@ window.__airHockeyHost = {
   async enterAR() {
     await store.enterAR()
   },
+  entrarEnLaCabina: () => entrar(),
+}
+
+/** La cabina: la escena, montada cuando toca. */
+function Cabina() {
+  const [dentro, setDentro] = useState(!aLaCarta)
+  useEffect(() => {
+    entrar = () => setDentro(true)
+    return () => {
+      entrar = () => {}
+    }
+  }, [])
+
+  if (!dentro) return null
+  // Volver es cosa del anfitrión, y aquí no hay a dónde.
+  return <AirHockeyScene assetsBase={assetsBase} onExit={() => {}} />
 }
 
 function Host() {
@@ -45,8 +81,7 @@ function Host() {
     <Canvas shadows="percentage" camera={{ position: [0, 1.6, 0.9], fov: 62, near: 0.05, far: 60 }}>
       <XR store={store}>
         <XROrigin position={[0, 0, 0]} />
-        {/* Volver es cosa del anfitrión, y aquí no hay a dónde. */}
-        <AirHockeyScene assetsBase={assetsBase} onExit={() => {}} />
+        <Cabina />
       </XR>
     </Canvas>
   )

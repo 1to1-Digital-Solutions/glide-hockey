@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { problemasDeLaSalida, type PanelBox } from './exitCorner'
+import { MENU_BOXES, MENU_PANEL } from './xrMenuLayout'
 
 import { DIFFICULTY_ORDER } from './gameConfig'
 import { LEVEL_BAR_BOTTOM, LEVEL_BUTTON, levelBarHeight } from './xrMenuLayout'
@@ -36,5 +38,32 @@ describe('las barras del nivel', () => {
 
   it('con un solo nivel la barra ocupa lo que hay', () => {
     expect(LEVEL_BAR_BOTTOM + levelBarHeight(0, 1)).toBeLessThanOrEqual(LEVEL_BUTTON[1] / 2)
+  })
+})
+
+
+/**
+ * Dónde cae la salida, que hasta ahora dependía del juego.
+ *
+ * La regla —abajo a la derecha, al final de la fila de las acciones— y el porqué están en
+ * `exitCorner.ts`, el mismo fichero en los trece. Aquí solo se le da el reparto de ESTE panel,
+ * traducido a lo que la regla sabe leer.
+ */
+describe('la salida', () => {
+  const comoCaja = (nombre: string): PanelBox => {
+    const { position, size } = MENU_BOXES[nombre]
+    return { x: position[0], y: position[1], width: size[0], height: size[1] }
+  }
+
+  it('está en la esquina de abajo a la derecha del panel de ajustes', () => {
+    const nombres = Object.keys(MENU_BOXES)
+
+    expect(
+      problemasDeLaSalida(
+        comoCaja('salir'),
+        nombres.filter((nombre) => nombre !== 'salir').map(comoCaja),
+        { width: MENU_PANEL.width, height: MENU_PANEL.height },
+      ),
+    ).toEqual([])
   })
 })

@@ -32,10 +32,12 @@ import {
 import { XRMenu } from '../xr/XRMenu'
 import { XRTutorial } from '../xr/XRTutorial'
 import { XRSessionController } from '../xr/XRSessionController'
+import { Calentar } from './Calentar'
 import { Rink } from './Rink'
 import { Backdrop } from './Backdrop'
 import { ROOM_BACKDROP, Room } from './Room'
 import { Table } from './Table'
+import type { HostAnchor } from '../../lib/hostAnchor'
 import { WorldAnchor } from './WorldAnchor'
 import { XRWorldHeight } from '../xr/XRWorldHeight'
 
@@ -63,16 +65,23 @@ export const XR_UI = {
   /** Marcador: al fondo, sobre la portería de la máquina. */
   scoreboard: [0, 0.5, -HALF_LENGTH - 0.05] as [number, number, number],
   /**
-   * Menú, final de partida y aviso de salir: sobre la mitad de la mesa de quien juega, algo por
-   * debajo de la vista.
+   * Menú, final de partida y aviso de salir: **delante, arriba y a la derecha**, fuera del
+   * rectángulo de la mesa.
    *
-   * **A un metro y no a metro y medio**, que es donde se leen: allí, con el panel de 1,18 m de
-   * alto y medido fila a fila, las letras del menú se quedaban entre 0,79° y 1,15°. Aquí, con
-   * ellas a 34 mm, lo más justo es el nombre del decorado en la esquina de arriba, a 1,5°. Se
-   * enseña sin partida o con ella parada, así que no tapa ningún disco; y su borde de abajo queda
-   * tres centímetros por encima del tablero. Lo miden los `*.legible.test.ts`.
+   * **Estaba plantado en medio de la vista.** Centrado y a la altura de los ojos, un panel de
+   * 0,78 × 1,18 m a un metro ocupa 51° de ancho por 61° de alto: tapaba 106 de los 196 puntos
+   * del tablero, el marcador entero y la demostración del gesto. Con el visor puesto eso es lo
+   * único que se ve al entrar. Reportado así: «lo pondría enfrente mía, arriba a la derecha
+   * (como por donde está el marcador, pero más a la derecha)».
+   *
+   * Aquí queda a 42° a la derecha y 20° por encima de la horizontal, y **a 1,05 m**, que es lo
+   * que manda de verdad: el panel ocupa esos 51° × 61° se ponga donde se ponga, así que lo que
+   * decide la distancia es la letra —a 34 mm, lo más justo es «La sala» a 1,47°, y el mínimo de
+   * lectura es 1,4°— y alejarlo obligaría a agrandarlo en la misma proporción sin ganar nada.
+   * Desde ahí no tapa ni un punto del tablero, ni del marcador, ni de la demostración, con los
+   * ojos a 1,2, 1,6 y 1,9 m. Lo miden `menu.legible.test.ts` y `lib/panelOcclusion.ts`.
    */
-  panel: [0, 0.62, 0.2] as [number, number, number],
+  panel: [0.66, 1.06, 0.47] as [number, number, number],
   /** Cuenta atrás: flotando sobre el punto de saque. */
   countdown: [0, 0.34, 0] as [number, number, number],
   /**
@@ -155,9 +164,15 @@ export interface GameWorldProps {
    * había forma de empezar la partida.
    */
   hasDomUi?: boolean
+  /**
+   * Dónde y con qué rumbo plantar el mundo, si quien monta la escena lo sabe: el
+   * salón de xrcade presta el anclaje con el que tiene plantado su arco de cabinas.
+   * Sin él, el mundo se planta delante de donde se mire al entrar.
+   */
+  anchor?: HostAnchor
 }
 
-export function GameWorld({ hasDomUi = false }: GameWorldProps) {
+export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
   // Cuántas veces se monta el mundo, cuando alguien lo está contando (`lib/montajes.ts`).
   // Montarlo dos veces al entrar en la sesión **es** el parpadeo que se reporta del visor.
   useEffect(() => {
@@ -243,7 +258,7 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
         shadow-camera-far={14}
       />
 
-      <WorldAnchor>
+      <WorldAnchor anchor={anchor}>
         {/* El sitio, y **el fondo del sitio**. El color va aquí y no en el
             `<Canvas>` por dos razones: en passthrough no puede haber ninguno —un
             fondo opaco tapa la habitación de verdad— y montado en el salón el
@@ -311,6 +326,10 @@ export function GameWorld({ hasDomUi = false }: GameWorldProps) {
           ) : null}
         </group>
       </WorldAnchor>
+      {/* Calienta los shaders de la escena, y va AQUÍ y no en el Canvas de la web del
+          juego: el salón monta esto y no aquello, así que colgado de allí no se
+          precalentaba nada justo donde se juega de verdad. */}
+      <Calentar />
     </XRWorldHeight>
   )
 }

@@ -7,16 +7,23 @@ import { GAME_MODE_HINTS, GAME_MODE_ORDER } from '../../lib/gameMode'
 import { SCENERIES } from '../../lib/ajustes'
 import { SCENERY_LABELS } from '../../lib/scenery'
 import {
+  EYE_HEIGHTS,
   MIN_READING_DEGREES,
   eyesAt,
   noTextOwnsAButton,
+  panelRotation,
   pointOnPanel,
   sizesOffList,
   textsOnButtons,
   unreadableTexts,
   worstReadingDistance,
 } from '../../lib/panelReading'
+import { panelPoints, tablePoints, whatThePanelHides } from '../../lib/panelOcclusion'
+import { REFERENCE_EYE_HEIGHT, uiRiseOverWorld, worldRise } from '../../lib/uiHeight'
+import { HALF_WIDTH } from '../../lib/puckPhysics'
 import { traductor } from '../../lib/textos'
+import { SCOREBOARD_SIZE } from './XRHud'
+import { PANEL_HEIGHT, PANEL_WIDTH } from './XRTutorial'
 import { XR_UI, XR_UI_ROTATION, delEspacioDelJugador, vistasDelPanel } from '../game/GameWorld'
 
 /**
@@ -126,5 +133,80 @@ describe('dónde se planta el menú', () => {
     const abajo = pointOnPanel({ position: delEspacioDelJugador(XR_UI.panel), rotation: XR_UI_ROTATION.panel }, 0, -MENU_PANEL.height / 2)
     const tablero = delEspacioDelJugador([0, 0, 0])[1]
     expect(abajo.y - tablero).toBeGreaterThan(0.02)
+  })
+
+  it('delante, arriba y a la derecha: se ve sin girarse y no está en medio', () => {
+    const [x, y, z] = delEspacioDelJugador(XR_UI.panel)
+    const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
+    // Delante: el panel está hacia donde se juega, no de lado ni a la espalda.
+    expect(z).toBeLessThan(0)
+    expect((Math.atan2(x, -z) * 180) / Math.PI).toBeLessThan(60)
+    // A la derecha, y fuera del rectángulo de la mesa.
+    expect(x).toBeGreaterThan(HALF_WIDTH)
+    // Arriba: por encima de la horizontal de los ojos.
+    expect(y).toBeGreaterThan(ojos.y)
+  })
+})
+
+/**
+ * Y lo que se ha venido a arreglar: **que el panel no se ponga delante de lo que hay que ver**.
+ *
+ * El instrumento que mide la legibilidad dice si el panel se lee, no si estorba, y son dos cosas
+ * distintas: centrado y a la altura de los ojos, el menú se leía perfectamente y tapaba media
+ * mesa. Esto se mira desde los ojos de quien juega, a las tres alturas y con la altura de juego
+ * del salón de pie o baja, porque el panel sube con los ojos y la mesa no (ver `XRUiHeight` y
+ * `XRWorldHeight`).
+ */
+describe('lo que el menú deja ver', () => {
+  const MEDIDAS = { width: MENU_PANEL.width, height: MENU_PANEL.height }
+
+  /** Cada vista: dónde queda el panel y cuánto se ha movido el mundo bajo él. */
+  const VISTAS_CON_MUNDO = EYE_HEIGHTS.flatMap((ojos) =>
+    [false, true].map((aLaAlturaDeLosOjos) => {
+      const mundo = worldRise(ojos, aLaAlturaDeLosOjos)
+      const [x, y, z] = delEspacioDelJugador(XR_UI.panel)
+      return {
+        donde: `ojos a ${ojos} m${aLaAlturaDeLosOjos ? ', mundo a su altura' : ''}`,
+        pose: { position: [x, y + mundo + uiRiseOverWorld(ojos, aLaAlturaDeLosOjos), z] as const, rotation: XR_UI_ROTATION.panel },
+        ojos: eyesAt(ojos),
+        mundo,
+      }
+    }),
+  )
+
+  /** Lo que hay detrás del panel, subido lo que haya subido el mundo. */
+  function loQueHayDetras(mundo: number) {
+    const subir = (puntos: ReturnType<typeof tablePoints>) => puntos.map((p) => ({ ...p, y: p.y + mundo }))
+    return [
+      { que: 'la mesa', puntos: subir(tablePoints(13)) },
+      { que: 'el marcador', puntos: subir(panelPoints(delEspacioDelJugador(XR_UI.scoreboard), SCOREBOARD_SIZE, 6)) },
+      {
+        que: 'la demostración del gesto',
+        puntos: subir(panelPoints(delEspacioDelJugador(XR_UI.tutorial), { width: PANEL_WIDTH, height: PANEL_HEIGHT }, 6)),
+      },
+    ]
+  }
+
+  it('no tapa el tablero, ni el marcador, ni la demostración, desde ninguna altura', () => {
+    for (const { donde, pose, ojos, mundo } of VISTAS_CON_MUNDO) {
+      expect(whatThePanelHides(pose, MEDIDAS, ojos, loQueHayDetras(mundo)), donde).toEqual([])
+    }
+  })
+
+  it('el control: centrado sobre la mesa y a la altura de los ojos, tapaba los tres', () => {
+    const comoEstaba = delEspacioDelJugador([0, 0.62, 0.2])
+    const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
+    expect(
+      whatThePanelHides(
+        { position: comoEstaba, rotation: panelRotation(comoEstaba, ojos) },
+        MEDIDAS,
+        ojos,
+        loQueHayDetras(0),
+      ),
+    ).toEqual([
+      'el panel tapa la mesa en 106 de 196 puntos',
+      'el panel tapa el marcador en 49 de 49 puntos',
+      'el panel tapa la demostración del gesto en 49 de 49 puntos',
+    ])
   })
 })

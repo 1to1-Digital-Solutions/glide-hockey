@@ -9,10 +9,17 @@ import {
   pulseFor,
   pulsePressed,
   pulseSession,
+  SLIDE_DURATION_MS,
+  SLIDE_MAX_INTENSITY,
+  SLIDE_PERIOD,
+  slidePulse,
+  stepSlide,
   STRIKE_PULSE,
   type HapticSession,
   type HapticSource,
 } from './haptics'
+import { MAX_PUCK_SPEED } from './gameConfig'
+import { STALL_SPEED } from './puckPhysics'
 
 function source(handedness: string, pulse?: (value: number, duration: number) => unknown) {
   return {
@@ -183,5 +190,88 @@ describe('el toque de un botón', () => {
       pulsePressed(desdeElMando(source('right', pulse)), { ...PRESS_PULSE, intensity: 0 }),
     ).toBe(false)
     expect(pulse).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * El roce del disco en la mano.
+ *
+ * Es lo único de la mesa que no es un suceso sino un fondo, así que no se pide:
+ * se mantiene fotograma a fotograma. Lo que se comprueba aquí es que sube con la
+ * velocidad, que se queda por debajo de los golpes —o dejarían de distinguirse—
+ * y que la cadena de toques se solapa en vez de tabletear.
+ */
+describe('el roce del disco', () => {
+  it('el disco parado no roza', () => {
+    expect(slidePulse(0)).toBeNull()
+    expect(slidePulse(STALL_SPEED)).toBeNull()
+    expect(slidePulse(Number.NaN)).toBeNull()
+  })
+
+  it('cuanto más rápido va, más se siente', () => {
+    const lento = slidePulse(1)!
+    const rapido = slidePulse(MAX_PUCK_SPEED)!
+
+    expect(lento.intensity).toBeGreaterThan(0)
+    expect(rapido.intensity).toBeGreaterThan(lento.intensity)
+    expect(rapido.intensity).toBeCloseTo(SLIDE_MAX_INTENSITY, 9)
+  })
+
+  it('va a la mano que lleva el mazo y por debajo del rebote en banda', () => {
+    // Si el roce llegara a la fuerza del rebote, dejaría de oírse cuándo el
+    // disco toca la banda: los dos se sentirían igual.
+    const tope = slidePulse(MAX_PUCK_SPEED)!
+    expect(tope.hands).toBe('mallet')
+    expect(tope.intensity).toBeLessThan(BOUNCE_PULSE.intensity)
+  })
+
+  it('cada toque dura más que el hueco hasta el siguiente: por eso es continuo', () => {
+    expect(SLIDE_DURATION_MS / 1000).toBeGreaterThan(SLIDE_PERIOD)
+  })
+})
+
+describe('la cadena de toques del roce', () => {
+  it('el primer fotograma con el disco en marcha ya se siente', () => {
+    const paso = stepSlide(0, 3, 1 / 90)
+    expect(paso.pulse).not.toBeNull()
+    expect(paso.wait).toBe(SLIDE_PERIOD)
+  })
+
+  it('y entre toque y toque no se repite: sería un repiqueteo', () => {
+    const primero = stepSlide(0, 3, 1 / 90)
+    const siguiente = stepSlide(primero.wait, 3, 1 / 90)
+
+    expect(siguiente.pulse).toBeNull()
+    expect(siguiente.wait).toBeCloseTo(SLIDE_PERIOD - 1 / 90, 9)
+  })
+
+  it('vencido el hueco vuelve a tocar, y el reloj se rearma', () => {
+    let wait = SLIDE_PERIOD
+    let toques = 0
+    for (let i = 0; i < 90; i++) {
+      const paso = stepSlide(wait, 3, 1 / 90)
+      wait = paso.wait
+      if (paso.pulse != null) toques += 1
+    }
+
+    // Un segundo de disco en marcha: un toque por hueco, sin quedarse mudo ni
+    // disparar uno por fotograma.
+    expect(toques).toBeGreaterThan(8)
+    expect(toques).toBeLessThan(14)
+  })
+
+  it('el disco que se para deja la cuenta a cero: el roce siguiente no se hace esperar', () => {
+    const parado = stepSlide(SLIDE_PERIOD, 0, 1 / 90)
+    expect(parado.pulse).toBeNull()
+    expect(parado.wait).toBe(0)
+    expect(stepSlide(parado.wait, 3, 1 / 90).pulse).not.toBeNull()
+  })
+
+  it('un fotograma sin tiempo no adelanta la cuenta', () => {
+    for (const delta of [0, -1, Number.NaN]) {
+      expect(stepSlide(SLIDE_PERIOD, 3, delta).wait, String(delta)).toBe(SLIDE_PERIOD)
+    }
+    // Y una cuenta que llegara rota se trata como vencida, no como eterna.
+    expect(stepSlide(Number.NaN, 3, 1 / 90).pulse).not.toBeNull()
   })
 })

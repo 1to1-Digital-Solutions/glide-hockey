@@ -112,3 +112,43 @@ describe('la fuerza del impacto en la mano', () => {
     expect(xr.right.mock.calls[1][0]).toBe(GOAL_PULSE.intensity)
   })
 })
+
+/**
+ * El roce del disco. No es un suceso: es un fondo que se pide cada fotograma y
+ * que el hook convierte en una cadena de toques (ver `stepSlide` en
+ * `haptics.ts`). Lo que se comprueba aquí es lo que el hook añade: que llega al
+ * mando que lleva el mazo y que sin visor no pasa nada.
+ */
+describe('el roce del disco en la mano', () => {
+  it('llega a la mano que lleva el mazo mientras el disco se desliza', () => {
+    withHeadset()
+    const { result } = renderHook(() => useGameHaptics())
+    result.current.noteAim(aimWith('right'))
+
+    for (let i = 0; i < 90; i++) result.current.slide(3, 1 / 90)
+
+    expect(xr.right.mock.calls.length).toBeGreaterThan(8)
+    expect(xr.left).not.toHaveBeenCalled()
+    // Leve: muy por debajo del golpe del mazo, que es el que tiene que destacar.
+    expect(xr.right.mock.calls[0][0]).toBeLessThan(STRIKE_PULSE.intensity / 2)
+  })
+
+  it('el disco parado no vibra', () => {
+    withHeadset()
+    const { result } = renderHook(() => useGameHaptics())
+
+    for (let i = 0; i < 90; i++) result.current.slide(0, 1 / 90)
+
+    expect(xr.right).not.toHaveBeenCalled()
+    expect(xr.left).not.toHaveBeenCalled()
+  })
+
+  it('sin sesión inmersiva no hay mandos que zumbar, y no pasa nada', () => {
+    withHeadset()
+    xr.session = null
+    const { result } = renderHook(() => useGameHaptics())
+
+    expect(() => result.current.slide(3, 1 / 90)).not.toThrow()
+    expect(xr.right).not.toHaveBeenCalled()
+  })
+})

@@ -4,7 +4,14 @@ import { useCallback, useMemo, useRef } from 'react'
 import { type ThreeEvent } from '@react-three/fiber'
 import { useXR } from '@react-three/xr'
 import { type GameSound } from './audioEngine'
-import { type Handedness, type HapticPulse, handednessOf, pulseFor, pulseSession } from './haptics'
+import {
+  stepSlide,
+  type Handedness,
+  type HapticPulse,
+  handednessOf,
+  pulseFor,
+  pulseSession,
+} from './haptics'
 
 export interface GameHaptics {
   /**
@@ -13,6 +20,11 @@ export interface GameHaptics {
    * golpe seco. El gol no la mira.
    */
   pulse: (sound: GameSound, strength?: number) => void
+  /**
+   * El roce del disco deslizándose, cada fotograma: su velocidad en m/s y los
+   * segundos que trae el fotograma. Un cero lo apaga.
+   */
+  slide: (speed: number, delta: number) => void
   /**
    * Apunta qué mano ha movido el mazo. La mesa lo llama con cada evento de
    * puntero que mueve el mazo, y es lo que decide a qué mando va el golpe.
@@ -40,6 +52,8 @@ export function scaledPulse(pulse: HapticPulse, strength: number): HapticPulse {
 export function useGameHaptics(): GameHaptics {
   const session = useXR((state) => state.session)
   const mallet = useRef<Handedness | null>(null)
+  /** Lo que falta para el siguiente toque del roce, en segundos. */
+  const roce = useRef(0)
 
   const noteAim = useCallback((event: ThreeEvent<PointerEvent>) => {
     const hand = handednessOf(event)
@@ -55,5 +69,19 @@ export function useGameHaptics(): GameHaptics {
     [session],
   )
 
-  return useMemo(() => ({ pulse, noteAim }), [pulse, noteAim])
+  // El roce va aparte de `pulse` porque no es un suceso: es un fondo que se
+  // mantiene fotograma a fotograma mientras el disco se mueva. Cuándo toca el
+  // siguiente toque lo decide `stepSlide`, que no mira ningún reloj del
+  // navegador: lleva la cuenta con el `delta` que le pasa la mesa.
+  const slide = useCallback(
+    (speed: number, delta: number) => {
+      if (session == null) return
+      const paso = stepSlide(roce.current, speed, delta)
+      roce.current = paso.wait
+      if (paso.pulse != null) pulseSession(session, paso.pulse, mallet.current)
+    },
+    [session],
+  )
+
+  return useMemo(() => ({ pulse, slide, noteAim }), [pulse, slide, noteAim])
 }

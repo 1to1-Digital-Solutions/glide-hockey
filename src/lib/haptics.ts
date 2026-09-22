@@ -12,7 +12,8 @@
  */
 
 import { type ThreeEvent } from '@react-three/fiber'
-import { type GameSound } from './audioEngine'
+import { slideLevel, type GameSound } from './audioEngine'
+import { MAX_PUCK_SPEED } from './gameConfig'
 
 export type Handedness = 'left' | 'right'
 
@@ -53,6 +54,72 @@ const PULSES: Record<GameSound, HapticPulse> = {
 /** El golpe que corresponde a cada suceso de la mesa. */
 export function pulseFor(sound: GameSound): HapticPulse {
   return PULSES[sound]
+}
+
+/**
+ * El roce del disco, en la mano.
+ *
+ * **El disco no solo golpea: se desliza**, y ese roce ya se oye (`audioEngine.ts`,
+ * `slide`). En la mano no estaba, y con el visor puesto esa es la diferencia entre
+ * un disco que se mueve por la mesa y uno que aparece de golpe cada vez que choca:
+ * el roce es lo único que dice, sin mirar, que sigue vivo y a qué ritmo va.
+ *
+ * Un vibrador de mando no sabe zumbar: solo da toques de una duración. Así que el
+ * roce se hace con toques cortos **encadenados** —cada `SLIDE_PERIOD` segundos uno
+ * que dura algo más que el hueco hasta el siguiente—, y lo que llega a la mano es
+ * continuo en vez de un repiqueteo. El solape es a propósito: sin él, entre dos
+ * toques hay un silencio y lo que se siente es un tableteo.
+ */
+export const SLIDE_PERIOD = 0.09
+/** Lo que dura cada toque: el hueco y un poco más, para que se solapen. */
+export const SLIDE_DURATION_MS = 130
+/**
+ * Lo fuerte que llega a ser, de 0 a 1, con el disco a toda velocidad.
+ *
+ * **Leve a propósito.** Es un fondo que dura toda la jugada, y un mando zumbando
+ * fuerte toda la partida cansa la mano y se come el golpe: el del mazo va a 0,7 y
+ * el rebote en banda a 0,25, así que el roce tiene que quedar por debajo del más
+ * flojo de los dos o dejarían de distinguirse.
+ */
+export const SLIDE_MAX_INTENSITY = 0.14
+
+/**
+ * El toque de roce que toca a esa velocidad, o `null` si el disco no roza.
+ *
+ * La curva es la misma con la que suena (`slideLevel`), escalada a lo que puede
+ * vibrar: así lo que se oye y lo que se siente suben juntos, y el disco parado
+ * —por debajo de `STALL_SPEED`— no hace ninguna de las dos cosas.
+ */
+export function slidePulse(speed: number): HapticPulse | null {
+  const nivel = slideLevel(speed)
+  if (nivel <= 0) return null
+  return {
+    // Escalado sobre el roce a toda velocidad, que es el tope de esa curva: así
+    // el número de aquí no tiene que saber cuánto vale el tope de la de allí.
+    intensity: (nivel / slideLevel(MAX_PUCK_SPEED)) * SLIDE_MAX_INTENSITY,
+    durationMs: SLIDE_DURATION_MS,
+    hands: 'mallet',
+  }
+}
+
+/**
+ * El siguiente toque del roce, y cuánto falta para el de después.
+ *
+ * Lleva su propio reloj en segundos y no el del navegador: quien lo llama ya
+ * tiene el `delta` del fotograma, y con él esto se prueba sin temporizadores.
+ * El disco quieto **pone la cuenta a cero**, para que el primer roce de la jugada
+ * siguiente se sienta en el acto en vez de esperar a que venza el hueco.
+ */
+export function stepSlide(
+  wait: number,
+  speed: number,
+  dt: number,
+): { wait: number; pulse: HapticPulse | null } {
+  const pulse = slidePulse(speed)
+  if (pulse == null) return { wait: 0, pulse: null }
+  const queda = (Number.isFinite(wait) ? wait : 0) - (Number.isFinite(dt) ? Math.max(0, dt) : 0)
+  if (queda > 0) return { wait: queda, pulse: null }
+  return { wait: SLIDE_PERIOD, pulse }
 }
 
 /**

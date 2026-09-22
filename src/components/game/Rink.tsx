@@ -26,7 +26,7 @@ import {
   type ScreenPoint,
 } from '../../lib/sceneProbe'
 import { impactStrength } from '../../lib/audioEngine'
-import { type PlayGameSound, type SlidePuck } from '../../lib/useGameAudio'
+import { type PlayGameSound } from '../../lib/useGameAudio'
 import { Mallet } from './Mallet'
 import { Puck } from './Puck'
 import { MalletHand } from './MalletHand'
@@ -60,8 +60,13 @@ export function Rink({
   environment,
 }: {
   play: PlayGameSound
-  /** El roce del disco según su velocidad, cada fotograma (`useGameAudio`). */
-  slide: SlidePuck
+  /**
+   * El roce del disco, cada fotograma: su velocidad en m/s y los segundos que
+   * trae el fotograma. Suena (`useGameAudio`) y se siente en la mano
+   * (`useGameHaptics`), y las dos cosas necesitan el reloj: la vibración se hace
+   * encadenando toques cortos y lleva la cuenta con el `delta`.
+   */
+  slide: (speed: number, delta: number) => void
   /** Cada movimiento del mazo, para saber qué mando lo lleva (`useGameHaptics`). */
   onAim?: (event: ThreeEvent<PointerEvent>) => void
   /** Los reflejos de la sala para el disco, los mismos que lleva el tablero. */
@@ -77,6 +82,7 @@ export function Rink({
     scorePlayer,
     setMalletHeld,
     esperandoElMazo,
+    runId,
   } = useGame()
 
   const skill = OPPONENT_SKILLS[activeDifficulty]
@@ -87,13 +93,17 @@ export function Rink({
   const opponentObject = useRef<Group>(null)
   const goalLight = useRef<PointLight>(null)
 
-  const table = useRef<TableState>(startTable({ skill, lastScorer }))
+  // La semilla con la que la máquina elige sus tiros es el número de partida: así
+  // dos partidas seguidas no repiten los mismos, y dos con el mismo número son la
+  // misma partida (ver `AimSeed` en `lib/opponent.ts`). Se lee al montar, que es
+  // exactamente una vez por partida y por ronda del reto (`key={runId}`).
+  const table = useRef<TableState>(startTable({ skill, lastScorer, seed: runId }))
   /** Lo rápido que va el disco, para su halo (`Puck`) y su roce (`play.slide`). */
   const puckSpeed = useRef(0)
 
   // Al retirar la mesa (fin de ronda, vuelta al menú) el roce se apaga: nadie
   // volvería a llamarlo y se quedaría sonando a la última velocidad.
-  useEffect(() => () => slide(0), [slide])
+  useEffect(() => () => slide(0, 0), [slide])
   /** Dónde apunta el jugador. El mazo va detrás, no salta hasta ahí. */
   const pointer = useRef<Vec2>(playerStart())
   /** Si el mazo va cogido con la mano (visor). Con el ratón nunca. */
@@ -162,7 +172,7 @@ export function Rink({
     const { x: vx, z: vz } = next.puck.velocity
     const speed = gameState === 'playing' && prompt === null ? Math.hypot(vx, vz) : 0
     puckSpeed.current = speed
-    slide(speed)
+    slide(speed, delta)
     place(puckObject.current, next.puck.position)
     place(playerObject.current, next.player.position)
     place(opponentObject.current, next.opponent.position)

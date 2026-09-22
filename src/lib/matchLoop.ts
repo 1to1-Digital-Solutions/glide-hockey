@@ -75,6 +75,8 @@ export const MAX_FRAME_SECONDS = 0.25
  * como esta dice cuál ha golpeado el disco (ver `stepPuck`).
  */
 const PLAYER_MALLET = 0
+/** Y dónde va el de la máquina: es lo que cuenta sus golpes para la semilla. */
+const OPPONENT_MALLET = 1
 
 /** Todo lo que hay que recordar de una partida entre fotograma y fotograma. */
 export interface TableState {
@@ -98,6 +100,15 @@ export interface TableState {
   /** Veces que el mazo del jugador ha golpeado el disco en esta partida. */
   playerHits: number
   /**
+   * La semilla de esta partida: es lo que hace que la máquina no tire igual en
+   * dos partidas seguidas, y que dos con la misma semilla sean la misma partida.
+   */
+  seed: number
+  /** Jugadas jugadas: sube con cada saque de centro. */
+  plays: number
+  /** Veces que la máquina ha golpeado el disco **en esta jugada**. */
+  opponentHits: number
+  /**
    * Tiempo de reloj que sobró del último fotograma sin llegar a un paso.
    *
    * Es lo que mantiene el paso fijo sin perder ni inventar segundos: se guarda
@@ -110,10 +121,17 @@ export interface TableState {
 export function startTable({
   skill,
   lastScorer,
+  seed = 0,
 }: {
   skill: OpponentSkill
   /** Quién marcó lo último que se jugó, para saber hacia dónde se saca. */
   lastScorer: Scorer | null
+  /**
+   * Con qué semilla juega la máquina. La escena le pasa el número de partida
+   * (`runId`), así que una partida no repite los tiros de la anterior; un test
+   * le pasa la que quiera y la partida entera se repite igual.
+   */
+  seed?: number
 }): TableState {
   return {
     // Al empezar sale siempre hacia la máquina, gane quien gane el punto
@@ -127,6 +145,9 @@ export function startTable({
     rally: 0,
     pendingServe: lastScorer,
     playerHits: 0,
+    seed,
+    plays: 0,
+    opponentHits: 0,
     leftover: 0,
   }
 }
@@ -273,24 +294,33 @@ function advanceStep(
 
   if (table.pause > 0) {
     const pause = table.pause - dt
+    // El saque abre jugada: sube la cuenta y deja los golpes de la máquina a
+    // cero, que es lo que hace que la jugada siguiente no repita los tiros de
+    // esta (ver `AimSeed` en `opponent.ts`).
+    const saca = pause <= 0
     return {
       table: {
         ...table,
         player,
         pause,
-        puck: pause > 0 ? table.puck : serve(table.pendingServe),
+        puck: saca ? serve(table.pendingServe) : table.puck,
+        plays: saca ? table.plays + 1 : table.plays,
+        opponentHits: saca ? 0 : table.opponentHits,
       },
       ...QUIET,
     }
   }
 
-  const opponent = stepOpponent({
-    puck: table.puck,
-    mallet: table.opponent.position,
-    playerMallet: player.position,
-    skill,
-    dt,
-  })
+  const opponent = stepOpponent(
+    {
+      puck: table.puck,
+      mallet: table.opponent.position,
+      playerMallet: player.position,
+      skill,
+      dt,
+    },
+    { match: table.seed, rally: table.plays, hit: table.opponentHits },
+  )
 
   const result = stepPuck({
     puck: table.puck,
@@ -299,6 +329,10 @@ function advanceStep(
   })
   const playerHits =
     table.playerHits + (result.struckBy.includes(PLAYER_MALLET) ? 1 : 0)
+  // Cada golpe suyo cambia el plan del siguiente: sin esto, la máquina elegiría
+  // el mismo tiro durante toda la jugada y un peloteo saldría siempre igual.
+  const opponentHits =
+    table.opponentHits + (result.struckBy.includes(OPPONENT_MALLET) ? 1 : 0)
   // Golpe es golpe lo dé quien lo dé: el disco suena igual saliendo del mazo
   // del jugador que del de la máquina.
   const struck = result.struckBy.length > 0
@@ -315,6 +349,7 @@ function advanceStep(
         rally: 0,
         pendingServe: result.goal,
         playerHits,
+        opponentHits,
       },
       goal: result.goal,
       struck,
@@ -341,6 +376,9 @@ function advanceStep(
       stalled: reserve ? 0 : stalled,
       rally: reserve ? 0 : rally,
       playerHits,
+      // Sacar de nuevo abre jugada, lo mismo que sacar tras un gol.
+      plays: reserve ? table.plays + 1 : table.plays,
+      opponentHits: reserve ? 0 : opponentHits,
     },
     goal: null,
     struck,

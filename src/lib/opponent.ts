@@ -6,6 +6,7 @@ import {
 } from './gameConfig'
 import {
   HALF_LENGTH,
+  HALF_WIDTH,
   constrainMallet,
   type Body,
   type Vec2,
@@ -17,12 +18,23 @@ import {
  * Dos intenciones y nada más: **defender**, plantándose entre el disco y su
  * portería, y **atacar**, poniéndose detrás del disco para empujarlo hacia la
  * del jugador. Lo que separa a Fácil de Imposible no es cuál elige, sino a qué
- * velocidad se mueve, cuánto se adelanta a donde va a estar el disco y desde
- * cuán lejos sale a buscarlo (ver `OPPONENT_SKILLS` en `gameConfig.ts`).
+ * velocidad se mueve, cuánto se adelanta a donde va a estar el disco, desde cuán
+ * lejos sale a buscarlo y **cuánto mezcla los tiros** (ver `OPPONENT_SKILLS` en
+ * `gameConfig.ts`).
  *
- * Sin nada de azar a propósito: una máquina que falla por un número aleatorio
- * no se puede probar, y de cara al jugador su nivel se vuelve caprichoso. Aquí
- * pierde porque no llega a tiempo, que es una razón que se entiende viéndola.
+ * **No hace trampas y no las va a hacer**: nunca se mueve más rápido que el
+ * jugador ni cruza la línea de medio campo. Pierde porque no llega a tiempo, que
+ * es una razón que se entiende viéndola.
+ *
+ * **Pero lo que elige no se puede adivinar.** Atacando siempre al mismo poste,
+ * a la tercera partida se sabe dónde va a tirar y el juego se acaba ahí. Así que
+ * hay tres planes —al hueco, cruzado y a la banda— y el de cada golpe sale de un
+ * **hash de la partida, la jugada y el golpe** (`unitHash`): ni un `Math.random`,
+ * ni un contador. Lo mismo hace la máquina de table-tennis con su colocación, y
+ * por lo mismo: con azar de verdad la misma partida no se repite dos veces, no se
+ * puede probar y no cruza a Godot con sus tests; con el hash, dos partidas con la
+ * misma semilla son la misma partida y de cara al jugador se ve como lo que es,
+ * un rival que no se deja leer.
  *
  * Es una función pura del estado de la mesa: quien la llama mueve el mazo y le
  * pasa el resultado a la física, igual que hace con el del jugador.
@@ -40,23 +52,111 @@ export interface OpponentInput {
 }
 
 /**
- * A qué punto de la portería del jugador tira la máquina.
+ * De qué golpe se está hablando. Es lo que hace que el tiro sea imprevisible sin
+ * ser aleatorio: los mismos tres números dan siempre el mismo plan.
+ */
+export interface AimSeed {
+  /** La partida. Dos partidas con distinta semilla no eligen los mismos tiros. */
+  match: number
+  /** La jugada dentro de la partida: sube con cada saque. */
+  rally: number
+  /** El golpe dentro de la jugada: sube cada vez que la máquina toca el disco. */
+  hit: number
+}
+
+/**
+ * Un valor entre 0 y 1 a partir de tres enteros: siempre el mismo para los mismos.
  *
- * **Al lado que él no cubre**, no al centro. Apuntando siempre al medio, un
- * jugador que deje el mazo delante de su portería es un tapón perfecto: el
- * disco va y vuelve en línea recta entre los dos mazos y no se acaba nunca la
- * jugada. Buscar el poste contrario es además lo que hace cualquiera que juegue
- * de verdad.
+ * Es el `unitHash` de la máquina de table-tennis con un número más —la partida—,
+ * y mezclado con `Math.imul` en vez de sumando: `imul` es exacto a 32 bits, y con
+ * la suma una semilla grande se salía de los enteros que un `double` representa
+ * sin perder nada, que es donde un hash deja de repetirse.
+ */
+export function unitHash(a: number, b: number, c: number): number {
+  let x =
+    (Math.imul(a, 0x9e3779b1) ^ Math.imul(b, 0x85ebca6b) ^ Math.imul(c, 0xc2b2ae35) ^ 0x1b873593) >>>
+    0
+  x = Math.imul(x ^ (x >>> 16), 0x21f0aaad) >>> 0
+  x = Math.imul(x ^ (x >>> 15), 0x735a2d97) >>> 0
+  return ((x ^ (x >>> 15)) >>> 0) / 0x100000000
+}
+
+/** Hasta dónde llega el disco dentro de la portería sin rozar el poste. */
+const GOAL_REACH = GOAL_WIDTH / 2 - PUCK_RADIUS
+/** Y hasta dónde llega su centro antes de tocar una banda. */
+const PUCK_SIDE_LIMIT = HALF_WIDTH - PUCK_RADIUS
+
+/** Qué plan tiene la máquina para este golpe. */
+export type OpponentPlan =
+  /** Al poste que el mazo del jugador deja más libre. */
+  | 'gap'
+  /** Al otro, el que sí cubre: el que engaña a quien se va al hueco antes de tiempo. */
+  | 'cross'
+  /** A la banda, para que el disco llegue a la portería por el lado contrario. */
+  | 'bank'
+
+/**
+ * Cuánto hueco deja el mazo del jugador a cada poste, en metros.
+ *
+ * **Se lee el mazo, no el lado del jugador.** Un mazo a un palmo del poste
+ * izquierdo lo tapa aunque su centro esté en la mitad derecha de la portería, y
+ * un mazo fuera del marco no tapa ninguno de los dos. Lo que decide es cuánto
+ * espacio queda entre el borde del mazo y el punto por el que el disco entra.
+ */
+export function goalGaps(playerMallet: Vec2): { left: number; right: number } {
+  const hueco = (poste: number) =>
+    Math.max(0, Math.abs(poste - playerMallet.x) - MALLET_RADIUS)
+  return { left: hueco(-GOAL_REACH), right: hueco(GOAL_REACH) }
+}
+
+/**
+ * El poste con más hueco: `-1` el de la izquierda, `1` el de la derecha.
+ *
+ * Empatados —el mazo en el centro— se tira a la izquierda: da igual cuál, lo que
+ * no vale es el punto muerto de tirarle justo encima. Apuntando siempre al medio,
+ * un jugador que deje el mazo delante de su portería es un tapón perfecto: el
+ * disco va y vuelve en línea recta entre los dos mazos y la jugada no se acaba.
+ */
+export function openPost(playerMallet: Vec2): -1 | 1 {
+  const { left, right } = goalGaps(playerMallet)
+  return right > left ? 1 : -1
+}
+
+/** Qué plan toca en este golpe, según lo mezclada que juegue esta dificultad. */
+export function planFor(skill: OpponentSkill, seed: AimSeed): OpponentPlan {
+  const tirada = unitHash(seed.match, seed.rally, seed.hit)
+  if (tirada < skill.bank) return 'bank'
+  if (tirada < skill.bank + skill.cross) return 'cross'
+  return 'gap'
+}
+
+/**
+ * A qué punto tira la máquina en este golpe.
  *
  * Se apunta a donde el disco cabe entero, no al poste: rozándolo no entraría
  * (ver `fitsThroughGoal`).
+ *
+ * El tiro a la banda no apunta a la banda: apunta al **espejo** del poste al otro
+ * lado de ella, que es el punto que hace que el disco rebote y acabe entrando. Es
+ * un punto de fuera de la mesa a propósito —no es un sitio, es una dirección—, y
+ * sale de la geometría y no de un número a ojo: el rebote conserva el ángulo, así
+ * que la recta al espejo es exactamente la que pasa por el poste después de
+ * rebotar. Con la restitución de la banda por debajo de uno el disco se abre algo
+ * hacia ella al salir, y eso lo mete más adentro de la portería, no fuera.
  */
-export function aimPoint(playerMallet: Vec2): Vec2 {
-  const reach = GOAL_WIDTH / 2 - PUCK_RADIUS
-  // Empatados en el centro se tira a la izquierda: da igual cuál, lo que no
-  // vale es el punto muerto de tirarle justo encima.
-  const side = playerMallet.x >= 0 ? -1 : 1
-  return { x: side * reach, z: HALF_LENGTH }
+export function aimPoint(playerMallet: Vec2, skill: OpponentSkill, seed: AimSeed): Vec2 {
+  const open = openPost(playerMallet)
+  switch (planFor(skill, seed)) {
+    case 'cross':
+      return { x: -open * GOAL_REACH, z: HALF_LENGTH }
+    case 'bank':
+      // Se rebota en la banda del lado que el jugador cubre y se acaba en el
+      // poste libre: así el disco le cruza por delante en vez de llegarle de
+      // frente, que es lo que hace que cambie de lado.
+      return { x: -open * (2 * PUCK_SIDE_LIMIT + GOAL_REACH), z: HALF_LENGTH }
+    default:
+      return { x: open * GOAL_REACH, z: HALF_LENGTH }
+  }
 }
 
 /**
@@ -66,12 +166,10 @@ export function aimPoint(playerMallet: Vec2): Vec2 {
  * campo contrario no está permitido (`constrainMallet`) y perseguirlo hasta la
  * línea deja la portería abierta al primer rechace.
  */
-export function opponentTarget({
-  puck,
-  mallet,
-  playerMallet,
-  skill,
-}: Omit<OpponentInput, 'dt'>): Vec2 {
+export function opponentTarget(
+  { puck, mallet, playerMallet, skill }: Omit<OpponentInput, 'dt'>,
+  seed: AimSeed,
+): Vec2 {
   // A dónde va el disco, no dónde está: perseguir la posición actual llega
   // siempre tarde, y es justo lo que hace floja a la dificultad más baja.
   const predicted: Vec2 = {
@@ -88,7 +186,7 @@ export function opponentTarget({
   if (inOwnHalf && reach <= skill.attackRange) {
     // Detrás del disco, en la línea que lo une con el punto al que tira: al
     // avanzar, el golpe sale hacia allí en vez de a cualquier banda.
-    const goal = aimPoint(playerMallet)
+    const goal = aimPoint(playerMallet, skill, seed)
     const toGoal = {
       x: goal.x - puck.position.x,
       z: goal.z - puck.position.z,
@@ -119,18 +217,15 @@ export function opponentTarget({
  * Devuelve también la velocidad con la que llega, que es la que la física
  * necesita para saber con cuánta fuerza golpea (ver `resolveMalletHit`).
  */
-export function stepOpponent({
-  puck,
-  mallet,
-  playerMallet,
-  skill,
-  dt,
-}: OpponentInput): Body {
+export function stepOpponent(
+  { puck, mallet, playerMallet, skill, dt }: OpponentInput,
+  seed: AimSeed,
+): Body {
   if (!Number.isFinite(dt) || dt <= 0) {
     return { position: mallet, velocity: { x: 0, z: 0 } }
   }
 
-  const target = opponentTarget({ puck, mallet, playerMallet, skill })
+  const target = opponentTarget({ puck, mallet, playerMallet, skill }, seed)
   const delta = { x: target.x - mallet.x, z: target.z - mallet.z }
   const distance = Math.hypot(delta.x, delta.z)
   const budget = skill.maxSpeed * dt

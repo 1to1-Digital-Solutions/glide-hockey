@@ -149,18 +149,38 @@ export interface OpponentSkill {
    * atrás; largo es salir a buscarlo hasta media pista.
    */
   attackRange: number
+  /**
+   * Cada cuántos golpes tira al poste que el jugador **sí** cubre, de 0 a 1.
+   *
+   * Es el tiro que engaña al que se ha ido al hueco antes de tiempo. A cero, la
+   * máquina va siempre al hueco y a la tercera partida se sabe dónde va a tirar.
+   */
+  cross: number
+  /**
+   * Y cada cuántos manda el disco a la banda para que llegue por el otro lado,
+   * de 0 a 1. Cero por debajo de la dificultad media: un rebote en banda no se
+   * lee viniendo, y en Fácil eso no es un rival, es una trampa.
+   */
+  bank: number
 }
 
 /**
- * La dificultad sube por dos sitios a la vez: la máquina se mueve más rápido
- * —llega a discos que antes se le escapaban— y defiende más adelante, lo que
- * cierra el ángulo de tiro. Los dos hacen falta: solo con velocidad se queda
- * pegada a su portería y el jugador tira desde media pista sin oposición.
+ * La dificultad sube por tres sitios a la vez: la máquina se mueve más rápido
+ * —llega a discos que antes se le escapaban—, defiende más adelante, lo que
+ * cierra el ángulo de tiro, y **mezcla más los tiros**. Los tres hacen falta:
+ * solo con velocidad se queda pegada a su portería y el jugador tira desde media
+ * pista sin oposición; y sin mezcla, la más rápida de todas sigue tirando siempre
+ * al mismo sitio, que es lo que se aprende en tres partidas.
+ *
+ * Las dos proporciones de tiro se reparten así: `bank` primero, `cross` después y
+ * el resto al hueco. En Fácil eso deja el 92 % de los tiros al hueco —previsible
+ * a propósito, que es lo que hace que se le pueda ganar mirando—; en Imposible,
+ * 30 % al hueco, 40 % cruzado y 30 % a la banda, que ya no se adivina.
  */
 export const OPPONENT_SKILLS: Record<Difficulty, OpponentSkill> = {
-  easy: { maxSpeed: 0.9, anticipation: 0.05, defenseDepth: 0.18, attackRange: 0.3 },
-  medium: { maxSpeed: 1.3, anticipation: 0.09, defenseDepth: 0.3, attackRange: 0.45 },
-  hard: { maxSpeed: 1.8, anticipation: 0.13, defenseDepth: 0.42, attackRange: 0.6 },
-  expert: { maxSpeed: 2.4, anticipation: 0.17, defenseDepth: 0.54, attackRange: 0.75 },
-  impossible: { maxSpeed: 3.1, anticipation: 0.22, defenseDepth: 0.66, attackRange: 0.9 },
+  easy: { maxSpeed: 0.9, anticipation: 0.05, defenseDepth: 0.18, attackRange: 0.3, cross: 0.08, bank: 0 },
+  medium: { maxSpeed: 1.3, anticipation: 0.09, defenseDepth: 0.3, attackRange: 0.45, cross: 0.3, bank: 0.16 },
+  hard: { maxSpeed: 1.8, anticipation: 0.13, defenseDepth: 0.42, attackRange: 0.6, cross: 0.34, bank: 0.22 },
+  expert: { maxSpeed: 2.4, anticipation: 0.17, defenseDepth: 0.54, attackRange: 0.75, cross: 0.37, bank: 0.26 },
+  impossible: { maxSpeed: 3.1, anticipation: 0.22, defenseDepth: 0.66, attackRange: 0.9, cross: 0.4, bank: 0.3 },
 }

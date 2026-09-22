@@ -158,7 +158,15 @@ export function lienzoQueApunta(): { ctx: CanvasRenderingContext2D; escritos: Es
     setTransform: () => {
       estado = { ...estado, x: 0, y: 0, escala: 1, escalaY: 1 }
     },
-    // Lo demás que dibuja formas no se apunta: aquí se revisa el texto.
+    // Lo demás que dibuja formas no se apunta: aquí se revisa el texto. Aun así están **todas**
+    // las que trazan, y no solo las que use el panel de hoy: una que falte no da un aviso de
+    // legibilidad sino un «no es una función» a mitad del dibujo, y el test se cae sin llegar a
+    // medir nada —el panel se queda sin revisar justo cuando alguien acababa de cambiarlo—. Lo
+    // descubrió una mano dibujada con `ellipse` y `quadraticCurveTo`.
+    //
+    // Lo que **sí** falta a propósito es lo que movería el texto sin que esto se enterara:
+    // `rotate` y `transform`. Ahí el «no es una función» es la respuesta correcta, porque lo
+    // apuntado dejaría de estar donde se pinta y los problemas saldrían en otro sitio.
     clearRect: () => {},
     fillRect: () => {},
     strokeRect: () => {},
@@ -168,12 +176,20 @@ export function lienzoQueApunta(): { ctx: CanvasRenderingContext2D; escritos: Es
     lineTo: () => {},
     arcTo: () => {},
     arc: () => {},
+    ellipse: () => {},
+    quadraticCurveTo: () => {},
+    bezierCurveTo: () => {},
     rect: () => {},
     roundRect: () => {},
     fill: () => {},
     stroke: () => {},
     clip: () => {},
+    setLineDash: () => {},
+    getLineDash: () => [],
+    drawImage: () => {},
     createLinearGradient: () => ({ addColorStop: () => {} }),
+    createRadialGradient: () => ({ addColorStop: () => {} }),
+    createPattern: () => null,
   }
 
   return { ctx: ctx as unknown as CanvasRenderingContext2D, escritos }

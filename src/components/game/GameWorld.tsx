@@ -32,6 +32,7 @@ import {
 import { XRMenu } from '../xr/XRMenu'
 import { XRTutorial } from '../xr/XRTutorial'
 import { XRSessionController } from '../xr/XRSessionController'
+import { Ayudas } from './Ayudas'
 import { Calentar } from './Calentar'
 import { Rink } from './Rink'
 import { Backdrop } from './Backdrop'
@@ -206,6 +207,18 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
     },
     [play, haptics],
   )
+  // Y el roce del disco igual: se oye y **se siente**. Era lo único que pasaba en
+  // la mesa y no llegaba a la mano, y con el visor puesto esa es la diferencia
+  // entre un disco que se desliza y uno que solo existe cuando choca. Leve y
+  // continuo, muy por debajo del rebote en banda, que si no dejarían de
+  // distinguirse (ver `SLIDE_MAX_INTENSITY` en `lib/haptics.ts`).
+  const roce = useCallback(
+    (speed: number, delta: number) => {
+      slide(speed)
+      haptics.slide(speed, delta)
+    },
+    [slide, haptics],
+  )
   // El final del partido. Antes era silencio: se metía el último gol, sonaba como cualquier
   // otro y la pantalla de fin llegaba sin avisar. Con el visor puesto es peor todavía,
   // porque el marcador está donde uno no siempre está mirando. La marca batida va **encima**
@@ -276,6 +289,14 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
           <Room />
         </group>
 
+        {/* Lo que enseña a jugar sin una sola letra: las huellas del suelo, el mazo
+            fantasma, la portería marcada y el mando con su botón encendido. Va **fuera** del
+            grupo de la mesa porque la mitad de lo que pinta está en el suelo, y se monta
+            siempre —también en el menú— porque montar una malla a mitad de partida compila su
+            material y eso es un tirón con el visor puesto. Lo que se enciende y se apaga es su
+            opacidad; el guion decide cuándo (`lib/guionDeAyudas.ts`). */}
+        <Ayudas />
+
         <group position={[0, TABLE_HEIGHT, TABLE_CENTER_Z]}>
           <Table environment={environment} />
           {/* El disco y los mazos solo durante la partida: en el menú la mesa
@@ -285,9 +306,7 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
             <Rink
               key={runId}
               play={feedback}
-              // El roce del disco no vibra: es un fondo continuo, y un mando
-              // zumbando toda la partida cansa la mano. Va solo al audio.
-              slide={slide}
+              slide={roce}
               onAim={haptics.noteAim}
               environment={environment}
             />

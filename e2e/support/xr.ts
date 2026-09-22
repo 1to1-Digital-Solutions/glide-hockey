@@ -12,6 +12,8 @@ interface XRTestApi {
   pinch: (handedness: 'left' | 'right', pressed: boolean) => void
   placeController: (handedness: 'left' | 'right', x: number, y: number, z: number) => void
   squeeze: (handedness: 'left' | 'right', pressed: boolean) => void
+  /** Gira la cabeza, en grados. Hace falta para mirar a donde están las ayudas: al suelo. */
+  lookAt: (yaw?: number, pitch?: number) => void
   endSession: () => Promise<void>
 }
 

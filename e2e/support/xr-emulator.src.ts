@@ -11,6 +11,7 @@
  * `page.addInitScript`. Es código de test: no entra en el bundle del juego.
  */
 import { XRDevice, metaQuest3 } from 'iwer'
+import { Euler, Quaternion } from 'three'
 
 const device = new XRDevice(metaQuest3)
 // `forceInstall` porque Chromium ya trae un `navigator.xr` propio —sin ningún
@@ -94,6 +95,21 @@ const api = {
     mano.poseId = pressed ? 'pinch' : 'default'
     mano.updateHandPose()
     mano.updatePinchValue(pressed ? 1 : 0)
+  },
+
+  /**
+   * Gira la cabeza: `yaw` a los lados y `pitch` arriba y abajo, en grados.
+   *
+   * El emulador entra siempre mirando al frente, y las ayudas visuales están donde se mira
+   * después: **las huellas, a los pies**. Sin esto, una captura de las ayudas sale enseñando
+   * la pared del fondo, y **las dos medidas de una comparación tienen que tomarse mirando al
+   * mismo sitio** — si no, lo que se compara son dos vistas y no dos escenas.
+   */
+  lookAt(yaw = 0, pitch = 0): void {
+    const giro = new Quaternion().setFromEuler(
+      new Euler((pitch * Math.PI) / 180, (yaw * Math.PI) / 180, 0, 'YXZ'),
+    )
+    device.quaternion.set(giro.x, giro.y, giro.z, giro.w)
   },
 
   /** Cierra la sesión, como cuando el jugador se quita el visor. */

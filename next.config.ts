@@ -72,6 +72,25 @@ const nextConfig: NextConfig = {
    */
   agentRules: false,
 
+  /**
+   * Desde qué máquinas se puede abrir el servidor de desarrollo.
+   *
+   * **Sin esto, `npm run dev` da una página muerta en cuanto no se entra por `localhost`.**
+   * Next bloquea por defecto los recursos de `/_next/*` cuando la petición llega con un
+   * `Origin` que no reconoce, y contesta un 403 a cada trozo de JavaScript: el HTML carga, el
+   * texto de la portada se ve y no se monta nada. No sale un error de CSP ni una traza — solo
+   * una pantalla a medias—, y por eso se diagnosticó mal durante tandas: no es que al React de
+   * desarrollo le falte `unsafe-eval`, es esto.
+   *
+   * Y aquí importa más que en un proyecto normal, porque **el visor no entra por `localhost`**:
+   * se prueba con `dev:https` desde el Quest, contra la IP de esta máquina en la red de casa.
+   * Por eso van los dos rangos privados además del propio equipo.
+   *
+   * Es una opción **solo de desarrollo**: `next build` la ignora, así que no afloja nada de lo
+   * que se sirve de verdad.
+   */
+  allowedDevOrigins: ['127.0.0.1', '192.168.*.*', '10.*.*.*'],
+
   async headers() {
     return [
       {

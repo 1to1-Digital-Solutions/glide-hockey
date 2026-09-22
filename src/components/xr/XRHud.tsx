@@ -58,9 +58,13 @@ export const SCOREBOARD_SIZE = { width: 0.52, height: 0.34 } as const
 
 /** El marcador de la partida en curso, con los puntos debajo. */
 export function XRScoreboard() {
-  const { gameState, playerGoals, opponentGoals, points, round, gameMode, activeLevel } = useGame()
+  const { gameState, playerGoals, opponentGoals, points, round, lap, gameMode, activeLevel } =
+    useGame()
   // La ronda del reto, o el nivel en Niveles: la misma fila.
   const fila = round ?? (gameMode === 'levels' ? activeLevel : null)
+  // La vuelta a la escalera del reto, solo cuando ya hay más de una: en la
+  // primera no dice nada que la ronda no diga ya (ver `lib/challenge.ts`).
+  const vuelta = lap != null && lap > 1 ? lap : null
   if (gameState === 'menu') return null
 
   return (
@@ -99,14 +103,32 @@ export function XRScoreboard() {
       />
 
       {/* En reto, la ronda por la que va; en niveles, el nivel. En prueba no hay
-          nada que enseñar aquí. */}
+          nada que enseñar aquí. Con más de una vuelta a la escalera, la ronda se
+          corre a la izquierda para dejarle sitio al contador de vueltas. */}
       {fila != null ? (
         <XRNumber
           value={fila}
           size={0.04}
           color={DIM_COLOR}
-          position={[0, ROW.round, 0]}
+          position={[vuelta != null ? -0.05 : 0, ROW.round, 0]}
         />
+      ) : null}
+
+      {/* El contador de vueltas: un aspa y el número, en el color de los puntos.
+          Va en ese color y no en el de la ronda a propósito: lo que dice no es
+          por dónde se va, es que **lo que se meta ahora vale más** (ver
+          `lib/challenge.ts`). Un aspa con dos rayas cruzadas y no una letra: aquí
+          no hay tipografía, hay segmentos (`XRNumber`). */}
+      {vuelta != null ? (
+        <group position={[0.05, ROW.round, 0]}>
+          {[1, -1].map((giro) => (
+            <mesh key={giro} position={[-0.028, 0, 0]} rotation={[0, 0, (giro * Math.PI) / 4]}>
+              <planeGeometry args={[0.026, 0.005]} />
+              <meshBasicMaterial color={PALETTE.puck} toneMapped={false} />
+            </mesh>
+          ))}
+          <XRNumber value={vuelta} size={0.04} color={PALETTE.puck} position={[0.008, 0, 0]} />
+        </group>
       ) : null}
     </group>
   )

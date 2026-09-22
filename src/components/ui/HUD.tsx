@@ -56,6 +56,8 @@ function Scoreboard() {
     points,
     streak,
     round,
+    lap,
+    lapMultiplier,
     activeLevel,
     gameMode,
   } = useGame()
@@ -95,6 +97,11 @@ function Scoreboard() {
           <span>
             {t(GAME_MODE_LABELS[gameMode])}
             {round != null ? ` ${t('· round {round}', { round })}` : null}
+            {/* La vuelta solo cuando hay más de una: en la primera no dice nada
+                que la ronda no diga ya (ver `challenge.ts`). */}
+            {lap != null && lap > 1
+              ? ` ${t('· lap {lap} ×{multiplier}', { lap, multiplier: lapMultiplier })}`
+              : null}
             {gameMode === 'levels' ? ` ${t('· level {level}', { level: activeLevel })}` : null}
           </span>
           <span>

@@ -12,6 +12,9 @@ import { type Difficulty } from './gameConfig'
  *   subir de nivel castigaría el mismo error dos veces.
  * - **La racha**, porque encadenar goles sin encajar es más difícil que
  *   intercambiarlos. Un gol en contra la corta de golpe.
+ * - **La vuelta del reto**, que es la única de las tres que no se elige: se llega
+ *   a ella aguantando quince rondas sin perder (ver `challenge.ts`). Fuera del
+ *   reto vale uno y no cambia nada.
  *
  * La puntuación **no baja de cero**: es una marca que se compara con el récord,
  * y una negativa no dice nada que no diga el marcador.
@@ -61,21 +64,25 @@ export function streakMultiplier(streak: number): number {
 export function goalPoints({
   difficulty,
   streak,
+  lap = 1,
 }: {
   difficulty: Difficulty
   streak: number
+  /** Lo que multiplica la vuelta del reto. Uno —o nada— fuera de él. */
+  lap?: number
 }): number {
   return Math.round(
     BASE_GOAL_POINTS *
       DIFFICULTY_MULTIPLIERS[difficulty] *
-      streakMultiplier(streak),
+      streakMultiplier(streak) *
+      Math.max(1, Number.isFinite(lap) ? lap : 1),
   )
 }
 
 /** La puntuación tras marcar un gol. */
 export function scoreGoal(
   points: number,
-  options: { difficulty: Difficulty; streak: number },
+  options: { difficulty: Difficulty; streak: number; lap?: number },
 ): number {
   return points + goalPoints(options)
 }

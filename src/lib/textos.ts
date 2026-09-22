@@ -83,6 +83,8 @@ const ES = {
   Points: 'Puntos',
   Streak: 'Racha',
   '· round {round}': '· ronda {round}',
+  // Solo sale pasada la ronda quince: la vuelta por la que va y lo que multiplica.
+  '· lap {lap} ×{multiplier}': '· vuelta {lap} ×{multiplier}',
   '· level {level}': '· nivel {level}',
   endless: 'sin fin',
   'to {goals} goals': 'a {goals} goles',

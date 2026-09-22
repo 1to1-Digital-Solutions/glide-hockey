@@ -86,6 +86,16 @@ export interface GameStore {
 
   /** Ronda del reto, o `null` en un modo que no las tiene. */
   round: number | null
+  /**
+   * Por qué vuelta a la escalera del reto va, o `null` fuera del reto.
+   *
+   * Solo es distinto de 1 pasada la ronda quince, y entonces es lo que hay que
+   * enseñar: es la única forma de que se vea que lo que se está jugando vale más
+   * que la vuelta anterior (ver `challenge.ts`).
+   */
+  lap: number | null
+  /** Lo que multiplican los goles por la vuelta en la que caen. */
+  lapMultiplier: number
   /** Nivel al que se está jugando: el elegido en prueba, el de la ronda en reto. */
   activeDifficulty: Difficulty
   /** Goles que deciden la partida en curso. */
@@ -325,6 +335,9 @@ export function useGameStoreValue(): GameStore {
   const levels = gameMode === 'levels'
   const round = challenge ? challengeRoundNumber : null
   const currentRound = challengeRound(challengeRoundNumber)
+  const lap = challenge ? currentRound.lap : null
+  // Fuera del reto no hay vuelta que multiplicar: uno, que es no multiplicar.
+  const lapFactor = challenge ? currentRound.multiplier : 1
   const selectedLevel = clampLevel(Math.min(level ?? unlockedLevel, unlockedLevel))
   const activeLevel = running ? levelAtStart : selectedLevel
   const currentLevel = levelSpec(activeLevel)
@@ -515,10 +528,12 @@ export function useGameStoreValue(): GameStore {
     setStreak((previous) => {
       const next = previous + 1
       setBestStreak((best) => Math.max(best, next))
-      setPoints((total) => scoreGoal(total, { difficulty: activeDifficulty, streak: next }))
+      setPoints((total) =>
+        scoreGoal(total, { difficulty: activeDifficulty, streak: next, lap: lapFactor }),
+      )
       return next
     })
-  }, [activeDifficulty, anotarHito])
+  }, [activeDifficulty, lapFactor, anotarHito])
 
   const scoreOpponent = useCallback(() => {
     setOpponentGoals((value) => value + 1)
@@ -557,6 +572,8 @@ export function useGameStoreValue(): GameStore {
       levelStars: levelStarsAll,
       levelResult,
       round,
+      lap,
+      lapMultiplier: lapFactor,
       activeDifficulty,
       activeGoalTarget,
       playerGoals,
@@ -614,6 +631,8 @@ export function useGameStoreValue(): GameStore {
       levelStarsAll,
       levelResult,
       round,
+      lap,
+      lapFactor,
       activeDifficulty,
       activeGoalTarget,
       playerGoals,

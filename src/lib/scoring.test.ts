@@ -67,3 +67,34 @@ describe('la puntuación de una partida', () => {
     expect(scoreConceded(scoreConceded(10))).toBe(0)
   })
 })
+
+/**
+ * La vuelta del reto. Es el único multiplicador que no se elige: se llega a él
+ * aguantando quince rondas sin perder, y lo que hace es que seguir jugando
+ * después de la última ronda valga más que repetirla (ver `challenge.ts`).
+ */
+describe('el multiplicador de la vuelta', () => {
+  it('la primera vuelta —y no estar en el reto— no multiplican nada', () => {
+    const suelto = goalPoints({ difficulty: 'hard', streak: 1 })
+    expect(goalPoints({ difficulty: 'hard', streak: 1, lap: 1 })).toBe(suelto)
+  })
+
+  it('cada vuelta vale más que la anterior', () => {
+    const primera = goalPoints({ difficulty: 'hard', streak: 1, lap: 1 })
+    const segunda = goalPoints({ difficulty: 'hard', streak: 1, lap: 1.5 })
+
+    expect(segunda).toBeGreaterThan(primera)
+    expect(segunda).toBe(Math.round(primera * 1.5))
+  })
+
+  it('un multiplicador que llegara roto o por debajo de uno no descuenta puntos', () => {
+    const entero = goalPoints({ difficulty: 'easy', streak: 1, lap: 1 })
+    for (const lap of [0, -2, Number.NaN]) {
+      expect(goalPoints({ difficulty: 'easy', streak: 1, lap }), String(lap)).toBe(entero)
+    }
+  })
+
+  it('llega a la puntuación de la partida, no solo a la cuenta de un gol', () => {
+    expect(scoreGoal(0, { difficulty: 'easy', streak: 1, lap: 2 })).toBe(BASE_GOAL_POINTS * 2)
+  })
+})

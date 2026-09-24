@@ -11,7 +11,14 @@ import {
   worstReadingDistance,
 } from '../../lib/panelReading'
 import { traductor } from '../../lib/textos'
-import { XR_UI, XR_UI_ROTATION, delEspacioDelJugador, vistasDelPanel } from '../game/GameWorld'
+import {
+  ESCALA_DE_LA_COLUMNA,
+  XR_UI,
+  XR_UI_ROTATION,
+  aLaEscalaDeLaColumna,
+  delEspacioDelJugador,
+  vistasDelPanel,
+} from '../game/GameWorld'
 
 /**
  * El aviso de dejar la partida, medido en vez de mirado, en los dos idiomas y desde donde se
@@ -30,9 +37,9 @@ function medir(lang: (typeof IDIOMAS)[number]): Escrito[] {
 describe('el aviso de dejar la partida', () => {
   it('se lee en los dos idiomas', () => {
     for (const lang of IDIOMAS) {
-      const escritos = medir(lang)
+      const escritos = aLaEscalaDeLaColumna(medir(lang))
       expect(escritos.length, 'no se ha medido nada').toBeGreaterThan(0)
-      const panel = { width: CONFIRM_SIZE[0], height: CONFIRM_SIZE[1] }
+      const panel = { width: CONFIRM_SIZE[0] * ESCALA_DE_LA_COLUMNA, height: CONFIRM_SIZE[1] * ESCALA_DE_LA_COLUMNA }
       const distancia = Math.max(...VISTAS.map(({ pose, ojos }) => worstReadingDistance(escritos, pose, ojos, ALTO_DE_LINEA)))
       expect(problemasDeLegibilidad(escritos, { panel, distancia }), lang).toEqual([])
     }
@@ -43,7 +50,7 @@ describe('cada letra del aviso se lee de un vistazo', () => {
   it(`ninguna baja de ${MIN_READING_DEGREES}°, en los dos idiomas y a cualquier altura de ojos`, () => {
     for (const lang of IDIOMAS) {
       for (const vista of VISTAS) {
-        expect(unreadableTexts(medir(lang), vista.pose, vista.ojos, ALTO_DE_LINEA), `${lang}, ${vista.donde}`).toEqual([])
+        expect(unreadableTexts(aLaEscalaDeLaColumna(medir(lang)), vista.pose, vista.ojos, ALTO_DE_LINEA), `${lang}, ${vista.donde}`).toEqual([])
       }
     }
   })

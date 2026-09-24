@@ -24,7 +24,17 @@ import { HALF_WIDTH } from '../../lib/puckPhysics'
 import { traductor } from '../../lib/textos'
 import { SCOREBOARD_SIZE } from './XRHud'
 import { PANEL_HEIGHT, PANEL_WIDTH } from './XRTutorial'
-import { XR_UI, XR_UI_ROTATION, delEspacioDelJugador, vistasDelPanel } from '../game/GameWorld'
+import {
+  COLUMNA,
+  ESCALA_DE_LA_COLUMNA,
+  XR_QUIT,
+  XR_UI,
+  XR_UI_ROTATION,
+  aLaEscalaDeLaColumna,
+  delEspacioDelJugador,
+  distanciaDelJugador,
+  vistasDelPanel,
+} from '../game/GameWorld'
 
 /**
  * Los rótulos del panel del menú, medidos en vez de mirados.
@@ -59,8 +69,11 @@ describe('los nombres de las filas del menú se leen', () => {
   it('con cada modo y cada decorado, sin pisarse ni salirse', () => {
     for (const { donde, escritos } of todosLosMomentos()) {
       expect(escritos.length, 'no se ha medido nada').toBeGreaterThan(0)
-      const distancia = Math.max(...VISTAS.map(({ pose, ojos }) => worstReadingDistance(escritos, pose, ojos, ALTO_DE_LINEA)))
-      expect(problemasDeLegibilidad(escritos, { panel: MENU_PANEL, distancia }), donde).toEqual([])
+      // Medidos como se pintan: la columna entera va escalada (`ESCALA_DE_LA_COLUMNA`).
+      const escalados = aLaEscalaDeLaColumna(escritos)
+      const distancia = Math.max(...VISTAS.map(({ pose, ojos }) => worstReadingDistance(escalados, pose, ojos, ALTO_DE_LINEA)))
+      const panel = { width: MENU_PANEL.width * ESCALA_DE_LA_COLUMNA, height: MENU_PANEL.height * ESCALA_DE_LA_COLUMNA }
+      expect(problemasDeLegibilidad(escalados, { panel, distancia }), donde).toEqual([])
     }
   })
 
@@ -94,7 +107,7 @@ describe('cada letra del menú se lee de un vistazo', () => {
   it(`ninguna baja de ${MIN_READING_DEGREES}°, en ningún momento, idioma ni altura de ojos`, () => {
     for (const { donde, escritos } of todosLosMomentos()) {
       for (const vista of VISTAS) {
-        expect(unreadableTexts(escritos, vista.pose, vista.ojos, ALTO_DE_LINEA), `${donde}, ${vista.donde}`).toEqual([])
+        expect(unreadableTexts(aLaEscalaDeLaColumna(escritos), vista.pose, vista.ojos, ALTO_DE_LINEA), `${donde}, ${vista.donde}`).toEqual([])
       }
     }
   })
@@ -128,23 +141,40 @@ describe('cada letra del menú se lee de un vistazo', () => {
 })
 
 describe('dónde se planta el menú', () => {
-  it('cerca, pero con su borde de abajo por encima del tablero', () => {
-    // Inclinado hacia los ojos, el borde de abajo se acerca y sube menos de lo que mide el panel.
-    const abajo = pointOnPanel({ position: delEspacioDelJugador(XR_UI.panel), rotation: XR_UI_ROTATION.panel }, 0, -MENU_PANEL.height / 2)
-    const tablero = delEspacioDelJugador([0, 0, 0])[1]
-    expect(abajo.y - tablero).toBeGreaterThan(0.02)
+  it('entera fuera de la mesa y lejos de donde anda el mazo, ni una esquina encima', () => {
+    // Estaba a un metro y colgando sobre el tablero; ahora queda al lado de la mesa, y su borde
+    // de abajo puede bajar de la altura del tablero sin tocarlo.
+    const pose = { position: delEspacioDelJugador(XR_UI.panel), rotation: XR_UI_ROTATION.panel }
+    const w = (MENU_PANEL.width * ESCALA_DE_LA_COLUMNA) / 2
+    const h = (MENU_PANEL.height * ESCALA_DE_LA_COLUMNA) / 2
+    for (const [u, v] of [[-w, -h], [w, -h], [-w, h], [w, h]]) {
+      expect(pointOnPanel(pose, u, v).x, `esquina ${u}, ${v}`).toBeLessThan(-HALF_WIDTH - 0.3)
+    }
   })
 
-  it('delante, arriba y a la derecha: se ve sin girarse y no está en medio', () => {
+  it('la regla del salón: a 1,4–1,6 m de los ojos, entre 50° y 65° a la izquierda, a su altura', () => {
     const [x, y, z] = delEspacioDelJugador(XR_UI.panel)
     const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
-    // Delante: el panel está hacia donde se juega, no de lado ni a la espalda.
-    expect(z).toBeLessThan(0)
-    expect((Math.atan2(x, -z) * 180) / Math.PI).toBeLessThan(60)
-    // A la derecha, y fuera del rectángulo de la mesa.
-    expect(x).toBeGreaterThan(HALF_WIDTH)
-    // Arriba: por encima de la horizontal de los ojos.
-    expect(y).toBeGreaterThan(ojos.y)
+    const azimut = (Math.atan2(-x, -z) * 180) / Math.PI
+    expect(distanciaDelJugador(XR_UI.panel)).toBeGreaterThanOrEqual(1.4)
+    expect(distanciaDelJugador(XR_UI.panel)).toBeLessThanOrEqual(1.6)
+    expect(azimut).toBeGreaterThanOrEqual(50)
+    expect(azimut).toBeLessThanOrEqual(65)
+    expect(COLUMNA.azimut).toBeCloseTo(azimut, 9)
+    expect(y).toBeCloseTo(ojos.y, 9)
+    // Fuera del rectángulo de la mesa, y lejos de donde anda el mazo.
+    expect(x).toBeLessThan(-HALF_WIDTH - 0.4)
+  })
+
+  it('de cara a quien juega: girada hacia los ojos, no de frente a la mesa', () => {
+    expect(XR_UI_ROTATION.panel).toEqual(panelRotation(delEspacioDelJugador(XR_UI.panel), eyesAt(REFERENCE_EYE_HEIGHT)))
+    // Un giro de verdad: con la columna a 55° a la izquierda, el panel mira hacia la derecha.
+    expect(Math.abs(XR_UI_ROTATION.panel[1])).toBeGreaterThan(0.8)
+  })
+
+  it('el botón que la abre está del mismo lado y en su sitio: se pulsa y se abre ahí', () => {
+    expect(XR_QUIT).toEqual(XR_UI.panel)
+    expect(XR_UI_ROTATION.quit).toEqual(XR_UI_ROTATION.panel)
   })
 })
 
@@ -158,7 +188,7 @@ describe('dónde se planta el menú', () => {
  * `XRWorldHeight`).
  */
 describe('lo que el menú deja ver', () => {
-  const MEDIDAS = { width: MENU_PANEL.width, height: MENU_PANEL.height }
+  const MEDIDAS = { width: MENU_PANEL.width * ESCALA_DE_LA_COLUMNA, height: MENU_PANEL.height * ESCALA_DE_LA_COLUMNA }
 
   /** Cada vista: dónde queda el panel y cuánto se ha movido el mundo bajo él. */
   const VISTAS_CON_MUNDO = EYE_HEIGHTS.flatMap((ojos) =>
@@ -193,13 +223,27 @@ describe('lo que el menú deja ver', () => {
     }
   })
 
+  it('ni asomándose a un lado de la mesa o echándose atrás: se juega desde el extremo, no se rodea', () => {
+    // En air hockey no se da la vuelta a la mesa —el mazo no pasa de medio campo—, pero sí se
+    // mueve uno delante de su portería. Desde ahí tampoco puede caer la columna sobre la mesa.
+    const pose = { position: delEspacioDelJugador(XR_UI.panel), rotation: XR_UI_ROTATION.panel }
+    for (const x of [-0.5, -0.25, 0, 0.25, 0.5]) {
+      for (const z of [-0.1, 0.2, 0.5]) {
+        for (const alto of EYE_HEIGHTS) {
+          const ojos = { x, y: alto, z }
+          expect(whatThePanelHides(pose, MEDIDAS, ojos, loQueHayDetras(0)), `ojos en ${x}, ${alto}, ${z}`).toEqual([])
+        }
+      }
+    }
+  })
+
   it('el control: centrado sobre la mesa y a la altura de los ojos, tapaba los tres', () => {
     const comoEstaba = delEspacioDelJugador([0, 0.62, 0.2])
     const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
     expect(
       whatThePanelHides(
         { position: comoEstaba, rotation: panelRotation(comoEstaba, ojos) },
-        MEDIDAS,
+        { width: MENU_PANEL.width, height: MENU_PANEL.height },
         ojos,
         loQueHayDetras(0),
       ),

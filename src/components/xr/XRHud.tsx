@@ -309,21 +309,25 @@ export function XRGameOver() {
 
 /** Dejar la partida sin llegar al final; y en la sin fin, terminarla con resumen. */
 export function XRQuitButton() {
-  const { gameState, askToQuit, endRun, activeGoalTarget } = useGame()
+  const { gameState, askToQuit, endRun, activeGoalTarget, prompt } = useGame()
 
   if (gameState !== 'playing' && gameState !== 'countdown') return null
+  // Con el aviso abierto el botón se aparta: el aviso sale justo donde está él (`XR_QUIT`).
+  if (prompt !== null) return null
 
   return (
     <group>
       {/* Pregunta antes de dejarla: el brazo pasa por aquí y salir pierde los goles. */}
+      {/* Del azul del juego y opaco, no gris y translúcido: a metro y medio y con las máquinas de
+          la sala detrás, el gris se perdía contra ellas y había que buscarlo. */}
       <XRPressable box={hitBox(0, 0, SMALL_BUTTON)} onSelect={askToQuit}>
         <XRPlate
           width={SMALL_BUTTON[0]}
           height={SMALL_BUTTON[1]}
-          color={PALETTE.rail}
-          opacity={0.7}
+          color={PALETTE.primaryDeep}
+          opacity={0.95}
         />
-        <XRMenuIcon color={DIM_COLOR} />
+        <XRMenuIcon color={PALETTE.foreground} />
       </XRPressable>
       {isEndless(activeGoalTarget) && gameState === 'playing' ? (
         <XRPressable box={hitBox(0.13, 0, SMALL_BUTTON)} onSelect={endRun}>

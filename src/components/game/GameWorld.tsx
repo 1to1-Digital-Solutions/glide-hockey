@@ -7,7 +7,7 @@ import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
 import { contarMontaje } from '../../lib/montajes'
 import { useGame } from '../../lib/gameStore'
 import { showsPlace } from '../../lib/ajustes'
-import { HALF_LENGTH, HALF_WIDTH } from '../../lib/puckPhysics'
+import { HALF_LENGTH } from '../../lib/puckPhysics'
 import { type GameSound } from '../../lib/audioEngine'
 import {
   EYE_HEIGHTS,
@@ -61,28 +61,46 @@ import { XRWorldHeight } from '../xr/XRWorldHeight'
  * mueve es la mesa, y una sola vez por sesión (ver `WorldAnchor`).
  */
 
+/**
+ * La columna del menú y de los ajustes, **lejos y a la izquierda** (regla común del salón,
+ * `.claude/rules/xr.md`, «La columna va lejos y a la izquierda, fuera de donde se juega»): a 1,5 m
+ * de los ojos, 55° a la izquierda, con su centro a la altura de los ojos y de cara a quien juega.
+ *
+ * **Estaba a un metro y a 42° a la derecha, y el botón que la abre a 57° a la izquierda.** Visto
+ * con el visor el 24/09: se pulsaba a un lado y se abría al otro, y los dos quedaban tan cerca que
+ * estorbaban jugando. Ahora van juntos y del mismo lado, fuera del alcance del mazo: el borde de
+ * la mesa está a 55 cm del centro y la columna empieza a casi un metro.
+ *
+ * A CALIBRAR CON EL VISOR: `distancia` y `azimut`.
+ */
+export const COLUMNA = { distancia: 1.5, azimut: 55 } as const
+
+/**
+ * Lo que crece la columna para que su letra se siga leyendo a la distancia nueva.
+ *
+ * Se escala el grupo entero —letra, botones y zonas sensibles— y no se retoca cada cota: el
+ * panel ocupa en el ojo casi lo mismo que ocupaba a 1,05 m. Lo más justo es «The room» con los ojos
+ * a 1,2 m: con 1,3 se queda en 1,39° (el mínimo es 1,4°), con 1,35 pasa raspando; 1,4 deja algo
+ * de margen. Lo miden `menu.legible.test.ts` y `salida.legible.test.ts` con los textos a esta
+ * escala. A CALIBRAR CON EL VISOR.
+ */
+export const ESCALA_DE_LA_COLUMNA = 1.4
+
+const AZIMUT_DE_LA_COLUMNA = (COLUMNA.azimut * Math.PI) / 180
+
 /** Dónde va cada pieza de la interfaz inmersiva, en coordenadas de la mesa. */
 export const XR_UI = {
   /** Marcador: al fondo, sobre la portería de la máquina. */
   scoreboard: [0, 0.5, -HALF_LENGTH - 0.05] as [number, number, number],
   /**
-   * Menú, final de partida y aviso de salir: **delante, arriba y a la derecha**, fuera del
-   * rectángulo de la mesa.
-   *
-   * **Estaba plantado en medio de la vista.** Centrado y a la altura de los ojos, un panel de
-   * 0,78 × 1,18 m a un metro ocupa 51° de ancho por 61° de alto: tapaba 106 de los 196 puntos
-   * del tablero, el marcador entero y la demostración del gesto. Con el visor puesto eso es lo
-   * único que se ve al entrar. Reportado así: «lo pondría enfrente mía, arriba a la derecha
-   * (como por donde está el marcador, pero más a la derecha)».
-   *
-   * Aquí queda a 42° a la derecha y 20° por encima de la horizontal, y **a 1,05 m**, que es lo
-   * que manda de verdad: el panel ocupa esos 51° × 61° se ponga donde se ponga, así que lo que
-   * decide la distancia es la letra —a 34 mm, lo más justo es «La sala» a 1,47°, y el mínimo de
-   * lectura es 1,4°— y alejarlo obligaría a agrandarlo en la misma proporción sin ganar nada.
-   * Desde ahí no tapa ni un punto del tablero, ni del marcador, ni de la demostración, con los
-   * ojos a 1,2, 1,6 y 1,9 m. Lo miden `menu.legible.test.ts` y `lib/panelOcclusion.ts`.
+   * Menú, final de partida y aviso de salir: la columna (`COLUMNA`). Las cotas son las del
+   * espacio de quien juega pasadas a las de la mesa, que es de donde cuelga.
    */
-  panel: [0.66, 1.06, 0.47] as [number, number, number],
+  panel: [
+    -COLUMNA.distancia * Math.sin(AZIMUT_DE_LA_COLUMNA),
+    REFERENCE_EYE_HEIGHT - TABLE_HEIGHT,
+    -COLUMNA.distancia * Math.cos(AZIMUT_DE_LA_COLUMNA) - TABLE_CENTER_Z,
+  ] as [number, number, number],
   /** Cuenta atrás: flotando sobre el punto de saque. */
   countdown: [0, 0.34, 0] as [number, number, number],
   /**
@@ -94,16 +112,23 @@ export const XR_UI = {
    * abajo sigue por encima de la vista del fondo de la mesa (`tutorial.legible.test.ts`).
    */
   tutorial: [0, 0.72, 0] as [number, number, number],
-  /**
-   * Dejar la partida: **fuera de la mesa, arriba y a la izquierda**.
-   *
-   * Estaba a 26 cm sobre el tablero y sobre el lado derecho, que es justo por donde pasa
-   * el brazo: tapaba el juego y se pulsaba sin querer. Sacarlo del rectángulo de la mesa
-   * y subirlo a la altura del pecho lo deja donde se busca cuando se busca, y en ningún
-   * otro momento. La izquierda es a propósito: es la mano con la que menos se juega.
-   */
-  quit: [-HALF_WIDTH - 0.22, 0.72, HALF_LENGTH * 0.7] as [number, number, number],
 }
+
+/**
+ * El botón que abre la columna: **en el sitio de la columna**, girado y escalado como ella.
+ *
+ * Se pulsa y la columna se abre justo donde estaba el botón —mientras está abierta el botón se
+ * esconde, que si no se pisarían—. Antes iba a 57° a la izquierda, a 0,9 m, casi a la altura del
+ * pecho y sin girar hacia el jugador, con el menú abriéndose a la derecha.
+ */
+export const XR_QUIT = XR_UI.panel
+
+/**
+ * Y lo que crece el botón: más que la columna, porque es una pieza de once centímetros que se
+ * tiene que ver de reojo a metro y medio —a la escala de la columna ocupaba 6° y se perdía contra
+ * las máquinas de la sala—. Así ocupa unos 11°. A CALIBRAR CON EL VISOR.
+ */
+export const ESCALA_DEL_BOTON = 2.6
 
 /**
  * Dónde queda una pieza de la interfaz en el espacio de quien juega —los pies en el origen y el
@@ -126,6 +151,7 @@ export function distanciaDelJugador(pieza: readonly [number, number, number]): n
  */
 export const XR_UI_ROTATION = {
   panel: panelRotation(delEspacioDelJugador(XR_UI.panel), eyesAt(REFERENCE_EYE_HEIGHT)),
+  quit: panelRotation(delEspacioDelJugador(XR_QUIT), eyesAt(REFERENCE_EYE_HEIGHT)),
   tutorial: panelRotation(delEspacioDelJugador(XR_UI.tutorial), eyesAt(REFERENCE_EYE_HEIGHT)),
 }
 
@@ -151,6 +177,17 @@ export function vistasDelPanel(
       ojos: eyesAt(ojos),
     })),
   )
+}
+
+/**
+ * Unos textos apuntados en el lienzo de la columna, llevados a la escala a la que se pinta
+ * (`ESCALA_DE_LA_COLUMNA`): es lo que miden los `*.legible.test.ts` de lo que va en ella.
+ */
+export function aLaEscalaDeLaColumna<T extends { x: number; y: number; ancho: number; alto: number }>(
+  escritos: readonly T[],
+): T[] {
+  const k = ESCALA_DE_LA_COLUMNA
+  return escritos.map((e) => ({ ...e, x: e.x * k, y: e.y * k, ancho: e.ancho * k, alto: e.alto * k }))
 }
 
 export interface GameWorldProps {
@@ -325,7 +362,7 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
               <group position={XR_UI.scoreboard} rotation={[-0.18, 0, 0]}>
                 <XRScoreboard />
               </group>
-              <group position={XR_UI.panel} rotation={XR_UI_ROTATION.panel}>
+              <group position={XR_UI.panel} rotation={XR_UI_ROTATION.panel} scale={ESCALA_DE_LA_COLUMNA}>
                 <XRMenu />
                 <XRGameOver />
                 <XRQuitConfirm />
@@ -338,7 +375,7 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
                   con el que nació es el de darts, y sumado a este grupo la dejaba a tres metros del
                   suelo, girada, metro y medio por encima del menú del que venía—. */}
               <XRTutorial position={XR_UI.tutorial} rotation={XR_UI_ROTATION.tutorial} />
-              <group position={XR_UI.quit} rotation={[-0.3, 0, 0]}>
+              <group position={XR_QUIT} rotation={XR_UI_ROTATION.quit} scale={ESCALA_DEL_BOTON}>
                 <XRQuitButton />
               </group>
             </XRUiHeight>

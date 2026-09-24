@@ -5,7 +5,46 @@
 
 ---
 
-## 📍 v0.7.0 (2026-09-08): música de fondo, con su propio interruptor
+## 📍 Tanda del visor del 24/09/2026 (sobre v0.22.0, sin publicar)
+
+- **Los mandos ya no vibran todo el rato.** Fuera el roce del disco en la mano (`stepSlide`:
+  pulsos solapados cada fotograma, y en las dos manos porque en VR nunca se sabía qué mano
+  llevaba el mazo). Ahora `MalletHand` dice la mano (`onMove(..., lado)` → `noteHand`) y solo
+  vibra **el golpe del mazo del jugador al disco**, en esa mano, con la receta común `impacto`
+  de `lib/tactos.ts` y la fuerza de la velocidad del choque; el gol es una `llegada` suave y el
+  final del partido un pulso largo, los dos en la mano del mazo. Banda, roce y golpes de la
+  máquina: nada. Sin mano en el mazo: nada. Lógica en `lib/haptics.ts`
+  (`sucesosDelFotograma`, `pulsosDelSuceso`, `reproducir`); el test de un disco suelto 20 s
+  rebotando da cero pulsos. El roce **se sigue oyendo**.
+- **Columna y botón, juntos a la izquierda** (regla común de `xr.md`): menú, fin de partida y
+  aviso de salir a 1,5 m, 55° a la izquierda, a la altura de los ojos y girados hacia el
+  jugador (`COLUMNA` en `GameWorld.tsx`), escalados ×1,4 para que la letra se lea (lo más justo,
+  «The room» con ojos a 1,2 m). El botón que la abre va **en el mismo sitio** (`XR_QUIT`),
+  ×2,6, azul y opaco, y se esconde mientras el aviso está abierto. Antes: panel a 1 m y 42° a la
+  derecha, botón a 0,9 m y 57° a la izquierda sin girar. Aquí no se rodea la mesa (el mazo no
+  pasa de medio campo), así que la columna cuelga fija; un test comprueba que no tapa mesa,
+  marcador ni demostración desde 15 posiciones de cabeza delante de la portería.
+- **El mando de verdad junto al mazo fantasma, desde la primera vez**: fuera `tutorialSeen()` de
+  `Ayudas.tsx`; la ayuda planta el mando derecho con el agarre latiendo a un palmo a la derecha
+  de donde nace el mazo, a 10 cm sobre el tablero, ×1,5 y girado con el costado del agarre de
+  cara a los ojos (`mandoJuntoAlMazo` en `lib/guionDeAyudas.ts`, prop `junto` del común
+  `MandoDeVerdad`). Se apaga con `grab` o a los 12 s, como el fantasma. La copia del tutorial
+  sigue sobre el mando de la mano.
+
+### Pendiente de visor
+
+| Qué mirar | Dónde se toca |
+|---|---|
+| El golpe del mazo se siente en su mano y solo en ella; flojo/fuerte se distinguen | `RECETAS.impacto` (`lib/tactos.ts`, común) |
+| El gol se nota pero no se confunde con un golpe | `FUERZA_DEL_GOL` (`lib/haptics.ts`) |
+| El final del partido se nota | `FINAL_PULSE` (`lib/haptics.ts`) |
+| La columna se encuentra girando la cabeza y no estorba jugando | `COLUMNA` (`GameWorld.tsx`) |
+| La letra de la columna se lee a 1,5 m | `ESCALA_DE_LA_COLUMNA` (`GameWorld.tsx`) |
+| El botón se ve de reojo sin buscarlo, y el menú sale donde estaba | `ESCALA_DEL_BOTON`, colores en `XRQuitButton` (`XRHud.tsx`) |
+| Con el menú a 55° a la izquierda, al entrar se sabe dónde mirar | `COLUMNA.azimut` |
+| El mando junto al fantasma se ve y se entiende qué botón apretar | `MANDO_JUNTO_AL_MAZO`, `MANO_QUE_JUEGA` (`lib/guionDeAyudas.ts`) |
+
+##  v0.7.0 (2026-09-08): música de fondo, con su propio interruptor
 
 - **La sala suena.** Hasta ahora todo el audio eran osciladores: los golpes, los goles y el roce
   del disco. Faltaba el fondo, y sin él un salón recreativo no es un salón recreativo.
@@ -63,10 +102,8 @@
 
 - Probar el juego **con el visor** (`npm run dev:https`): es lo único de la
   primera versión que no ha visto nadie. Mirar sobre todo si se puede jugar
-  apuntando con el rayo del mando y si el menú inmersivo se lee y se pulsa. Y la
-  vibración: que el golpe (0,7 × 45 ms) se sienta como golpe, que el rebote
-  (0,25 × 20 ms) no moleste en una jugada larga contra la banda y que el gol
-  (0,5 × 120 ms, dos manos) se distinga. Las recetas están en `src/lib/haptics.ts`.
+  apuntando con el rayo del mando y si el menú inmersivo se lee y se pulsa. Y lo de la
+  tabla «Pendiente de visor» de arriba.
 
 ## Qué es glide-hockey
 
@@ -127,11 +164,8 @@
   velocidad máxima; el volumen va entre un quinto y el entero y el tono un poco
   más grave cuanto más flojo. Es lo que apaga el disco atrapado en una esquina
   repiqueteando a volumen completo. El gol no lo mira.
-- Vibración de los mandos (`src/lib/haptics.ts` + `useGameHaptics`): los mismos
-  tres sucesos que el sonido, sin obedecer al silencio. El golpe y el rebote van
-  a la mano que lleva el mazo —la del último mando que lo movió, que la mesa
-  apunta en cada `onPointerMove`—; el gol, a las dos. Hasta que un mando mueve
-  el mazo, el golpe va a las dos manos.
+- Vibración de los mandos (`src/lib/haptics.ts` + `useGameHaptics`): solo el golpe del mazo
+  al disco, en la mano que lo lleva (ver la tanda del 24/09 arriba).
 - 150 tests unitarios y 11 de navegador. Lint, tipos y build en verde.
 
 - **v0.3.0 (2026-09-06): la mesa refleja, el disco brilla y roza.** Un **mapa de entorno sin

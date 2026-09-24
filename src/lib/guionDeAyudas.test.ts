@@ -12,8 +12,11 @@ import {
   HUELLA,
   HUELLAS,
   HUELLAS_Y,
+  MANDO_JUNTO_AL_MAZO,
+  MANO_QUE_JUEGA,
   MARCA_DE_PORTERIA,
   enElCampoDelJugador,
+  mandoJuntoAlMazo,
   mazoFantasmaEn,
   recogidaDelEmpuje,
   recorridoDelEmpuje,
@@ -176,6 +179,40 @@ describe('el mazo fantasma enseña el empujón', () => {
   it('y dura lo que dura mirar, no lo que dura una partida', () => {
     expect(EMPUJE.periodo).toBeGreaterThan(0.8)
     expect(EMPUJE.periodo).toBeLessThan(3)
+  })
+})
+
+describe('el mando va junto al mazo fantasma, con el agarre de cara', () => {
+  it('a un palmo del mazo, del lado de la mano que juega, sobre la mesa y en su campo', () => {
+    const { posicion } = mandoJuntoAlMazo()
+    const mazo = playerStart()
+    const palmo = Math.hypot(posicion.x - mazo.x, posicion.z - mazo.z)
+    expect(palmo).toBeGreaterThanOrEqual(0.15)
+    expect(palmo).toBeLessThanOrEqual(0.3)
+    expect(MANO_QUE_JUEGA).toBe('right')
+    expect(posicion.x).toBeGreaterThan(mazo.x)
+    expect(enElCampoDelJugador(posicion)).toBe(true)
+    // Por encima del tablero, a la altura de la mano: no calcado ni flotando lejos.
+    expect(posicion.y).toBeGreaterThan(0.05)
+    expect(posicion.y).toBeLessThan(0.2)
+    expect(MANDO_JUNTO_AL_MAZO.escala).toBeGreaterThanOrEqual(1)
+  })
+
+  it('no se mete en el camino del fantasma: entre los dos queda aire', () => {
+    const { posicion } = mandoJuntoAlMazo()
+    // El mando (≈12 cm de largo, crecido) apunta hacia el fantasma; su punta no llega al aro.
+    const largo = 0.12 * MANDO_JUNTO_AL_MAZO.escala
+    expect(posicion.x - largo).toBeGreaterThan(MALLET_RADIUS)
+  })
+
+  it('girado hasta que el costado del agarre mira a los ojos', () => {
+    const { posicion, giro } = mandoJuntoAlMazo()
+    // El agarre del mando derecho está en su costado −X; girado `giro` sobre la vertical
+    // queda en (−cos, 0, sen). Hacia los ojos: del mando al origen, en planta.
+    const agarre = { x: -Math.cos(giro), z: Math.sin(giro) }
+    const hacia = { x: -posicion.x, z: -(posicion.z + TABLE_CENTER_Z) }
+    const n = Math.hypot(hacia.x, hacia.z)
+    expect(agarre.x * (hacia.x / n) + agarre.z * (hacia.z / n)).toBeCloseTo(1, 9)
   })
 })
 

@@ -25,10 +25,12 @@ import {
   HUELLAS_Y,
   MARCA_DE_PORTERIA,
   mazoFantasmaEn,
+  mandoJuntoAlMazo,
+  MANDO_JUNTO_AL_MAZO,
+  MANO_QUE_JUEGA,
   type AyudaDelMazo,
   type HechoDeLasAyudas,
 } from '../../lib/guionDeAyudas'
-import { tutorialSeen } from '../../lib/tutorial'
 import { MandoDeVerdad } from '../xr/MandoDeVerdad'
 import { NO_RAYCAST } from '../raycast'
 
@@ -92,6 +94,16 @@ const PINTURA = {
  */
 const FANTASMA = { grosor: 0.008, mango: { radio: 0.02, alto: 0.05 } } as const
 
+/** Dónde va el mando de la ayuda, calculado una vez: no depende de nada que cambie. */
+const JUNTO = (() => {
+  const { posicion, giro } = mandoJuntoAlMazo()
+  return {
+    position: [posicion.x, posicion.y, posicion.z] as const,
+    rotation: [0, giro, 0] as const,
+    escala: MANDO_JUNTO_AL_MAZO.escala,
+  }
+})()
+
 /** ¿Ha pedido quien juega que las cosas no se muevan solas? */
 function sinMovimiento(): boolean {
   if (typeof window === 'undefined' || window.matchMedia == null) return false
@@ -102,15 +114,6 @@ export function Ayudas() {
   const enSesion = useXR((state) => state.mode != null)
   const { gameState, hitos } = useGame()
 
-  /**
-   * Si el tutorial va a enseñar el mando por su cuenta.
-   *
-   * Los dos lo enseñan con el mismo componente, y dos copias del mismo modelo en la misma mano
-   * se pintan una encima de otra. Quien llega nuevo lo ve en el tutorial; quien ya lo vio —que
-   * es quien se queda sin tutorial— lo ve aquí. Se decide una sola vez al montar, como en el
-   * propio tutorial: leerlo en cada render lo apagaría a mitad.
-   */
-  const [conMando] = useState(() => tutorialSeen())
   const [quieto] = useState(sinMovimiento)
 
   /** El reloj de cada ayuda y cuáles se enseñan, sin pasar por el estado de React. */
@@ -260,15 +263,13 @@ export function Ayudas() {
         </mesh>
       </group>
 
-      {/* El mando de verdad con el botón de agarre encendido, en las dos manos: aquí vale
-          cualquiera, y encender solo una sería decir que la otra no sirve. Dentro de un grupo
-          propio para poder apagarlo sin desmontarlo. */}
-      {conMando ? (
-        <group ref={mando} visible={false}>
-          <MandoDeVerdad mano="left" boton="agarre" />
-          <MandoDeVerdad mano="right" boton="agarre" />
-        </group>
-      ) : null}
+      {/* El mando de verdad con el botón de agarre latiendo, **al lado del mazo fantasma** y no
+          sobre la mano: la mano la ocupa la copia del tutorial, y dos copias del mismo modelo en
+          el mismo sitio se pisan. Así sale desde la primera vez. Dentro de un grupo propio para
+          apagarlo sin desmontarlo, y en las coordenadas de la mesa (`mandoJuntoAlMazo`). */}
+      <group ref={mando} visible={false} position={[0, TABLE_HEIGHT, TABLE_CENTER_Z]}>
+        <MandoDeVerdad mano={MANO_QUE_JUEGA} boton="agarre" junto={JUNTO} />
+      </group>
     </group>
   )
 }

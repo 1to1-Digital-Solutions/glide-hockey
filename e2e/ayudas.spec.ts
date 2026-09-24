@@ -23,9 +23,9 @@ import { enterVR, installXREmulator, skipTutorial, startGameInsideSession } from
  * ningún número. Para eso están las capturas, y la respuesta llega con las gafas puestas
  * (`organizate/docs/pendiente-de-visor.md`).
  *
- * **Se entra con el tutorial ya visto**, que es el caso en el que las ayudas enseñan el mando:
- * quien llega nuevo lo ve en la lección, y los dos no pueden pintarlo a la vez sobre la misma
- * mano.
+ * **Se entra con el tutorial ya visto** para que su panel no espere a nadie. El mando con el
+ * botón encendido lo enseñan las ayudas también la primera vez, **al lado del mazo fantasma**; la
+ * copia de la lección va sobre la mano, así que no se pisan.
  */
 
 const CAPTURAS = 'test-results/capturas'

@@ -1,5 +1,5 @@
 import type { Guion } from './ayudas'
-import { GOAL_WIDTH, MALLET_RADIUS, PUCK_RADIUS } from './gameConfig'
+import { GOAL_WIDTH, MALLET_RADIUS, PUCK_RADIUS, TABLE_CENTER_Z, TABLE_HEIGHT } from './gameConfig'
 import { playerStart } from './opponent'
 import { HALF_LENGTH, HALF_WIDTH } from './puckPhysics'
 
@@ -56,7 +56,10 @@ export type HechoDeLasAyudas = 'tanda' | 'grab' | 'hit' | 'goal'
  * - **`mando`**, el mando de verdad con el botón de agarre encendido. Espera a que haya
  *   partida, y aquí eso **es una desviación deliberada** de lo que hacen los demás juegos —que
  *   lo enseñan desde que se entra—: en el menú el botón de agarre no hace nada, porque los
- *   paneles se manejan con el rayo. Un botón encendido que no responde enseña una mentira.
+ *   paneles se manejan con el rayo. Un botón encendido que no responde enseña una mentira. Sale
+ *   **desde la primera partida** (antes esperaba a que se hubiera visto el tutorial) y se apaga
+ *   con lo mismo que el mazo fantasma: con `grab` o a los doce segundos. Va **al lado del mazo
+ *   fantasma** (`mandoJuntoAlMazo`) y no sobre la mano: la mano la ocupa la copia del tutorial.
  * - **`gesto`**, el mazo fantasma empujando hacia el disco, una y otra vez. Es lo que de verdad
  *   no se adivina, y por eso dura más que el mando.
  * - **`porteria`**, la marca en la portería contraria: adónde va lo que se golpea. **No dice
@@ -71,7 +74,7 @@ export type HechoDeLasAyudas = 'tanda' | 'grab' | 'hit' | 'goal'
  */
 export const GUION_DE_AYUDAS = [
   { id: 'suelo', hasta: 'hit', caduca: 15 },
-  { id: 'mando', desde: 'tanda', hasta: 'grab', caduca: 8 },
+  { id: 'mando', desde: 'tanda', hasta: 'grab', caduca: 12 },
   { id: 'gesto', desde: 'tanda', hasta: 'grab', caduca: 12 },
   { id: 'porteria', desde: 'grab', hasta: 'goal', caduca: 12 },
 ] as const satisfies Guion<HechoDeLasAyudas>
@@ -198,6 +201,46 @@ export const MARCA_DE_PORTERIA = {
   /** Y a cuánto del fondo se planta su centro, dejándola entera dentro de la mesa. */
   z: -HALF_LENGTH + 0.085,
 } as const
+
+/**
+ * La mano que juega, para el mando que se enseña junto al mazo fantasma.
+ *
+ * Aquí no se elige mano —el mazo se coge con la que se tenga libre (`MalletHand`)—, así que se
+ * enseña la derecha, que es la de la mayoría. A CALIBRAR CON EL VISOR.
+ */
+export const MANO_QUE_JUEGA = 'right' as const
+
+/**
+ * El mando de verdad junto al mazo fantasma: a un palmo a su derecha, a la altura de la mano sobre
+ * el tablero y crecido lo justo para que el botón se lea desde los ojos.
+ *
+ * Se planta junto a **donde nace el mazo** (`playerStart()`), que es donde el fantasma empieza su
+ * empujón y donde se va a echar la mano. A CALIBRAR CON EL VISOR: las tres cifras.
+ */
+export const MANDO_JUNTO_AL_MAZO = {
+  /** Cuánto se aparta del centro del mazo hacia la derecha, en metros: un palmo de aire entre la punta del mando y el aro. */
+  separacion: 0.26,
+  /** A qué altura sobre el tablero, en metros: donde va la mano al coger el mazo. */
+  alto: 0.1,
+  /** El mando mide unos 12 cm: a casi un metro de los ojos se agradece crecerlo. */
+  escala: 1.5,
+} as const
+
+/**
+ * Dónde va el mando, en coordenadas de la mesa, y cuánto se gira sobre la vertical (el
+ * `rotation.y` de three): lo que deja **el costado del agarre de cara a los ojos**.
+ *
+ * El modelo se dibuja como un mando en la mano, apuntando a −Z; el agarre del derecho está en su
+ * costado izquierdo (−X). Sin girar, visto desde los ojos se vería de punta; girado así se ve de
+ * lado, con el botón hacia quien juega y la punta hacia el fantasma. Los ojos están sobre el
+ * origen del espacio de quien juega, y la mesa a `TABLE_CENTER_Z` de él.
+ */
+export function mandoJuntoAlMazo(): { posicion: { x: number; y: number; z: number }; giro: number } {
+  const mazo = playerStart()
+  const posicion = { x: mazo.x + MANDO_JUNTO_AL_MAZO.separacion, y: MANDO_JUNTO_AL_MAZO.alto, z: mazo.z }
+  const delante = -(posicion.z + TABLE_CENTER_Z)
+  return { posicion, giro: Math.atan2(delante, posicion.x) }
+}
 
 /** A qué altura se pinta lo que va calcado sobre la superficie de la mesa. */
 export const CALCO_Y = 0.002

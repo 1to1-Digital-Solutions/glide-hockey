@@ -139,6 +139,26 @@ principio.
   perdidos en medio. Y ese alto no puede cambiar al aparecer un botón: mueve el centro, y con
   él los demás botones — que se recoloque uno que no has tocado se lleva por delante la
   pulsación que ya ibas a hacer.
+- **La columna va lejos y a la izquierda, fuera de donde se juega.** Con las gafas, una
+  columna a un metro y a 38° estorba: se ve de reojo durante la partida y, en una mesa, acaba
+  encima del paño en cuanto uno da la vuelta. La regla común: **a 1,5 m de los ojos (entre
+  1,4 y 1,6), entre 50° y 65° a la izquierda, con su centro a la altura de los ojos y de cara
+  a quien juega**. Si lo que se juega ocupa ese lado —gloop-pop, con babosas hasta ±70°—, se
+  va más allá, nunca más cerca. El **botón que abre la columna va del mismo lado que la
+  columna**: pulsar a un lado y que se abra al otro obliga a buscarla. Y en los juegos donde
+  se rodea algo (una mesa), la columna **no cuelga del origen**: se planta al abrirla, desde
+  donde está la cabeza en ese momento, y un test comprueba que no proyecta sobre lo que se
+  juega desde ningún sitio al que se pueda ir. A más distancia, el texto tiene que crecer:
+  se vuelve a medir con `legibilidad.ts` en los dos idiomas.
+- **Cada contacto se siente en la mano que toca, y nada más.** Coger, soltar, golpear, clavar
+  y tensar vibran; deslizar, esperar o que algo pase cerca, no. Vibra **la mano que toca**; las
+  dos, solo cuando el golpe lo recibe el cuerpo. La fuerza del pulso sale de la fuerza del
+  contacto, no es fija. Las recetas están en `lib/tactos.ts` (el mismo fichero en todos): un
+  impacto es un pulso fuerte y corto con una cola, una tensión es un tren de pulsos que se
+  aprietan y suben mientras se tensa. Y una cosa del estándar que no se adivina:
+  **`pulse()` no encola, cada llamada corta la anterior**, así que un tren se encadena con
+  retardos iguales o mayores que la duración del pulso anterior; solaparlos para que «se
+  sienta continuo» fue exactamente lo que dejó glide-hockey vibrando sin parar.
 - **Lo que se coge, se coge con la mano.** Agarrar con el gatillo y sostener —como el palo de
   stick-rush— se entiende sin explicación. Mover un objeto con el rayo del mando a distancia
   se siente como manejar un cursor, no como jugar.
@@ -300,6 +320,12 @@ juego nuevo no tiene por qué volver a encontrárselas.
   según la mano —el dorso de la derecha va a `+X` y el de la izquierda a `−X`—, así que dos
   posturas en espejo dan el mismo giro de puño. Lo que va en la mano se espeja a mano y se mide
   para las dos: en el arco faltaba, y la flecha quedaba del lado equivocado del asta.
+- **Lo que se dibuja en la mano lo monta la escena, no el store.** Un mando o un guante que se
+  engancha en el `controller` del `XRStore` propio del juego solo existe en su web: dentro del
+  salón el store es del salón y ese componente no se monta nunca. Se coloca desde la escena
+  con `useXRInputSourceState` y el `gripSpace`, deshaciendo la matriz del padre, como
+  `MandoDeVerdad.tsx`. Y sus ficheros van **fuera de `webxr-profiles/`**: el salón borra esa
+  carpeta de cada juego al instalarlo, porque los perfiles de mando los sirve él.
 - **Lo que va en la mano no puede colgar del anclaje del decorado.** WebXR da las manos en el
   espacio del origen que pone el anfitrión; dentro del grupo anclado se le suma el giro del
   mundo y aparece en otro sitio. Se monta fuera **o** se le deshace la matriz de sus padres
@@ -434,10 +460,14 @@ ayudas tiene y qué apaga cada una— en su `lib/guionDeAyudas.ts`. Lo que se ap
   el fotograma en que la ayuda quiere que se mire. Lo que se enciende y se apaga es `visible` y
   la opacidad; invisible tampoco cuesta una llamada de dibujo. Con eso, `Calentar` las compila
   con el resto.
-- **El mando de verdad lo enseña uno solo.** El tutorial ya lo monta, y dos copias del mismo
-  `.glb` en la misma mano se pintan una encima de otra: la ayuda lo enseña solo si el tutorial
-  ya se ha visto (`tutorialSeen()`). Y se apaga **escondiendo el grupo**, no desmontándolo, que
-  desmontarlo libera los materiales del modelo y volver a enseñarlo los recompila.
+- **El mando va junto al gesto, desde la primera vez.** Enseñar la bola fantasma dice qué
+  coger, pero no con qué botón. El mando de verdad, con el botón latiendo en ámbar, va **al lado
+  del objeto fantasma**, a un palmo y del lado de la mano que juega, y se apaga con el mismo
+  hito que la ayuda del objeto. No va encima de la mano: ahí lo pone el tutorial, y dos copias
+  del mismo `.glb` en la misma mano se pintan una encima de otra —ese fue el motivo de que la
+  ayuda solo enseñara el mando «si el tutorial ya se había visto», que es justo cuando menos
+  falta hacía—. Y se apaga **escondiendo el grupo**, no desmontándolo, que desmontarlo libera
+  los materiales del modelo y volver a enseñarlo los recompila.
 - **Hay ayudas que no significan nada antes de empezar.** En el menú el tablero está vacío a
   propósito: un halo alrededor de un mazo que no está es peor que ningún halo. Eso se dice con
   un hecho más en el guion —`tanda`— y no con un `if` en la escena; lo que sí se enseña desde

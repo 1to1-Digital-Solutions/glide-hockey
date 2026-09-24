@@ -36,6 +36,13 @@ import { NO_RAYCAST } from '../raycast'
  * que el grupo se coloca deshaciendo lo que le hayan hecho sus padres —el anclaje del mundo,
  * la altura de juego—. Colgado tal cual dentro del anclaje, el mando aparecería girado y
  * desplazado respecto a la mano, que es el único sitio donde no puede estar.
+ *
+ * **O junto al gesto** (`junto`). Las ayudas visuales enseñan el objeto fantasma —la bola que
+ * hay que coger— y eso dice *qué* coger, pero no *con qué botón*. Con `junto`, el mando no va
+ * sobre la mano sino **al lado del fantasma**, en las coordenadas del padre y a la escala que se
+ * pida, con el botón latiendo. Así no se pinta encima de la copia que pone el tutorial en la
+ * mano —dos copias del mismo `.glb` en el mismo sitio se pisan— y la ayuda puede enseñarlo
+ * desde la primera vez. El modelo sigue siendo el del mando que se tiene en esa mano.
  */
 
 /** Uno para todo el juego: el `.glb` se pide una vez por sesión y como mucho. */
@@ -148,14 +155,26 @@ function useModeloDelMando(ruta: string | null, nodo: string | null): ModeloDelM
 const EN_EL_ORIGEN = new Matrix4()
 const DESDE_EL_PADRE = new Matrix4()
 
+/** Dónde plantar el mando cuando va junto al gesto, en las coordenadas del padre. */
+export interface JuntoAlGesto {
+  readonly position: readonly [number, number, number]
+  /** Euler XYZ en radianes. Lo que conviene: el botón de cara a quien mira. */
+  readonly rotation?: readonly [number, number, number]
+  /** El mando mide unos 12 cm; a más de un metro se agradece crecerlo. */
+  readonly escala?: number
+}
+
 export function MandoDeVerdad({
   mano,
   boton,
+  junto,
 }: {
   /** De qué mano es el mando que hay que enseñar. */
   mano: XRHandedness
   /** Qué botón se enciende, o `null` para no encender ninguno. */
   boton: BotonDelMando | null
+  /** Si se da, el mando va aquí y no sobre la mano (ver arriba). */
+  junto?: JuntoAlGesto
 }) {
   const mando = useXRInputSourceState('controller', mano)
   const grupo = useRef<Group>(null)
@@ -174,7 +193,7 @@ export function MandoDeVerdad({
   // puesto cuando se pinte el fotograma. Negativa no le quita a R3F el pintado: solo ordena.
   useFrame((_estado, _delta, frame) => {
     const nodo3d = grupo.current
-    if (nodo3d == null) return
+    if (nodo3d == null || junto != null) return
     const puesto = situar?.(EN_EL_ORIGEN, frame) ?? false
     nodo3d.visible = puesto
     if (!puesto) return
@@ -192,6 +211,19 @@ export function MandoDeVerdad({
   }, -100)
 
   if (modelo == null) return null
+
+  if (junto != null) {
+    return (
+      <group
+        position={junto.position as [number, number, number]}
+        rotation={(junto.rotation ?? [0, 0, 0]) as [number, number, number]}
+        scale={junto.escala ?? 1}
+      >
+        <primitive object={modelo.raiz} />
+        {modelo.boton != null ? <BotonEncendido boton={modelo.boton} /> : null}
+      </group>
+    )
+  }
 
   return (
     <group ref={grupo} matrixAutoUpdate={false}>

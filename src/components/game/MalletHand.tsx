@@ -42,8 +42,11 @@ export function MalletHand({
    * fueran dos, coger el mazo se mediría contra un mazo que no es el que se ve.
    */
   destino: React.RefObject<Vec2>
-  /** A dónde va el mazo, ya dentro de los límites de la mesa, y que va cogido. */
-  onMove: (destino: Vec2, cogido: boolean) => void
+  /**
+   * A dónde va el mazo, ya dentro de los límites de la mesa, que va cogido y con qué mano: es lo
+   * que decide en qué mando vibra el golpe (`useGameHaptics`).
+   */
+  onMove: (destino: Vec2, cogido: boolean, lado: 'left' | 'right' | null) => void
   /** Se ha soltado: el mazo vuelve a perseguir en vez de ir en la mano. */
   onRelease: () => void
 }) {
@@ -144,7 +147,7 @@ export function MalletHand({
     if (siguiente.cogido) apuntarHito('grab')
     marcarManoOcupada('left', siguiente.cogido && lado === 'left')
     marcarManoOcupada('right', siguiente.cogido && lado === 'right')
-    if (siguiente.cogido) onMove(constrainMallet(siguiente.destino, 'player'), true)
+    if (siguiente.cogido) onMove(constrainMallet(siguiente.destino, 'player'), true, lado)
     else if (soltado) onRelease()
   })
 

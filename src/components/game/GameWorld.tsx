@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { XRUiHeight } from '../xr/XRUiHeight'
 import { useXR } from '@react-three/xr'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
@@ -8,7 +8,6 @@ import { contarMontaje } from '../../lib/montajes'
 import { useGame } from '../../lib/gameStore'
 import { showsPlace } from '../../lib/ajustes'
 import { HALF_LENGTH } from '../../lib/puckPhysics'
-import { type GameSound } from '../../lib/audioEngine'
 import {
   EYE_HEIGHTS,
   distanceFromEyes,
@@ -234,32 +233,15 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
   const { play, slide } = useGameAudio()
   useGameMusic()
   const haptics = useGameHaptics()
-  // Cada suceso de la mesa suena y se siente a la vez: el sonido obedece al
-  // silencio y la vibración no, que con el juego callado es lo único que dice
-  // sin mirar qué ha pasado.
-  const feedback = useCallback(
-    (sound: GameSound, strength?: number) => {
-      play(sound, strength)
-      haptics.pulse(sound, strength)
-    },
-    [play, haptics],
-  )
-  // Y el roce del disco igual: se oye y **se siente**. Era lo único que pasaba en
-  // la mesa y no llegaba a la mano, y con el visor puesto esa es la diferencia
-  // entre un disco que se desliza y uno que solo existe cuando choca. Leve y
-  // continuo, muy por debajo del rebote en banda, que si no dejarían de
-  // distinguirse (ver `SLIDE_MAX_INTENSITY` en `lib/haptics.ts`).
-  const roce = useCallback(
-    (speed: number, delta: number) => {
-      slide(speed)
-      haptics.slide(speed, delta)
-    },
-    [slide, haptics],
-  )
+  // Lo que se oye y lo que se siente van por separado: suena todo lo que pasa en la mesa —el
+  // roce, la banda, el golpe de la máquina—, pero en la mano solo lo que toca la mano: el golpe
+  // del mazo al disco (y el gol, suave). El roce vibraba cada fotograma y en las dos manos, y con
+  // el visor puesto los mandos zumbaban la jugada entera (ver `lib/haptics.ts`).
   // El final del partido. Antes era silencio: se metía el último gol, sonaba como cualquier
   // otro y la pantalla de fin llegaba sin avisar. Con el visor puesto es peor todavía,
   // porque el marcador está donde uno no siempre está mirando. La marca batida va **encima**
   // del cierre y no en su lugar: se puede batir ganando o perdiendo, y hay que oír las dos.
+  // En la mano, solo el cierre: un segundo pulso detrás cortaría el primero.
   const terminado = useRef(false)
   useEffect(() => {
     if (gameState !== 'finished') {
@@ -268,9 +250,10 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
     }
     if (terminado.current) return
     terminado.current = true
-    feedback(totalPlayerGoals > totalOpponentGoals ? 'win' : 'loss')
-    if (isRecord) feedback('record')
-  }, [gameState, feedback, isRecord, totalPlayerGoals, totalOpponentGoals])
+    play(totalPlayerGoals > totalOpponentGoals ? 'win' : 'loss')
+    haptics.sentir({ tipo: 'final' })
+    if (isRecord) play('record')
+  }, [gameState, play, haptics, isRecord, totalPlayerGoals, totalOpponentGoals])
 
   // Los reflejos de la mesa y del disco, calculados una vez (ver el hook).
   const environment = useRoomEnvironment()
@@ -342,9 +325,10 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
           {gameState !== 'menu' ? (
             <Rink
               key={runId}
-              play={feedback}
-              slide={roce}
-              onAim={haptics.noteAim}
+              play={play}
+              slide={slide}
+              sentir={haptics.sentir}
+              onHand={haptics.noteHand}
               environment={environment}
             />
           ) : null}

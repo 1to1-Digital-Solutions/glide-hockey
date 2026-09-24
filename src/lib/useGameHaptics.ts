@@ -1,87 +1,60 @@
 'use client'
 
-import { useCallback, useMemo, useRef } from 'react'
-import { type ThreeEvent } from '@react-three/fiber'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useXR } from '@react-three/xr'
-import { type GameSound } from './audioEngine'
-import {
-  stepSlide,
-  type Handedness,
-  type HapticPulse,
-  handednessOf,
-  pulseFor,
-  pulseSession,
-} from './haptics'
+import { pulsosDelSuceso, reproducir, type Handedness, type SucesoEnLaMano } from './haptics'
 
 export interface GameHaptics {
+  /** Lo que se siente de un suceso de la mesa, en la mano que lleva el mazo (si la lleva). */
+  sentir: (suceso: SucesoEnLaMano) => void
   /**
-   * Da el golpe que corresponde a un suceso de la mesa, si hay mandos.
-   * `strength` (0 a 1) es la fuerza del impacto: un roce vibra menos que un
-   * golpe seco. El gol no la mira.
+   * Qué mano lleva el mazo, o `null` si no lo lleva ninguna. Lo dice `MalletHand` cada
+   * fotograma que el mazo va cogido, y al soltarlo.
    */
-  pulse: (sound: GameSound, strength?: number) => void
-  /**
-   * El roce del disco deslizándose, cada fotograma: su velocidad en m/s y los
-   * segundos que trae el fotograma. Un cero lo apaga.
-   */
-  slide: (speed: number, delta: number) => void
-  /**
-   * Apunta qué mano ha movido el mazo. La mesa lo llama con cada evento de
-   * puntero que mueve el mazo, y es lo que decide a qué mando va el golpe.
-   */
-  noteAim: (event: ThreeEvent<PointerEvent>) => void
+  noteHand: (mano: Handedness | null) => void
 }
 
 /**
  * Hace vibrar los mandos con lo que pasa en la mesa.
  *
- * Es imperativo, como `useGameAudio`, porque los sucesos —golpe, rebote, gol—
- * los decide el bucle de la mesa fotograma a fotograma, no un cambio de estado
- * del almacén. Sin sesión inmersiva no hay mandos y no hace nada. No mira el
- * silencio: silenciar apaga el altavoz, no la mano.
+ * Es imperativo, como `useGameAudio`, porque los sucesos los decide el bucle de la mesa
+ * fotograma a fotograma. Sin sesión inmersiva no hay mandos y no hace nada. No mira el silencio:
+ * silenciar apaga el altavoz, no la mano.
+ *
+ * **Nada vibra por deslizar.** Aquí no hay roce: era un tren de pulsos solapados cada
+ * fotograma, y como `pulse()` no encola, lo que llegaba a la mano era un zumbido sin fin.
  */
-/** Cuánto de la amplitud se conserva con el impacto más flojo: se nota, pero poco. */
-const MIN_PULSE = 0.35
-
-/** La misma receta con la fuerza del impacto; la duración no cambia. */
-export function scaledPulse(pulse: HapticPulse, strength: number): HapticPulse {
-  const s = Math.min(1, Math.max(0, Number.isFinite(strength) ? strength : 1))
-  return { ...pulse, intensity: pulse.intensity * (MIN_PULSE + (1 - MIN_PULSE) * s) }
-}
-
 export function useGameHaptics(): GameHaptics {
   const session = useXR((state) => state.session)
-  const mallet = useRef<Handedness | null>(null)
-  /** Lo que falta para el siguiente toque del roce, en segundos. */
-  const roce = useRef(0)
+  const mazo = useRef<Handedness | null>(null)
+  /** Las colas de los golpes que esperan su turno, para cancelarlas al desmontar. */
+  const pendientes = useRef(new Set<ReturnType<typeof setTimeout>>())
 
-  const noteAim = useCallback((event: ThreeEvent<PointerEvent>) => {
-    const hand = handednessOf(event)
-    if (hand != null) mallet.current = hand
+  useEffect(() => {
+    const cola = pendientes.current
+    return () => {
+      for (const id of cola) clearTimeout(id)
+      cola.clear()
+    }
   }, [])
 
-  const pulse = useCallback(
-    (sound: GameSound, strength = 1) => {
+  const noteHand = useCallback((mano: Handedness | null) => {
+    mazo.current = mano
+  }, [])
+
+  const sentir = useCallback(
+    (suceso: SucesoEnLaMano) => {
       if (session == null) return
-      const pulse = scaledPulse(pulseFor(sound), sound === 'goal' ? 1 : strength)
-      pulseSession(session, pulse, mallet.current)
+      reproducir(session, pulsosDelSuceso(suceso, mazo.current), (hacer, ms) => {
+        const id = setTimeout(() => {
+          pendientes.current.delete(id)
+          hacer()
+        }, ms)
+        pendientes.current.add(id)
+      })
     },
     [session],
   )
 
-  // El roce va aparte de `pulse` porque no es un suceso: es un fondo que se
-  // mantiene fotograma a fotograma mientras el disco se mueva. Cuándo toca el
-  // siguiente toque lo decide `stepSlide`, que no mira ningún reloj del
-  // navegador: lleva la cuenta con el `delta` que le pasa la mesa.
-  const slide = useCallback(
-    (speed: number, delta: number) => {
-      if (session == null) return
-      const paso = stepSlide(roce.current, speed, delta)
-      roce.current = paso.wait
-      if (paso.pulse != null) pulseSession(session, paso.pulse, mallet.current)
-    },
-    [session],
-  )
-
-  return useMemo(() => ({ pulse, slide, noteAim }), [pulse, slide, noteAim])
+  return useMemo(() => ({ sentir, noteHand }), [sentir, noteHand])
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useXR } from '@react-three/xr'
 import { useFrame, type RootState, type ThreeEvent } from '@react-three/fiber'
+import { sucesosDelFotograma, type Handedness, type SucesoEnLaMano } from '../../lib/haptics'
 import { Vector3, type Group, type PointLight, type Texture } from 'three'
 import {
   OPPONENT_SKILLS,
@@ -56,19 +57,21 @@ import { MalletHand } from './MalletHand'
 export function Rink({
   play,
   slide,
-  onAim,
+  sentir,
+  onHand,
   environment,
 }: {
   play: PlayGameSound
   /**
-   * El roce del disco, cada fotograma: su velocidad en m/s y los segundos que
-   * trae el fotograma. Suena (`useGameAudio`) y se siente en la mano
-   * (`useGameHaptics`), y las dos cosas necesitan el reloj: la vibración se hace
-   * encadenando toques cortos y lleva la cuenta con el `delta`.
+   * El roce del disco, cada fotograma, con su velocidad en m/s. **Solo suena**
+   * (`useGameAudio`): en la mano no, que deslizar no es un contacto y era lo que
+   * dejaba los mandos vibrando la jugada entera.
    */
-  slide: (speed: number, delta: number) => void
-  /** Cada movimiento del mazo, para saber qué mando lo lleva (`useGameHaptics`). */
-  onAim?: (event: ThreeEvent<PointerEvent>) => void
+  slide: (speed: number) => void
+  /** Lo que se siente en la mano: el golpe del mazo al disco y el gol (`useGameHaptics`). */
+  sentir?: (suceso: SucesoEnLaMano) => void
+  /** Qué mano lleva el mazo en el visor, o `null` al soltarlo (`useGameHaptics`). */
+  onHand?: (mano: Handedness | null) => void
   /** Los reflejos de la sala para el disco, los mismos que lleva el tablero. */
   environment?: Texture
 }) {
@@ -103,7 +106,7 @@ export function Rink({
 
   // Al retirar la mesa (fin de ronda, vuelta al menú) el roce se apaga: nadie
   // volvería a llamarlo y se quedaría sonando a la última velocidad.
-  useEffect(() => () => slide(0, 0), [slide])
+  useEffect(() => () => slide(0), [slide])
   /** Dónde apunta el jugador. El mazo va detrás, no salta hasta ahí. */
   const pointer = useRef<Vec2>(playerStart())
   /** Si el mazo va cogido con la mano (visor). Con el ratón nunca. */
@@ -122,7 +125,6 @@ export function Rink({
 
   const aim = useCallback(
     (event: ThreeEvent<PointerEvent>) => {
-      onAim?.(event)
       const rinkGroup = rink.current
       if (rinkGroup == null) return
 
@@ -131,17 +133,12 @@ export function Rink({
       const local = rinkGroup.worldToLocal(worldPoint.current.copy(event.point))
       pointer.current = constrainMallet({ x: local.x, z: local.z }, 'player')
     },
-    [onAim],
+    [],
   )
 
   useFrame((state, delta) => {
-    const {
-      table: next,
-      goals,
-      struck,
-      bounced,
-      impact,
-    } = advanceTable(table.current, {
+    const golpesAntes = table.current.playerHits
+    const fotograma = advanceTable(table.current, {
       delta,
       pointer: pointer.current,
       // Cogido con la mano el mazo no persigue: está donde está la mano.
@@ -151,6 +148,13 @@ export function Rink({
       // costar goles.
       playing: gameState === 'playing' && prompt === null,
     })
+    const {
+      table: next,
+      goals,
+      struck,
+      bounced,
+      impact,
+    } = fotograma
     table.current = next
 
     for (const goal of goals) {
@@ -166,13 +170,16 @@ export function Rink({
     if (struck) play('strike', impactStrength(impact.strike))
     if (bounced) play('bounce', impactStrength(impact.bounce))
     if (goals.length > 0) play('goal')
+    // Y lo que se siente, que no es lo mismo que lo que se oye: el golpe de la máquina y el
+    // rebote en la banda suenan, pero no los toca la mano (`sucesosDelFotograma`).
+    if (sentir != null) for (const suceso of sucesosDelFotograma(golpesAntes, fotograma)) sentir(suceso)
 
     // El disco deslizándose se oye y se ve según lo rápido que va; parado, o
     // con la partida en pausa, nada.
     const { x: vx, z: vz } = next.puck.velocity
     const speed = gameState === 'playing' && prompt === null ? Math.hypot(vx, vz) : 0
     puckSpeed.current = speed
-    slide(speed, delta)
+    slide(speed)
     place(puckObject.current, next.puck.position)
     place(playerObject.current, next.player.position)
     place(opponentObject.current, next.opponent.position)
@@ -233,14 +240,17 @@ export function Rink({
         <MalletHand
           rink={rink}
           destino={pointer}
-          onMove={(destino, cogido) => {
+          onMove={(destino, cogido, lado) => {
             pointer.current = destino
             enLaMano.current = cogido
+            // La mano que lleva el mazo, para que el golpe vibre en ella y no en las dos.
+            onHand?.(lado)
             // El estado también se entera: la cuenta atrás no saca hasta tenerlo en la mano.
             setMalletHeld(cogido)
           }}
           onRelease={() => {
             enLaMano.current = false
+            onHand?.(null)
             setMalletHeld(false)
           }}
         />

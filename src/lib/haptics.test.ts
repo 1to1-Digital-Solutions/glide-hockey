@@ -1,25 +1,20 @@
-import { type ThreeEvent } from '@react-three/fiber'
 import { describe, expect, it, vi } from 'vitest'
 import {
-  BOUNCE_PULSE,
-  GOAL_PULSE,
-  handednessOf,
-  handsFor,
+  FINAL_PULSE,
+  FUERZA_DEL_GOL,
   PRESS_PULSE,
-  pulseFor,
+  pulsarMano,
   pulsePressed,
-  pulseSession,
-  SLIDE_DURATION_MS,
-  SLIDE_MAX_INTENSITY,
-  SLIDE_PERIOD,
-  slidePulse,
-  stepSlide,
-  STRIKE_PULSE,
+  pulsosDelSuceso,
+  reproducir,
+  sucesosDelFotograma,
   type HapticSession,
   type HapticSource,
 } from './haptics'
-import { MAX_PUCK_SPEED } from './gameConfig'
-import { STALL_SPEED } from './puckPhysics'
+import { OPPONENT_SKILLS } from './gameConfig'
+import { advanceTable, startTable, type TableState } from './matchLoop'
+import { HALF_LENGTH, HALF_WIDTH, type Vec2 } from './puckPhysics'
+import { RECETAS, pulsosDe } from './tactos'
 
 function source(handedness: string, pulse?: (value: number, duration: number) => unknown) {
   return {
@@ -28,68 +23,119 @@ function source(handedness: string, pulse?: (value: number, duration: number) =>
   }
 }
 
-const pointerFrom = (inputSource: unknown) =>
-  ({ nativeEvent: { inputSource } }) as unknown as ThreeEvent<PointerEvent>
-
-describe('pulseFor', () => {
-  it('cada suceso de la mesa tiene su golpe', () => {
-    expect(pulseFor('strike')).toBe(STRIKE_PULSE)
-    expect(pulseFor('bounce')).toBe(BOUNCE_PULSE)
-    expect(pulseFor('goal')).toBe(GOAL_PULSE)
+/**
+ * Lo que se vio con el visor el 24/09: los dos mandos vibraban la jugada entera. Era el roce del
+ * disco —un toque solapado cada 90 ms mientras se moviera— y, como nunca se sabía qué mano
+ * llevaba el mazo, iba a las dos. Lo que queda: el golpe del mazo al disco, en su mano.
+ */
+describe('qué se siente de la mesa', () => {
+  it('el golpe del mazo es un impacto en la mano que lo lleva, y solo en ella', () => {
+    const pulsos = pulsosDelSuceso({ tipo: 'golpe', fuerza: 0.6 }, 'left')
+    expect(pulsos).toEqual(pulsosDe({ tipo: 'impacto', mano: 'left', fuerza: 0.6 }))
+    expect(pulsos.every((p) => p.mano === 'left')).toBe(true)
   })
 
-  it('se distinguen sin mirar: el golpe es fuerte, el rebote un toque y el gol largo en las dos manos', () => {
-    expect(STRIKE_PULSE.intensity).toBeGreaterThan(BOUNCE_PULSE.intensity)
-    expect(GOAL_PULSE.durationMs).toBeGreaterThan(STRIKE_PULSE.durationMs)
-    expect(GOAL_PULSE.hands).toBe('both')
-    expect(STRIKE_PULSE.hands).toBe('mallet')
-  })
-})
-
-describe('handednessOf', () => {
-  it('lee la mano del mando que mueve el mazo', () => {
-    expect(handednessOf(pointerFrom({ handedness: 'left' }))).toBe('left')
-    expect(handednessOf(pointerFrom({ handedness: 'right' }))).toBe('right')
+  it('cuanto más fuerte el choque, más fuerte el pulso', () => {
+    const flojo = pulsosDelSuceso({ tipo: 'golpe', fuerza: 0.1 }, 'right')[0]
+    const seco = pulsosDelSuceso({ tipo: 'golpe', fuerza: 1 }, 'right')[0]
+    expect(seco.intensidad).toBeGreaterThan(flojo.intensidad)
   })
 
-  it('con el ratón, o con un mando sin mano, no hay mano', () => {
-    expect(handednessOf({ nativeEvent: {} } as unknown as ThreeEvent<PointerEvent>)).toBeNull()
-    expect(handednessOf(pointerFrom({ handedness: 'none' }))).toBeNull()
-  })
-})
-
-describe('handsFor', () => {
-  it('el golpe del mazo va a la mano que lo lleva', () => {
-    expect(handsFor(STRIKE_PULSE, 'left')).toEqual(['left'])
-    expect(handsFor(BOUNCE_PULSE, 'right')).toEqual(['right'])
+  it('una fuerza que no es número cuenta como un golpe entero, no llega al vibrador', () => {
+    const [pulso] = pulsosDelSuceso({ tipo: 'golpe', fuerza: Number.NaN }, 'right')
+    expect(pulso.intensidad).toBe(RECETAS.impacto.maximo)
   })
 
-  it('sin saber aún qué mano lleva el mazo, va a las dos', () => {
-    expect(handsFor(STRIKE_PULSE, null)).toEqual(['left', 'right'])
+  it('el gol es una llegada suave, más floja que cualquier golpe', () => {
+    const [gol] = pulsosDelSuceso({ tipo: 'gol' }, 'right')
+    expect(gol).toEqual(pulsosDe({ tipo: 'llegada', mano: 'right', fuerza: FUERZA_DEL_GOL })[0])
+    expect(gol.intensidad).toBeLessThan(pulsosDelSuceso({ tipo: 'golpe', fuerza: 0 }, 'right')[0].intensidad)
   })
 
-  it('el gol siempre va a las dos', () => {
-    expect(handsFor(GOAL_PULSE, 'left')).toEqual(['left', 'right'])
+  it('el final del partido, largo y en la mano del mazo', () => {
+    expect(pulsosDelSuceso({ tipo: 'final' }, 'left')).toEqual([
+      { mano: 'left', intensidad: FINAL_PULSE.intensity, ms: FINAL_PULSE.durationMs, retardo: 0 },
+    ])
+  })
+
+  it('sin mano en el mazo no vibra nada: nunca las dos «por si acaso»', () => {
+    for (const suceso of [{ tipo: 'golpe', fuerza: 1 }, { tipo: 'gol' }, { tipo: 'final' }] as const) {
+      expect(pulsosDelSuceso(suceso, null), suceso.tipo).toEqual([])
+    }
   })
 })
 
-describe('pulseSession', () => {
-  it('pulsa solo el mando de la mano del mazo', () => {
+describe('lo que de cada fotograma llega a la mano', () => {
+  const skill = OPPONENT_SKILLS.medium
+  /** El mazo del jugador aparcado en una esquina de su campo, lejos de donde pasa el disco. */
+  const aparcado: Vec2 = { x: HALF_WIDTH - 0.08, z: HALF_LENGTH - 0.08 }
+
+  it('el disco deslizando suelto y rebotando en las bandas: cero pulsos', () => {
+    let mesa: TableState = startTable({ skill, lastScorer: null, seed: 7 })
+    let rebotes = 0
+    let fotogramasSueltos = 0
+    let pulsos = 0
+    for (let i = 0; i < 90 * 20; i++) {
+      const antes = mesa.playerHits
+      const fotograma = advanceTable(mesa, { delta: 1 / 90, pointer: aparcado, skill, playing: true })
+      mesa = fotograma.table
+      if (fotograma.bounced) rebotes += 1
+      if (mesa.playerHits > antes || fotograma.goals.length > 0) continue
+      fotogramasSueltos += 1
+      for (const suceso of sucesosDelFotograma(antes, fotograma)) pulsos += pulsosDelSuceso(suceso, 'right').length
+    }
+    // Que el test no mida el vacío: el disco se movió y chocó contra las bandas.
+    expect(rebotes).toBeGreaterThan(3)
+    expect(fotogramasSueltos).toBeGreaterThan(90 * 15)
+    expect(pulsos).toBe(0)
+  })
+
+  it('el golpe del jugador sí, con la fuerza del choque', () => {
+    const antes = startTable({ skill, lastScorer: null })
+    const sucesos = sucesosDelFotograma(0, {
+      table: { ...antes, playerHits: 1 },
+      goals: [],
+      impact: { strike: 3, bounce: 0 },
+    })
+    expect(sucesos).toHaveLength(1)
+    expect(sucesos[0]).toMatchObject({ tipo: 'golpe' })
+    expect((sucesos[0] as { fuerza: number }).fuerza).toBeGreaterThan(0)
+  })
+
+  it('el golpe de la máquina no es de la mano del jugador', () => {
+    const mesa = startTable({ skill, lastScorer: null })
+    expect(sucesosDelFotograma(0, { table: { ...mesa, opponentHits: 1 }, goals: [], impact: { strike: 4, bounce: 0 } })).toEqual([])
+  })
+
+  it('y el gol', () => {
+    const mesa = startTable({ skill, lastScorer: null })
+    expect(sucesosDelFotograma(0, { table: mesa, goals: ['player'], impact: { strike: 0, bounce: 0 } })).toEqual([{ tipo: 'gol' }])
+  })
+})
+
+describe('reproducir los pulsos', () => {
+  it('pulsa solo el mando de esa mano', () => {
     const left = vi.fn()
     const right = vi.fn()
     const session: HapticSession = { inputSources: [source('left', left), source('right', right)] }
 
-    expect(pulseSession(session, STRIKE_PULSE, 'right')).toBe(1)
-    expect(right).toHaveBeenCalledWith(STRIKE_PULSE.intensity, STRIKE_PULSE.durationMs)
+    expect(pulsarMano(session, 'right', 0.5, 30)).toBe(true)
+    expect(right).toHaveBeenCalledWith(0.5, 30)
     expect(left).not.toHaveBeenCalled()
   })
 
-  it('el gol llega a las dos manos', () => {
-    const left = vi.fn()
+  it('la cola de un golpe sale con su retardo, por el reloj de quien llama', () => {
     const right = vi.fn()
-    const session: HapticSession = { inputSources: [source('left', left), source('right', right)] }
+    const session: HapticSession = { inputSources: [source('right', right)] }
+    const programados: { hacer: () => void; ms: number }[] = []
 
-    expect(pulseSession(session, GOAL_PULSE, 'right')).toBe(2)
+    reproducir(session, pulsosDelSuceso({ tipo: 'golpe', fuerza: 1 }, 'right'), (hacer, ms) => programados.push({ hacer, ms }))
+
+    expect(right).toHaveBeenCalledTimes(1)
+    expect(programados).toHaveLength(1)
+    expect(programados[0].ms).toBe(RECETAS.impacto.ms)
+    programados[0].hacer()
+    expect(right).toHaveBeenCalledTimes(2)
   })
 
   it('un mando sin vibrador, o que rechaza el pulso, no rompe nada', () => {
@@ -97,21 +143,18 @@ describe('pulseSession', () => {
     const throws = vi.fn(() => {
       throw new Error('desconectado')
     })
-    // El que lanza va en una mano de verdad: puesto en `none` no llegaría a
-    // llamarse y el caso que se quiere probar no ocurriría.
     const session: HapticSession = {
       inputSources: [source('left', throws), source('right', rejects), source('none')],
     }
 
-    expect(() => pulseSession(session, GOAL_PULSE, null)).not.toThrow()
-    expect(pulseSession(session, GOAL_PULSE, null)).toBe(1)
+    expect(pulsarMano(session, 'left', 0.5, 30)).toBe(false)
+    expect(pulsarMano(session, 'right', 0.5, 30)).toBe(true)
   })
 
   it('sin sesión no hay a quién pulsar', () => {
-    expect(pulseSession(null, STRIKE_PULSE, 'left')).toBe(0)
+    expect(pulsarMano(null, 'left', 0.5, 30)).toBe(false)
   })
 })
-
 
 describe('un mando que dice tener vibrador pero no lo tiene', () => {
   it('se salta sin romper', () => {
@@ -124,7 +167,8 @@ describe('un mando que dice tener vibrador pero no lo tiene', () => {
       inputSources: [sinNada, sinLista, sinPulse],
     } as unknown as HapticSession
 
-    expect(pulseSession(session, GOAL_PULSE, null)).toBe(0)
+    expect(pulsarMano(session, 'left', 0.5, 30)).toBe(false)
+    expect(pulsarMano(session, 'right', 0.5, 30)).toBe(false)
   })
 })
 
@@ -190,88 +234,5 @@ describe('el toque de un botón', () => {
       pulsePressed(desdeElMando(source('right', pulse)), { ...PRESS_PULSE, intensity: 0 }),
     ).toBe(false)
     expect(pulse).not.toHaveBeenCalled()
-  })
-})
-
-/**
- * El roce del disco en la mano.
- *
- * Es lo único de la mesa que no es un suceso sino un fondo, así que no se pide:
- * se mantiene fotograma a fotograma. Lo que se comprueba aquí es que sube con la
- * velocidad, que se queda por debajo de los golpes —o dejarían de distinguirse—
- * y que la cadena de toques se solapa en vez de tabletear.
- */
-describe('el roce del disco', () => {
-  it('el disco parado no roza', () => {
-    expect(slidePulse(0)).toBeNull()
-    expect(slidePulse(STALL_SPEED)).toBeNull()
-    expect(slidePulse(Number.NaN)).toBeNull()
-  })
-
-  it('cuanto más rápido va, más se siente', () => {
-    const lento = slidePulse(1)!
-    const rapido = slidePulse(MAX_PUCK_SPEED)!
-
-    expect(lento.intensity).toBeGreaterThan(0)
-    expect(rapido.intensity).toBeGreaterThan(lento.intensity)
-    expect(rapido.intensity).toBeCloseTo(SLIDE_MAX_INTENSITY, 9)
-  })
-
-  it('va a la mano que lleva el mazo y por debajo del rebote en banda', () => {
-    // Si el roce llegara a la fuerza del rebote, dejaría de oírse cuándo el
-    // disco toca la banda: los dos se sentirían igual.
-    const tope = slidePulse(MAX_PUCK_SPEED)!
-    expect(tope.hands).toBe('mallet')
-    expect(tope.intensity).toBeLessThan(BOUNCE_PULSE.intensity)
-  })
-
-  it('cada toque dura más que el hueco hasta el siguiente: por eso es continuo', () => {
-    expect(SLIDE_DURATION_MS / 1000).toBeGreaterThan(SLIDE_PERIOD)
-  })
-})
-
-describe('la cadena de toques del roce', () => {
-  it('el primer fotograma con el disco en marcha ya se siente', () => {
-    const paso = stepSlide(0, 3, 1 / 90)
-    expect(paso.pulse).not.toBeNull()
-    expect(paso.wait).toBe(SLIDE_PERIOD)
-  })
-
-  it('y entre toque y toque no se repite: sería un repiqueteo', () => {
-    const primero = stepSlide(0, 3, 1 / 90)
-    const siguiente = stepSlide(primero.wait, 3, 1 / 90)
-
-    expect(siguiente.pulse).toBeNull()
-    expect(siguiente.wait).toBeCloseTo(SLIDE_PERIOD - 1 / 90, 9)
-  })
-
-  it('vencido el hueco vuelve a tocar, y el reloj se rearma', () => {
-    let wait = SLIDE_PERIOD
-    let toques = 0
-    for (let i = 0; i < 90; i++) {
-      const paso = stepSlide(wait, 3, 1 / 90)
-      wait = paso.wait
-      if (paso.pulse != null) toques += 1
-    }
-
-    // Un segundo de disco en marcha: un toque por hueco, sin quedarse mudo ni
-    // disparar uno por fotograma.
-    expect(toques).toBeGreaterThan(8)
-    expect(toques).toBeLessThan(14)
-  })
-
-  it('el disco que se para deja la cuenta a cero: el roce siguiente no se hace esperar', () => {
-    const parado = stepSlide(SLIDE_PERIOD, 0, 1 / 90)
-    expect(parado.pulse).toBeNull()
-    expect(parado.wait).toBe(0)
-    expect(stepSlide(parado.wait, 3, 1 / 90).pulse).not.toBeNull()
-  })
-
-  it('un fotograma sin tiempo no adelanta la cuenta', () => {
-    for (const delta of [0, -1, Number.NaN]) {
-      expect(stepSlide(SLIDE_PERIOD, 3, delta).wait, String(delta)).toBe(SLIDE_PERIOD)
-    }
-    // Y una cuenta que llegara rota se trata como vencida, no como eterna.
-    expect(stepSlide(Number.NaN, 3, 1 / 90).pulse).not.toBeNull()
   })
 })

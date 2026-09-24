@@ -1,137 +1,95 @@
 /**
- * La vibración de los mandos: qué golpe corresponde a cada cosa que pasa en la
- * mesa y a qué mano va.
+ * La vibración de los mandos: qué se siente en la mano con lo que pasa en la mesa.
  *
- * Con el visor puesto, un golpe del mazo que no se siente en la mano es un
- * clic, no un golpe; y con el juego en silencio la vibración es lo único que
- * dice sin mirar si el disco tocó banda o entró. Por eso sale de los mismos
- * sucesos que el sonido (`audioEngine.ts`) pero **no** obedece al silencio.
+ * **Solo vibra el golpe del mazo al disco**, en la mano que lleva el mazo y con la fuerza del
+ * choque. El roce del disco vibraba cada fotograma con pulsos solapados y, sin saber qué mano
+ * llevaba el mazo, en las dos: con el visor puesto los mandos zumbaban la jugada entera
+ * (24/09/2026). Ahora, como en todo el salón (`.claude/rules/xr.md`, «Cada contacto se siente en
+ * la mano que toca, y nada más»), deslizar no vibra, rebotar en la banda tampoco —lo toca el
+ * disco, no la mano— y las recetas son las comunes de `tactos.ts`.
  *
- * Es lógica pura y con tests: quién pulsa de verdad los mandos es
- * `useGameHaptics`, que solo pone la sesión y la mano que lleva el mazo.
+ * Sale de los mismos sucesos que el sonido (`audioEngine.ts`) pero **no** obedece al silencio:
+ * silenciar apaga el altavoz, no la mano. Es lógica pura y con tests; quien pulsa de verdad los
+ * mandos es `useGameHaptics`, que pone la sesión, la mano del mazo y los relojes.
  */
 
-import { type ThreeEvent } from '@react-three/fiber'
-import { slideLevel, type GameSound } from './audioEngine'
-import { MAX_PUCK_SPEED } from './gameConfig'
+import { impactStrength } from './audioEngine'
+import { type FrameResult } from './matchLoop'
+import { pulsosDe, type Mano, type Pulso } from './tactos'
 
-export type Handedness = 'left' | 'right'
+export type Handedness = Mano
 
-/** A qué manos va un golpe: solo a la que lleva el mazo, o a las dos. */
-export type PulseHands = 'mallet' | 'both'
-
+/** Un toque suelto: fuerza de 0 a 1 y cuánto dura. */
 export interface HapticPulse {
-  /** Intensidad, de 0 a 1. */
   intensity: number
   durationMs: number
-  hands: PulseHands
 }
 
-/** El mazo que golpea el disco: corto y fuerte, en la mano que lo lleva. */
-export const STRIKE_PULSE: HapticPulse = { intensity: 0.7, durationMs: 45, hands: 'mallet' }
-/** El disco que rebota en la banda: un toque, para que se note sin molestar. */
-export const BOUNCE_PULSE: HapticPulse = { intensity: 0.25, durationMs: 20, hands: 'mallet' }
-/** El gol, a favor o en contra: largo y en las dos manos, como una celebración. */
-export const GOAL_PULSE: HapticPulse = { intensity: 0.5, durationMs: 120, hands: 'both' }
+/** Lo que pasa en la mesa y puede sentirse en la mano. */
+export type SucesoEnLaMano =
+  /** El mazo del jugador golpea el disco; `fuerza` (0–1) sale de la velocidad del choque. */
+  | { readonly tipo: 'golpe'; readonly fuerza: number }
+  /** Entra un gol, a favor o en contra. */
+  | { readonly tipo: 'gol' }
+  /** Se acaba el partido. */
+  | { readonly tipo: 'final' }
 
 /**
- * El final del partido: el más largo de todos, en las dos manos. Es lo único que dice que
- * se acabó sin mirar el marcador, que con el visor puesto está donde uno no está mirando.
+ * Lo fuerte que llega el gol, como `llegada` de `tactos.ts`: la más suave de las suyas.
+ *
+ * El disco entra lejos, en la otra punta de la mesa: se avisa sin que se confunda con un golpe
+ * que haya dado la mano. A CALIBRAR CON EL VISOR.
  */
-export const OVER_PULSE: HapticPulse = { intensity: 0.6, durationMs: 220, hands: 'both' }
-/** Y la marca batida, un toque corto por encima del cierre. */
-export const RECORD_PULSE: HapticPulse = { intensity: 0.4, durationMs: 70, hands: 'both' }
+export const FUERZA_DEL_GOL = 0
 
-const PULSES: Record<GameSound, HapticPulse> = {
-  strike: STRIKE_PULSE,
-  bounce: BOUNCE_PULSE,
-  goal: GOAL_PULSE,
-  win: OVER_PULSE,
-  loss: OVER_PULSE,
-  record: RECORD_PULSE,
+/**
+ * El final del partido: no es un contacto, es lo único que dice que se acabó sin mirar el
+ * marcador. Largo y en la mano del mazo —no en las dos: eso queda para el golpe que recibe el
+ * cuerpo—. A CALIBRAR CON EL VISOR.
+ */
+export const FINAL_PULSE: HapticPulse = { intensity: 0.6, durationMs: 220 }
+
+/**
+ * Lo que de un fotograma de la mesa llega a la mano.
+ *
+ * **Solo el golpe del mazo del jugador** —el de la máquina lo da ella— y el gol. El disco que
+ * resbala o rebota en la banda no lo toca la mano, así que no vibra. El golpe se reconoce porque
+ * sube la cuenta de golpes del jugador (`playerHits`): `struck` dice que golpeó *algún* mazo.
+ *
+ * @param golpesAntes Los golpes del jugador que llevaba la mesa antes de este fotograma.
+ */
+export function sucesosDelFotograma(
+  golpesAntes: number,
+  { table, goals, impact }: Pick<FrameResult, 'table' | 'goals' | 'impact'>,
+): SucesoEnLaMano[] {
+  const sucesos: SucesoEnLaMano[] = []
+  if (table.playerHits > golpesAntes) sucesos.push({ tipo: 'golpe', fuerza: impactStrength(impact.strike) })
+  if (goals.length > 0) sucesos.push({ tipo: 'gol' })
+  return sucesos
 }
 
-/** El golpe que corresponde a cada suceso de la mesa. */
-export function pulseFor(sound: GameSound): HapticPulse {
-  return PULSES[sound]
-}
-
 /**
- * El roce del disco, en la mano.
+ * Los pulsos que tocan con un suceso de la mesa, en la mano que lleva el mazo.
  *
- * **El disco no solo golpea: se desliza**, y ese roce ya se oye (`audioEngine.ts`,
- * `slide`). En la mano no estaba, y con el visor puesto esa es la diferencia entre
- * un disco que se mueve por la mesa y uno que aparece de golpe cada vez que choca:
- * el roce es lo único que dice, sin mirar, que sigue vivo y a qué ritmo va.
- *
- * Un vibrador de mando no sabe zumbar: solo da toques de una duración. Así que el
- * roce se hace con toques cortos **encadenados** —cada `SLIDE_PERIOD` segundos uno
- * que dura algo más que el hueco hasta el siguiente—, y lo que llega a la mano es
- * continuo en vez de un repiqueteo. El solape es a propósito: sin él, entre dos
- * toques hay un silencio y lo que se siente es un tableteo.
+ * **Sin mano no hay pulso**: el mazo suelto no lo toca nadie, y mandarlo a las dos manos «por si
+ * acaso» es lo que dejaba los dos mandos vibrando.
  */
-export const SLIDE_PERIOD = 0.09
-/** Lo que dura cada toque: el hueco y un poco más, para que se solapen. */
-export const SLIDE_DURATION_MS = 130
-/**
- * Lo fuerte que llega a ser, de 0 a 1, con el disco a toda velocidad.
- *
- * **Leve a propósito.** Es un fondo que dura toda la jugada, y un mando zumbando
- * fuerte toda la partida cansa la mano y se come el golpe: el del mazo va a 0,7 y
- * el rebote en banda a 0,25, así que el roce tiene que quedar por debajo del más
- * flojo de los dos o dejarían de distinguirse.
- */
-export const SLIDE_MAX_INTENSITY = 0.14
-
-/**
- * El toque de roce que toca a esa velocidad, o `null` si el disco no roza.
- *
- * La curva es la misma con la que suena (`slideLevel`), escalada a lo que puede
- * vibrar: así lo que se oye y lo que se siente suben juntos, y el disco parado
- * —por debajo de `STALL_SPEED`— no hace ninguna de las dos cosas.
- */
-export function slidePulse(speed: number): HapticPulse | null {
-  const nivel = slideLevel(speed)
-  if (nivel <= 0) return null
-  return {
-    // Escalado sobre el roce a toda velocidad, que es el tope de esa curva: así
-    // el número de aquí no tiene que saber cuánto vale el tope de la de allí.
-    intensity: (nivel / slideLevel(MAX_PUCK_SPEED)) * SLIDE_MAX_INTENSITY,
-    durationMs: SLIDE_DURATION_MS,
-    hands: 'mallet',
+export function pulsosDelSuceso(suceso: SucesoEnLaMano, mazo: Mano | null): Pulso[] {
+  if (mazo == null) return []
+  switch (suceso.tipo) {
+    case 'golpe':
+      // Una fuerza que no es número —un fotograma perdido— cuenta como un golpe entero: mejor
+      // eso que pasarle `NaN` al vibrador.
+      return pulsosDe({
+        tipo: 'impacto',
+        mano: mazo,
+        fuerza: Number.isFinite(suceso.fuerza) ? suceso.fuerza : 1,
+      })
+    case 'gol':
+      return pulsosDe({ tipo: 'llegada', mano: mazo, fuerza: FUERZA_DEL_GOL })
+    case 'final':
+      return [{ mano: mazo, intensidad: FINAL_PULSE.intensity, ms: FINAL_PULSE.durationMs, retardo: 0 }]
   }
-}
-
-/**
- * El siguiente toque del roce, y cuánto falta para el de después.
- *
- * Lleva su propio reloj en segundos y no el del navegador: quien lo llama ya
- * tiene el `delta` del fotograma, y con él esto se prueba sin temporizadores.
- * El disco quieto **pone la cuenta a cero**, para que el primer roce de la jugada
- * siguiente se sienta en el acto en vez de esperar a que venza el hueco.
- */
-export function stepSlide(
-  wait: number,
-  speed: number,
-  dt: number,
-): { wait: number; pulse: HapticPulse | null } {
-  const pulse = slidePulse(speed)
-  if (pulse == null) return { wait: 0, pulse: null }
-  const queda = (Number.isFinite(wait) ? wait : 0) - (Number.isFinite(dt) ? Math.max(0, dt) : 0)
-  if (queda > 0) return { wait: queda, pulse: null }
-  return { wait: SLIDE_PERIOD, pulse }
-}
-
-/**
- * La mano del mando que ha movido el mazo, leída del evento de puntero: dentro
- * del visor @react-three/xr cuelga el `XRInputSource` del evento nativo. Con el
- * ratón no hay mano.
- */
-export function handednessOf(event: ThreeEvent<PointerEvent>): Handedness | null {
-  const source = (event as { nativeEvent?: { inputSource?: { handedness?: string } } }).nativeEvent
-    ?.inputSource
-  const hand = source?.handedness
-  return hand === 'left' || hand === 'right' ? hand : null
 }
 
 /** Lo que este módulo necesita de un `XRInputSource`: la mano y su vibrador. */
@@ -155,42 +113,50 @@ function actuatorOf(source: HapticSource): HapticActuator | undefined {
 }
 
 /**
- * A qué manos llega un golpe. Mientras no se sepa qué mano lleva el mazo —antes
- * del primer movimiento con un mando— el golpe del mazo va a las dos: mejor
- * sentirlo de más que no sentirlo.
+ * Da un toque en el mando de esa mano. Devuelve si vibró: un mando sin vibrador, o uno que
+ * rechace el pulso, no es un error, es un mando distinto.
  */
-export function handsFor(pulse: HapticPulse, mallet: Handedness | null): readonly string[] {
-  if (pulse.hands === 'both' || mallet == null) return ['left', 'right']
-  return [mallet]
-}
-
-/**
- * Da el golpe en los mandos que toque. Devuelve cuántos vibraron: un mando sin
- * vibrador, o uno que rechace el pulso, no es un error, es un mando distinto.
- */
-export function pulseSession(
+export function pulsarMano(
   session: HapticSession | null | undefined,
-  pulse: HapticPulse,
-  mallet: Handedness | null,
-): number {
-  if (session == null) return 0
-  const hands = handsFor(pulse, mallet)
-  let pulsed = 0
+  mano: Mano,
+  intensidad: number,
+  ms: number,
+): boolean {
+  if (session == null) return false
+  let pulsado = false
   for (const source of session.inputSources) {
-    if (!hands.includes(source.handedness)) continue
+    if (source.handedness !== mano) continue
     const actuator = actuatorOf(source)
     if (actuator == null) continue
     try {
-      const played: unknown = actuator.pulse(pulse.intensity, pulse.durationMs)
+      const played: unknown = actuator.pulse(intensidad, ms)
       if (typeof (played as Promise<unknown> | undefined)?.catch === 'function') {
         void (played as Promise<unknown>).catch(() => {})
       }
-      pulsed += 1
+      pulsado = true
     } catch {
       // Un vibrador que falla no puede parar la partida.
     }
   }
-  return pulsed
+  return pulsado
+}
+
+/**
+ * Reproduce una lista de pulsos: los de `retardo` 0 en el acto y el resto con `programar`, que es
+ * quien lleva el reloj (y quien los cancela al desmontar). Cada pulso mira la sesión en su momento.
+ */
+export function reproducir(
+  session: HapticSession | null | undefined,
+  pulsos: readonly Pulso[],
+  programar: (hacer: () => void, ms: number) => void,
+): void {
+  for (const { mano, intensidad, ms, retardo } of pulsos) {
+    const hacer = () => {
+      pulsarMano(session, mano, intensidad, ms)
+    }
+    if (retardo > 0) programar(hacer, retardo)
+    else hacer()
+  }
 }
 
 /**
@@ -199,7 +165,7 @@ export function pulseSession(
  * Corto y flojo: no es un golpe del juego, es el «te he oído» de un botón. Los mismos
  * números en los trece, que cambiar de cabina no cambie lo que se siente al pulsar.
  */
-export const PRESS_PULSE: HapticPulse = { intensity: 0.25, durationMs: 18, hands: 'both' }
+export const PRESS_PULSE: HapticPulse = { intensity: 0.25, durationMs: 18 }
 
 /** De qué mando viene el evento, si es que viene de uno. */
 function inputSourceOf(event: unknown): HapticSource | undefined {

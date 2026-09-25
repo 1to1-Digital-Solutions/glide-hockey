@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
-import { ASSETS_BASE, isAtSiteRoot, openHost } from './support/host'
+import { observarLaMesa } from './helpers'
+import { ASSETS_BASE, enterHostBooth, isAtSiteRoot, openHost } from './support/host'
 import { installXREmulator } from './support/xr'
 
 /**
@@ -60,5 +61,54 @@ test.describe('Montado dentro de otro anfitrión', () => {
       .not.toEqual([])
     expect(host.requested.filter(isAtSiteRoot)).toEqual([])
     expect(await page.evaluate(() => window.__xrTest.hasSession())).toBe(true)
+  })
+
+  test('con un reto, la escena montada dentro de la sesión entra jugando y avisa al acabar', async ({ page }) => {
+    // Como en el salón: se entra en la sesión y después se elige cabina. La escena nace dentro de
+    // una sesión abierta, y eso no puede tomarse como «se entró al visor con una partida de
+    // escritorio a medias», que la descartaría y dejaría el reto en el menú.
+    test.setTimeout(120_000)
+    await observarLaMesa(page)
+    await installXREmulator(page)
+    await openHost(page, { aLaCarta: true, reto: 20260925 })
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() =>
+            window.__glideHockeyHost.enterVR().then(
+              () => true,
+              () => false,
+            ),
+          ),
+        { message: 'el anfitrión no pudo abrir la sesión inmersiva' },
+      )
+      .toBe(true)
+    await page.evaluate(() => window.__xrTest.connectControllers())
+    await enterHostBooth(page)
+
+    // Sin tocar «jugar»: la mesa se pone sola, que es lo que dice que hay partida.
+    await expect
+      .poll(() => page.evaluate(() => window.__glideHockeyScene != null), {
+        timeout: 15_000,
+        message: 'el reto no llegó a poner la mesa',
+      })
+      .toBe(true)
+
+    // El saque espera al mazo en la mano: se coge, y se aparta a una banda para que la máquina
+    // marque sola. Sin tutorial, que en el reto no se da.
+    await page.evaluate(() => {
+      window.__xrTest.placeController('right', 0, 0.95, -0.48)
+      window.__xrTest.squeeze('right', true)
+    })
+    await page.waitForTimeout(600)
+    await page.evaluate(() => window.__xrTest.placeController('right', 0.32, 0.95, -0.4))
+
+    // La máquina gana la primera ronda y el reto se acaba: un aviso, del reto.
+    await expect
+      .poll(() => page.evaluate(() => window.__terminadas), {
+        timeout: 90_000,
+        message: 'la escena no avisó del final del reto',
+      })
+      .toEqual([{ modo: 'challenge', puntos: 0, reto: true }])
   })
 })

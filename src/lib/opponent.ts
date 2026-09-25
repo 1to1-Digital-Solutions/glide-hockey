@@ -11,6 +11,7 @@ import {
   type Body,
   type Vec2,
 } from './puckPhysics'
+import { semillaDe } from './semilla'
 
 /**
  * Cómo juega la máquina.
@@ -79,6 +80,18 @@ export function unitHash(a: number, b: number, c: number): number {
   x = Math.imul(x ^ (x >>> 16), 0x21f0aaad) >>> 0
   x = Math.imul(x ^ (x >>> 15), 0x735a2d97) >>> 0
   return ((x ^ (x >>> 15)) >>> 0) / 0x100000000
+}
+
+/**
+ * La semilla de la mesa: la `match` de `AimSeed` con la que la máquina elige sus tiros.
+ *
+ * Fuera del reto es el número de partida (`runId`), que no repite los tiros de la partida
+ * anterior. **En el reto sale de su semilla y de la ronda**, con `semillaDe`: dos personas con el
+ * mismo reto ven los mismos tiros en cada ronda, y perder goles en la ronda 2 no cambia los de la
+ * 3, que no dependen de cuántas partidas se hayan empezado antes.
+ */
+export function semillaDeLaMesa(semillaDelReto: number | null, runId: number, ronda: number): number {
+  return semillaDelReto === null ? runId : semillaDe(semillaDelReto, ronda)
 }
 
 /** Hasta dónde llega el disco dentro de la portería sin rozar el poste. */

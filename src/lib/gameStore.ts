@@ -43,6 +43,8 @@ import {
   subscribeUnlockedLevel,
 } from './progress'
 import { migrateLegacyKeysOnce } from './legacyKeys'
+import { semillaDeLaMesa } from './opponent'
+import type { Resultado, Reto } from './semilla'
 import { forgetOwnScenery } from './scenery'
 import { gameStorage } from './storage'
 import { type Scorer } from './puckPhysics'
@@ -63,6 +65,32 @@ import { scoreConceded, scoreGoal } from './scoring'
  */
 
 export type GameState = 'menu' | 'countdown' | 'playing' | 'finished'
+
+/**
+ * El modo que se juega con el `reto` del salón: el del récord de la cabina
+ * (`glide-hockey:best-points:challenge`).
+ *
+ * El reto no tiene ajustes que cambien la puntuación: el nivel de la máquina y
+ * los goles de cada ronda los pone la escalera (`challenge.ts`), así que no hay
+ * dificultad ni goles que fijar.
+ */
+const MODO_DEL_RETO: GameMode = 'challenge'
+
+/**
+ * Lo que el salón le pasa al store a través de la escena (ver `GlideHockeyScene`).
+ *
+ * Todo opcional: sin nada, el juego arranca en el menú y juega como en su propia web.
+ */
+export interface OpcionesDelSalon {
+  /**
+   * Jugar este reto: se entra **directamente** en una partida del reto, con los
+   * tiros de la máquina sacados de la semilla. Se lee al montar; otro reto es
+   * otro montaje.
+   */
+  reto?: Reto
+  /** Se llama una vez al acabar cada partida con puntuación (no al dejarla a medias). */
+  onTerminar?: (resultado: Resultado) => void
+}
 
 export interface GameStore {
   /** Goles a los que se juega una partida de prueba (3–15). */
@@ -159,6 +187,16 @@ export interface GameStore {
    * pasar de ronda: es lo que remonta la mesa y devuelve el disco al centro.
    */
   runId: number
+  /**
+   * Con qué semilla elige sus tiros la máquina en la mesa que se está jugando (`AimSeed.match`):
+   * el número de partida, o en el reto la de su semilla y su ronda (`semillaDeLaMesa`).
+   */
+  seed: number
+  /**
+   * Lo que se juega ahora es el `reto` que pasó el salón. Deja de serlo en cuanto se empieza
+   * otra partida o se vuelve al menú.
+   */
+  enReto: boolean
   /** Si hay una sesión inmersiva abierta, es decir, si se juega con gafas. */
   immersive: boolean
   /** Si el juego está callado. Es de quien juega y se recuerda entre visitas. */
@@ -219,9 +257,9 @@ export interface GameStore {
   keepPlaying: () => void
 
   startGame: () => void
-  /** Gol del jugador: suma puntos y alarga la racha. */
+  /** Gol del jugador: suma puntos y alarga la racha. Con la partida decidida no cuenta. */
   scorePlayer: () => void
-  /** Gol de la máquina: descuenta puntos y corta la racha. */
+  /** Gol de la máquina: descuenta puntos y corta la racha. Con la partida decidida no cuenta. */
   scoreOpponent: () => void
   resetGame: () => void
 }
@@ -234,7 +272,7 @@ export function clampGoalTarget(goals: number): number {
   return Math.min(MAX_GOALS, Math.max(MIN_GOALS, Math.round(goals)))
 }
 
-export function useGameStoreValue(): GameStore {
+export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): GameStore {
   // Lo guardado cuando el juego se llamaba `air-hockey`, traído a las claves de ahora.
   // Durante el render y no en un efecto: el récord y los niveles se leen más abajo con
   // `useSyncExternalStore`, que lee ya en esta misma pasada (ver `lib/legacyKeys.ts`).
@@ -248,19 +286,23 @@ export function useGameStoreValue(): GameStore {
   const [difficulty, setDifficulty] = useState<Difficulty>('easy')
   // Se entra en prueba: quien acaba de llegar no tiene por qué estrenarse en un
   // reto que se acaba a la primera derrota. El reto está a un toque, al lado.
-  const [gameMode, setGameModeState] = useState<GameMode>('practice')
-  const [endless, setEndless] = useState(false)
+  const [gameMode, setGameModeState] = useState<GameMode>(reto != null ? MODO_DEL_RETO : 'practice')
+  const [endless, setEndlessState] = useState(false)
   // `null` es «el más alto desbloqueado»: así el menú enseña el nivel que toca
   // sin leer el almacenamiento en el primer render, que no está en el servidor.
   const [level, setLevelState] = useState<number | null>(null)
   // La partida sin fin la termina el jugador: es lo único que la cierra.
   const [endedByPlayer, setEndedByPlayer] = useState(false)
-  const [running, setRunning] = useState(false)
-  const [countdown, setCountdown] = useState(0)
+  // Con reto se entra jugando: el salón ya ha elegido juego y modo por quien juega.
+  const [running, setRunning] = useState(reto != null)
+  const [countdown, setCountdown] = useState(reto != null ? COUNTDOWN_SECONDS : 0)
   const [prompt, setPrompt] = useState<'quit' | null>(null)
   const [tutorialRunning, setTutorialRunning] = useState(false)
   const [malletHeld, setMalletHeld] = useState(false)
-  const [runId, setRunId] = useState(0)
+  const [runId, setRunId] = useState(reto != null ? 1 : 0)
+  // El reto se mira una sola vez, al montar: es lo que decide con qué se arranca.
+  const [enReto, setEnReto] = useState(reto != null)
+  const [semillaDelReto] = useState(() => reto?.semilla ?? null)
   // Ronda del reto. Vive aquí y no se deriva porque es lo único que sobrevive
   // de una partida a la siguiente dentro del mismo reto.
   const [challengeRoundNumber, setChallengeRoundNumber] = useState(1)
@@ -287,7 +329,9 @@ export function useGameStoreValue(): GameStore {
   // La marca a batir se congela al empezar: en cuanto la partida termina y se
   // guarda, `bestPoints` ya incluye lo recién hecho y no serviría para saber si
   // se ha superado nada.
-  const [recordToBeat, setRecordToBeat] = useState(0)
+  const [recordToBeat, setRecordToBeat] = useState(() =>
+    reto != null ? getBestPoints(MODO_DEL_RETO) : 0,
+  )
 
   // El sonido no es estado de este juego: sale de los ajustes del arcade, que
   // se eligen una vez en xrcade y valen para los doce. Aquí solo se traduce a
@@ -355,6 +399,9 @@ export function useGameStoreValue(): GameStore {
         : goalTarget
   const endlessRun = isEndless(activeGoalTarget)
   const totalPlayerGoals = previousPlayerGoals + playerGoals
+  // La ronda y no el `runId`: dentro del reto, la mesa de cada ronda es la misma
+  // para todos, pase lo que pase en las anteriores.
+  const seed = semillaDeLaMesa(enReto ? semillaDelReto : null, runId, challengeRoundNumber)
   const totalOpponentGoals = previousOpponentGoals + opponentGoals
 
   // Cuándo se acaba una partida lo decide el marcador (ver `gameMode.ts`).
@@ -435,6 +482,21 @@ export function useGameStoreValue(): GameStore {
     return { stars, passed, unlocked: abre ? activeLevel + 1 : null }
   }, [levels, gameState, outcome, playerGoals, opponentGoals, activeLevel, unlockedAtStart])
 
+  /**
+   * La partida (su `runId`) de la que ya se avisó al salón. El aviso cuelga del
+   * mismo efecto que guarda el récord, que se rehace con cada render que cambie
+   * sus dependencias (y dos veces en desarrollo): sin esto, contaría dos veces
+   * una partida que acabó una.
+   */
+  const avisada = useRef(0)
+  // El aviso se lee del último render y no entra en las dependencias: un
+  // anfitrión que pasa una función nueva en cada render no tiene por qué rehacer
+  // nada.
+  const avisar = useRef(onTerminar)
+  useEffect(() => {
+    avisar.current = onTerminar
+  }, [onTerminar])
+
   // Cada modo guarda lo suyo al terminar: puntos, racha o estrellas. Guardar
   // solo hace algo si mejora lo que había, así que repetirlo no cambia nada. Se
   // guarda al final y no gol a gol para que durante la partida el récord siga
@@ -444,7 +506,16 @@ export function useGameStoreValue(): GameStore {
     if (levelResult) saveLevelResult(activeLevel, levelResult.stars)
     else if (endlessRun) saveBestEndlessStreak(bestStreak)
     else saveBestPoints(gameMode, points)
-  }, [gameState, gameMode, points, bestStreak, endlessRun, levelResult, activeLevel])
+    // Aquí mismo se le cuenta al salón, una vez por partida y aunque no sea
+    // récord: los puntos de la partida, que en el reto son los del récord.
+    // Con los goles de después del final descartados (`enJuego`), nada de lo que se juega
+    // rehace este efecto con la partida acabada: la guarda queda para Strict Mode y para
+    // cualquier dependencia que cambie con el resumen en pantalla, y ningún test llega a ella.
+    /* v8 ignore next */
+    if (avisada.current === runId) return
+    avisada.current = runId
+    avisar.current?.({ modo: gameMode, puntos: points, reto: enReto })
+  }, [gameState, gameMode, points, bestStreak, endlessRun, levelResult, activeLevel, runId, enReto])
 
   // La marca de este modo: puntos, o la racha en la partida sin fin. En Niveles
   // no hay marca que batir: hay estrellas.
@@ -462,9 +533,30 @@ export function useGameStoreValue(): GameStore {
     !levels &&
     scoreForRecord > recordToBeat &&
     bestForMode === scoreForRecord
-  const setGoalTarget = useCallback((goals: number) => {
-    setGoalTargetState(clampGoalTarget(goals))
-  }, [])
+  /**
+   * A cuántos goles se juega y si hay final se eligen entre partidas, como el modo y el nivel.
+   *
+   * El marcador decide el final leyendo el objetivo en cada render (`runOutcome`), así que
+   * cambiarlo con la partida en marcha la reescribe: con el resumen de un 5-0 en pantalla, subir
+   * el objetivo a 7 —o pasar a sin fin— la devolvía a estar en juego, y ganar dos veces la misma
+   * partida volvía a guardar y avisar lo ya contado. Los dos menús solo se pintan fuera de la
+   * partida, de modo que el bloqueo no le quita nada a quien juega.
+   */
+  const setGoalTarget = useCallback(
+    (goals: number) => {
+      if (running) return
+      setGoalTargetState(clampGoalTarget(goals))
+    },
+    [running],
+  )
+
+  const setEndless = useCallback(
+    (value: boolean) => {
+      if (running) return
+      setEndlessState(value)
+    },
+    [running],
+  )
 
   /**
    * El modo es de la sesión entera, así que solo se cambia entre partidas.
@@ -504,6 +596,9 @@ export function useGameStoreValue(): GameStore {
   }, [])
 
   const startGame = useCallback(() => {
+    // Lo que viene es otra partida: ya no es el reto del salón, aunque se juegue
+    // en el mismo modo.
+    setEnReto(false)
     setPrompt(null)
     clearRun()
     advancedRound.current = 0
@@ -517,7 +612,13 @@ export function useGameStoreValue(): GameStore {
     setCountdown(COUNTDOWN_SECONDS)
     setRunning(true)
   }, [clearRun, gameMode, endless, selectedLevel])
+  // Solo cuenta el gol de una partida viva. El disco sigue rodando cuando la partida ya se ha
+  // decidido —la mesa se entera un fotograma tarde—, y un gol así cambiaba los puntos después
+  // del final y volvía a guardar el récord con ellos. Tampoco cuenta con la ronda del reto ya
+  // ganada y aún sin traspasar: sumaría a la siguiente lo que no se jugó en ella.
+  const enJuego = gameState === 'playing' && matchOutcome === null
   const scorePlayer = useCallback(() => {
+    if (!enJuego) return
     // Y el tercero: marcar.
     anotarHito('goal')
     setPlayerGoals((value) => value + 1)
@@ -533,14 +634,15 @@ export function useGameStoreValue(): GameStore {
       )
       return next
     })
-  }, [activeDifficulty, lapFactor, anotarHito])
+  }, [enJuego, activeDifficulty, lapFactor, anotarHito])
 
   const scoreOpponent = useCallback(() => {
+    if (!enJuego) return
     setOpponentGoals((value) => value + 1)
     setLastScorer('opponent')
     setStreak(0)
     setPoints((total) => scoreConceded(total))
-  }, [])
+  }, [enJuego])
 
   // Escribe la clave del arcade, no una del juego: el botón y el panel del salón son el mismo ajuste.
   const setScenery = useCallback((value: Scenery) => setArcadeScenery(value), [])
@@ -549,6 +651,7 @@ export function useGameStoreValue(): GameStore {
   const keepPlaying = useCallback(() => setPrompt(null), [])
 
   const resetGame = useCallback(() => {
+    setEnReto(false)
     setPrompt(null)
     clearRun()
     setCountdown(0)
@@ -595,6 +698,8 @@ export function useGameStoreValue(): GameStore {
       setMalletHeld,
       esperandoElMazo,
       runId,
+      seed,
+      enReto,
       immersive,
       muted,
       sfxVolume,
@@ -649,6 +754,8 @@ export function useGameStoreValue(): GameStore {
       gameState,
       countdown,
       runId,
+      seed,
+      enReto,
       immersive,
       muted,
       sfxVolume,
@@ -656,6 +763,7 @@ export function useGameStoreValue(): GameStore {
       ambienceVolume,
       scenery,
       setGoalTarget,
+      setEndless,
       setGameMode,
       setLevel,
       endRun,

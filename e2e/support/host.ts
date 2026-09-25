@@ -11,8 +11,9 @@ const BUNDLE_PATH = '/anfitrion-de-prueba.js'
 const PUBLIC_DIR = path.join(process.cwd(), 'public')
 
 /** El HTML del anfitrión. */
-function html(aLaCarta: boolean): string {
+function html(aLaCarta: boolean, reto?: number): string {
   const cabina = aLaCarta ? ` data-cabina="a-la-carta"` : ''
+  const conReto = reto === undefined ? '' : ` data-reto="${reto}"`
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -23,7 +24,7 @@ function html(aLaCarta: boolean): string {
     </style>
   </head>
   <body>
-    <div id="juego" data-assets-base="${ASSETS_BASE}"${cabina}></div>
+    <div id="juego" data-assets-base="${ASSETS_BASE}"${cabina}${conReto}></div>
     <script src="${BUNDLE_PATH}"></script>
   </body>
 </html>
@@ -47,6 +48,8 @@ export interface HostOptions {
    * que le vale al resto de la suite.
    */
   aLaCarta?: boolean
+  /** La semilla del reto que pasa el salón: la escena entra ya jugándolo (`reto`). */
+  reto?: number
 }
 
 /**
@@ -56,7 +59,7 @@ export interface HostOptions {
  */
 export async function openHost(
   page: Page,
-  { aLaCarta = false }: HostOptions = {},
+  { aLaCarta = false, reto }: HostOptions = {},
 ): Promise<TestHost> {
   const csp = (await page.request.get('/')).headers()['content-security-policy']
   expect(csp, 'el servidor no devolvió política de seguridad').toBeTruthy()
@@ -69,7 +72,7 @@ export async function openHost(
       return route.fulfill({
         contentType: 'text/html; charset=utf-8',
         headers: { 'content-security-policy': csp },
-        body: html(aLaCarta),
+        body: html(aLaCarta, reto),
       })
     }
     if (pathname === BUNDLE_PATH) {

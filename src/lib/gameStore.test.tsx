@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SCENERY_KEY } from './ajustes'
 import { DEFAULT_GOALS, MAX_GOALS, MIN_GOALS } from './gameConfig'
 import { clampGoalTarget, useGame, useGameStoreValue } from './gameStore'
-import { getBestEndlessStreak } from './highScore'
+import { getBestEndlessStreak, getBestPoints } from './highScore'
+import { semillaDeLaMesa } from './opponent'
+import type { Resultado } from './semilla'
 import { LEVEL_COUNT } from './levels'
 import { OWN_SCENERY_KEY } from './scenery'
 
@@ -263,6 +265,51 @@ describe('cambiar de modo', () => {
   })
 })
 
+describe('los goles y el sin fin con la partida terminada', () => {
+  /** Una partida de prueba ganada a los goles por defecto, con el resumen en pantalla. */
+  function ganada() {
+    const hook = renderHook(() => useGameStoreValue())
+    act(() => hook.result.current.startGame())
+    esperarAlSaque(hook)
+    for (let i = 0; i < 30 && hook.result.current.gameState !== 'finished'; i += 1) {
+      act(() => hook.result.current.scorePlayer())
+      act(() => void vi.advanceTimersByTime(1000))
+    }
+    expect(hook.result.current.outcome).toBe('won')
+    return hook
+  }
+
+  it('subir el objetivo no la devuelve a estar en juego', () => {
+    // El final se lee del objetivo en cada render: cambiarlo reescribía un resultado ya decidido.
+    const hook = ganada()
+
+    act(() => hook.result.current.setGoalTarget(DEFAULT_GOALS + 2))
+
+    expect(hook.result.current.gameState).toBe('finished')
+    expect(hook.result.current.goalTarget).toBe(DEFAULT_GOALS)
+  })
+
+  it('pasar a sin fin tampoco', () => {
+    const hook = ganada()
+
+    act(() => hook.result.current.setEndless(true))
+
+    expect(hook.result.current.gameState).toBe('finished')
+    expect(hook.result.current.endless).toBe(false)
+  })
+
+  it('de vuelta en el menú se eligen como siempre', () => {
+    const hook = ganada()
+    act(() => hook.result.current.resetGame())
+
+    act(() => hook.result.current.setGoalTarget(DEFAULT_GOALS + 2))
+    act(() => hook.result.current.setEndless(true))
+
+    expect(hook.result.current.goalTarget).toBe(DEFAULT_GOALS + 2)
+    expect(hook.result.current.endless).toBe(true)
+  })
+})
+
 describe('volver al menú', () => {
   it('deja la mesa lista para otra partida', () => {
     const hook = renderHook(() => useGameStoreValue())
@@ -486,5 +533,155 @@ describe('el escenario, que es del arcade', () => {
     expect(hook.result.current.scenery).toBe('place')
     expect(window.localStorage.getItem(OWN_SCENERY_KEY)).toBeNull()
     expect(window.localStorage.getItem(SCENERY_KEY)).toBeNull()
+  })
+})
+
+/** Hasta que la máquina cierre la partida en curso, gol a gol. */
+function perderLaPartida(hook: { result: { current: ReturnType<typeof useGameStoreValue> } }): void {
+  for (let i = 0; i < 40 && hook.result.current.gameState !== 'finished'; i += 1) {
+    act(() => hook.result.current.scoreOpponent())
+  }
+}
+
+describe('el reto que pasa el salón', () => {
+  it('entra ya en el reto, con su cuenta atrás y sin pasar por el menú', () => {
+    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 4_000_000_000 } }))
+    expect(hook.result.current.gameMode).toBe('challenge')
+    expect(hook.result.current.gameState).toBe('countdown')
+    expect(hook.result.current.round).toBe(1)
+    expect(hook.result.current.enReto).toBe(true)
+    expect(hook.result.current.seed).toBe(semillaDeLaMesa(4_000_000_000, 0, 1))
+  })
+
+  it('la mesa de cada ronda sale de la semilla y de la ronda', () => {
+    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 } }))
+    esperarAlSaque(hook)
+    const primera = hook.result.current.seed
+    for (let i = 0; i < 20 && hook.result.current.round === 1; i += 1) {
+      act(() => hook.result.current.scorePlayer())
+      act(() => void vi.advanceTimersByTime(5000))
+    }
+    expect(hook.result.current.round).toBe(2)
+    expect(hook.result.current.seed).toBe(semillaDeLaMesa(7, 0, 2))
+    expect(hook.result.current.seed).not.toBe(primera)
+  })
+
+  it('al perder se lo cuenta al salón una sola vez, con sus puntos y como reto', () => {
+    const onTerminar = vi.fn<(resultado: Resultado) => void>()
+    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 }, onTerminar }))
+    esperarAlSaque(hook)
+    act(() => hook.result.current.scorePlayer())
+    perderLaPartida(hook)
+    const puntos = hook.result.current.points
+    // Ni un repintado del anfitrión ni un gol que llegue con la partida ya
+    // acabada —el disco seguía rodando— la vuelven a contar.
+    hook.rerender()
+    act(() => hook.result.current.scorePlayer())
+    act(() => void vi.advanceTimersByTime(5000))
+
+    expect(hook.result.current.outcome).toBe('lost')
+    expect(onTerminar).toHaveBeenCalledTimes(1)
+    expect(onTerminar).toHaveBeenCalledWith({ modo: 'challenge', puntos, reto: true })
+    // Y el récord se sigue guardando como siempre.
+    expect(getBestPoints('challenge')).toBeGreaterThanOrEqual(puntos)
+  })
+
+  it('aunque no sea récord, cuenta los puntos de la partida', () => {
+    localStorage.setItem('glide-hockey:best-points:challenge', '9000')
+    const onTerminar = vi.fn<(resultado: Resultado) => void>()
+    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 }, onTerminar }))
+    esperarAlSaque(hook)
+    act(() => hook.result.current.scorePlayer())
+    perderLaPartida(hook)
+
+    expect(hook.result.current.isRecord).toBe(false)
+    expect(onTerminar).toHaveBeenCalledWith({ modo: 'challenge', puntos: hook.result.current.points, reto: true })
+  })
+
+  it('la partida de después ya no es el reto, ni juega su mesa', () => {
+    const onTerminar = vi.fn<(resultado: Resultado) => void>()
+    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 }, onTerminar }))
+    esperarAlSaque(hook)
+    perderLaPartida(hook)
+
+    act(() => hook.result.current.startGame())
+    expect(hook.result.current.enReto).toBe(false)
+    expect(hook.result.current.seed).toBe(hook.result.current.runId)
+    esperarAlSaque(hook)
+    perderLaPartida(hook)
+
+    expect(onTerminar).toHaveBeenCalledTimes(2)
+    expect(onTerminar.mock.calls[1]?.[0]).toEqual({ modo: 'challenge', puntos: 0, reto: false })
+  })
+
+  it('dejarla a medias no cuenta como terminada', () => {
+    const onTerminar = vi.fn<(resultado: Resultado) => void>()
+    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 }, onTerminar }))
+    esperarAlSaque(hook)
+    act(() => hook.result.current.askToQuit())
+    act(() => hook.result.current.resetGame())
+
+    expect(hook.result.current.gameState).toBe('menu')
+    expect(hook.result.current.enReto).toBe(false)
+    expect(onTerminar).not.toHaveBeenCalled()
+  })
+
+  it('sin reto, cualquier partida se cuenta al acabar, en su modo', () => {
+    const onTerminar = vi.fn<(resultado: Resultado) => void>()
+    const hook = renderHook(() => useGameStoreValue({ onTerminar }))
+    expect(hook.result.current.gameState).toBe('menu')
+    expect(hook.result.current.enReto).toBe(false)
+    act(() => hook.result.current.startGame())
+    esperarAlSaque(hook)
+    for (let i = 0; i < 30 && hook.result.current.gameState !== 'finished'; i += 1) {
+      act(() => hook.result.current.scorePlayer())
+      act(() => void vi.advanceTimersByTime(1000))
+    }
+
+    expect(onTerminar).toHaveBeenCalledTimes(1)
+    expect(onTerminar).toHaveBeenCalledWith({ modo: 'practice', puntos: hook.result.current.points, reto: false })
+  })
+
+  it('sin nada, la mesa juega con el número de partida, como siempre', () => {
+    const hook = renderHook(() => useGameStoreValue())
+    act(() => hook.result.current.startGame())
+    expect(hook.result.current.seed).toBe(hook.result.current.runId)
+    expect(hook.result.current.gameMode).toBe('practice')
+  })
+})
+
+describe('un gol con la partida ya decidida', () => {
+  // El disco sigue rodando cuando la partida se decide: si entra, no es de ninguna partida.
+  it('no cambia ni los puntos ni el marcador ni el récord', () => {
+    const hook = renderHook(() => useGameStoreValue())
+    act(() => hook.result.current.startGame())
+    esperarAlSaque(hook)
+    for (let i = 0; i < 30 && hook.result.current.gameState !== 'finished'; i += 1) {
+      act(() => hook.result.current.scorePlayer())
+    }
+    const alAcabar = hook.result.current
+    const record = getBestPoints('practice')
+    expect(alAcabar.outcome).toBe('won')
+    expect(record).toBe(alAcabar.points)
+
+    act(() => hook.result.current.scorePlayer())
+    act(() => hook.result.current.scoreOpponent())
+
+    expect(hook.result.current.points).toBe(alAcabar.points)
+    expect(hook.result.current.playerGoals).toBe(alAcabar.playerGoals)
+    expect(hook.result.current.opponentGoals).toBe(alAcabar.opponentGoals)
+    expect(hook.result.current.streak).toBe(alAcabar.streak)
+    expect(getBestPoints('practice')).toBe(record)
+    expect(hook.result.current.isRecord).toBe(true)
+  })
+
+  it('ni fuera de partida, en el menú', () => {
+    const hook = renderHook(() => useGameStoreValue())
+    act(() => hook.result.current.scorePlayer())
+    act(() => hook.result.current.scoreOpponent())
+
+    expect(hook.result.current.points).toBe(0)
+    expect(hook.result.current.playerGoals).toBe(0)
+    expect(hook.result.current.opponentGoals).toBe(0)
   })
 })

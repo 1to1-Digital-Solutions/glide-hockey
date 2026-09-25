@@ -45,6 +45,37 @@ nada.
 al empezar la sesión (ver `components/game/WorldAnchor.tsx`). El juego no pone
 `<XROrigin>`: mueve su decorado, no al jugador.
 
+### El reto y el aviso de fin de partida
+
+Dos props opcionales, en la escena y en `<GlideHockey>` (y en `mountGlideHockey`,
+que le pasa sus opciones); sin ellas el juego es el de siempre.
+
+- **`reto?: Reto`** (`{ semilla }`, un entero de 32 bits): la partida del reto
+  del día o de «reta mi puntuación». Con él la escena **no abre el menú: entra
+  ya en el reto** (`challenge`, que se acaba con la primera partida perdida),
+  que es el modo del récord (`glide-hockey:best-points:challenge`), con su
+  cuenta atrás y esperando, como siempre en el visor, a que se coja el mazo. No
+  hay ajustes que fijar: el nivel de la máquina y los goles de cada ronda los
+  pone la escalera del reto, no el menú. **No hay tutorial**: su demostración
+  retrasa el saque solo a quien no la ha visto. **Los tiros de la máquina salen
+  de la semilla**: el plan de cada golpe es un hash de la mesa, la jugada y el
+  golpe, y la mesa de cada ronda es `semillaDe(semilla, ronda)`
+  (`semillaDeLaMesa` en `lib/opponent.ts`), así que perder goles en una ronda
+  no cambia los tiros de la siguiente. El resto de la mesa es física en pasos
+  fijos, sin azar. El reto se lee al montar; para otro, se monta otra escena.
+- **`onTerminar?: (resultado: Resultado) => void`**: se llama **una vez** al
+  acabar cada partida —prueba, niveles o reto—, justo donde se guarda el
+  récord, con `{ modo, puntos, reto }`: el modo (`practice`, `levels`,
+  `challenge`), los puntos de la partida aunque no sean récord y `reto: true`
+  solo en la partida del `reto`. «Otra partida» después ya es una normal, con
+  la máquina de siempre y `reto: false`. Dejarla a medias (volver al menú o
+  salir) no la cuenta; la prueba sin fin sí, al terminarla con su botón, que
+  es su final.
+
+```tsx
+<GlideHockeyScene reto={{ semilla: 20260925 }} onTerminar={apuntarPartida} onExit={volverAlSalon} />
+```
+
 ## Con su propio Canvas: `<GlideHockey>`
 
 Para una página web normal que quiera una pantalla de juego. Trae el Canvas, la
@@ -147,6 +178,15 @@ juego lo pueden cambiar, pero escriben esa clave: hay una sola preferencia, y fu
 funciona igual en el origen de la web del juego. La clave propia del juego,
 `glide-hockey:scenery`, no la escribe nadie: se borra al montar el estado de la partida, sin
 trasladarla (ver `src/lib/ajustes.ts` y `src/lib/scenery.ts`).
+
+La mano buena del salón (`xrcade:hand`) **no la lee**: el mazo se coge con la mano que esté
+libre y se cambia de mano a media partida (`MalletHand`), así que no importa cuál sea la
+buena y ninguno de sus menús la pregunta. Si algún día el juego necesitara una mano, la lee de
+esa clave con `useHand()`, como el escenario, en vez de preguntarla en su menú.
+
+Sus dos menús —el de la web y el del visor— **empiezan por el modo, y solo la práctica
+pregunta**: en ella se eligen el nivel de la máquina y los goles; en niveles solo qué nivel
+desbloqueado se juega, y en el reto nada, porque la escalera ya los pone.
 
 Si el almacenamiento está bloqueado (ventana privada, política del navegador),
 el juego funciona igual: se juega sin récord y sonando.

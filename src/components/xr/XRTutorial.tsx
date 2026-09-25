@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { useGrabMode, useLang } from '../../lib/ajustesCliente'
 import { PALETTE } from '../../lib/palette'
+import { PALETA } from '../../lib/paleta'
 import { DIM_COLOR } from './XRUi'
 import { useGame } from '../../lib/gameStore'
 import { traductor, type TextKey } from '../../lib/textos'
@@ -185,7 +186,7 @@ export function XRTutorial({
   /** Como el `rotation` de three: con el orden, si no es `'XYZ'`. */
   rotation?: [number, number, number] | [number, number, number, 'YXZ']
 } = {}) {
-  const { gameState, hitos, setTutorialRunning } = useGame()
+  const { gameState, hitos, setTutorialRunning, enReto } = useGame()
   const t = traductor(useLang())
   const frases = useGrabMode() === 'toggle' ? FRASES_CON_UN_TOQUE : FRASES
   const enSesion = useXR((state) => state.mode != null)
@@ -202,7 +203,9 @@ export function XRTutorial({
   // de lo que se haya saltado a botón: un tutorial que llevara su propia cuenta acabaría
   // discrepando de la partida, y aquí lo que manda es la partida.
   const step = tutorialStep(hitos, saltados)
-  const activo = enSesion && pendiente && gameState === 'playing' && step !== null
+  // **En el reto del salón no hay tutorial**: es la misma partida para todos, y la
+  // demostración retrasa el saque solo a quien no lo ha hecho.
+  const activo = enSesion && pendiente && gameState === 'playing' && step !== null && !enReto
 
   const siguiente = useCallback(() => setSaltados((n) => n + 1), [])
   const saltar = useCallback(() => setSaltados(TUTORIAL_STEPS.length), [])
@@ -250,7 +253,7 @@ export function XRTutorial({
               width={BOTON.width}
               height={BOTON.height}
               state={stateOf(boton.id)}
-              glow={PALETTE.foreground}
+              glow={PALETA.acento}
               ink={PALETTE.background}
             />
           </group>

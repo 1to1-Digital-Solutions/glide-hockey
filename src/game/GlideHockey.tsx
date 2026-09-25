@@ -5,6 +5,7 @@ import { GameProvider } from '../components/GameProvider'
 import { GameScene } from '../components/game/GameScene'
 import { endXrSession } from '../components/xr/xrStore'
 import { setAssetsBase } from '../lib/assets'
+import type { Resultado, Reto } from '../lib/semilla'
 import { ExitProvider } from './exit'
 
 export interface GlideHockeyProps {
@@ -14,6 +15,10 @@ export interface GlideHockeyProps {
    * sitio, que es donde los sirve su propia web.
    */
   assetsBase?: string
+  /** El reto que se juega, como en `<GlideHockeyScene>`. */
+  reto?: Reto
+  /** A quién contarle cada partida terminada, como en `<GlideHockeyScene>`. */
+  onTerminar?: (resultado: Resultado) => void
 }
 
 /**
@@ -29,7 +34,7 @@ export interface GlideHockeyProps {
  * documento solo cabe una. El contrato completo está en
  * `docs/montar-el-juego.md`.
  */
-export function GlideHockey({ assetsBase }: GlideHockeyProps) {
+export function GlideHockey({ assetsBase, reto, onTerminar }: GlideHockeyProps) {
   if (assetsBase !== undefined) setAssetsBase(assetsBase)
 
   // Quitar el juego tiene que devolver el visor a quien lo montó: la sesión no
@@ -38,7 +43,7 @@ export function GlideHockey({ assetsBase }: GlideHockeyProps) {
   useEffect(() => () => endXrSession(), [])
 
   return (
-    <GameProvider>
+    <GameProvider reto={reto} onTerminar={onTerminar}>
       {/* Aquí salir es cerrar la sesión: esta web es el juego y no hay ningún
           sitio al que volver. En el salón significa lo contrario. */}
       <ExitProvider onExit={endXrSession}>

@@ -13,3 +13,4 @@ export {
   type GlideHockeySceneProps,
 } from './GlideHockeyScene'
 export { mountGlideHockey, type GlideHockeyHandle } from './mount'
+export type { Reto, Resultado } from '../lib/semilla'

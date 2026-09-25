@@ -4,6 +4,7 @@ import { GameProvider } from '../components/GameProvider'
 import { GameWorld } from '../components/game/GameWorld'
 import { setAssetsBase } from '../lib/assets'
 import type { HostAnchor } from '../lib/hostAnchor'
+import type { Resultado, Reto } from '../lib/semilla'
 import { ExitProvider } from './exit'
 
 export interface GlideHockeySceneProps {
@@ -33,6 +34,21 @@ export interface GlideHockeySceneProps {
    * inmersiva; qué significa volver lo decide quien monta.
    */
   onExit: () => void
+  /**
+   * La partida que se juega, si es un reto (el del día, o el código de «reta mi
+   * puntuación»).
+   *
+   * Con él la escena entra **ya jugando** el reto (`challenge`, el modo del
+   * récord), sin tutorial y con los tiros de la máquina sacados de la semilla:
+   * misma semilla, misma máquina en cada ronda. Sin él, el juego abre su menú y
+   * juega como siempre.
+   */
+  reto?: Reto
+  /**
+   * Se llama una vez al acabar cada partida —no al dejarla a medias—, con el
+   * modo, los puntos aunque no sean récord y si era la partida del `reto`.
+   */
+  onTerminar?: (resultado: Resultado) => void
 }
 
 /**
@@ -49,7 +65,7 @@ export interface GlideHockeySceneProps {
  *
  * El contrato completo, en `docs/montar-el-juego.md`.
  */
-export function GlideHockeyScene({ assetsBase, anchor, onExit }: GlideHockeySceneProps) {
+export function GlideHockeyScene({ assetsBase, anchor, onExit, reto, onTerminar }: GlideHockeySceneProps) {
   // Durante el render y no en un efecto: el store de WebXR resuelve su base de
   // ficheros la primera vez que alguien lo pide, que puede ser antes de que
   // corra ningún efecto. Escribir la misma base dos veces no cambia nada, así
@@ -57,7 +73,7 @@ export function GlideHockeyScene({ assetsBase, anchor, onExit }: GlideHockeyScen
   if (assetsBase !== undefined) setAssetsBase(assetsBase)
 
   return (
-    <GameProvider>
+    <GameProvider reto={reto} onTerminar={onTerminar}>
       <ExitProvider onExit={onExit}>
         <GameWorld anchor={anchor} />
       </ExitProvider>

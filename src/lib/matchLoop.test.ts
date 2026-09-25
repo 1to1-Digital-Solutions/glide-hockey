@@ -13,7 +13,7 @@ import {
   type FrameInput,
   type TableState,
 } from './matchLoop'
-import { playerStart } from './opponent'
+import { playerStart, semillaDeLaMesa } from './opponent'
 import { RALLY_SECONDS, type Scorer, type Vec2 } from './puckPhysics'
 
 /**
@@ -615,5 +615,44 @@ describe('el mazo cogido con la mano', () => {
     })
 
     expect(Math.hypot(table.player.velocity.x, table.player.velocity.z)).toBeGreaterThan(4.5)
+  })
+})
+
+describe('el reto: la misma semilla, la misma mesa', () => {
+  /**
+   * Veinte segundos de cada una de las tres primeras rondas con el mazo del
+   * jugador parado: por dónde va el disco cada medio segundo y los goles que
+   * caen. La máquina ataca y elige tiro en cada golpe, así que dos semillas
+   * que eligieran lo mismo dejarían el mismo rastro y dos que no, no.
+   */
+  function rondas(semilla: number, runId = 1) {
+    return [1, 2, 3].map((ronda) => {
+      let table = startTable({ skill, lastScorer: null, seed: semillaDeLaMesa(semilla, runId + ronda, ronda) })
+      const rastro: string[] = []
+      for (let paso = 1; paso <= 60 * 20; paso += 1) {
+        const result = advanceTable(table, frame(1 / 60))
+        table = result.table
+        for (const gol of result.goals) rastro.push(gol)
+        if (paso % 30 === 0) rastro.push(`${table.puck.position.x.toFixed(5)},${table.puck.position.z.toFixed(5)}`)
+      }
+      return rastro
+    })
+  }
+
+  it('con la misma semilla la máquina tira igual en cada ronda', () => {
+    expect(rondas(4_000_000_000)).toEqual(rondas(4_000_000_000))
+  })
+
+  it('aunque se hayan empezado otras partidas antes: la ronda manda, no el número de partida', () => {
+    expect(rondas(20_260_925, 1)).toEqual(rondas(20_260_925, 40))
+  })
+
+  it('con otra semilla, otra partida', () => {
+    expect(rondas(1)).not.toEqual(rondas(2))
+  })
+
+  it('sin reto, la semilla es el número de partida, como siempre', () => {
+    expect(semillaDeLaMesa(null, 7, 3)).toBe(7)
+    expect(semillaDeLaMesa(5, 7, 3)).not.toBe(semillaDeLaMesa(5, 7, 4))
   })
 })

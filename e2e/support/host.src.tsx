@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Canvas } from '@react-three/fiber'
 import { XR, XROrigin, createXRStore } from '@react-three/xr'
-import { GlideHockeyScene } from '../../src/game'
+import { GlideHockeyScene, type Resultado } from '../../src/game'
+import { XRControllerGrip } from '../../src/components/xr/XRControllerGrip'
 
 /**
  * El anfitrión de prueba: monta `<GlideHockeyScene>` dentro de un Canvas y una
@@ -28,16 +29,31 @@ const assetsBase = mount.dataset.assetsBase ?? '/'
  */
 const aLaCarta = mount.dataset.cabina === 'a-la-carta'
 
+/**
+ * La semilla del reto, si el salón lo está pasando (`data-reto`). Lo que la escena cuenta al
+ * acabar cada partida se deja en `window.__terminadas`, que es lo que el salón haría suyo.
+ */
+const semillaDelReto = mount.dataset.reto
+const reto = semillaDelReto === undefined ? undefined : { semilla: Number(semillaDelReto) }
+window.__terminadas = []
+const apuntarTerminada = (resultado: Resultado) => {
+  window.__terminadas.push(resultado)
+}
+
 const store = createXRStore({
   // Lo que el contrato pide cablear al anfitrión: los perfiles de mando bajo su
   // propio prefijo.
   baseAssetPath: new URL(`${assetsBase}webxr-profiles/`, window.location.origin).href,
-  controller: { model: false },
+  // El mando del salón (`xrcade/src/components/salon/salonStore.ts`): sin modelo, pero con
+  // su pose en el puño. Con `{ model: false }` no hay `state.object` y el mazo no se puede
+  // coger, así que el saque del reto se quedaría esperándolo para siempre.
+  controller: XRControllerGrip,
   hand: { model: false },
 })
 
 declare global {
   interface Window {
+    __terminadas: Resultado[]
     __glideHockeyHost: {
       enterVR: () => Promise<void>
       enterAR: () => Promise<void>
@@ -73,7 +89,7 @@ function Cabina() {
 
   if (!dentro) return null
   // Volver es cosa del anfitrión, y aquí no hay a dónde.
-  return <GlideHockeyScene assetsBase={assetsBase} onExit={() => {}} />
+  return <GlideHockeyScene assetsBase={assetsBase} onExit={() => {}} reto={reto} onTerminar={apuntarTerminada} />
 }
 
 function Host() {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { MAX_PUCK_SPEED } from './gameConfig'
-import { createGlideHockeyAudio, impactStrength, slideLevel, slidePitch } from './audioEngine'
+import { LOWPASS_OPEN, createGlideHockeyAudio, impactStrength, slideLevel, slidePitch } from './audioEngine'
 import { STALL_SPEED } from './puckPhysics'
 
 /**
@@ -32,6 +32,8 @@ function fakeAudioContext(
 ) {
   const gains: { gain: AudioParam }[] = []
   const filters: { type: string; frequency: number }[] = []
+  /** Los filtros de verdad, para mirar qué se les pide y con qué se conectan. */
+  const bus: { type: string; frequency: { value: number; setTargetAtTime: ReturnType<typeof vi.fn> }; Q: { value: number }; connect: ReturnType<typeof vi.fn> }[] = []
   /** Las fuentes creadas, para poder hacer que una falle al pararla. */
   const sources: { stop: () => void }[] = []
   const oscillators: { frequency: number }[] = []
@@ -91,7 +93,9 @@ function fakeAudioContext(
         frequency: { value: 0, setTargetAtTime: vi.fn() },
         Q: { value: 0 },
         connect: vi.fn(),
+        context: { currentTime: 0 },
       }
+      bus.push(filter)
       // Se apunta al crear pero se lee por getter: así el filtro se inspecciona
       // ya configurado, no con los valores con los que nace.
       filters.push({
@@ -147,6 +151,7 @@ function fakeAudioContext(
     /** El nodo maestro, que es por donde pasa todo lo que suena. */
     maestro: () => gains[0].gain,
     filters,
+    bus,
     oscillators,
     sources,
     llamadas,
@@ -200,7 +205,8 @@ describe('createGlideHockeyAudio', () => {
     audio.play('bounce')
     audio.play('goal')
 
-    const usados = fake.filters.map(
+    // El primero es el paso bajo del bus, que es de todos y no de un sonido.
+    const usados = fake.filters.slice(1).map(
       (filter) => `${filter.type}:${filter.frequency}`,
     )
     expect(new Set(usados).size).toBe(3)
@@ -537,5 +543,41 @@ describe('el volumen de los efectos del arcade', () => {
 
     audio.setVolume(-1)
     expect(fake.maestro().value).toBe(0)
+  })
+})
+
+describe('el paso bajo del bus', () => {
+  it('va entre el maestro y la salida, abierto y plano hasta que alguien lo cierra', () => {
+    const fake = fakeAudioContext()
+    const audio = createGlideHockeyAudio(() => fake.context)
+    audio.play('strike')
+
+    const filtro = fake.bus[0]
+    expect(filtro.type).toBe('lowpass')
+    expect(filtro.frequency.value).toBe(LOWPASS_OPEN)
+    expect(filtro.Q.value).toBeCloseTo(Math.SQRT1_2)
+    expect(filtro.connect).toHaveBeenCalledWith(fake.context.destination)
+  })
+
+  it('cierra y abre suavizado, acotado a lo que se oye', () => {
+    const fake = fakeAudioContext()
+    const audio = createGlideHockeyAudio(() => fake.context)
+    audio.play('strike')
+    const filtro = fake.bus[0]
+
+    audio.setLowpass(500)
+    expect(filtro.frequency.setTargetAtTime).toHaveBeenLastCalledWith(500, 0, expect.any(Number))
+    audio.setLowpass(1e6)
+    expect(filtro.frequency.setTargetAtTime).toHaveBeenLastCalledWith(LOWPASS_OPEN, 0, expect.any(Number))
+    audio.setLowpass(0)
+    expect(filtro.frequency.setTargetAtTime).toHaveBeenLastCalledWith(20, 0, expect.any(Number))
+  })
+
+  it('con el audio aún sin abrir, el corte pedido se aplica al abrirlo', () => {
+    const fake = fakeAudioContext()
+    const audio = createGlideHockeyAudio(() => fake.context)
+    audio.setLowpass(800)
+    audio.play('strike')
+    expect(fake.bus[0].frequency.value).toBe(800)
   })
 })

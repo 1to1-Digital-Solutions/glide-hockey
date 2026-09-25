@@ -96,4 +96,15 @@ describe('useGameHaptics', () => {
     expect(() => result.current.sentir({ tipo: 'golpe', fuerza: 1 })).not.toThrow()
     expect(xr.right).not.toHaveBeenCalled()
   })
+
+  it('el pulso del golpe recibido va a la mano que diga, lleve o no el mazo', () => {
+    withHeadset()
+    const { result } = renderHook(() => useGameHaptics())
+
+    result.current.pulsar({ mano: 'left', intensidad: 0.6, ms: 220, retardo: 0 })
+    result.current.pulsar({ mano: 'right', intensidad: 0.6, ms: 220, retardo: 0 })
+
+    expect(xr.left).toHaveBeenCalledWith(0.6, 220)
+    expect(xr.right).toHaveBeenCalledWith(0.6, 220)
+  })
 })

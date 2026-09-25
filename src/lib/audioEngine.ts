@@ -98,6 +98,13 @@ export interface GlideHockeyAudio {
    * audio aún sin abrir: se aplica al abrirlo.
    */
   setVolume: (factor: number) => void
+  /**
+   * El corte del paso bajo del bus, en hercios: el «oído tapado» de un golpe
+   * recibido (`components/xr/GolpeRecibido.tsx`). Abierto del todo no quita
+   * nada que se oiga. Se puede llamar con el audio aún sin abrir: se aplica al
+   * abrirlo, igual que el volumen.
+   */
+  setLowpass: (hz: number) => void
 }
 
 /**
@@ -113,6 +120,21 @@ export interface GlideHockeyAudio {
  * mover es **su receta**, no este número: moverlo aquí vuelve a descuadrar los trece.
  */
 const MASTER_GAIN = 0.35
+
+/**
+ * El paso bajo del bus, abierto: por encima de lo que se oye, así que no quita
+ * nada. Q de Butterworth, el más plano: con más, el corte haría un pico que se
+ * oiría como un silbido al cerrarse.
+ */
+export const LOWPASS_OPEN = 20000
+const LOWPASS_Q = Math.SQRT1_2
+
+/**
+ * Lo que tarda el corte en llegar a donde se le pide, en segundos. Se le pide
+ * uno nuevo cada fotograma mientras dura el golpe, y un salto seco de
+ * frecuencia en cada uno crepitaría.
+ */
+const LOWPASS_SMOOTHING = 0.01
 
 /** Valor al que se apaga una envolvente. Cero no vale: las rampas
  * exponenciales de la Web Audio API lo prohíben. */
@@ -354,6 +376,9 @@ export function createGlideHockeyAudio(
 ): GlideHockeyAudio {
   let context: AudioContext | null = null
   let master: GainNode | null = null
+  /** El paso bajo entre el maestro y la salida, y el corte que se le ha pedido. */
+  let lowpass: BiquadFilterNode | null = null
+  let corte = LOWPASS_OPEN
   let noise: AudioBuffer | null = null
   /** La voz del roce, una para toda la partida: ruido en bucle, filtro y volumen. */
   let slideVoice: { filter: BiquadFilterNode; gain: GainNode; source: AudioBufferSourceNode } | null = null
@@ -373,7 +398,14 @@ export function createGlideHockeyAudio(
     }
     master = context.createGain()
     master.gain.value = MASTER_GAIN * volumen
-    master.connect(context.destination)
+    // Todo lo que suena pasa por el maestro, así que el filtro va detrás de él:
+    // un solo nodo tapa el juego entero.
+    lowpass = context.createBiquadFilter()
+    lowpass.type = 'lowpass'
+    lowpass.frequency.value = corte
+    lowpass.Q.value = LOWPASS_Q
+    master.connect(lowpass)
+    lowpass.connect(context.destination)
     noise = noiseBuffer(context)
     return context
   }
@@ -440,6 +472,7 @@ export function createGlideHockeyAudio(
     if (context != null) ignore(context.close())
     context = null
     master = null
+    lowpass = null
     noise = null
   }
 
@@ -449,7 +482,15 @@ export function createGlideHockeyAudio(
     if (master != null) master.gain.value = MASTER_GAIN * volumen
   }
 
-  return { play, slide, close, setVolume }
+  /** Ver `setLowpass` en la interfaz. */
+  function setLowpass(hz: number): void {
+    corte = Math.min(LOWPASS_OPEN, Math.max(20, hz))
+    // El nodo sabe de qué contexto es: con el audio aún sin abrir no hay nodo y
+    // el corte se aplica al abrirlo.
+    if (lowpass != null) lowpass.frequency.setTargetAtTime(corte, lowpass.context.currentTime, LOWPASS_SMOOTHING)
+  }
+
+  return { play, slide, close, setVolume, setLowpass }
 }
 
 /** La capa de ruido: el material del golpe. */

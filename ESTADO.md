@@ -43,6 +43,7 @@
 | El botón se ve de reojo sin buscarlo, y el menú sale donde estaba | `ESCALA_DEL_BOTON`, colores en `XRQuitButton` (`XRHud.tsx`) |
 | Con el menú a 55° a la izquierda, al entrar se sabe dónde mirar | `COLUMNA.azimut` |
 | El mando junto al fantasma se ve y se entiende qué botón apretar | `MANDO_JUNTO_AL_MAZO`, `MANO_QUE_JUEGA` (`lib/guionDeAyudas.ts`) |
+| El gol en contra como golpe recibido (viñeta, sala que tiembla, mesa a cámara lenta, oído tapado, vibración en las dos manos) no marea y se nota sin molestar; «Al recibir» Apagado/Suave/Normal en los dos menús | fuerza en `FUERZA_DEL_GOL_EN_CONTRA` (`lib/golEnContra.ts`); curvas en `GOLPE` (`lib/golpeRecibido.ts`, común) |
 
 ##  v0.7.0 (2026-09-08): música de fondo, con su propio interruptor
 

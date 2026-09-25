@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { GolpeRecibido, type GolpeRecibidoHandle } from '../xr/GolpeRecibido'
+import { useConfort } from '../../lib/confort'
 import { XRUiHeight } from '../xr/XRUiHeight'
 import { useXR } from '@react-three/xr'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
@@ -230,9 +232,12 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
   // partida y en cada ronda del reto, y con el audio dentro, la ronda ganada se
   // llevaba por delante el gol que la ganaba —el contexto se cerraba mientras
   // sonaba— y estrenaba otro contexto por ronda (ver `lib/useGameAudio.ts`).
-  const { play, slide } = useGameAudio()
+  const { play, slide, filtrar } = useGameAudio()
   useGameMusic()
   const haptics = useGameHaptics()
+  // El golpe recibido: la mesa lo dispara con el gol en contra (`Rink`) y lo pinta este.
+  const golpeRecibido = useRef<GolpeRecibidoHandle>(null)
+  const [confort] = useConfort()
   // Lo que se oye y lo que se siente van por separado: suena todo lo que pasa en la mesa —el
   // roce, la banda, el golpe de la máquina—, pero en la mano solo lo que toca la mano: el golpe
   // del mazo al disco (y el gol, suave). El roce vibraba cada fotograma y en las dos manos, y con
@@ -305,9 +310,19 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
             materiales, y los shaders que solo usaba ella se vuelven a compilar al volver: un
             tirón a cada cambio de escenario, con el visor puesto. Oculta no se pinta ni da
             sombra, y se le niegan los punteros, que no miran si algo se ve. */}
-        <group visible={!passthrough} pointerEvents={passthrough ? 'none' : undefined}>
-          <Room />
-        </group>
+        {/* La sala es el decorado que se sacude con el golpe recibido: la mesa no, que el mazo
+            va en la mano y se despegaría de ella. La cámara no se toca nunca. El movimiento
+            reducido lo mira el propio componente: el salón no lo manda (`lib/ajustes.ts`). */}
+        <GolpeRecibido
+          ref={golpeRecibido}
+          confort={confort}
+          filtrar={filtrar}
+          vibrar={haptics.pulsar}
+        >
+          <group visible={!passthrough} pointerEvents={passthrough ? 'none' : undefined}>
+            <Room />
+          </group>
+        </GolpeRecibido>
 
         {/* Lo que enseña a jugar sin una sola letra: las huellas del suelo, el mazo
             fantasma, la portería marcada y el mando con su botón encendido. Va **fuera** del
@@ -330,6 +345,7 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
               sentir={haptics.sentir}
               onHand={haptics.noteHand}
               environment={environment}
+              golpeRecibido={golpeRecibido}
             />
           ) : null}
 

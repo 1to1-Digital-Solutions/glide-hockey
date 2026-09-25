@@ -5,6 +5,9 @@ import { useXR } from '@react-three/xr'
 import { useFrame, type RootState, type ThreeEvent } from '@react-three/fiber'
 import { sucesosDelFotograma, type Handedness, type SucesoEnLaMano } from '../../lib/haptics'
 import { Vector3, type Group, type PointLight, type Texture } from 'three'
+import type { RefObject } from 'react'
+import { FUERZA_DEL_GOL_EN_CONTRA, direccionDelGolEnContra } from '../../lib/golEnContra'
+import type { GolpeRecibidoHandle } from '../xr/GolpeRecibido'
 import {
   OPPONENT_SKILLS,
   RAIL_HEIGHT,
@@ -60,6 +63,7 @@ export function Rink({
   sentir,
   onHand,
   environment,
+  golpeRecibido,
 }: {
   play: PlayGameSound
   /**
@@ -74,6 +78,11 @@ export function Rink({
   onHand?: (mano: Handedness | null) => void
   /** Los reflejos de la sala para el disco, los mismos que lleva el tablero. */
   environment?: Texture
+  /**
+   * El golpe que recibe el cuerpo (`GolpeRecibido`, montado en `GameWorld`): se dispara con el
+   * gol en contra y frena el reloj de la mesa mientras dura su cámara lenta.
+   */
+  golpeRecibido?: RefObject<GolpeRecibidoHandle | null>
 }) {
   const {
     apuntarHito,
@@ -85,7 +94,7 @@ export function Rink({
     scorePlayer,
     setMalletHeld,
     esperandoElMazo,
-    runId,
+    seed,
   } = useGame()
 
   const skill = OPPONENT_SKILLS[activeDifficulty]
@@ -98,9 +107,10 @@ export function Rink({
 
   // La semilla con la que la máquina elige sus tiros es el número de partida: así
   // dos partidas seguidas no repiten los mismos, y dos con el mismo número son la
-  // misma partida (ver `AimSeed` en `lib/opponent.ts`). Se lee al montar, que es
+  // misma partida (ver `AimSeed` en `lib/opponent.ts`). En el reto del salón sale
+  // de su semilla y de la ronda (`semillaDeLaMesa`). Se lee al montar, que es
   // exactamente una vez por partida y por ronda del reto (`key={runId}`).
-  const table = useRef<TableState>(startTable({ skill, lastScorer, seed: runId }))
+  const table = useRef<TableState>(startTable({ skill, lastScorer, seed }))
   /** Lo rápido que va el disco, para su halo (`Puck`) y su roce (`play.slide`). */
   const puckSpeed = useRef(0)
 
@@ -117,6 +127,8 @@ export function Rink({
   const worldPoint = useRef(new Vector3())
   /** El vector del camino de vuelta: de un punto de la mesa al mundo. */
   const tablePoint = useRef(new Vector3())
+  /** Los ojos, de la cámara a la mesa, para saber de dónde viene el gol en contra. */
+  const headPoint = useRef(new Vector3())
 
   // Con el visor puesto el mazo va en la mano, no en el rayo: apuntar con el mando se
   // sentía como manejar un cursor. Fuera de sesión sigue mandando el ratón sobre el
@@ -139,7 +151,10 @@ export function Rink({
   useFrame((state, delta) => {
     const golpesAntes = table.current.playerHits
     const fotograma = advanceTable(table.current, {
-      delta,
+      // La cámara lenta del golpe recibido frena **la mesa** y nada más: el disco y los mazos
+      // van más despacio un instante, y la cabeza y la mano siguen a su ritmo, que es lo que
+      // evita que se lea como un tirón de fotogramas.
+      delta: delta * (golpeRecibido?.current?.escalaDelReloj() ?? 1),
       pointer: pointer.current,
       // Cogido con la mano el mazo no persigue: está donde está la mano.
       inHand: enLaMano.current,
@@ -173,6 +188,16 @@ export function Rink({
     // Y lo que se siente, que no es lo mismo que lo que se oye: el golpe de la máquina y el
     // rebote en la banda suenan, pero no los toca la mano (`sucesosDelFotograma`).
     if (sentir != null) for (const suceso of sucesosDelFotograma(golpesAntes, fotograma)) sentir(suceso)
+
+    // Y el gol en contra, como golpe recibido, **después** de la vibración del gol: `pulse()` no
+    // encola y cada pulso corta al anterior, así que el largo del golpe en las dos manos es el
+    // que queda y el corto de la llegada no lo trunca. Con el confort apagado no vibra la macro y
+    // queda solo la llegada, como siempre.
+    const rinkAhora = rink.current
+    if (goals.includes('opponent') && rinkAhora != null) {
+      const ojos = rinkAhora.worldToLocal(state.camera.getWorldPosition(headPoint.current))
+      golpeRecibido?.current?.golpe(FUERZA_DEL_GOL_EN_CONTRA, direccionDelGolEnContra(ojos))
+    }
 
     // El disco deslizándose se oye y se ve según lo rápido que va; parado, o
     // con la partida en pausa, nada.

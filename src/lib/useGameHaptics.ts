@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useXR } from '@react-three/xr'
 import { pulsosDelSuceso, reproducir, type Handedness, type SucesoEnLaMano } from './haptics'
+import type { Pulso } from './tactos'
 
 export interface GameHaptics {
   /** Lo que se siente de un suceso de la mesa, en la mano que lleva el mazo (si la lleva). */
@@ -12,6 +13,12 @@ export interface GameHaptics {
    * fotograma que el mazo va cogido, y al soltarlo.
    */
   noteHand: (mano: Handedness | null) => void
+  /**
+   * Un pulso ya hecho, en la mano que diga. Es por donde vibra el golpe recibido
+   * (`components/xr/GolpeRecibido.tsx`), que trae los suyos de la receta común
+   * y en las dos manos: el cuerpo recibe el golpe, no la mano del mazo.
+   */
+  pulsar: (pulso: Pulso) => void
 }
 
 /**
@@ -42,10 +49,10 @@ export function useGameHaptics(): GameHaptics {
     mazo.current = mano
   }, [])
 
-  const sentir = useCallback(
-    (suceso: SucesoEnLaMano) => {
+  const tocar = useCallback(
+    (pulsos: Pulso[]) => {
       if (session == null) return
-      reproducir(session, pulsosDelSuceso(suceso, mazo.current), (hacer, ms) => {
+      reproducir(session, pulsos, (hacer, ms) => {
         const id = setTimeout(() => {
           pendientes.current.delete(id)
           hacer()
@@ -56,5 +63,12 @@ export function useGameHaptics(): GameHaptics {
     [session],
   )
 
-  return useMemo(() => ({ sentir, noteHand }), [sentir, noteHand])
+  const sentir = useCallback(
+    (suceso: SucesoEnLaMano) => tocar(pulsosDelSuceso(suceso, mazo.current)),
+    [tocar],
+  )
+
+  const pulsar = useCallback((pulso: Pulso) => tocar([pulso]), [tocar])
+
+  return useMemo(() => ({ sentir, noteHand, pulsar }), [sentir, noteHand, pulsar])
 }

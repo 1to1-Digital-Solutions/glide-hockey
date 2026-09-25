@@ -23,6 +23,7 @@ const audio = vi.hoisted(() => ({
   slide: vi.fn(),
   close: vi.fn(),
   setVolume: vi.fn(),
+  setLowpass: vi.fn(),
 }))
 
 vi.mock('./audioEngine', () => ({ createGlideHockeyAudio: audio.create }))
@@ -61,6 +62,7 @@ describe('useGameAudio', () => {
       slide: audio.slide,
       close: audio.close,
       setVolume: audio.setVolume,
+      setLowpass: audio.setLowpass,
     }))
   })
 
@@ -145,5 +147,14 @@ describe('useGameAudio', () => {
     result.current.slide(3)
     expect(audio.slide).not.toHaveBeenCalled()
   })
-})
 
+  it('el filtro del golpe llega al bus abierto, y sin audio abierto no abre nada', () => {
+    const { result } = renderAudio()
+    result.current.filtrar(500)
+    expect(audio.create).not.toHaveBeenCalled()
+
+    result.current.play('strike')
+    result.current.filtrar(700)
+    expect(audio.setLowpass).toHaveBeenCalledWith(700)
+  })
+})

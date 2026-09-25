@@ -5,6 +5,7 @@ import { DIFFICULTY_LABELS } from '../../lib/gameConfig'
 import { GAME_MODE_LABELS, isEndless } from '../../lib/gameMode'
 import { useGame } from '../../lib/gameStore'
 import { useLang } from '../../lib/ajustesCliente'
+import { PALETA } from '../../lib/paleta'
 import { traductor } from '../../lib/textos'
 
 /**
@@ -157,7 +158,9 @@ function GameOver() {
       <div className="pointer-events-auto animate-fade-slide-up w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_92%,transparent)] p-6 text-center shadow-2xl backdrop-blur-sm">
         <h2
           className="text-2xl font-bold"
-          style={{ color: won ? 'var(--color-primary)' : 'var(--color-rival)' }}
+          // Ganada o perdida, en el verde y el rojo comunes del salón: el cian y el rojo de la
+          // mesa dicen de quién es cada cosa, no si ha salido bien.
+          style={{ color: won ? PALETA.acierto : PALETA.fallo }}
         >
           {endless
             ? t('Game over')
@@ -170,7 +173,7 @@ function GameOver() {
                 : t('Game lost')}
         </h2>
         {levelResult ? (
-          <p className="mt-2 text-2xl tracking-[0.3em] text-[var(--color-accent)]" aria-hidden>
+          <p className="mt-2 text-2xl tracking-[0.3em]" style={{ color: PALETA.oro }} aria-hidden>
             {'★'.repeat(levelResult.stars)}
             <span className="text-white/20">{'★'.repeat(3 - levelResult.stars)}</span>
           </p>
@@ -211,7 +214,7 @@ function GameOver() {
         </p>
 
         {isRecord ? (
-          <p className="mt-3 text-sm font-semibold text-[var(--color-accent)]">
+          <p className="mt-3 text-sm font-semibold" style={{ color: PALETA.oro }}>
             {endless ? t('New best streak!') : t('New record!')}
           </p>
         ) : endless && bestPoints > 0 ? (

@@ -9,6 +9,7 @@ import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
 import { MandoDeVerdad } from './MandoDeVerdad'
 import { isEndless } from '../../lib/gameMode'
 import { PALETTE } from '../../lib/palette'
+import { materialEncendido, PALETA } from '../../lib/paleta'
 import { useExit } from '../../game/exit'
 import {
   DIM_COLOR,
@@ -224,8 +225,10 @@ export function XRCountdown() {
  * El final de partida: cuántos puntos, y qué hacer ahora.
  *
  * Sin texto tampoco aquí, así que el resultado se dice con el color de la
- * placa —el cian del jugador si ganó, el rojo de la máquina si perdió— y con
- * el marcador, que sigue a la vista al lado.
+ * placa —el verde común de acierto si ganó, el rojo de fallo si perdió, los mismos
+ * en todo el salón— y con el marcador, que sigue a la vista al lado. Los dos se
+ * distinguen también por luz (`paleta.test.ts`), que es lo que queda sin ver el
+ * color.
  */
 export function XRGameOver() {
   const { gameState, outcome, points, isRecord, levelResult, startGame, resetGame } =
@@ -241,16 +244,13 @@ export function XRGameOver() {
 
       <mesh position={[0, 0.13, -0.01]}>
         <planeGeometry args={[0.5, 0.06]} />
-        <meshBasicMaterial
-          color={won ? PALETTE.primary : PALETTE.rival}
-          toneMapped={false}
-        />
+        <meshBasicMaterial {...materialEncendido(won ? PALETA.acierto : PALETA.fallo)} />
       </mesh>
 
       <XRNumber
         value={points}
         size={0.11}
-        color={isRecord ? PALETTE.puck : PALETTE.foreground}
+        color={isRecord ? PALETA.oro : PALETTE.foreground}
         position={[0, 0.02, 0]}
       />
 
@@ -261,7 +261,7 @@ export function XRGameOver() {
             <mesh key={i} position={[(i - 1) * 0.045, 0, 0]} rotation={[0, 0, Math.PI / 4]}>
               <planeGeometry args={[0.022, 0.022]} />
               <meshBasicMaterial
-                color={i < levelResult.stars ? PALETTE.puck : DIM_COLOR}
+                color={i < levelResult.stars ? PALETA.oro : DIM_COLOR}
                 toneMapped={false}
                 transparent
                 opacity={i < levelResult.stars ? 1 : 0.35}

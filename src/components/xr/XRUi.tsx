@@ -9,6 +9,7 @@ import { type ReactNode, useRef, useState } from 'react'
 import { pulsePressed } from '../../lib/haptics'
 import { type ThreeEvent } from '@react-three/fiber'
 import { PALETTE } from '../../lib/palette'
+import { PALETA } from '../../lib/paleta'
 import {
   DIGIT_ADVANCE,
   DIGIT_SEGMENTS,
@@ -26,24 +27,27 @@ import { pressCounts, pressTime } from '../../lib/xrPress'
  * `lib/xrDigits.ts` para el porqué de los números dibujados a mano).
  */
 
-/** Azul claro del botón apuntado. */
-const HIGHLIGHT_COLOR = '#7dd3fc'
+/**
+ * El realce del botón apuntado: el acento del salón, el mismo en todos los juegos, para que el
+ * gesto de apuntar se aprenda una vez.
+ */
+const HIGHLIGHT_COLOR = PALETA.acento
 
 /**
  * Y con el que se enciende al apretarlo, que es otra cosa que apuntarlo.
  *
  * El botón **se hunde y cambia de color** en vez de desaparecer: encoge por debajo de su
- * tamaño de reposo —que a un metro se lee como que se mete hacia dentro— y el halo pasa de
- * este azul a blanco y sube de intensidad. Reportado con el visor puesto: «cuando se pulsa el
+ * tamaño de reposo —que a un metro se lee como que se mete hacia dentro— y el halo pasa del
+ * acento al blanco del texto y sube de intensidad. Reportado con el visor puesto: «cuando se pulsa el
  * botón, el botón debería de seguir ahí (reaccionar bien, como hundiéndose, cambiando de
  * color y eso bien, pero no desapareciendo)».
  */
-const PRESSED_COLOR = '#ffffff'
+const PRESSED_COLOR = PALETA.texto
 
 /** Lo que encoge un botón apretado, desde el 1,08 que crece al apuntarlo. */
 const PRESSED_SCALE = 0.98
-/** Gris azulado de lo que está apagado o es secundario. */
-export const DIM_COLOR = '#8398b4'
+/** Lo que está apagado o es secundario: el neutro suave de los paneles del salón. */
+export const DIM_COLOR = PALETA.textoSuave
 
 /** Dónde está un botón y cuánto ocupa su zona sensible. */
 export interface XrHitBox {

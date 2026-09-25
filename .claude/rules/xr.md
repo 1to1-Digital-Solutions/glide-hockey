@@ -13,6 +13,12 @@ contrato de montaje —escena, no aplicación— está en `docs/xrcade.md` del r
 - **Sin wasm ni red.** La CSP no compila WebAssembly ni deja conectar a otro origen: nada de
   Rapier/Jolt ni multijugador en red. La física se escribe a mano (parábolas, rozamiento,
   modelos de estabilidad) y se prueba como funciones puras.
+- **Modelos: primero geometría en código, luego el kit.** Low-poly de colores planos, sin
+  texturas grandes: el salón son diecisiete juegos y cada textura se paga en cada uno. Un
+  modelo de fuera tiene que ser de una fuente que valga para Steam, ir sin Draco, KTX2 ni
+  cuantización (el navegador no los decodifica sin wasm y Godot no lee la cuantización) y
+  constar en `public/CREDITS.md`. Si lo va a usar más de un juego, entra en el kit de
+  `xrcade/kit/` y se reparte con `comunes.py --repartir`. Todo en `xrcade/docs/assets.md`.
 - **La lógica es pura y va en `src/lib`.** Puntuación, reglas, trayectorias, estados y
   disposición del menú 3D son funciones sin React ni three, con tests. La escena solo pinta.
 - **Un guardián del menú 3D.** Las cajas de contacto de cada botón se declaran en un módulo

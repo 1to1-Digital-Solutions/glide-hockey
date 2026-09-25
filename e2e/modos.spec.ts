@@ -27,9 +27,9 @@ test('niveles: se empieza por el primero y el resto tiene candado', async ({ pag
 
   await expect(page.getByRole('button', { name: /^Level 1,/ })).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Level 2, locked' })).toBeDisabled()
-  // El nivel y los goles los manda la escalera.
-  await expect(page.getByLabel(/^Goals/)).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Impossible' })).toBeDisabled()
+  // El nivel de la máquina y los goles los manda la escalera: ni se ofrecen.
+  await expect(page.getByLabel(/^Goals/)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Impossible' })).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Play' }).click()
   await expect(page.getByText(/Levels · level 1/)).toBeVisible()

@@ -52,10 +52,11 @@ test('dejar la partida devuelve al menú sin esperar al final', async ({
   await expect(page.getByRole('heading', { name: 'Glide Hockey' })).toBeVisible()
 })
 
-test('el reto no deja elegir nivel ni goles', async ({ page }) => {
+test('el reto no pregunta nivel ni goles: se le da a jugar', async ({ page }) => {
   await abrirJuego(page)
   await page.getByRole('button', { name: 'Challenge' }).click()
 
-  await expect(page.getByLabel(/^Goals/)).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Impossible' })).toBeDisabled()
+  await expect(page.getByLabel(/^Goals/)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Impossible' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
 })

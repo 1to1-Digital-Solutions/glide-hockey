@@ -99,6 +99,27 @@ describe('los nombres de las filas del menú se leen', () => {
   })
 })
 
+describe('el menú empieza por el modo, y solo la práctica pregunta', () => {
+  /** Los nombres de las filas que se pintan con ese modo. */
+  function filas(gameMode: (typeof GAME_MODE_ORDER)[number]): string[] {
+    const { ctx, escritos } = lienzoQueApunta()
+    dibujarLosNombres(ctx, traductor('en'), gameMode === 'levels', gameMode, 'place')
+    return escritos.map((e) => e.texto).filter((texto) => ['Mode', 'Level', 'Goals', 'Stage'].includes(texto))
+  }
+
+  it('la práctica: el modo, el nivel de la máquina y los goles', () => {
+    expect(filas('practice')).toEqual(['Mode', 'Level', 'Goals'])
+  })
+
+  it('niveles: el modo y qué nivel se juega; el resto lo pone la escalera', () => {
+    expect(filas('levels')).toEqual(['Mode', 'Stage'])
+  })
+
+  it('el reto: solo el modo, y a jugar', () => {
+    expect(filas('challenge')).toEqual(['Mode'])
+  })
+})
+
 /**
  * Que cada letra se lea de un vistazo **desde donde se juega**, tal como la apunta el lienzo: el
  * tamaño con que se escribió —encogida incluida—, en su fila y con el escorzo.
@@ -248,7 +269,7 @@ describe('lo que el menú deja ver', () => {
         loQueHayDetras(0),
       ),
     ).toEqual([
-      'el panel tapa la mesa en 106 de 196 puntos',
+      'el panel tapa la mesa en 116 de 196 puntos',
       'el panel tapa el marcador en 49 de 49 puntos',
       'el panel tapa la demostración del gesto en 49 de 49 puntos',
     ])

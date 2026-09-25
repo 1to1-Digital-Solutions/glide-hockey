@@ -17,8 +17,11 @@ import { useLang } from '../../lib/ajustesCliente'
 import { traductor } from '../../lib/textos'
 import { SCENERIES } from '../../lib/ajustes'
 import { SCENERY_HINTS, SCENERY_LABELS } from '../../lib/scenery'
+import { CONFORTS } from '../../lib/golpeRecibido'
+import { CONFORT_LABELS, CONFORT_LEGEND, useConfort } from '../../lib/confort'
 import { LEVEL_COUNT, levelSpec } from '../../lib/levels'
 import { DIFFICULTY_COLORS } from '../../lib/palette'
+import { PALETA } from '../../lib/paleta'
 import { useImmersiveSupport } from '../xr/useImmersiveSupport'
 import { getXrStore } from '../xr/xrStore'
 
@@ -60,7 +63,7 @@ function OptionButton({
       // solo estrecha el hueco del texto hasta que «Imposible» se sale.
       className={`min-h-11 rounded-lg border px-2 py-2.5 text-sm font-semibold transition disabled:pointer-events-none sm:px-3 ${
         selected
-          ? 'border-white/60 bg-white/15 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.25)]'
+          ? 'border-white/60 bg-white/15 text-white shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-foreground)_25%,transparent)]'
           : 'border-white/10 bg-white/[0.03] text-white/60 hover:border-white/30 hover:text-white'
       }`}
       style={selected && accent ? { borderColor: accent } : undefined}
@@ -80,6 +83,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 export function StartScreen() {
+  const [confort, setConfort] = useConfort()
   const {
     gameMode,
     setGameMode,
@@ -102,13 +106,12 @@ export function StartScreen() {
   const exit = useExit()
   const immersive = useImmersiveSupport()
 
-  // En reto y en niveles la escalera reparte nivel y goles, así que elegirlos no
-  // haría nada. Se dejan a la vista, apagados: enseñan a qué se está renunciando
-  // a decidir, que es distinto de esconderlos.
+  // **Solo la práctica pregunta.** En reto y en niveles la escalera reparte nivel y goles, así
+  // que la partida ya está hecha: se elige el modo y se le da a Jugar. Sus filas no se
+  // enseñan ni apagadas, que eran dos filas de opciones que no se podían tocar.
   const t = traductor(useLang())
-  const challenge = gameMode !== 'practice'
+  const practice = gameMode === 'practice'
   const levels = gameMode === 'levels'
-  const quienManda = levels ? t('the level') : t('the challenge')
 
   return (
     <main className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-y-auto p-4">
@@ -143,97 +146,84 @@ export function StartScreen() {
             <p className="text-xs text-white/45">{t(GAME_MODE_HINTS[gameMode])}</p>
           </fieldset>
 
-          {/* Apagado de verdad, no apagado de aspecto: unas fichas al 45 % que
-              siguen respondiendo al clic sin cambiar nada son, para un lector
-              de pantalla, cinco botones conmutables que no conmutan.
-              `fieldset disabled` desactiva nativamente lo que lleva dentro,
-              igual que su gemelo del visor (`XRMenu`). */}
-          <fieldset
-            disabled={challenge}
-            className={`flex flex-col gap-2 transition ${challenge ? 'opacity-45' : ''}`}
-          >
-            <legend className="sr-only">{t('Machine level')}</legend>
-            <FieldLabel>
-              {t('Machine level')}{' '}
-              {challenge ? t('· set by {who}', { who: quienManda }) : null}
-            </FieldLabel>
-            {/* Cinco columnas no caben en un móvil: con «Imposible» dentro, la
-                ficha se queda en veinte píxeles de ancho y el nombre se sale
-                por encima de la de al lado. Se parte en dos filas y el orden de
-                lectura sigue siendo el de la escalera. */}
-            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
-              {DIFFICULTY_ORDER.map((level, index) => (
-                <OptionButton
-                  key={level}
-                  selected={!challenge && difficulty === level}
-                  onClick={() => setDifficulty(level)}
-                  accent={DIFFICULTY_COLORS[level]}
-                  label={t(DIFFICULTY_LABELS[level])}
-                >
-                  <span className="flex flex-col items-center gap-1">
-                    {/* Barras crecientes además del color: el nivel no puede
-                        depender solo de verde-a-rojo. */}
-                    <span
-                      aria-hidden
-                      className="block h-1.5 rounded-full"
-                      style={{
-                        width: `${30 + index * 16}%`,
-                        minWidth: '0.5rem',
-                        background: DIFFICULTY_COLORS[level],
-                      }}
-                    />
-                    <span className="text-[0.68rem] leading-tight">
-                      {t(DIFFICULTY_LABELS[level])}
-                    </span>
-                  </span>
-                </OptionButton>
-              ))}
-            </div>
-          </fieldset>
+          {/* Las opciones de la práctica: el nivel de la máquina y a cuántos goles. */}
+          {practice ? (
+            <>
+              <fieldset className="flex flex-col gap-2">
+                <legend className="sr-only">{t('Machine level')}</legend>
+                <FieldLabel>{t('Machine level')}</FieldLabel>
+                {/* Cinco columnas no caben en un móvil: con «Imposible» dentro, la
+                    ficha se queda en veinte píxeles de ancho y el nombre se sale
+                    por encima de la de al lado. Se parte en dos filas y el orden de
+                    lectura sigue siendo el de la escalera. */}
+                <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
+                  {DIFFICULTY_ORDER.map((level, index) => (
+                    <OptionButton
+                      key={level}
+                      selected={difficulty === level}
+                      onClick={() => setDifficulty(level)}
+                      accent={DIFFICULTY_COLORS[level]}
+                      label={t(DIFFICULTY_LABELS[level])}
+                    >
+                      <span className="flex flex-col items-center gap-1">
+                        {/* Barras crecientes además del color: el nivel no puede
+                            depender solo de verde-a-rojo. */}
+                        <span
+                          aria-hidden
+                          className="block h-1.5 rounded-full"
+                          style={{
+                            width: `${30 + index * 16}%`,
+                            minWidth: '0.5rem',
+                            background: DIFFICULTY_COLORS[level],
+                          }}
+                        />
+                        <span className="text-[0.68rem] leading-tight">
+                          {t(DIFFICULTY_LABELS[level])}
+                        </span>
+                      </span>
+                    </OptionButton>
+                  ))}
+                </div>
+              </fieldset>
 
-          <fieldset
-            className={`flex flex-col gap-2 transition ${challenge ? 'opacity-45' : ''}`}
-          >
-            <FieldLabel>
-              <label htmlFor="goal-target">
-                {t('Goals')}{' '}
-                {challenge
-                  ? t('· set by {who}', { who: quienManda })
-                  : endless
-                    ? t('· endless')
-                    : `· ${goalTarget}`}
-              </label>
-            </FieldLabel>
-            {/* A tantos goles, o sin fin: la partida no se acaba hasta que el
-                jugador la termina, y el récord pasa a ser la racha. */}
-            <div className="grid grid-cols-2 gap-2">
-              <OptionButton
-                selected={!challenge && !endless}
-                onClick={() => setEndless(false)}
-                label={t('Fixed goals')}
-              >
-                {t('Fixed goals')}
-              </OptionButton>
-              <OptionButton
-                selected={!challenge && endless}
-                onClick={() => setEndless(true)}
-                label={t('Endless')}
-              >
-                {t('Endless')}
-              </OptionButton>
-            </div>
-            <input
-              id="goal-target"
-              type="range"
-              min={MIN_GOALS}
-              max={MAX_GOALS}
-              step={1}
-              value={goalTarget}
-              disabled={challenge || endless}
-              onChange={(event) => setGoalTarget(Number(event.target.value))}
-              className="h-11 w-full accent-[var(--color-primary)]"
-            />
-          </fieldset>
+              <fieldset className="flex flex-col gap-2">
+                <FieldLabel>
+                  <label htmlFor="goal-target">
+                    {t('Goals')} {endless ? t('· endless') : `· ${goalTarget}`}
+                  </label>
+                </FieldLabel>
+                {/* A tantos goles, o sin fin: la partida no se acaba hasta que el
+                    jugador la termina, y el récord pasa a ser la racha. */}
+                <div className="grid grid-cols-2 gap-2">
+                  <OptionButton
+                    selected={!endless}
+                    onClick={() => setEndless(false)}
+                    label={t('Fixed goals')}
+                  >
+                    {t('Fixed goals')}
+                  </OptionButton>
+                  <OptionButton
+                    selected={endless}
+                    onClick={() => setEndless(true)}
+                    label={t('Endless')}
+                  >
+                    {t('Endless')}
+                  </OptionButton>
+                </div>
+                <input
+                  id="goal-target"
+                  type="range"
+                  min={MIN_GOALS}
+                  max={MAX_GOALS}
+                  step={1}
+                  value={goalTarget}
+                  disabled={endless}
+                  onChange={(event) => setGoalTarget(Number(event.target.value))}
+                  className="h-11 w-full accent-[var(--color-primary)]"
+                />
+              </fieldset>
+            </>
+          ) : null}
 
           {/* El nivel que se va a jugar: los desbloqueados se eligen, el resto se
               ve con candado. Lo que da cada uno lo dice la escalera. */}
@@ -277,7 +267,7 @@ export function StartScreen() {
                     >
                       <span>{bloqueado ? '🔒' : n}</span>
                       {!bloqueado ? (
-                        <span aria-hidden className="text-[0.6rem] tracking-[0.15em] text-[var(--color-accent)]">
+                        <span aria-hidden className="text-[0.6rem] tracking-[0.15em]" style={{ color: PALETA.oro }}>
                           {'★'.repeat(stars)}
                           <span className="text-white/20">{'★'.repeat(3 - stars)}</span>
                         </span>
@@ -307,6 +297,21 @@ export function StartScreen() {
               ))}
             </div>
             <p className="text-xs text-white/50">{t(SCENERY_HINTS[scenery])}</p>
+          </fieldset>
+
+          {/* Cuánto se nota un gol en contra: la viñeta, la sacudida de la sala, la
+              cámara lenta, el oído tapado y la vibración (`lib/golpeRecibido.ts`).
+              Es un ajuste de confort, y se recuerda entre visitas. */}
+          <fieldset className="flex flex-col gap-2">
+            <legend className="sr-only">{t(CONFORT_LEGEND)}</legend>
+            <FieldLabel>{t(CONFORT_LEGEND)}</FieldLabel>
+            <div className="grid grid-cols-3 gap-2">
+              {CONFORTS.map((option) => (
+                <OptionButton key={option} selected={confort === option} onClick={() => setConfort(option)}>
+                  {t(CONFORT_LABELS[option])}
+                </OptionButton>
+              ))}
+            </div>
           </fieldset>
         </div>
 

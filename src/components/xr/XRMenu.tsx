@@ -15,6 +15,7 @@ import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
 import { GAME_MODE_HINTS, GAME_MODE_ORDER, type GameMode } from '../../lib/gameMode'
 import { LEVEL_COUNT } from '../../lib/levels'
 import { DIFFICULTY_COLORS, PALETTE } from '../../lib/palette'
+import { PALETA } from '../../lib/paleta'
 import {
   LEVEL_BAR_BOTTOM,
   LEVEL_BUTTON,
@@ -29,6 +30,8 @@ import {
   MENU_ROW_LABEL_SIZE,
   levelBarHeight,
 } from '../../lib/xrMenuLayout'
+import { CONFORTS, type Confort } from '../../lib/golpeRecibido'
+import { CONFORT_LEGEND, useConfort } from '../../lib/confort'
 import type { Scenery } from '../../lib/ajustes'
 import { SCENERY_LABELS } from '../../lib/scenery'
 import { useExit } from '../../game/exit'
@@ -83,7 +86,7 @@ const ROW_LABEL_RISE = MENU_ROW_LABEL_RISE
 
 
 /** Tres estrellas —rombos— por nivel: las ganadas, encendidas. */
-function StarsRow({ lit, size = 0.02, color = PALETTE.puck }: { lit: number; size?: number; color?: string }) {
+function StarsRow({ lit, size = 0.02, color = PALETA.oro }: { lit: number; size?: number; color?: string }) {
   return (
     <group>
       {[0, 1, 2].map((i) => (
@@ -129,6 +132,43 @@ function ModeIcon({ mode, lit }: { mode: GameMode; lit: boolean }) {
 }
 
 /**
+ * El dibujo de cada confort, **por forma**: apagado es un aro tachado; suave, un punto con una
+ * onda; entero, un punto con dos. Se cuentan las ondas sin distinguir colores.
+ */
+function ConfortIcon({ confort, lit }: { confort: Confort; lit: boolean }) {
+  const color = lit ? PALETTE.foreground : DIM_COLOR
+  if (confort === 'off') {
+    return (
+      <group>
+        <mesh>
+          <ringGeometry args={[0.024, 0.032, 24]} />
+          <meshBasicMaterial color={color} toneMapped={false} />
+        </mesh>
+        <mesh rotation={[0, 0, Math.PI / 4]}>
+          <planeGeometry args={[0.07, 0.008]} />
+          <meshBasicMaterial color={color} toneMapped={false} />
+        </mesh>
+      </group>
+    )
+  }
+  const ondas = confort === 'gentle' ? 1 : 2
+  return (
+    <group>
+      <mesh>
+        <circleGeometry args={[0.01, 16]} />
+        <meshBasicMaterial color={color} toneMapped={false} />
+      </mesh>
+      {Array.from({ length: ondas }, (_, i) => (
+        <mesh key={i}>
+          <ringGeometry args={[0.02 + i * 0.014, 0.026 + i * 0.014, 24]} />
+          <meshBasicMaterial color={color} toneMapped={false} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+/**
  * De qué es cada fila del menú, fuera del componente **para poder medirlo**.
  *
  * Los rótulos de este menú ya se pisaron una vez —«Modo» se pintaba encima del botón del
@@ -142,11 +182,22 @@ export function dibujarLosNombres(
   gameMode: GameMode = 'practice',
   scenery: Scenery = 'place',
 ): void {
-  const filas = [
+  // Solo la práctica pregunta el nivel de la máquina y los goles; en niveles, la fila de los
+  // goles pasa a ser la del nivel que se juega, y en el reto no queda ninguna de las dos.
+  const practice = gameMode === 'practice'
+  const filas: (readonly [number, string])[] = [
     [ROW.mode, t('Mode')],
-    [ROW.level, t('Level')],
-    [ROW.goals, levels ? t('Stage') : t('Goals')],
-  ] as const
+    ...(practice ? [[ROW.level, t('Level')] as const] : []),
+    ...(practice || levels ? [[ROW.goals, levels ? t('Stage') : t('Goals')] as const] : []),
+  ]
+  // El confort lleva el nombre en su misma línea y a la izquierda de sus botones: encima está
+  // el borde del panel.
+  drawText(ctx, t(CONFORT_LEGEND), -PANEL.width / 2 + 0.05, ROW.comfort, {
+    size: MENU_TEXT.comfort,
+    color: DIM_COLOR,
+    align: 'left',
+    maxWidth: MENU_BOXES['confort off'].position[0] - MENU_BUTTON.small[0] / 2 - 0.02 - (-PANEL.width / 2 + 0.05),
+  })
   for (const [y, nombre] of filas) {
     drawText(ctx, nombre, -PANEL.width / 2 + 0.05, y + ROW_LABEL_RISE, {
       size: MENU_ROW_LABEL_SIZE,
@@ -185,10 +236,8 @@ export function XRMenu() {
     setGameMode,
     difficulty,
     setDifficulty,
-    activeDifficulty,
     goalTarget,
     setGoalTarget,
-    activeGoalTarget,
     endless,
     setEndless,
     activeLevel,
@@ -202,13 +251,16 @@ export function XRMenu() {
     gameState,
   } = useGame()
   const exit = useExit()
+  const [confort, setConfort] = useConfort()
   // Fuera de una sesión de realidad aumentada no hay habitación que enseñar: el
   // visor no entrega el passthrough en realidad virtual.
   const passthroughAvailable = useXR((state) => state.mode) === 'immersive-ar'
   const t = traductor(useLang())
 
-  // Nivel y goles los manda la escalera en reto y en niveles.
-  const challenge = gameMode !== 'practice'
+  // **Solo la práctica pregunta**: nivel y goles los manda la escalera en reto y en niveles, así
+  // que ahí la partida ya está hecha y sus filas no se pintan —ni apagadas—. Niveles conserva la
+  // suya, que es qué nivel desbloqueado se juega.
+  const practice = gameMode === 'practice'
   const levels = gameMode === 'levels'
 
   // Los nombres de las filas, en un lienzo aparte: el resto del panel es geometría y ahí no
@@ -220,9 +272,6 @@ export function XRMenu() {
   )
 
   if (gameState !== 'menu') return null
-  // En reto se enseña lo que toca en la ronda; en prueba, lo elegido.
-  const shownDifficulty = challenge ? activeDifficulty : difficulty
-  const shownGoals = challenge ? activeGoalTarget : goalTarget
   return (
     <group>
       <XRPanel width={PANEL.width} height={PANEL.height} />
@@ -237,6 +286,23 @@ export function XRMenu() {
           fallbackColor={PALETTE.background}
         />
       </group>
+
+      {/* Cuánto se nota un gol en contra (`lib/golpeRecibido.ts`). Aquí y no solo en la web
+          porque es con el visor puesto cuando se sabe si marea. */}
+      {CONFORTS.map((opcion) => {
+        const selected = opcion === confort
+        return (
+          <XRPressable key={opcion} box={MENU_BOXES[`confort ${opcion}`]} onSelect={() => setConfort(opcion)}>
+            <XRPlate
+              width={SMALL_BUTTON[0]}
+              height={SMALL_BUTTON[1]}
+              color={selected ? PALETTE.primaryDeep : PALETTE.rail}
+              opacity={selected ? 0.95 : 0.7}
+            />
+            <ConfortIcon confort={opcion} lit={selected} />
+          </XRPressable>
+        )
+      })}
 
       {GAME_MODE_ORDER.map((mode) => {
         const selected = mode === gameMode
@@ -259,21 +325,20 @@ export function XRMenu() {
 
       {/* Escalera de nivel: la barra crece y el color va del verde al rojo, así
           que el nivel se lee por forma y por color, no solo por color. */}
-      {DIFFICULTY_ORDER.map((level, index) => {
-        const selected = level === shownDifficulty
+      {practice ? DIFFICULTY_ORDER.map((level, index) => {
+        const selected = level === difficulty
         const height = levelBarHeight(index, DIFFICULTY_ORDER.length)
         return (
           <XRPressable
             key={level}
             box={MENU_BOXES[`nivel ${level}`]}
             onSelect={() => setDifficulty(level)}
-            disabled={challenge}
           >
             <XRPlate
               width={LEVEL_BUTTON[0]}
               height={LEVEL_BUTTON[1]}
               color={selected ? DIFFICULTY_COLORS[level] : PALETTE.rail}
-              opacity={challenge && !selected ? 0.35 : 0.85}
+              opacity={0.85}
             />
             <mesh position={[0, LEVEL_BAR_BOTTOM + height / 2, 0]}>
               <planeGeometry args={[0.05, height]} />
@@ -284,92 +349,98 @@ export function XRMenu() {
             </mesh>
           </XRPressable>
         )
-      })}
+      }) : null}
 
       {/* La fila de goles: a cuántos se juega en prueba, o el nivel en Niveles
-          (con sus estrellas debajo). Los mismos dos botones, otra pregunta. */}
-      <XRPressable
-        box={MENU_BOXES.menos}
-        onSelect={() => (levels ? setLevel(activeLevel - 1) : setGoalTarget(goalTarget - 1))}
-        disabled={levels ? activeLevel <= 1 : challenge || endless || goalTarget <= MIN_GOALS}
-      >
-        <XRPlate
-          width={SMALL_BUTTON[0]}
-          height={SMALL_BUTTON[1]}
-          color={PALETTE.rail}
-          opacity={0.8}
-        />
-        <XRSignIcon sign="minus" />
-      </XRPressable>
+          (con sus estrellas debajo). Los mismos dos botones, otra pregunta. En el
+          reto no hay pregunta y no se pinta. */}
+      {practice || levels ? (
+        <>
+          <XRPressable
+            box={MENU_BOXES.menos}
+            onSelect={() => (levels ? setLevel(activeLevel - 1) : setGoalTarget(goalTarget - 1))}
+            disabled={levels ? activeLevel <= 1 : endless || goalTarget <= MIN_GOALS}
+          >
+            <XRPlate
+              width={SMALL_BUTTON[0]}
+              height={SMALL_BUTTON[1]}
+              color={PALETTE.rail}
+              opacity={0.8}
+            />
+            <XRSignIcon sign="minus" />
+          </XRPressable>
 
-      {levels ? (
-        <group>
-          <XRNumber
-            value={activeLevel}
-            size={0.1}
-            color={PALETTE.foreground}
-            position={[-0.03, ROW.goals + 0.01, 0]}
-          />
-          <XRNumber
-            value={LEVEL_COUNT}
-            size={0.04}
-            color={DIM_COLOR}
-            position={[0.07, ROW.goals + 0.01, 0]}
-          />
-          <group position={[0, ROW.goals - 0.07, 0]}>
-            <StarsRow lit={levelStars[activeLevel - 1] ?? 0} size={0.016} />
-          </group>
-        </group>
-      ) : endless && !challenge ? (
-        // Sin fin: un anillo en vez de una cifra, que es «esto no se acaba».
-        <mesh position={[0, ROW.goals, 0]}>
-          <ringGeometry args={[0.03, 0.045, 32]} />
-          <meshBasicMaterial color={PALETTE.foreground} toneMapped={false} />
-        </mesh>
-      ) : (
-        <XRNumber
-          value={shownGoals}
-          size={0.11}
-          color={challenge ? DIM_COLOR : PALETTE.foreground}
-          position={[0, ROW.goals, 0]}
-        />
-      )}
+          {levels ? (
+            <group>
+              <XRNumber
+                value={activeLevel}
+                size={0.1}
+                color={PALETTE.foreground}
+                position={[-0.03, ROW.goals + 0.01, 0]}
+              />
+              <XRNumber
+                value={LEVEL_COUNT}
+                size={0.04}
+                color={DIM_COLOR}
+                position={[0.07, ROW.goals + 0.01, 0]}
+              />
+              <group position={[0, ROW.goals - 0.07, 0]}>
+                <StarsRow lit={levelStars[activeLevel - 1] ?? 0} size={0.016} />
+              </group>
+            </group>
+          ) : endless ? (
+            // Sin fin: un anillo en vez de una cifra, que es «esto no se acaba».
+            <mesh position={[0, ROW.goals, 0]}>
+              <ringGeometry args={[0.03, 0.045, 32]} />
+              <meshBasicMaterial color={PALETTE.foreground} toneMapped={false} />
+            </mesh>
+          ) : (
+            <XRNumber
+              value={goalTarget}
+              size={0.11}
+              color={PALETTE.foreground}
+              position={[0, ROW.goals, 0]}
+            />
+          )}
 
-      <XRPressable
-        box={MENU_BOXES.mas}
-        onSelect={() => (levels ? setLevel(activeLevel + 1) : setGoalTarget(goalTarget + 1))}
-        disabled={
-          levels ? activeLevel >= unlockedLevel : challenge || endless || goalTarget >= MAX_GOALS
-        }
-      >
-        <XRPlate
-          width={SMALL_BUTTON[0]}
-          height={SMALL_BUTTON[1]}
-          color={PALETTE.rail}
-          opacity={0.8}
-        />
-        <XRSignIcon sign="plus" />
-      </XRPressable>
+          <XRPressable
+            box={MENU_BOXES.mas}
+            onSelect={() => (levels ? setLevel(activeLevel + 1) : setGoalTarget(goalTarget + 1))}
+            disabled={
+              levels ? activeLevel >= unlockedLevel : endless || goalTarget >= MAX_GOALS
+            }
+          >
+            <XRPlate
+              width={SMALL_BUTTON[0]}
+              height={SMALL_BUTTON[1]}
+              color={PALETTE.rail}
+              opacity={0.8}
+            />
+            <XRSignIcon sign="plus" />
+          </XRPressable>
 
-      {/* Sin fin, al lado de los goles: la misma pregunta —cuánto— con la otra
-          respuesta. En reto y niveles no hay nada que elegir. */}
-      {!challenge ? (
-        <XRPressable
-          box={MENU_BOXES['sin fin']}
-          onSelect={() => setEndless(!endless)}
-        >
-          <XRPlate
-            width={SMALL_BUTTON[0]}
-            height={SMALL_BUTTON[1]}
-            color={endless ? PALETTE.primaryDeep : PALETTE.rail}
-            opacity={endless ? 0.95 : 0.8}
-          />
-          <mesh>
-            <ringGeometry args={[0.018, 0.028, 24]} />
-            <meshBasicMaterial color={endless ? PALETTE.foreground : DIM_COLOR} toneMapped={false} />
-          </mesh>
-        </XRPressable>
+          {/* Sin fin, al lado de los goles: la misma pregunta —cuánto— con la otra
+              respuesta. En reto y niveles no hay nada que elegir. */}
+          {practice ? (
+            <XRPressable
+              box={MENU_BOXES['sin fin']}
+              onSelect={() => setEndless(!endless)}
+            >
+              <XRPlate
+                width={SMALL_BUTTON[0]}
+                height={SMALL_BUTTON[1]}
+                color={endless ? PALETTE.primaryDeep : PALETTE.rail}
+                opacity={endless ? 0.95 : 0.8}
+              />
+              <mesh>
+                <ringGeometry args={[0.018, 0.028, 24]} />
+                <meshBasicMaterial color={endless ? PALETTE.foreground : DIM_COLOR} toneMapped={false} />
+              </mesh>
+            </XRPressable>
+          ) : null}
+        </>
       ) : null}
+
       {/* El récord del modo elegido, en pequeño y apagado: es un dato, no una
           decisión. Solo se enseña si hay alguno que batir. */}
       {bestPoints > 0 && !levels ? (

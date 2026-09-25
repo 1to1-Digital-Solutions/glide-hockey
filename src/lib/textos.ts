@@ -41,6 +41,11 @@ const ES = {
   Level: 'Nivel',
   'What you see around you': 'Lo que ves a tu alrededor',
   'Around you': 'A tu alrededor',
+  // El golpe recibido (`lib/confort.ts`): cuánto se nota un gol en contra.
+  'When hit': 'Al recibir',
+  Off: 'Apagado',
+  Gentle: 'Suave',
+  Full: 'Normal',
   Play: 'Jugar',
   'Play in the headset': 'Jugar con el visor',
   Exit: 'Salir',
@@ -67,9 +72,6 @@ const ES = {
     'Solo con visor y realidad aumentada: la mesa se planta en tu propia habitación.',
 
   // Lo que la escalera decide por ti
-  'the level': 'el nivel',
-  'the challenge': 'el desafío',
-  '· set by {who}': '· lo pone {who}',
   '· endless': '· sin fin',
   'Level · {level} of {total} · {difficulty}, to {goals} goals':
     'Nivel · {level} de {total} · {difficulty}, a {goals} goles',

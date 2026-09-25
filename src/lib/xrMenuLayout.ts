@@ -1,4 +1,5 @@
 import { DIFFICULTY_ORDER } from './gameConfig'
+import { CONFORTS } from './golpeRecibido'
 
 /**
  * Las medidas del menú inmersivo que se pueden comprobar sin visor.
@@ -40,11 +41,20 @@ export function levelBarHeight(index: number, total: number = DIFFICULTY_ORDER.l
  */
 export const MENU_HINT_BAND = 0.18
 
+/**
+ * Lo que ocupa la fila del confort del golpe recibido, arriba del todo.
+ *
+ * Va arriba y no entre las demás porque entre ellas no queda ni un centímetro (ver
+ * `MENU_ROW`), y el panel crece hacia los dos lados a partes iguales: todas las filas bajan
+ * media banda, así que por abajo queda el mismo margen que había y arriba sale el hueco.
+ */
+export const MENU_COMFORT_BAND = 0.17
+
 /** El panel del menú, en metros. */
-export const MENU_PANEL = { width: 0.78, height: 1.0 + MENU_HINT_BAND }
+export const MENU_PANEL = { width: 0.78, height: 1.0 + MENU_HINT_BAND + MENU_COMFORT_BAND }
 
 /** Dónde empieza la línea del modo, por su borde de arriba. */
-export const MENU_HINT_Y = -0.37
+export const MENU_HINT_Y = -0.37 - MENU_COMFORT_BAND / 2
 
 /**
  * A qué tamaño se escribe cada cosa del panel del menú, en metros de alto de letra.
@@ -56,8 +66,10 @@ export const MENU_HINT_Y = -0.37
  * A 30 mm los rótulos y a 24 el decorado y la explicación, con el panel a 1,45 m y medidos fila
  * a fila con el escorzo, se quedaban entre 0,79° y 1,15°: por debajo de lo que se lee de un
  * vistazo (`MIN_READING_DEGREES`). Por eso crece la letra y el panel se acerca (`XR_UI.panel`).
+ * El nombre del confort, un poco más: va en la fila de arriba del todo, la más lejana y la más
+ * escorzada para quien juega con los ojos bajos, y a 34 mm se quedaba en 1,38°.
  */
-export const MENU_TEXT = { label: 0.034, scenery: 0.034, hint: 0.034 } as const
+export const MENU_TEXT = { label: 0.034, scenery: 0.034, hint: 0.034, comfort: 0.038 } as const
 
 /** Lo que mide cada clase de botón del menú. */
 export const MENU_BUTTON = {
@@ -75,12 +87,14 @@ export const MENU_BUTTON = {
  * se pintaba encima del botón del decorado. Con el visor puesto eso se ve como lo que es,
  * letras solapadas, y deja el menú sin poder leerse.
  */
+const BAJADA = MENU_HINT_BAND / 2 - MENU_COMFORT_BAND / 2
 export const MENU_ROW = {
-  record: 0.44 + MENU_HINT_BAND / 2,
-  mode: 0.245 + MENU_HINT_BAND / 2,
-  level: 0.02 + MENU_HINT_BAND / 2,
-  goals: -0.2 + MENU_HINT_BAND / 2,
-  actions: -0.38 + MENU_HINT_BAND / 2,
+  comfort: 0.58 + BAJADA,
+  record: 0.44 + BAJADA,
+  mode: 0.245 + BAJADA,
+  level: 0.02 + BAJADA,
+  goals: -0.2 + BAJADA,
+  actions: -0.38 + BAJADA,
 } as const
 
 /**
@@ -96,6 +110,7 @@ export const MENU_ROW_LABEL_SIZE = MENU_TEXT.label
 
 /** El alto de los botones de cada fila, para poder medir si algo se pisa. */
 export const MENU_ROW_HEIGHT: Record<keyof typeof MENU_ROW, number> = {
+  comfort: MENU_BUTTON.small[1],
   record: MENU_BUTTON.small[1],
   mode: MENU_BUTTON.mode[1],
   level: MENU_BUTTON.level[1],
@@ -110,6 +125,12 @@ export const MENU_ROW_HEIGHT: Record<keyof typeof MENU_ROW, number> = {
  * cifras. Va a la derecha, que es un dato y no se pulsa.
  */
 export const MENU_RECORD_X = 0.26
+
+/**
+ * Dónde va cada botón del confort, de izquierda a derecha: apagado, suave y entero. Pegados al
+ * borde derecho, para dejarle al nombre de la fila todo el ancho que queda a su izquierda.
+ */
+export const MENU_COMFORT_X = [0.08, 0.2, 0.32] as const
 
 /** Una caja de pulsación del menú: centro y medidas, en coordenadas del panel. */
 export interface MenuBox {
@@ -140,4 +161,9 @@ export const MENU_BOXES = {
   escenario: caja(-0.28, MENU_ROW.record, MENU_BUTTON.small),
   jugar: caja(0, MENU_ROW.actions, MENU_BUTTON.play),
   salir: caja(0.28, MENU_ROW.actions, MENU_BUTTON.small),
+  // Las tres opciones del confort, a la derecha de su nombre, que va en la misma línea: encima
+  // no hay sitio, que es el borde del panel.
+  ...Object.fromEntries(
+    CONFORTS.map((confort, index) => [`confort ${confort}`, caja(MENU_COMFORT_X[index], MENU_ROW.comfort, MENU_BUTTON.small)]),
+  ),
 } as Record<string, MenuBox>

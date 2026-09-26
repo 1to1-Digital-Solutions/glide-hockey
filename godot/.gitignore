@@ -1,0 +1,13 @@
+# Lo genera el build del kit (`xrcade/godot-kit/build.mjs`) a partir de `scene/` y de los
+# tests de `src/lib`: la escena, y con `--tests` el paquete de tests, su runner y su escena.
+/games/glide-hockey/main.js
+/games/glide-hockey/tests/domain_tests.js
+/games/glide-hockey/tests/run_domain_tests.js
+/games/glide-hockey/tests/domain_tests.tscn
+# Tipos de la API de Godot y de los recursos del proyecto: los genera el motor
+# con GodotJS (`--generate-types`), que deja además un `node_modules/` vacío.
+/typings/
+/gen/
+/node_modules/
+# Caché del editor.
+/.godot/

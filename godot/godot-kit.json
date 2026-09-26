@@ -1,0 +1,22 @@
+{
+  "id": "glide-hockey",
+  "repo": "..",
+  "sfx": {
+    "module": "src/lib/audioEngine.ts",
+    "factory": "createGlideHockeyAudio",
+    "play": "play",
+    "sounds": {
+      "strike-suave": { "args": ["strike", 0.2] },
+      "strike-medio": { "args": ["strike", 0.5] },
+      "strike-fuerte": { "args": ["strike", 0.9] },
+      "bounce-suave": { "args": ["bounce", 0.2] },
+      "bounce-medio": { "args": ["bounce", 0.5] },
+      "bounce-fuerte": { "args": ["bounce", 0.9] },
+      "goal": {},
+      "win": {},
+      "loss": {},
+      "record": {}
+    }
+  },
+  "music": { "sala": "public/audio/sala.mp3" }
+}

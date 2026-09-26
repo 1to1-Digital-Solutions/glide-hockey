@@ -1,0 +1,380 @@
+/**
+ * La sesión de Glide Hockey en Godot: lo que en la web es `lib/gameStore.ts`, sin React.
+ *
+ * El store de la web es un hook (`useState`, `useEffect`, `useSyncExternalStore`) y el motor no
+ * tiene React, así que aquí se escribe la misma máquina como una clase que la escena avanza a cada
+ * fotograma. **Las reglas no se reescriben**: el marcador y el final salen de `gameMode.ts`
+ * (`runOutcome`), los puntos de `scoring.ts`, la escalera del reto de `challenge.ts`, los niveles
+ * y sus estrellas de `levels.ts`, lo guardado de `highScore.ts` y `progress.ts`, y la semilla de
+ * la máquina de `opponent.ts` (`semillaDeLaMesa`). Lo que queda aquí es lo que en la web hacen los
+ * `useState`: qué se ha elegido, en qué fase se está y el marcador de la partida en curso.
+ *
+ * Igual que en la web, **casi todo se deriva**: la fase sale de si hay partida, de la cuenta atrás
+ * y del marcador, y el final del marcador y del modo. Lo que no se deriva es lo que la web guarda
+ * en estado, con los mismos nombres donde se puede.
+ *
+ * No toca el motor (ni `godot` ni nodos), así que se prueba entera en `partida.motor.test.ts` sin
+ * montar la escena.
+ */
+import { challengeRound } from '@/lib/challenge'
+import { COUNTDOWN_SECONDS, DEFAULT_GOALS, MAX_GOALS, MIN_GOALS, type Difficulty } from '@/lib/gameConfig'
+import { ENDLESS, isEndless, runOutcome, type GameMode, type RunOutcome } from '@/lib/gameMode'
+import { getBestEndlessStreak, getBestPoints, saveBestEndlessStreak, saveBestPoints } from '@/lib/highScore'
+import { LEVEL_COUNT, clampLevel, levelPassed, levelSpec, levelStars, type Stars } from '@/lib/levels'
+import { semillaDeLaMesa } from '@/lib/opponent'
+import { getStarsList, getUnlockedLevel, saveLevelResult } from '@/lib/progress'
+import type { Scorer } from '@/lib/puckPhysics'
+import { scoreConceded, scoreGoal } from '@/lib/scoring'
+import type { Resultado, Reto } from '@/lib/semilla'
+import { SIN_HITOS, apuntarHito, type TutorialHitos, type TutorialStepKey } from '@/lib/tutorial'
+
+/** Las fases de la web (`GameState`), más la pregunta de salir, que allí es `prompt`. */
+export type FaseDeLaPartida = 'menu' | 'countdown' | 'playing' | 'finished'
+
+/** El modo con el que se juega el `reto` del salón: el del récord de la cabina (`MODO_DEL_RETO`). */
+export const MODO_DEL_RETO: GameMode = 'challenge'
+
+/** Cómo acabó un nivel: lo que enseña el final (`levelResult` de la web). */
+export interface ResultadoDelNivel {
+  stars: Stars
+  passed: boolean
+  /** El nivel que abre esta partida, si abre alguno. */
+  unlocked: number | null
+}
+
+/** Restringe los goles de una partida al rango permitido (`clampGoalTarget`). */
+export function acotarGoles(goles: number): number {
+  if (Number.isNaN(goles)) return DEFAULT_GOALS
+  return Math.min(MAX_GOALS, Math.max(MIN_GOALS, Math.round(goles)))
+}
+
+export interface OpcionesDeLaPartida {
+  /** Jugar este reto: se entra directamente en una partida del reto con su semilla. */
+  reto?: Reto | null
+  /** Se llama una vez al acabar cada partida con puntuación (no al dejarla a medias). */
+  alTerminar?: (resultado: Resultado) => void
+}
+
+export class Partida {
+  // Lo que se elige en el menú.
+  goalTarget = DEFAULT_GOALS
+  difficulty: Difficulty = 'easy'
+  gameMode: GameMode = 'practice'
+  endless = false
+  /** Nivel elegido en Niveles, o `null` = el más alto desbloqueado. */
+  level: number | null = null
+
+  // La partida en curso.
+  running = false
+  /** Segundos que quedan de cuenta atrás, con decimales: se enseña redondeado hacia arriba. */
+  countdown = 0
+  prompt: 'quit' | null = null
+  /** Si el mazo va en la mano (con visor): la cuenta atrás lo espera en su último segundo. */
+  malletHeld = false
+  /** Si se juega con visor: sin él no hay mazo que esperar. */
+  immersive = false
+  runId = 0
+  enReto = false
+  playerGoals = 0
+  opponentGoals = 0
+  previousPlayerGoals = 0
+  previousOpponentGoals = 0
+  lastScorer: Scorer | null = null
+  points = 0
+  streak = 0
+  bestStreak = 0
+  challengeRoundNumber = 1
+  /** Lo que quien juega ya ha hecho, para el tutorial: se acumula y no se deshace. */
+  hitos: TutorialHitos = SIN_HITOS
+  private endedByPlayer = false
+  private recordToBeat = 0
+  private unlockedAtStart = 1
+  private levelAtStart = 1
+  private readonly semillaDelReto: number | null
+  private readonly alTerminar: ((resultado: Resultado) => void) | undefined
+  /** La partida (su `runId`) cuyo final ya se guardó y se contó al salón. */
+  private cerrada = 0
+  /** Lo que dejó el final: si fue récord y cómo acabó el nivel. Se calcula una vez, al cerrar. */
+  private _isRecord = false
+  private _levelResult: ResultadoDelNivel | null = null
+
+  constructor({ reto = null, alTerminar }: OpcionesDeLaPartida = {}) {
+    this.semillaDelReto = reto?.semilla ?? null
+    this.alTerminar = alTerminar
+    if (reto != null) {
+      // Con el reto del salón se entra directamente a jugar, como en la web.
+      this.gameMode = MODO_DEL_RETO
+      this.running = true
+      this.countdown = COUNTDOWN_SECONDS
+      this.runId = 1
+      this.enReto = true
+      this.recordToBeat = getBestPoints(MODO_DEL_RETO)
+    }
+  }
+
+  get challenge(): boolean {
+    return this.gameMode === 'challenge'
+  }
+
+  get levels(): boolean {
+    return this.gameMode === 'levels'
+  }
+
+  /** Ronda del reto, o `null` en un modo que no las tiene. */
+  get round(): number | null {
+    return this.challenge ? this.challengeRoundNumber : null
+  }
+
+  /** Por qué vuelta a la escalera va el reto, o `null` fuera de él. */
+  get lap(): number | null {
+    return this.challenge ? challengeRound(this.challengeRoundNumber).lap : null
+  }
+
+  get lapMultiplier(): number {
+    return this.challenge ? challengeRound(this.challengeRoundNumber).multiplier : 1
+  }
+
+  get unlockedLevel(): number {
+    return getUnlockedLevel()
+  }
+
+  /** Las estrellas de cada nivel, del primero al último. */
+  get levelStars(): Stars[] {
+    return getStarsList().split(',').map((s) => Number(s) as Stars)
+  }
+
+  /** El nivel que se juega: el elegido, o el más alto desbloqueado; en partida, el de al empezar. */
+  get activeLevel(): number {
+    if (this.running) return this.levelAtStart
+    return this.selectedLevel
+  }
+
+  private get selectedLevel(): number {
+    const abierto = getUnlockedLevel()
+    return clampLevel(Math.min(this.level ?? abierto, abierto))
+  }
+
+  get activeDifficulty(): Difficulty {
+    if (this.challenge) return challengeRound(this.challengeRoundNumber).difficulty
+    if (this.levels) return levelSpec(this.activeLevel).difficulty
+    return this.difficulty
+  }
+
+  get activeGoalTarget(): number {
+    if (this.challenge) return challengeRound(this.challengeRoundNumber).goalTarget
+    if (this.levels) return levelSpec(this.activeLevel).goalTarget
+    return this.endless ? ENDLESS : this.goalTarget
+  }
+
+  get totalPlayerGoals(): number {
+    return this.previousPlayerGoals + this.playerGoals
+  }
+
+  get totalOpponentGoals(): number {
+    return this.previousOpponentGoals + this.opponentGoals
+  }
+
+  /** Con qué semilla elige sus tiros la máquina en la mesa de ahora. */
+  get seed(): number {
+    return semillaDeLaMesa(this.enReto ? this.semillaDelReto : null, this.runId, this.challengeRoundNumber)
+  }
+
+  /** Cómo acaba la partida en curso por el marcador, sin mirar el modo. */
+  private get matchOutcome(): RunOutcome | null {
+    return this.running ? runOutcome({ playerGoals: this.playerGoals, opponentGoals: this.opponentGoals, goalTarget: this.activeGoalTarget }) : null
+  }
+
+  /** Cómo acabó, o `null` mientras sigue: en el reto, ganar no acaba nada, pasa de ronda. */
+  get outcome(): RunOutcome | null {
+    const match = this.matchOutcome
+    if (match === 'won' && this.challenge) return null
+    if (this.running && this.endedByPlayer && isEndless(this.activeGoalTarget)) {
+      return this.playerGoals >= this.opponentGoals ? 'won' : 'lost'
+    }
+    return match
+  }
+
+  get gameState(): FaseDeLaPartida {
+    if (!this.running) return 'menu'
+    if (this.countdown > 0) return 'countdown'
+    if (this.outcome != null) return 'finished'
+    return 'playing'
+  }
+
+  /** La cuenta atrás está parada esperando a que se coja el mazo (`esperandoElMazo`). */
+  get esperandoElMazo(): boolean {
+    return this.immersive && !this.malletHeld && this.running && this.countdown > 0 && this.countdown <= 1
+  }
+
+  /** La cifra de la cuenta atrás: 3, 2, 1. */
+  get cuenta(): number {
+    return Math.ceil(this.countdown)
+  }
+
+  /** La partida recién terminada ha batido el récord del modo (o la racha sin fin). */
+  get isRecord(): boolean {
+    return this.gameState === 'finished' && this._isRecord
+  }
+
+  get levelResult(): ResultadoDelNivel | null {
+    return this.gameState === 'finished' ? this._levelResult : null
+  }
+
+  /** El récord del modo elegido que enseña el menú (`bestPoints` de la web). */
+  get bestPoints(): number {
+    if (this.gameMode === 'practice' && this.endless) return getBestEndlessStreak()
+    return this.levels ? 0 : getBestPoints(this.gameMode)
+  }
+
+  // Lo que se elige entre partidas: con una en marcha no cambia nada, como en la web.
+
+  setGoalTarget(goles: number): void {
+    if (!this.running) this.goalTarget = acotarGoles(goles)
+  }
+
+  setEndless(sinFin: boolean): void {
+    if (!this.running) this.endless = sinFin
+  }
+
+  setGameMode(modo: GameMode): void {
+    if (!this.running) this.gameMode = modo
+  }
+
+  setDifficulty(nivel: Difficulty): void {
+    if (!this.running) this.difficulty = nivel
+  }
+
+  setLevel(nivel: number): void {
+    if (!this.running) this.level = clampLevel(Math.min(nivel, getUnlockedLevel()))
+  }
+
+  private clearRun(): void {
+    this.playerGoals = 0
+    this.opponentGoals = 0
+    this.previousPlayerGoals = 0
+    this.previousOpponentGoals = 0
+    this.lastScorer = null
+    this.points = 0
+    this.streak = 0
+    this.bestStreak = 0
+    this.challengeRoundNumber = 1
+    this._isRecord = false
+    this._levelResult = null
+  }
+
+  /** Empieza una partida con lo elegido: el botón de jugar, y el de otra vez. */
+  startGame(): void {
+    this.enReto = false
+    this.prompt = null
+    this.clearRun()
+    this.endedByPlayer = false
+    this.recordToBeat = this.gameMode === 'practice' && this.endless ? getBestEndlessStreak() : getBestPoints(this.gameMode)
+    this.unlockedAtStart = getUnlockedLevel()
+    this.levelAtStart = this.selectedLevel
+    this.runId++
+    this.countdown = COUNTDOWN_SECONDS
+    this.running = true
+  }
+
+  /** Vuelve al menú sin guardar nada: dejar la partida, o volver desde el final. */
+  resetGame(): void {
+    this.enReto = false
+    this.prompt = null
+    this.clearRun()
+    this.countdown = 0
+    this.endedByPlayer = false
+    this.running = false
+  }
+
+  /** Termina la partida sin fin a voluntad: es su única salida con resumen. */
+  endRun(): void {
+    this.endedByPlayer = true
+    this.alCambiar()
+  }
+
+  apuntarHito(hito: TutorialStepKey): void {
+    this.hitos = apuntarHito(this.hitos, hito)
+  }
+
+  askToQuit(): void {
+    this.prompt = 'quit'
+  }
+
+  keepPlaying(): void {
+    this.prompt = null
+  }
+
+  private get enJuego(): boolean {
+    return this.gameState === 'playing' && this.matchOutcome === null
+  }
+
+  /** Gol del jugador: suma puntos y alarga la racha. Con la partida decidida no cuenta. */
+  scorePlayer(): void {
+    if (!this.enJuego) return
+    this.apuntarHito('goal')
+    this.playerGoals++
+    this.lastScorer = 'player'
+    this.streak++
+    this.bestStreak = Math.max(this.bestStreak, this.streak)
+    this.points = scoreGoal(this.points, { difficulty: this.activeDifficulty, streak: this.streak, lap: this.lapMultiplier })
+    this.alCambiar()
+  }
+
+  /** Gol de la máquina: descuenta puntos y corta la racha. */
+  scoreOpponent(): void {
+    if (!this.enJuego) return
+    this.opponentGoals++
+    this.lastScorer = 'opponent'
+    this.streak = 0
+    this.points = scoreConceded(this.points)
+    this.alCambiar()
+  }
+
+  /**
+   * Un fotograma de reloj: la cuenta atrás baja, salvo con la pregunta delante o esperando el
+   * mazo en el último segundo, que es lo que en la web hace el `setTimeout` de un segundo.
+   */
+  tick(delta: number): void {
+    if (!this.running || this.countdown <= 0 || this.prompt !== null) return
+    if (this.esperandoElMazo) return
+    // Con el mazo sin coger, la cuenta se queda en el último segundo en vez de pasarlo.
+    const suelo = this.immersive && !this.malletHeld ? Math.min(this.countdown, 1) : 0
+    this.countdown = Math.max(suelo, this.countdown - Math.max(0, delta))
+  }
+
+  /**
+   * Lo que en la web hacen los efectos al cambiar el marcador: pasar de ronda en el reto al ganar
+   * una, y al acabar, guardar y contárselo al salón una sola vez por partida.
+   */
+  private alCambiar(): void {
+    if (this.running && this.challenge && this.matchOutcome === 'won') {
+      this.previousPlayerGoals += this.playerGoals
+      this.previousOpponentGoals += this.opponentGoals
+      this.playerGoals = 0
+      this.opponentGoals = 0
+      this.lastScorer = null
+      this.challengeRoundNumber++
+      this.countdown = COUNTDOWN_SECONDS
+      this.runId++
+      return
+    }
+    if (this.gameState !== 'finished' || this.cerrada === this.runId) return
+    this.cerrada = this.runId
+    const endlessRun = isEndless(this.activeGoalTarget)
+    if (this.levels) {
+      const stars = levelStars(this.outcome === 'won', this.playerGoals, this.opponentGoals)
+      const passed = levelPassed(stars)
+      const nivel = this.activeLevel
+      const abre = passed && nivel + 1 > this.unlockedAtStart && nivel < LEVEL_COUNT
+      this._levelResult = { stars, passed, unlocked: abre ? nivel + 1 : null }
+      saveLevelResult(nivel, stars)
+    } else if (endlessRun) {
+      saveBestEndlessStreak(this.bestStreak)
+      this._isRecord = this.bestStreak > this.recordToBeat && getBestEndlessStreak() === this.bestStreak
+    } else {
+      saveBestPoints(this.gameMode, this.points)
+      this._isRecord = this.points > this.recordToBeat && getBestPoints(this.gameMode) === this.points
+    }
+    this.alTerminar?.({ modo: this.gameMode, puntos: this.points, reto: this.enReto })
+  }
+}

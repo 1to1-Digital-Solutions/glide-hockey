@@ -1,0 +1,8 @@
+{
+  "extends": "../../xrcade/godot-kit/tsconfig.base.json",
+  "compilerOptions": {
+    "typeRoots": ["./typings"],
+    "paths": { "@/*": ["../src/*"], "@kit/*": ["../../xrcade/godot-kit/*"] }
+  },
+  "include": ["scene/**/*.ts", "typings/**/*.d.ts"]
+}

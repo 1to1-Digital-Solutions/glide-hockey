@@ -35,7 +35,12 @@ const CONTENT_SECURITY_POLICY = [
   "img-src 'self' data: blob:",
   "font-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  "script-src 'self' 'unsafe-inline'",
+  // `'unsafe-eval'` solo con `next dev`: el React de desarrollo usa `eval` para rehacer las pilas
+  // de llamadas y sin él cada carga deja un error en la consola. El build no lo lleva nunca —ni,
+  // con él, permiso para compilar WebAssembly—, y eso lo vigila `src/csp.test.ts`.
+  process.env.NODE_ENV === 'development'
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    : "script-src 'self' 'unsafe-inline'",
   "worker-src 'self' blob:",
   "connect-src 'self' blob:",
   // La música de fondo se sirve desde el propio origen, como todo lo demás.

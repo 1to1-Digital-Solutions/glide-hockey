@@ -40,7 +40,10 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "sync:xr-profiles": "node scripts/sync-xr-profiles.mjs",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "godot:build": "node ../xrcade/godot-kit/build.mjs --project godot",
+    "godot:sfx": "node ../xrcade/godot-kit/render-sfx.mjs --project godot",
+    "godot:test": "godot/tests/run.sh"
   },
   "peerDependencies": {
     "@react-three/drei": "^10.7.8",

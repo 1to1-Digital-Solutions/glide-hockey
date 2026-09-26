@@ -48,7 +48,6 @@ import {
   Node,
   Node3D,
   OmniLight3D,
-  OS,
   StandardMaterial3D,
   Time,
   Transform3D,
@@ -63,7 +62,8 @@ import { triangulosDeArco } from '@kit/lib/ui/iconos'
 import type { Punto2 } from '@kit/lib/ui/salida'
 import type { Mano } from '@kit/lib/xr/manos'
 import { IDENTIDAD } from '@kit/lib/xr/pose'
-import { gameStorage, usarRaiz } from '@kit/motor/almacen-godot'
+import { gameStorage } from '@kit/motor/almacen-godot'
+import { aislarElGuardado, argumento, hayBandera } from '@kit/runtime/argumentos'
 import { Music, Sfx, type Loop } from '@kit/runtime/sfx'
 import { figura } from '@kit/runtime/ui/malla'
 import { XRPlayer, type Agarrable } from '@kit/runtime/xr/jugador'
@@ -159,17 +159,6 @@ const ALTURA_DEL_PUNO = 0.06
 const FOTOGRAMA_DEL_GIRO = 60
 
 type Driver = 'xr' | 'mouse' | 'bot'
-type Argumentos = { size(): number; get(i: number): string; has(valor: string): boolean }
-
-/** Lee `--nombre=valor` de los argumentos de usuario (un `PackedStringArray` no se itera en JS). */
-function argumento(args: Argumentos, nombre: string): string | null {
-  const prefijo = `--${nombre}=`
-  for (let i = 0; i < args.size(); i++) {
-    const arg = args.get(i)
-    if (arg.startsWith(prefijo)) return arg.slice(prefijo.length)
-  }
-  return null
-}
 
 /** Un rectángulo centrado en el origen, en dos triángulos: las rayas de la mesa. */
 function raya(ancho: number, alto: number): Punto2[] {
@@ -184,8 +173,8 @@ function raya(ancho: number, alto: number): Punto2[] {
  * (lo pone el hub nativo al entrar por el reto del día; contrato en `xrcade/docs/anadir-un-juego.md`
  * §3, el mismo que la web: `Reto` de `semilla.ts`).
  */
-export function retoDelSalon(nodo: Node, args: Argumentos): Reto | null {
-  const linea = argumento(args, 'reto')
+export function retoDelSalon(nodo: Node): Reto | null {
+  const linea = argumento('reto')
   if (linea != null && linea.trim() !== '' && Number.isFinite(Number(linea))) return { semilla: Number(linea) >>> 0 }
   const xrcade = nodo.get_node_or_null('/root/XRcade')
   if (xrcade != null && xrcade.has_meta('challenge_seed')) return { semilla: Number(xrcade.get_meta('challenge_seed')) >>> 0 }
@@ -264,19 +253,15 @@ export default class GlideHockey extends Node3D {
   private harnessMenu = false
 
   _ready(): void {
-    const args = OS.get_cmdline_user_args() as unknown as Argumentos
     this.harnessMenu = this.has_meta('harness_menu')
     this.harness = this.has_meta('harness') || this.harnessMenu
-    // Una escena de test guarda aparte y empieza de cero: si no, la marca del jugador automático
-    // acabaría como récord de quien tenga el juego, y cada pasada dependería de la anterior.
-    if (this.harness) {
-      usarRaiz('user://pruebas-de-la-escena/')
-      gameStorage()?.clear()
-    }
-    const autoplay = args.has('--autoplay') || (this.harness && !this.harnessMenu)
-    this.shotPath = argumento(args, 'shot')
-    this.shotMenuPath = argumento(args, 'shot-menu')
-    this.shotFinalPath = argumento(args, 'shot-final')
+    // Una escena de test o una captura guarda aparte y empieza de cero: si no, la marca del jugador
+    // automático acabaría como récord de quien tenga el juego, y cada pasada dependería de la anterior.
+    aislarElGuardado(this.harness)
+    const autoplay = hayBandera('autoplay') || (this.harness && !this.harnessMenu)
+    this.shotPath = argumento('shot')
+    this.shotMenuPath = argumento('shot-menu')
+    this.shotFinalPath = argumento('shot-final')
     const simulado = this.harness && this.has_meta('xr_simulado')
     this.driver = simulado ? 'xr' : autoplay ? 'bot' : this.startXr() ? 'xr' : 'mouse'
 
@@ -288,7 +273,7 @@ export default class GlideHockey extends Node3D {
     if (this.player == null) this.buildCamera()
     this.buildSound()
 
-    this.partida = new Partida({ reto: retoDelSalon(this, args), alTerminar: (r) => this.alTerminar(r) })
+    this.partida = new Partida({ reto: retoDelSalon(this), alTerminar: (r) => this.alTerminar(r) })
     this.partida.immersive = this.driver === 'xr'
     this.interfaz = new InterfazDelJuego(
       this.partida,
@@ -298,8 +283,8 @@ export default class GlideHockey extends Node3D {
         camara: this.camera,
         punteros: this.player?.punteros() ?? [],
         visor: this.driver === 'xr',
-        lang: argumento(args, 'lang'),
-        tutorial: args.has('--tutorial'),
+        lang: argumento('lang'),
+        tutorial: hayBandera('tutorial'),
       },
     )
     this.golpe = new GolpeRecibido({
@@ -313,8 +298,8 @@ export default class GlideHockey extends Node3D {
     // El jugador automático no pasa por el menú: juega siempre la misma partida (`PARTIDA_DEL_BOT`).
     if ((this.driver === 'bot' || this.sim != null) && !this.partida.running) {
       this.partida.setGameMode(PARTIDA_DEL_BOT.modo)
-      this.partida.setGoalTarget(Number(argumento(args, 'goles') ?? PARTIDA_DEL_BOT.goles))
-      const dificultad = argumento(args, 'dificultad') ?? (this.has_meta('dificultad') ? String(this.get_meta('dificultad')) : null)
+      this.partida.setGoalTarget(Number(argumento('goles') ?? PARTIDA_DEL_BOT.goles))
+      const dificultad = argumento('dificultad') ?? (this.has_meta('dificultad') ? String(this.get_meta('dificultad')) : null)
       this.partida.setDifficulty(dificultad != null && dificultad in OPPONENT_SKILLS ? (dificultad as Difficulty) : PARTIDA_DEL_BOT.dificultad)
       this.partida.startGame()
     }

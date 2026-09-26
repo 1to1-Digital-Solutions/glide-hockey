@@ -21,12 +21,13 @@
  *   máquina hasta el final, que es lo que usan los tests y la medida del coste por fotograma.
  *
  * Suena con los efectos de la web, renderizados de su `audioEngine.ts` por
- * `xrcade/godot-kit/render-sfx.mjs`, y con su música y su fundido. El gol en contra es además un
+ * `xrcade/godot-kit/render-sfx.mjs`, con el roce del disco en bucle siguiendo a su velocidad, y con
+ * su música y su fundido. El gol en contra es además un
  * golpe que recibe el cuerpo (`golpe.ts`), como en la web.
  *
  * **El reto del salón** (`semilla.ts`): la escena lo lee de `-- --reto=<semilla>` o del salón si lo
- * presta (`retoDelSalon`), y al acabar cada partida cuenta el resultado (`contarAlSalon`). El hub
- * nativo todavía no pasa retos: el enganche está listo para cuando lo haga.
+ * presta (`retoDelSalon`), y al acabar cada partida cuenta el resultado (`contarAlSalon`); el hub
+ * nativo pasa la semilla del reto del día y apunta el resultado.
  */
 import {
   AudioServer,
@@ -63,7 +64,7 @@ import type { Punto2 } from '@kit/lib/ui/salida'
 import type { Mano } from '@kit/lib/xr/manos'
 import { IDENTIDAD } from '@kit/lib/xr/pose'
 import { gameStorage, usarRaiz } from '@kit/motor/almacen-godot'
-import { Music, Sfx } from '@kit/runtime/sfx'
+import { Music, Sfx, type Loop } from '@kit/runtime/sfx'
 import { figura } from '@kit/runtime/ui/malla'
 import { XRPlayer, type Agarrable } from '@kit/runtime/xr/jugador'
 import { simularMandos, type Simulacion } from '@kit/runtime/xr/simulado'
@@ -95,6 +96,7 @@ import * as pellizco from '@/lib/pellizco'
 import { puckGlow } from '@/lib/puckGlow'
 import { HALF_LENGTH, HALF_WIDTH, constrainMallet, type Vec2 } from '@/lib/puckPhysics'
 import type { Resultado, Reto } from '@/lib/semilla'
+import { SLIDE_SMOOTHING } from '@/lib/slideSound'
 import * as uiHeight from '@/lib/uiHeight'
 
 import { acercar, destinoDelBot } from './juego/bot'
@@ -102,12 +104,12 @@ import { GolpeRecibido } from './juego/golpe'
 import { confort, niveles } from './interfaz/ajustes'
 import { InterfazDelJuego } from './interfaz/interfaz'
 import { Partida } from './interfaz/partida'
-import { efectoDelChoque, impactStrength, pulsosDelSuceso, sucesosDelFotograma, type SucesoEnLaMano } from './juego/sucesos'
+import { efectoDelChoque, impactStrength, pulsosDelSuceso, roceDelDisco, sucesosDelFotograma, type SucesoEnLaMano } from './juego/sucesos'
 
 /**
  * Todos los efectos renderizados (`godot-kit.json`, `sfx.sounds`): el golpe y el rebote a tres
- * fuerzas, el gol y los tres cierres. El roce del disco no está: es un sonido continuo que sigue a
- * la velocidad, y el render del kit solo sabe de disparos sueltos.
+ * fuerzas, el gol y los tres cierres. El roce del disco va aparte: es un bucle (`sfx.loops`) que
+ * suena mientras el disco se mueve.
  */
 export const SOUNDS = [
   'strike-suave',
@@ -178,9 +180,9 @@ function raya(ancho: number, alto: number): Punto2[] {
 
 /**
  * El reto que presta el salón, si lo hay. Primero la línea de órdenes (`-- --reto=<semilla>`), que
- * es como se prueba; luego el salón, si su autoload `XRcade` lleva el metadato `challenge_seed`.
- * **El hub nativo todavía no lo pone**: es el enganche para cuando pase los retos del día y los
- * «reta mi puntuación», con el mismo contrato que la web (`Reto` de `semilla.ts`).
+ * es como se prueba; luego el salón, si su autoload `XRcade` lleva el metadato `challenge_seed`
+ * (lo pone el hub nativo al entrar por el reto del día; contrato en `xrcade/docs/anadir-un-juego.md`
+ * §3, el mismo que la web: `Reto` de `semilla.ts`).
  */
 export function retoDelSalon(nodo: Node, args: Argumentos): Reto | null {
   const linea = argumento(args, 'reto')
@@ -238,6 +240,9 @@ export default class GlideHockey extends Node3D {
 
   private sfx!: Sfx
   private music!: Music
+  /** El roce del disco: el bucle, y la velocidad del disco que se pinta, que es la que suena. */
+  private roce!: Loop
+  private velocidadDelDisco = 0
   private golpe!: GolpeRecibido
   private terminada = -1
   private tiempo = 0
@@ -343,6 +348,7 @@ export default class GlideHockey extends Node3D {
   }
 
   _exit_tree(): void {
+    this.roce?.stop()
     const indice = AudioServer.get_bus_index(BUS_DEL_JUEGO)
     if (indice > 0) AudioServer.remove_bus(indice)
   }
@@ -350,6 +356,7 @@ export default class GlideHockey extends Node3D {
   private buildSound(): void {
     const bus = this.busDelJuego()
     this.sfx = new Sfx(this, { dir: SFX_DIR, names: SOUNDS, bus, levels: niveles })
+    this.roce = this.sfx.loop('slide', { smoothing: SLIDE_SMOOTHING })
     this.music = new Music(this, { path: MUSIC_PATH, volume: MUSIC_VOLUME, fade: fadeVolume, fadeMs: MUSIC_FADE_MS, bus, levels: niveles })
     this.music.start()
   }
@@ -621,6 +628,12 @@ export default class GlideHockey extends Node3D {
     this.golpe.actualizar()
     this.music.update(delta)
     this.paint()
+    // Como en la web (`Rink.tsx`): el roce sigue a la velocidad del disco en juego; parado, en
+    // pausa o fuera de la partida, calla.
+    const roce = roceDelDisco(this.velocidadDelDisco)
+    this.roce.volume = roce.volume
+    this.roce.pitch = roce.pitch
+    this.roce.update(delta)
     this.interfaz.actualizar(delta, { agarre: this.player?.ajustes.agarre ?? 'hold' })
 
     const spent = Time.get_ticks_usec() - t0
@@ -767,6 +780,7 @@ export default class GlideHockey extends Node3D {
   /** Coloca el disco y los mazos, y enciende lo que toca. */
   private paint(): void {
     const table = this.table
+    this.velocidadDelDisco = 0
     this.puck.visible = table != null
     this.playerMallet.visible = table != null
     this.opponentMallet.visible = table != null
@@ -780,6 +794,7 @@ export default class GlideHockey extends Node3D {
     // El halo del disco con su velocidad (`puckGlow`); parado o en pausa, el de reposo.
     const moving = this.partida.gameState === 'playing' && this.partida.prompt === null
     const speed = moving ? Math.hypot(table.puck.velocity.x, table.puck.velocity.z) : 0
+    this.velocidadDelDisco = speed
     this.puckMaterial.emission_energy_multiplier = puckGlow(speed).emissive
     // El mazo late mientras la cuenta atrás lo espera: es lo que dice cuál hay que coger.
     this.playerMalletMaterial.emission_energy_multiplier = this.partida.esperandoElMazo ? 0.5 + 0.5 * Math.sin(this.tiempo * 6) : 0
@@ -868,6 +883,7 @@ export default class GlideHockey extends Node3D {
       resultados: this.resultados,
       golpesRecibidos: this.golpe.dados,
       sfx: this.sfx.counts,
+      roce: { ...this.roce.stats, sonando: this.roce.playing },
       variants: Object.fromEntries(SOUNDS.map((name) => [name, this.sfx.variantCount(name)])),
       music: { playing: this.music.playing, volume: Number(this.music.volume.toFixed(3)) },
       levels: niveles(),

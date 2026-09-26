@@ -15,7 +15,6 @@
 import { Node3D, Transform3D, Vector3, type Camera3D, type InputEvent } from 'godot'
 
 import type { Puntero } from '@kit/lib/ui/puntero'
-import type { Boton } from '@kit/runtime/ui/boton'
 import { Punteria } from '@kit/runtime/ui/punteria'
 import { PunteroDeRaton } from '@kit/runtime/ui/raton'
 import type { MandoEnLaMano } from '@kit/runtime/ui/tutorial'
@@ -32,7 +31,6 @@ import { MenuDelJuego, type EstadoDelMenu } from './menu'
 import type { Partida } from './partida'
 import {
   ESCALA_DEL_BOTON,
-  ESCALA_DEL_TUTORIAL,
   ESCALA_DE_LA_COLUMNA,
   INCLINACION_DEL_MARCADOR,
   XR_QUIT,
@@ -91,8 +89,6 @@ export class InterfazDelJuego {
   readonly cuenta: CuentaAtras
   readonly tutorial: TutorialDelJuego
   private pintado = ''
-  /** Todos los botones de la interfaz; en la puntería, solo los que se ven (`apuntables`). */
-  private readonly botones: Boton[]
   private readonly langForzado: string | null
   private readonly tutorialEnPlano: boolean
   private readonly visor: boolean
@@ -157,24 +153,11 @@ export class InterfazDelJuego {
 
     this.tutorial = new TutorialDelJuego(this.punteria, opciones.manos)
     if (this.tutorialEnPlano) this.tutorial.forzar()
-    colocar(this.tutorial.vista.nodo, XR_UI.tutorial, XR_UI_ROTATION.tutorial, ESCALA_DEL_TUTORIAL)
+    colocar(this.tutorial.vista.nodo, XR_UI.tutorial, XR_UI_ROTATION.tutorial)
     mesa.add_child(this.tutorial.vista.nodo)
 
     // Si el salón cambia el idioma con el juego abierto, se repinta al siguiente fotograma.
     this.dejarDeEscuchar = alCambiarElIdioma(() => (this.pintado = ''))
-    this.botones = [
-      ...this.menu.botones.values(),
-      this.final.otraVez,
-      this.final.menu,
-      this.final.salir,
-      this.aviso.seguir,
-      this.aviso.menu,
-      this.aviso.dejar,
-      this.parar.parar,
-      this.parar.terminar,
-      this.tutorial.vista.siguiente,
-      this.tutorial.vista.saltar,
-    ]
     this.pintarFase()
   }
 
@@ -223,7 +206,6 @@ export class InterfazDelJuego {
 
   /** Un fotograma: la puntería (que puede cambiar la fase) y luego pintar lo que toca. */
   actualizar(delta: number, { agarre = 'hold' as GrabMode } = {}): void {
-    this.apuntables()
     this.punteria.actualizar()
     this.pintarFase()
     const p = this.partida
@@ -272,22 +254,6 @@ export class InterfazDelJuego {
     this.aviso.nodo.visible = enPartida && p.prompt != null
     this.marcador.nodo.visible = fase !== 'menu'
     this.parar.mostrar(enPartida && p.prompt == null, isEndless(p.activeGoalTarget) && fase === 'playing')
-    this.apuntables()
-  }
-
-  /**
-   * Deja en la puntería solo los botones que se ven. La puntería del kit repinta cada fotograma
-   * todos los que tiene, se vean o no, y aquí hay una treintena entre el menú, el final, el aviso y
-   * el tutorial: con todos dentro, la interfaz costaba más que la mesa entera. Mientras se juega
-   * quedan dos o cuatro.
-   */
-  private apuntables(): void {
-    for (const boton of this.botones) {
-      const ve = boton.nodo.is_inside_tree() && boton.nodo.is_visible_in_tree()
-      const esta = this.punteria.boton(boton.id) != null
-      if (ve && !esta) this.punteria.anadir(boton)
-      else if (!ve && esta) this.punteria.quitar(boton.id)
-    }
   }
 
   /** Deja de escuchar el guardado: al salir de la escena. */

@@ -16,6 +16,9 @@
       "win": {},
       "loss": {},
       "record": {}
+    },
+    "loops": {
+      "slide": { "calls": [["play", "strike", 0], ["slide", 6]] }
     }
   },
   "music": { "sala": "public/audio/sala.mp3" }

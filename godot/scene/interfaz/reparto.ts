@@ -97,13 +97,15 @@ export interface Caja {
 const caja = (x: number, y: number, [width, height]: readonly [number, number]): Caja => ({ x, y, width, height })
 
 /**
- * Lo que se agranda el panel del tutorial del kit. El kit trae las letras del tutorial de Hole
- * Patrol (el contador a 30 mm) y en Glide Hockey el tutorial va sobre la mesa, a 1,2 m de los ojos:
- * la web subió su contador a 36 mm porque a 30 no llegaba a lo que se lee de un vistazo desde ahí
- * (`TUTORIAL_TEXT` de `XRTutorial.tsx`). El panel entero se agranda en esa proporción, que es lo
- * que pide el contador sin un segundo tutorial.
+ * La letra y los botones del tutorial (`TUTORIAL_TEXT` y `BOTON` de `XRTutorial.tsx`). Aquí va sobre
+ * la mesa, a 1,2 m de los ojos: la web subió contador y botones a 36 mm porque a 30 y 32 se quedaban
+ * en 1°, y ensanchó los botones para que «Saltar tutorial» siga cabiendo a esa letra. El panel del
+ * kit las recibe tal cual; lo demás (el panel, la frase) es igual que en Hole Patrol.
  */
-export const ESCALA_DEL_TUTORIAL = 0.036 / 0.03
+export const MEDIDAS_DEL_TUTORIAL = {
+  letra: { counter: 0.036, phrase: 0.042, button: 0.036 },
+  boton: { width: 0.37, x: 0.195 },
+} as const
 
 /** El marcador (`SCOREBOARD_SIZE` y `ROW` de `XRHud.tsx`). */
 export const MARCADOR = { width: 0.52, height: 0.34 } as const

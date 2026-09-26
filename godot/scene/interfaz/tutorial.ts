@@ -28,6 +28,7 @@ import {
 } from '@/lib/tutorial'
 
 import { DIM } from './menu'
+import { MEDIDAS_DEL_TUTORIAL } from './reparto'
 
 /** Lo que se pide en cada paso (`FRASES` de `XRTutorial.tsx`). */
 export const FRASES: Record<TutorialStepKey, TextKey> = {
@@ -65,6 +66,7 @@ export class TutorialDelJuego {
         tintaDelBoton: PALETTE.primaryInk,
       },
       manos,
+      medidas: MEDIDAS_DEL_TUTORIAL,
     })
     punteria.anadir(this.vista.siguiente, this.vista.saltar)
   }

@@ -1,7 +1,7 @@
 ## Una partida automática contra la máquina, entera y hasta el final, contando lo que pasa: que la
 ## mesa de `src/lib` y la escena están cosidas (goles de los dos lados, el marcador y los puntos de
 ## la web), que suena lo que toca y tantas veces como toca, que el gol en contra es un golpe
-## recibido y que al acabar se cuenta el resultado al salón. Sin audio de verdad: todo va a un bus
+## recibido, que el disco suena al deslizar y que al acabar se cuenta el resultado al salón. Sin audio de verdad: todo va a un bus
 ## silenciado, que cuenta igual.
 ##
 ## Y el contrato del reto: con un salón que presta una semilla (`challenge_seed`), el juego entra
@@ -112,6 +112,16 @@ func comprobar(r: Dictionary) -> void:
 	# Y el resultado se le cuenta al salón una vez, sin ser el reto.
 	if r.resultados.size() != 1 or r.resultados[0].modo != "practice" or r.resultados[0].reto:
 		fallos.append("al salón se le cuenta %s" % [r.resultados])
+	# El roce del disco: suena mientras se juega, con el volumen y el tono de la velocidad. El bucle
+	# se renderizó a la velocidad máxima, así que ni el volumen ni el tono pasan de 1, y en una
+	# partida entera el disco va a varias velocidades, así que el tono se mueve.
+	var roce: Dictionary = r.roce
+	if int(roce.frames) < 72:
+		fallos.append("el disco apenas suena al deslizar: %s" % [roce])
+	if float(roce.maxVolume) < 0.2 or float(roce.maxVolume) > 1.0001:
+		fallos.append("el roce llega a un volumen de %.3f" % float(roce.maxVolume))
+	if float(roce.maxPitch) > 1.0001 or float(roce.minPitch) < 0.19 or float(roce.maxPitch) - float(roce.minPitch) < 0.1:
+		fallos.append("el tono del roce no sigue a la velocidad: %s" % [roce])
 	if not r.music.playing or absf(float(r.music.volume) - MUSIC_VOLUME) > 0.001:
 		fallos.append("la música no está sonando a %.3f: %s" % [MUSIC_VOLUME, r.music])
 	print("PARTIDA-AUTO %d–%d, %d toques, %d puntos, %d fotogramas, %d µs de media (%d de pico)" % [

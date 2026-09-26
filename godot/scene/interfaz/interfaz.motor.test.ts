@@ -19,7 +19,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { problemasDeLegibilidad } from '@kit/lib/ui/instrumento'
 import { ALTO_DE_LINEA, medidorAproximado, type Escrito } from '@kit/lib/ui/texto'
-import { LETRA_DEL_TUTORIAL, PANEL_DEL_TUTORIAL } from '@kit/lib/ui/tutorial'
+import { PANEL_DEL_TUTORIAL } from '@kit/lib/ui/tutorial'
 import { Sfx } from '@kit/runtime/sfx'
 import { Punteria } from '@kit/runtime/ui/punteria'
 
@@ -45,7 +45,7 @@ import {
   AVISO_DEL_MAZO,
   CAJAS_DEL_FINAL,
   ESCALA_DE_LA_COLUMNA,
-  ESCALA_DEL_TUTORIAL,
+  MEDIDAS_DEL_TUTORIAL,
   FINAL,
   LETRA_DEL_AVISO,
   LETRA_DEL_AVISO_DE_SALIR,
@@ -249,8 +249,8 @@ describe('el final, el aviso, la cuenta y el tutorial se leen', () => {
           tutorial.vista.mostrarPaso(i + 1, TUTORIAL_STEPS.length, traductor(lang)(frases[paso]), null)
           const escritos = tutorial.vista.panel.escritos
           const donde = `${lang} ${agarre} ${paso}`
-          expect(medir(escritos, PANEL_DEL_TUTORIAL, vistas, ESCALA_DEL_TUTORIAL), donde).toEqual([])
-          expect(sizesOffList(escritos, ALTO_DE_LINEA, Object.values(LETRA_DEL_TUTORIAL)), donde).toEqual([])
+          expect(medir(escritos, PANEL_DEL_TUTORIAL, vistas), donde).toEqual([])
+          expect(sizesOffList(escritos, ALTO_DE_LINEA, Object.values(MEDIDAS_DEL_TUTORIAL.letra)), donde).toEqual([])
         }
       }
     }
@@ -333,7 +333,7 @@ describe('con el ratón: el menú lleva a jugar, parar pregunta y el final vuelv
   function clic(id: string): void {
     interfaz.actualizar(0.016)
     const boton = interfaz.punteria.boton(id)
-    expect(boton, `el botón ${id} no está a la vista`).toBeDefined()
+    expect(boton?.nodo.is_visible_in_tree(), `el botón ${id} no está a la vista`).toBe(true)
     const at: Vector2 = camara.unproject_position(boton!.nodo.global_position)
     const mover = new InputEventMouseMotion()
     mover.position = at
@@ -363,7 +363,7 @@ describe('con el ratón: el menú lleva a jugar, parar pregunta y el final vuelv
     expect(confort()).toBe('off')
     clic('modo challenge')
     expect(partida.gameMode).toBe('challenge')
-    expect(interfaz.punteria.boton('mas')).toBeUndefined()
+    expect(interfaz.punteria.boton('mas')?.nodo.is_visible_in_tree()).toBe(false)
   })
 
   it('la flecha de la esquina sale; Escape en el menú, también', () => {
@@ -403,9 +403,17 @@ describe('con el ratón: el menú lleva a jugar, parar pregunta y el final vuelv
     expect(partida.gameState).toBe('menu')
   })
 
-  it('en la partida solo están en la puntería los botones que se ven', () => {
+  it('en la partida solo se apunta a lo que se ve: el ratón sobre el «jugar» escondido no lo enciende', () => {
     clic('jugar')
     interfaz.actualizar(0.016)
-    expect(['quit', 'end', 'jugar', 'final:again'].filter((id) => interfaz.punteria.boton(id) != null)).toEqual(['quit'])
+    const visibles = ['quit', 'end', 'jugar', 'final:again'].filter((id) => interfaz.punteria.boton(id)?.nodo.is_visible_in_tree())
+    expect(visibles).toEqual(['quit'])
+    const jugar = interfaz.punteria.boton('jugar')!
+    const mover = new InputEventMouseMotion()
+    mover.position = camara.unproject_position(jugar.nodo.global_position)
+    interfaz.recibir(mover)
+    interfaz.actualizar(0.016)
+    expect(interfaz.apuntaAUnBoton()).toBe(false)
+    expect(jugar.estado).toBe('reposo')
   })
 })

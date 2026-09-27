@@ -21,6 +21,7 @@ import { triangulosDeArco } from '@kit/lib/ui/iconos'
 import { aro, cilindro, cuadro, malla, mallaPlana, opacidad, translucido, tumbar } from '@kit/runtime/escena/piezas'
 import type { MandoDeVerdad } from '@kit/runtime/ui/mando'
 
+import type { Hand } from '@/lib/ajustes'
 import { COLOR_DE_LA_AYUDA, LATIDO, acercarse, avanzarLasAyudas, latido, pase, sinAyudas } from '@/lib/ayudas'
 import { MALLET_RADIUS } from '@/lib/gameConfig'
 import {
@@ -49,10 +50,11 @@ const APAGADA = 0.004
 
 /**
  * Dónde va el mando junto al mazo fantasma, en las coordenadas de la mesa (`JUNTO` de la web): a
- * un palmo del sitio donde nace el mazo, a la altura de la mano y con el agarre de cara a los ojos.
+ * un palmo del sitio donde nace el mazo, del lado de la mano buena, a la altura de la mano y con el
+ * agarre de cara a los ojos.
  */
-export function juntoAlMazo(): { posicion: Vector3; giro: number; escala: number } {
-  const { posicion, giro } = mandoJuntoAlMazo()
+export function juntoAlMazo(mano: Hand = 'right'): { posicion: Vector3; giro: number; escala: number } {
+  const { posicion, giro } = mandoJuntoAlMazo(mano)
   return { posicion: new Vector3(posicion.x, posicion.y, posicion.z), giro, escala: MANDO_JUNTO_AL_MAZO.escala }
 }
 

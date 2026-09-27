@@ -83,6 +83,7 @@ import { XRPlayer, type Agarrable } from '@kit/runtime/xr/jugador'
 import { simularMandos, verConLaCabezaSimulada, type Simulacion } from '@kit/runtime/xr/simulado'
 
 import * as agarre from '@/lib/agarre'
+import { readHand } from '@/lib/ajustes'
 import {
   GOAL_WIDTH,
   MALLET_RADIUS,
@@ -99,7 +100,6 @@ import { getDuelTally } from '@/lib/duelTally'
 import { GAME_MODE_ORDER, type GameMode } from '@/lib/gameMode'
 import type { Difficulty } from '@/lib/gameConfig'
 import { FUERZA_DEL_GOL_EN_CONTRA, direccionDelGolEnContra } from '@/lib/golEnContra'
-import { MANO_QUE_JUEGA } from '@/lib/guionDeAyudas'
 import { getBestPoints } from '@/lib/highScore'
 import * as hostAnchor from '@/lib/hostAnchor'
 import { ALCANCE_DE_AGARRE } from '@/lib/malletGrab'
@@ -624,17 +624,18 @@ export default class GlideHockey extends Node3D {
   }
 
   /**
-   * Las ayudas, con el mando de verdad junto al mazo fantasma: el de la mano que enseña la web
-   * (`MANO_QUE_JUEGA`), con el perfil del visor, o el del Quest 3 en plano. Y con visor, el mando de
+   * Las ayudas, con el mando de verdad junto al mazo fantasma: el de la mano buena del salón, de su
+   * lado del mazo, con el perfil del visor, o el del Quest 3 en plano. Y con visor, el mando de
    * verdad en cada puño para la cuenta atrás y el tutorial: en las dos, que el mazo se coge con
    * cualquiera.
    */
   private buildAyudas(): void {
     const player = this.player
+    const mano = player?.manoBuena ?? readHand(gameStorage())
     const junto = new MandoDeVerdad({
-      mano: MANO_QUE_JUEGA,
+      mano,
       dir: DIR_DE_LOS_MANDOS,
-      junto: juntoAlMazo(),
+      junto: juntoAlMazo(mano),
       ...(player == null ? { perfil: () => PERFIL_POR_DEFECTO } : {}),
     })
     this.ayudas = new AyudasDelJuego(this.escena, this.mesa, junto)
@@ -1041,6 +1042,7 @@ export default class GlideHockey extends Node3D {
       manosQueVibraron: [...new Set(player.vibraciones.map((v) => v.mano))],
       ayudas: [...this.ayudasVistas],
       ayudasAlFinal: this.ayudas.visibles(),
+      mandoJunto: { mano: this.ayudas.mando?.mano ?? null, x: this.ayudas.mando?.nodo.position.x ?? 0 },
       tutorial: this.tutorialVisto,
       mandosDelTutorial: [...this.mandosVistos.tutorial],
       mandosDeLaCuenta: [...this.mandosVistos.cuenta],

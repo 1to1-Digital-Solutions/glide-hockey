@@ -1,5 +1,6 @@
+import type { Hand } from './ajustes'
 import type { Guion } from './ayudas'
-import { GOAL_WIDTH, MALLET_RADIUS, PUCK_RADIUS, TABLE_CENTER_Z, TABLE_HEIGHT } from './gameConfig'
+import { GOAL_WIDTH, MALLET_RADIUS, PUCK_RADIUS, TABLE_CENTER_Z } from './gameConfig'
 import { playerStart } from './opponent'
 import { HALF_LENGTH, HALF_WIDTH } from './puckPhysics'
 
@@ -203,22 +204,18 @@ export const MARCA_DE_PORTERIA = {
 } as const
 
 /**
- * La mano que juega, para el mando que se enseña junto al mazo fantasma.
- *
- * Aquí no se elige mano —el mazo se coge con la que se tenga libre (`MalletHand`)—, así que se
- * enseña la derecha, que es la de la mayoría. A CALIBRAR CON EL VISOR.
- */
-export const MANO_QUE_JUEGA = 'right' as const
-
-/**
- * El mando de verdad junto al mazo fantasma: a un palmo a su derecha, a la altura de la mano sobre
+ * El mando de verdad junto al mazo fantasma: a un palmo de su lado, a la altura de la mano sobre
  * el tablero y crecido lo justo para que el botón se lea desde los ojos.
+ *
+ * El mazo se coge con la mano que se tenga libre (`MalletHand`), pero la ayuda enseña una: **la
+ * mano buena del salón** (`xrcade:hand`), que es la que se echa primero. A la derecha del mazo
+ * para un diestro; para un zurdo, el izquierdo y a su izquierda, en espejo.
  *
  * Se planta junto a **donde nace el mazo** (`playerStart()`), que es donde el fantasma empieza su
  * empujón y donde se va a echar la mano. A CALIBRAR CON EL VISOR: las tres cifras.
  */
 export const MANDO_JUNTO_AL_MAZO = {
-  /** Cuánto se aparta del centro del mazo hacia la derecha, en metros: un palmo de aire entre la punta del mando y el aro. */
+  /** Cuánto se aparta del centro del mazo hacia el lado de la mano, en metros: un palmo de aire entre la punta del mando y el aro. */
   separacion: 0.26,
   /** A qué altura sobre el tablero, en metros: donde va la mano al coger el mazo. */
   alto: 0.1,
@@ -233,13 +230,15 @@ export const MANDO_JUNTO_AL_MAZO = {
  * El modelo se dibuja como un mando en la mano, apuntando a −Z; el agarre del derecho está en su
  * costado izquierdo (−X). Sin girar, visto desde los ojos se vería de punta; girado así se ve de
  * lado, con el botón hacia quien juega y la punta hacia el fantasma. Los ojos están sobre el
- * origen del espacio de quien juega, y la mesa a `TABLE_CENTER_Z` de él.
+ * origen del espacio de quien juega, y la mesa a `TABLE_CENTER_Z` de él. El izquierdo lleva el
+ * agarre en su +X, y el giro que lo pone de cara es el espejo del derecho.
  */
-export function mandoJuntoAlMazo(): { posicion: { x: number; y: number; z: number }; giro: number } {
+export function mandoJuntoAlMazo(mano: Hand = 'right'): { posicion: { x: number; y: number; z: number }; giro: number } {
+  const lado = mano === 'left' ? -1 : 1
   const mazo = playerStart()
-  const posicion = { x: mazo.x + MANDO_JUNTO_AL_MAZO.separacion, y: MANDO_JUNTO_AL_MAZO.alto, z: mazo.z }
+  const posicion = { x: mazo.x + lado * MANDO_JUNTO_AL_MAZO.separacion, y: MANDO_JUNTO_AL_MAZO.alto, z: mazo.z }
   const delante = -(posicion.z + TABLE_CENTER_Z)
-  return { posicion, giro: Math.atan2(delante, posicion.x) }
+  return { posicion, giro: Math.atan2(lado * delante, lado * posicion.x) }
 }
 
 /** A qué altura se pinta lo que va calcado sobre la superficie de la mesa. */

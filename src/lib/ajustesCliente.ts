@@ -12,18 +12,23 @@
 import { useSyncExternalStore } from 'react'
 
 import {
+  DEFAULT_HAND,
   DEFAULT_LANG,
   DEFAULT_SCENERY,
   DEFAULT_VOLUME_SETTINGS,
   LANG_COOKIE,
   langFromCookies,
   readGrabMode,
+  readHand,
+  playHeightOffsetMeters,
   readPlayHeight,
+  readPlayHeightOffset,
   readScenery,
   readVolumes,
   writeScenery,
   writeVolume,
   type GrabMode,
+  type Hand,
   type Lang,
   type PlayHeight,
   type Scenery,
@@ -231,6 +236,22 @@ function leerAltura(): PlayHeight {
 }
 
 /**
+ * La altura fina del salón, **en metros**, y React se entera cuando cambia.
+ *
+ * Como la altura de juego: un valor primitivo leído en cada lectura, y en el servidor, sin
+ * almacenamiento, el cero de partida. Se da en metros porque es lo que suma quien mueve el
+ * mundo; los centímetros son cosa del salón, que es quien los enseña.
+ */
+export function usePlayHeightOffset(): number {
+  return useSyncExternalStore(subscribe, leerAlturaFina, leerAlturaFina)
+}
+
+/** Lo guardado, o cero si no hay nada o hay basura. */
+function leerAlturaFina(): number {
+  return playHeightOffsetMeters(readPlayHeightOffset(settingsStorage()))
+}
+
+/**
  * Cómo se sujeta lo que se coge, y React se entera cuando cambia.
  *
  * Como la altura de juego: se lee del almacenamiento en cada lectura en vez de
@@ -244,4 +265,20 @@ export function useGrabMode(): GrabMode {
 /** Lo guardado, o manteniendo si no hay nada o hay basura. */
 function leerAgarre(): GrabMode {
   return readGrabMode(settingsStorage())
+}
+
+/**
+ * Con qué mano se juega, y React se entera cuando cambia.
+ *
+ * Como la altura: un valor primitivo leído en cada lectura, y el juego montado en la cabina está
+ * en esta misma página, así que sin el aviso lo que va de una mano a la otra no cambiaría de lado
+ * hasta recargar. En el servidor, la derecha.
+ */
+export function useHand(): Hand {
+  return useSyncExternalStore(subscribe, leerMano, () => DEFAULT_HAND)
+}
+
+/** Lo guardado, o la derecha si no hay nada o hay basura. */
+function leerMano(): Hand {
+  return readHand(settingsStorage())
 }

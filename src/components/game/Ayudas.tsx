@@ -2,7 +2,7 @@
 
 import { useFrame } from '@react-three/fiber'
 import { useXR } from '@react-three/xr'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Group, Mesh, MeshBasicMaterial } from 'three'
 
 import {
@@ -14,6 +14,8 @@ import {
   pase,
   sinAyudas,
 } from '../../lib/ayudas'
+import type { Hand } from '../../lib/ajustes'
+import { useHand } from '../../lib/ajustesCliente'
 import { MALLET_RADIUS, TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
 import { useGame } from '../../lib/gameStore'
 import {
@@ -27,7 +29,6 @@ import {
   mazoFantasmaEn,
   mandoJuntoAlMazo,
   MANDO_JUNTO_AL_MAZO,
-  MANO_QUE_JUEGA,
   type AyudaDelMazo,
   type HechoDeLasAyudas,
 } from '../../lib/guionDeAyudas'
@@ -94,15 +95,15 @@ const PINTURA = {
  */
 const FANTASMA = { grosor: 0.008, mango: { radio: 0.02, alto: 0.05 } } as const
 
-/** Dónde va el mando de la ayuda, calculado una vez: no depende de nada que cambie. */
-const JUNTO = (() => {
-  const { posicion, giro } = mandoJuntoAlMazo()
+/** Dónde va el mando de la ayuda: solo depende de la mano, así que se calcula una vez por mano. */
+function juntoAlMazo(mano: Hand) {
+  const { posicion, giro } = mandoJuntoAlMazo(mano)
   return {
     position: [posicion.x, posicion.y, posicion.z] as const,
     rotation: [0, giro, 0] as const,
     escala: MANDO_JUNTO_AL_MAZO.escala,
   }
-})()
+}
 
 /** ¿Ha pedido quien juega que las cosas no se muevan solas? */
 function sinMovimiento(): boolean {
@@ -115,6 +116,9 @@ export function Ayudas() {
   const { gameState, hitos } = useGame()
 
   const [quieto] = useState(sinMovimiento)
+  /** La mano buena del salón: su mando es el que se enseña, y de su lado del mazo. */
+  const mano = useHand()
+  const junto = useMemo(() => juntoAlMazo(mano), [mano])
 
   /** El reloj de cada ayuda y cuáles se enseñan, sin pasar por el estado de React. */
   const estado = useRef(sinAyudas())
@@ -268,7 +272,7 @@ export function Ayudas() {
           el mismo sitio se pisan. Así sale desde la primera vez. Dentro de un grupo propio para
           apagarlo sin desmontarlo, y en las coordenadas de la mesa (`mandoJuntoAlMazo`). */}
       <group ref={mando} visible={false} position={[0, TABLE_HEIGHT, TABLE_CENTER_Z]}>
-        <MandoDeVerdad mano={MANO_QUE_JUEGA} boton="agarre" junto={JUNTO} />
+        <MandoDeVerdad mano={mano} boton="agarre" junto={junto} />
       </group>
     </group>
   )

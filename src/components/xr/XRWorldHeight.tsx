@@ -5,7 +5,7 @@ import { useRef, type ReactNode } from 'react'
 import { useXR } from '@react-three/xr'
 import type { Group } from 'three'
 
-import { usePlayHeight } from '../../lib/ajustesCliente'
+import { usePlayHeight, usePlayHeightOffset } from '../../lib/ajustesCliente'
 import {
   hasFloorReference,
   isPlausibleEyeHeight,
@@ -35,6 +35,12 @@ import {
  * apuntando. Solo un cambio grande y sostenido —sentarse a media partida— lo
  * vuelve a colocar, con el mismo seguimiento que usa la interfaz.
  *
+ * **La altura fina, encima.** Lo que el salón deja afinar de cinco en cinco
+ * centímetros (`xrcade:play-height-offset`) se suma a lo anterior, de pie o
+ * sentado: la silla, la estatura o el suelo mal calibrado del visor que un
+ * interruptor no nivela. Es la misma cuenta que hace el port de Godot con el
+ * kit, para que el juego quede a la misma altura en los dos.
+ *
  * Se mueve por referencia y no por estado: es una cota que cambia como mucho
  * dos veces por sesión, y repintar el árbol por ella sería repintarlo por nada.
  *
@@ -49,6 +55,7 @@ export function XRWorldHeight({ children }: { children: ReactNode }) {
     hasFloorReference(state.session?.enabledFeatures),
   )
   const aLaAlturaDeLosOjos = usePlayHeight() === 'eyes'
+  const alturaFina = usePlayHeightOffset()
 
   useFrame(({ camera }, delta) => {
     const node = grupo.current
@@ -74,7 +81,8 @@ export function XRWorldHeight({ children }: { children: ReactNode }) {
       1 - Math.exp(-3.5 * delta),
       delta,
     )
-    node.position.y = worldRise(seguimiento.current.held, aLaAlturaDeLosOjos)
+    node.position.y =
+      worldRise(seguimiento.current.held, aLaAlturaDeLosOjos) + alturaFina
   })
 
   return <group ref={grupo}>{children}</group>

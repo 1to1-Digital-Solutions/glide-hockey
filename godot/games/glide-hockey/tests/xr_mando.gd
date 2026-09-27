@@ -40,7 +40,7 @@ const CASOS := [
 	},
 	{
 		"nombre": "zurdo de pie, con un toque, sin salón",
-		"ajustes": {"xrcade:hand": "left", "xrcade:play-height": "standing", "xrcade:grab": "toggle"},
+		"ajustes": {"xrcade:hand": "left", "xrcade:play-height": "standing", "xrcade:grab": "toggle", "xrcade:play-height-offset": "-15"},
 		"ojos": 1.7,
 		"anclaje": null,
 		"gira": false,
@@ -130,11 +130,18 @@ func comprobar(r: Dictionary) -> void:
 	if xr.mano != buena or xr.llevaron != [buena]:
 		f.append("el mazo lo han llevado %s y la mano buena es %s" % [xr.llevaron, buena])
 
-	var subida: float = (c.ojos - REFERENCIA) if c.ajustes["xrcade:play-height"] == "eyes" else 0.0
+	# La altura fina del salón (`xrcade:play-height-offset`, en centímetros) mueve el mundo y nada más.
+	var aLosOjos: float = (c.ojos - REFERENCIA) if c.ajustes["xrcade:play-height"] == "eyes" else 0.0
+	var subida: float = aLosOjos + float(c.ajustes.get("xrcade:play-height-offset", "0")) / 100.0
 	if not cerca(float(xr.subida), subida):
 		f.append("el mundo ha subido %.3f y tenía que subir %.3f" % [xr.subida, subida])
 
-	var interfaz: float = (c.ojos - REFERENCIA) - subida
+	# El mando junto al mazo fantasma es el de la mano buena, y de su lado del mazo.
+	var junto: Dictionary = xr.mandoJunto
+	if junto.mano != buena or (float(junto.x) > 0.0) != (buena == "right"):
+		f.append("el mando junto al mazo es el %s en x = %.3f y la mano buena es %s" % [junto.mano, junto.x, buena])
+
+	var interfaz: float = (c.ojos - REFERENCIA) - aLosOjos
 	if not cerca(float(xr.subidaDeLaInterfaz), interfaz):
 		f.append("la interfaz sube %.3f sobre el mundo y tenía que subir %.3f" % [xr.subidaDeLaInterfaz, interfaz])
 

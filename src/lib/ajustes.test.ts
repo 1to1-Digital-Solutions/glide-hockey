@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  DEFAULT_HAND,
+  HANDS,
+  HAND_KEY,
+  parseHand,
+  readHand,
   DEFAULT_GRAB_MODE,
   DEFAULT_LANG,
   DEFAULT_PLAY_HEIGHT,
@@ -13,6 +18,12 @@ import {
   LANG_COOKIE,
   PLAY_HEIGHTS,
   PLAY_HEIGHT_KEY,
+  PLAY_HEIGHT_OFFSET_KEY,
+  DEFAULT_PLAY_HEIGHT_OFFSET,
+  MAX_PLAY_HEIGHT_OFFSET,
+  parsePlayHeightOffset,
+  playHeightOffsetMeters,
+  readPlayHeightOffset,
   SCENERIES,
   SCENERY_KEY,
   VOLUME_KEYS,
@@ -260,6 +271,44 @@ describe('a qué altura se juega', () => {
   })
 })
 
+describe('la altura fina del salón', () => {
+  it('la clave y el cero de partida son los que escribe xrcade', () => {
+    // Escritos a mano, como el resto: es el puente entre repositorios.
+    expect(PLAY_HEIGHT_OFFSET_KEY).toBe('xrcade:play-height-offset')
+    expect(DEFAULT_PLAY_HEIGHT_OFFSET).toBe(0)
+    expect(MAX_PLAY_HEIGHT_OFFSET).toBe(30)
+  })
+
+  it('sin la clave el mundo no se mueve', () => {
+    expect(readPlayHeightOffset(almacen())).toBe(0)
+    expect(playHeightOffsetMeters(readPlayHeightOffset(almacen()))).toBe(0)
+  })
+
+  it('con −15 el mundo queda 0,15 m más abajo', () => {
+    const cm = readPlayHeightOffset(almacen({ [PLAY_HEIGHT_OFFSET_KEY]: '-15' }))
+
+    expect(cm).toBe(-15)
+    expect(playHeightOffsetMeters(cm)).toBeCloseTo(-0.15, 10)
+  })
+
+  it('vale de un tope al otro, y hacia arriba también', () => {
+    expect(parsePlayHeightOffset('30')).toBe(30)
+    expect(parsePlayHeightOffset('-30')).toBe(-30)
+    expect(parsePlayHeightOffset('0')).toBe(0)
+  })
+
+  it('lo que no es un entero dentro del tope cae al cero', () => {
+    for (const basura of ['31', '-31', '150', '2.5', 'arriba', '', ' 5', null, undefined]) {
+      expect(parsePlayHeightOffset(basura)).toBe(0)
+    }
+  })
+
+  it('sin sitio donde mirar no se afina, y no revienta', () => {
+    expect(readPlayHeightOffset(null)).toBe(0)
+    expect(readPlayHeightOffset(almacen({}, true))).toBe(0)
+  })
+})
+
 describe('cómo se sujeta lo que se coge', () => {
   it('la clave y el agarre de partida son los que escribe xrcade', () => {
     expect(GRAB_MODE_KEY).toBe('xrcade:grab')
@@ -364,5 +413,31 @@ describe('qué se ve alrededor con el visor', () => {
       expect(showsPlace(null, 'room')).toBe(true)
       expect(showsPlace(undefined, 'room')).toBe(true)
     })
+  })
+})
+
+describe('con qué mano se juega', () => {
+  it('la clave y la mano de partida son las que escribe xrcade', () => {
+    expect(HAND_KEY).toBe('xrcade:hand')
+    expect(HANDS).toEqual(['right', 'left'])
+    expect(DEFAULT_HAND).toBe('right')
+  })
+
+  it('lee la del salón, y cualquier otra cosa es la derecha', () => {
+    expect(readHand({ getItem: () => 'left' })).toBe('left')
+    expect(readHand({ getItem: () => null })).toBe('right')
+    expect(parseHand('zurdo')).toBe('right')
+    expect(parseHand(undefined)).toBe('right')
+  })
+
+  it('sin almacenamiento, o capado, la derecha', () => {
+    expect(readHand(null)).toBe('right')
+    expect(
+      readHand({
+        getItem: () => {
+          throw new Error('capado')
+        },
+      }),
+    ).toBe('right')
   })
 })

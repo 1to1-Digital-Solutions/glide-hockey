@@ -22,15 +22,19 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
  */
 export function useRoomEnvironment(): Texture {
   const gl = useThree((state) => state.gl)
-  const texture = useMemo(() => {
+  const target = useMemo(() => {
     const pmrem = new PMREMGenerator(gl)
-    const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+    const room = new RoomEnvironment()
+    const environment = pmrem.fromScene(room, 0.04)
     pmrem.dispose()
+    room.dispose()
     return environment
   }, [gl])
 
-  // La textura vive en la tarjeta gráfica: se suelta al desmontar la escena.
-  useEffect(() => () => texture.dispose(), [texture])
+  // El mapa vive en la tarjeta gráfica dentro de su render target, y es el target lo que se
+  // suelta al desmontar: soltar solo su textura deja el búfer vivo en cada visita. La sala de
+  // luces se suelta nada más convertirla (sus geometrías y materiales): ya no hace falta.
+  useEffect(() => () => target.dispose(), [target])
 
-  return texture
+  return target.texture
 }

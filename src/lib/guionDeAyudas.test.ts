@@ -13,7 +13,6 @@ import {
   HUELLAS,
   HUELLAS_Y,
   MANDO_JUNTO_AL_MAZO,
-  MANO_QUE_JUEGA,
   MARCA_DE_PORTERIA,
   enElCampoDelJugador,
   mandoJuntoAlMazo,
@@ -189,7 +188,6 @@ describe('el mando va junto al mazo fantasma, con el agarre de cara', () => {
     const palmo = Math.hypot(posicion.x - mazo.x, posicion.z - mazo.z)
     expect(palmo).toBeGreaterThanOrEqual(0.15)
     expect(palmo).toBeLessThanOrEqual(0.3)
-    expect(MANO_QUE_JUEGA).toBe('right')
     expect(posicion.x).toBeGreaterThan(mazo.x)
     expect(enElCampoDelJugador(posicion)).toBe(true)
     // Por encima del tablero, a la altura de la mano: no calcado ni flotando lejos.
@@ -210,6 +208,21 @@ describe('el mando va junto al mazo fantasma, con el agarre de cara', () => {
     // El agarre del mando derecho está en su costado −X; girado `giro` sobre la vertical
     // queda en (−cos, 0, sen). Hacia los ojos: del mando al origen, en planta.
     const agarre = { x: -Math.cos(giro), z: Math.sin(giro) }
+    const hacia = { x: -posicion.x, z: -(posicion.z + TABLE_CENTER_Z) }
+    const n = Math.hypot(hacia.x, hacia.z)
+    expect(agarre.x * (hacia.x / n) + agarre.z * (hacia.z / n)).toBeCloseTo(1, 9)
+  })
+
+  it('para un zurdo, el izquierdo en espejo: al otro lado del mazo y con su agarre (+X) de cara', () => {
+    expect(mandoJuntoAlMazo()).toEqual(mandoJuntoAlMazo('right'))
+    const { posicion, giro } = mandoJuntoAlMazo('left')
+    const mazo = playerStart()
+    const derecho = mandoJuntoAlMazo('right')
+    expect(posicion.x - mazo.x).toBeCloseTo(-(derecho.posicion.x - mazo.x), 12)
+    expect([posicion.y, posicion.z]).toEqual([derecho.posicion.y, derecho.posicion.z])
+    expect(enElCampoDelJugador(posicion)).toBe(true)
+    // El agarre del izquierdo está en su +X: girado `giro`, queda en (cos, 0, −sen).
+    const agarre = { x: Math.cos(giro), z: -Math.sin(giro) }
     const hacia = { x: -posicion.x, z: -(posicion.z + TABLE_CENTER_Z) }
     const n = Math.hypot(hacia.x, hacia.z)
     expect(agarre.x * (hacia.x / n) + agarre.z * (hacia.z / n)).toBeCloseTo(1, 9)

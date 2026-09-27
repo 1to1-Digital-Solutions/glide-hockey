@@ -8,7 +8,9 @@ import {
   DEFAULT_VOLUME_SETTINGS,
   GRAB_MODE_KEY,
   LANG_COOKIE,
+  HAND_KEY,
   PLAY_HEIGHT_KEY,
+  PLAY_HEIGHT_OFFSET_KEY,
   SCENERY_KEY,
   VOLUME_KEYS,
 } from './ajustes'
@@ -19,8 +21,10 @@ import {
   setVolume,
   settingsStorage,
   useGrabMode,
+  useHand,
   useLang,
   usePlayHeight,
+  usePlayHeightOffset,
   useScenery,
   useVolumes,
 } from './ajustesCliente'
@@ -237,6 +241,33 @@ describe('a qué altura se juega', () => {
   })
 })
 
+describe('la altura fina del salón', () => {
+  it('sin la clave el mundo no se mueve', () => {
+    const { result } = renderHook(() => usePlayHeightOffset())
+
+    expect(result.current).toBe(0)
+  })
+
+  it('con −15 el mundo baja 0,15 m, y llega a la cabina sin recargar', () => {
+    const { result } = renderHook(() => usePlayHeightOffset())
+
+    act(() => {
+      window.localStorage.setItem(PLAY_HEIGHT_OFFSET_KEY, '-15')
+      window.dispatchEvent(new Event('xrcade:ajustes'))
+    })
+
+    expect(result.current).toBeCloseTo(-0.15, 10)
+  })
+
+  it('en el servidor es cero', () => {
+    function Altura() {
+      return <>{usePlayHeightOffset()}</>
+    }
+
+    expect(renderToString(<Altura />)).toBe('0')
+  })
+})
+
 describe('cómo se sujeta lo que se coge', () => {
   it('empieza manteniendo el gatillo, como enseña el tutorial', () => {
     const { result } = renderHook(() => useGrabMode())
@@ -349,5 +380,37 @@ describe('qué se ve alrededor con el visor', () => {
     }
 
     expect(renderToString(<Escenario />)).toContain('place')
+  })
+})
+
+describe('con qué mano se juega', () => {
+  it('empieza con la derecha', () => {
+    const { result } = renderHook(() => useHand())
+
+    expect(result.current).toBe('right')
+  })
+
+  it('la del salón llega a la cabina sin recargar, y una que no existe deja la derecha', () => {
+    const { result } = renderHook(() => useHand())
+
+    act(() => {
+      window.localStorage.setItem(HAND_KEY, 'left')
+      window.dispatchEvent(new Event('xrcade:ajustes'))
+    })
+    expect(result.current).toBe('left')
+
+    act(() => {
+      window.localStorage.setItem(HAND_KEY, 'zurdo')
+      window.dispatchEvent(new Event('xrcade:ajustes'))
+    })
+    expect(result.current).toBe('right')
+  })
+
+  it('en el servidor es la derecha', () => {
+    function Mano() {
+      return <>{useHand()}</>
+    }
+
+    expect(renderToString(<Mano />)).toBe('right')
   })
 })

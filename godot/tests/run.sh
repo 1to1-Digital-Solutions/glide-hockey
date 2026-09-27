@@ -23,18 +23,24 @@ if [ -z "$GODOT_BIN" ]; then
   echo "No encuentro Godot: exporta \$GODOT con el editor compilado con GodotJS." >&2
   exit 1
 fi
+# El tope de cada ejecución del motor (un motor colgado es un fallo y no una tanda que no acaba) y
+# la búsqueda de errores de script en su salida (uno en tiempo de ejecución no para el motor, y el
+# test salía en verde): comunes a todos los juegos, en el kit.
+source "$REPO/../xrcade/godot-kit/runner/tope.sh"
 
 (cd "$REPO" && npm run --silent godot:build -- --tests)
-"$GODOT_BIN" --headless --xr-mode off --path "$PROJECT" --import >/dev/null 2>&1 || true
+con_tope "$TOPE_GODOT" "$GODOT_BIN" --headless --xr-mode off --path "$PROJECT" --import >/dev/null 2>&1 || true
 
 fallos=0
 correr() {
   local escena="$1"
-  local salida
-  if salida="$("$GODOT_BIN" --headless --xr-mode off --fixed-fps 72 --path "$PROJECT" "$escena" 2>&1)"; then
+  local salida estado=0
+  salida="$(con_tope "$TOPE_GODOT" "$GODOT_BIN" --headless --xr-mode off --fixed-fps 72 --path "$PROJECT" "$escena" 2>&1)" || estado=$?
+  if [ "$estado" -eq 0 ] && errores_de_script "$salida"; then
     echo "$salida" | grep -E '^[A-Z-]+ (ok|files=)|DOMAIN-TESTS' || echo "ok $escena"
   else
-    echo "$salida" | grep -E 'FAIL|CRASH|ERROR|DOMAIN-TESTS' | head -40
+    # Si salió con 0, lo que falló son los errores de script, que ya enseñó `errores_de_script`.
+    if [ "$estado" -ne 0 ]; then echo "$salida" | grep -E 'FAIL|CRASH|ERROR|DOMAIN-TESTS|✗' | head -40; fi
     echo "FALLA $escena" >&2
     fallos=$((fallos + 1))
   fi

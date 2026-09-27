@@ -1,6 +1,6 @@
 {
-  "profile": "saas-web",
-  "appliedAt": "2026-08-29T09:51:23.302Z",
+  "profile": "xrcade-game",
+  "appliedAt": "2026-09-27T17:39:13.759Z",
   "files": [
     {
       "path": ".claude/rules/architecture.md",
@@ -45,6 +45,22 @@
     {
       "path": ".claude/rules/xr.md",
       "source": "rules/xr.md"
+    },
+    {
+      "path": ".claude/rules/xr-three.md",
+      "source": "rules/xr-three.md"
+    },
+    {
+      "path": ".claude/skills/interaccion-en-el-visor/SKILL.md",
+      "source": "skills/interaccion-en-el-visor/SKILL.md"
+    },
+    {
+      "path": "AGENTS.md",
+      "source": "catalog/templates/AGENTS.xrcade-game.md.tmpl"
+    },
+    {
+      "path": "src/handoff.test.ts",
+      "source": "catalog/templates/handoff.test.ts.tmpl"
     }
   ]
 }

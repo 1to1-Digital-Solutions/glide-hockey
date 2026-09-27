@@ -7,6 +7,7 @@ import {
   XRSpace,
   useXRInputSourceStateContext,
 } from '@react-three/xr'
+import type { ComponentProps } from 'react'
 import type { Object3D } from 'three'
 
 import { useManoOcupada } from './manosOcupadas'
@@ -27,7 +28,8 @@ import { useManoOcupada } from './manosOcupadas'
  * puño, que es lo único que hacía falta: la pose, sin nada que dibujar ni que descargar.
  *
  * **El puntero de agarre también vuelve.** Es el que usa `stick-rush` para atrapar los
- * palos; apagado, ese juego no se puede jugar.
+ * palos; apagado, ese juego no se puede jugar. Un juego que no lo tenía (`agarre={false}`) se
+ * queda sin él: pasar a este mando no le cambia los punteros.
  *
  * **Y el rayo se apaga con algo en la mano** (`manosOcupadas.ts`): con el objeto cogido
  * seguía encendido apuntando a la pared, como si se estuviera señalando un sitio. Se apaga
@@ -56,11 +58,17 @@ function apuntarPuño(
 export function XRControllerGrip({
   grabRadius,
   rayLength = 6,
+  agarre = true,
+  rayo,
 }: {
   /** Radio de la esfera de agarre, en metros. Sin él, el de la librería. */
   grabRadius?: number
   /** Hasta dónde llega el rayo con el que se pulsan los menús. */
   rayLength?: number
+  /** Si el mando lleva puntero de agarre. */
+  agarre?: boolean
+  /** Cómo se dibuja el rayo, si el juego tiene el suyo. Sin él, uno tenue de `rayLength`. */
+  rayo?: Exclude<ComponentProps<typeof DefaultXRInputSourceRayPointer>['rayModel'], boolean | undefined>
 }) {
   const state = useXRInputSourceStateContext('controller')
   const ocupada = useManoOcupada(state.inputSource.handedness as 'left' | 'right' | undefined)
@@ -79,11 +87,11 @@ export function XRControllerGrip({
       </XRSpace>
 
       <CombinedPointer>
-        <DefaultXRControllerGrabPointer {...(grabRadius == null ? {} : { radius: grabRadius })} />
+        {agarre && <DefaultXRControllerGrabPointer {...(grabRadius == null ? {} : { radius: grabRadius })} />}
         <DefaultXRInputSourceRayPointer
           makeDefault
           minDistance={0.2}
-          rayModel={ocupada ? false : { maxLength: rayLength, opacity: 0.35 }}
+          rayModel={ocupada ? false : (rayo ?? { maxLength: rayLength, opacity: 0.35 })}
           cursorModel={!ocupada}
         />
       </CombinedPointer>

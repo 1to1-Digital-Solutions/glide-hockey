@@ -22,19 +22,8 @@ export type Hazana = (typeof HAZANAS)[number]
 /** Dónde se recuerda cuáles se han conseguido ya. Con el prefijo del juego, como los récords. */
 export const HAZANAS_KEY = 'glide-hockey:hazanas'
 
-/**
- * Lo que la escena le cuenta al salón al acabar, con las hazañas estrenadas en la partida.
- *
- * El campo es opcional y solo va cuando hay alguna: el `Resultado` común (`semilla.ts`) es el
- * mismo en los diecisiete juegos y un salón que no lo lea sigue recibiendo lo de siempre.
- */
-export type ResultadoConHazanas = Resultado & {
-  /** Los nombres de API conseguidos por primera vez en esta partida. */
-  readonly hazanas?: readonly string[]
-}
-
 /** El resultado con sus hazañas, o tal cual si no se estrenó ninguna. */
-export function conHazanas(resultado: Resultado, nuevas: readonly Hazana[]): ResultadoConHazanas {
+export function conHazanas(resultado: Resultado, nuevas: readonly Hazana[]): Resultado {
   return nuevas.length > 0 ? { ...resultado, hazanas: [...nuevas] } : resultado
 }
 

@@ -55,9 +55,9 @@ import {
   subscribeUnlockedLevel,
 } from './progress'
 import { migrateLegacyKeysOnce } from './legacyKeys'
-import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana, type ResultadoConHazanas } from './hazanas'
+import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana } from './hazanas'
 import { semillaDeLaMesa } from './opponent'
-import type { Reto } from './semilla'
+import type { Resultado, Reto } from './semilla'
 import { forgetOwnScenery } from './scenery'
 import { gameStorage } from './storage'
 import { type Scorer } from './puckPhysics'
@@ -118,7 +118,7 @@ export interface OpcionesDelSalon {
    * Se llama una vez al acabar cada partida con puntuación (no al dejarla a medias), con las
    * hazañas que se estrenan en ella (`hazanas.ts`).
    */
-  onTerminar?: (resultado: ResultadoConHazanas) => void
+  onTerminar?: (resultado: Resultado) => void
 }
 
 export interface GameStore {

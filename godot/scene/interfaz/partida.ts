@@ -27,8 +27,8 @@ import { semillaDeLaMesa } from '@/lib/opponent'
 import { getStarsList, getUnlockedLevel, saveLevelResult } from '@/lib/progress'
 import type { Scorer } from '@/lib/puckPhysics'
 import { scoreConceded, scoreGoal } from '@/lib/scoring'
-import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana, type ResultadoConHazanas } from '@/lib/hazanas'
-import type { Reto } from '@/lib/semilla'
+import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana } from '@/lib/hazanas'
+import type { Resultado, Reto } from '@/lib/semilla'
 import { SIN_HITOS, apuntarHito, type TutorialHitos, type TutorialStepKey } from '@/lib/tutorial'
 
 /** Las fases de la web (`GameState`), más la pregunta de salir, que allí es `prompt`. */
@@ -68,7 +68,7 @@ export interface OpcionesDeLaPartida {
   /** Jugar este reto: se entra directamente en una partida del reto con su semilla. */
   reto?: Reto | null
   /** Se llama una vez al acabar cada partida con puntuación (no al dejarla a medias). */
-  alTerminar?: (resultado: ResultadoConHazanas) => void
+  alTerminar?: (resultado: Resultado) => void
 }
 
 export class Partida {
@@ -109,7 +109,7 @@ export class Partida {
   private unlockedAtStart = 1
   private levelAtStart = 1
   private readonly semillaDelReto: number | null
-  private readonly alTerminar: ((resultado: ResultadoConHazanas) => void) | undefined
+  private readonly alTerminar: ((resultado: Resultado) => void) | undefined
   /** Las hazañas de esta partida (en el reto, de todas sus rondas): se estrenan al cerrarla. */
   private hazanas = new Set<Hazana>()
   /** La partida (su `runId`) cuyo final ya se guardó y se contó al salón. */

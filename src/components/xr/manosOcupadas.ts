@@ -32,22 +32,22 @@ declare global {
      * Quién lleva algo en la mano, **compartido entre el juego y quien lo monte**.
      *
      * Va en `window` y no en el módulo porque son dos módulos. Este fichero está copiado en
-     * los **doce juegos que dejan coger algo** y en el hub, y montado dentro del salón el que
-     * dibuja el mando es el del salón: el juego marcaba la mano en su copia y el salón leía
+     * los **dieciséis juegos que dejan coger algo** y en el hub, y montado dentro del salón
+     * el que dibuja el mando es el del salón: el juego marcaba la mano en su copia y el salón leía
      * la suya, que estaba siempre vacía. Desde dentro del visor eso se ve como que **el rayo
      * no se apaga jugando desde el arcade** aunque sí lo haga en la web del juego, que es
      * donde se probó.
      *
-     * **Doce y no trece**: en stick-rush los palos se atrapan de un toque y no se llevan, así
-     * que no hay nada que marcar. Table Tennis entró cuando su pala pasó a cogerse como las
+     * **Dieciséis y no diecisiete**: en stick-rush los palos se atrapan de un toque y no se
+     * llevan, así que no hay nada que marcar. Table Tennis entró cuando su pala pasó a cogerse como las
      * demás, y skeet cuando su pistola dejó de estar *siempre* en la mano y pasó a sacarse
      * con el agarre: mientras estuvo siempre puesta, marcarla habría apagado el rayo toda la
      * partida y no habría quedado con qué pulsar el menú.
      *
-     * En la web propia de cada juego, además, el rayo lo dibuja el mando por defecto de la
-     * librería, que no lee esto: solo glide-hockey y hole-patrol traen su propio
-     * `XRControllerGrip`. Dentro del arcade —que es donde se juega— lo dibuja el del salón,
-     * que sí lo lee. Lo compara `scripts/repos/comunes.py`.
+     * En la web propia de cada juego el rayo lo dibuja su propio `XRControllerGrip`, que lo
+     * lee: los dieciséis lo traen, porque el mando por defecto de la librería no sabe de esto
+     * y dejaba el rayo encendido con el objeto en la mano. Dentro del arcade —que es donde se
+     * juega— lo dibuja el del salón, que también lo lee. Lo compara `scripts/repos/comunes.py`.
      *
      * Un `window` compartido es feo y es el canal que hay: son dos paquetes que se empaquetan
      * juntos pero no comparten módulo. Lo crea el primero que llegue.

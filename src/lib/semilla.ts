@@ -23,6 +23,12 @@ export type Resultado = {
   readonly puntos: number
   /** Si la partida era el `reto` que pasó el salón. */
   readonly reto: boolean
+  /**
+   * Las hazañas conseguidas por primera vez en esta partida, por su nombre de API de Steam
+   * (`docs/logros-de-steam.md` del salón). Opcional porque la mayoría de partidas no estrena
+   * ninguna y hay juegos que no tienen: el salón es quien las filtra, las guarda y las anuncia.
+   */
+  readonly hazanas?: readonly string[]
 }
 
 /**

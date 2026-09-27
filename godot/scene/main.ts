@@ -111,8 +111,7 @@ import { PALETTE } from '@/lib/palette'
 import * as pellizco from '@/lib/pellizco'
 import { puckGlow } from '@/lib/puckGlow'
 import { HALF_LENGTH, HALF_WIDTH, constrainMallet, type Vec2 } from '@/lib/puckPhysics'
-import type { ResultadoConHazanas } from '@/lib/hazanas'
-import type { Reto } from '@/lib/semilla'
+import type { Resultado, Reto } from '@/lib/semilla'
 import { SLIDE_SMOOTHING } from '@/lib/slideSound'
 import * as uiHeight from '@/lib/uiHeight'
 
@@ -235,7 +234,7 @@ export function retoDelSalon(nodo: Node): Reto | null {
  * autoload tiene `report_result`, se le llama con el resultado en JSON; y siempre queda en el log.
  * Como `retoDelSalon`, es el enganche para cuando el hub nativo los recoja.
  */
-export function contarAlSalon(nodo: Node, resultado: ResultadoConHazanas): void {
+export function contarAlSalon(nodo: Node, resultado: Resultado): void {
   const texto = JSON.stringify(resultado)
   print(`GH-RESULTADO ${texto}`)
   const xrcade = nodo.get_node_or_null('/root/XRcade')
@@ -310,7 +309,7 @@ export default class GlideHockey extends Node3D {
   private logicUsecMaxEnJuego = 0
   private startedMs = 0
   private goles: ('player' | 'opponent')[] = []
-  private resultados: ResultadoConHazanas[] = []
+  private resultados: Resultado[] = []
   /** Las hazañas que ha dado la mesa (`FrameResult.hazanas`), para que un test las compare con las contadas. */
   private hazanasDeLaMesa: string[] = []
   /** El jugador automático juega el duelo (`--duelo`, o el metadato `duelo` de una escena de test). */
@@ -719,7 +718,7 @@ export default class GlideHockey extends Node3D {
   }
 
   /** Una partida con puntuación ha acabado: se cuenta al salón (y lo apunta un test). */
-  private alTerminar(resultado: ResultadoConHazanas): void {
+  private alTerminar(resultado: Resultado): void {
     this.resultados.push(resultado)
     contarAlSalon(this, resultado)
   }

@@ -15,7 +15,7 @@ import { getBestEndlessStreak, getBestPoints } from '@/lib/highScore'
 import { getStarsList, getUnlockedLevel } from '@/lib/progress'
 import { goalPoints } from '@/lib/scoring'
 import { semillaDeLaMesa } from '@/lib/opponent'
-import type { ResultadoConHazanas as Resultado } from '@/lib/hazanas'
+import type { Resultado } from '@/lib/semilla'
 import { gameStorage } from '@/lib/storage'
 
 import { Partida, acotarGoles } from './partida'

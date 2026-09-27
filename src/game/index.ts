@@ -14,4 +14,3 @@ export {
 } from './GlideHockeyScene'
 export { mountGlideHockey, type GlideHockeyHandle } from './mount'
 export type { Reto, Resultado } from '../lib/semilla'
-export type { ResultadoConHazanas } from '../lib/hazanas'

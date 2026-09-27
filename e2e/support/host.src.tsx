@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Canvas } from '@react-three/fiber'
 import { XR, XROrigin, createXRStore } from '@react-three/xr'
-import { GlideHockeyScene, type ResultadoConHazanas as Resultado } from '../../src/game'
+import { GlideHockeyScene, type Resultado } from '../../src/game'
 import { XRControllerGrip } from '../../src/components/xr/XRControllerGrip'
 
 /**

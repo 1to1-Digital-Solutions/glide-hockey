@@ -37,6 +37,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "comunes": "python3 \"$(git rev-parse --path-format=absolute --git-common-dir)/../../organizate/scripts/repos/comunes.py\" --comprobar glide-hockey",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "sync:xr-profiles": "node scripts/sync-xr-profiles.mjs",

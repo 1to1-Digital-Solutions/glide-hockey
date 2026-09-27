@@ -24,7 +24,9 @@ import {
   readPlayHeight,
   readPlayHeightOffset,
   readScenery,
+  readTurnMode,
   readVolumes,
+  writeHand,
   writeScenery,
   writeVolume,
   type GrabMode,
@@ -33,6 +35,7 @@ import {
   type PlayHeight,
   type Scenery,
   type SoundChannel,
+  type TurnMode,
   type Volumes,
 } from './ajustes'
 
@@ -268,17 +271,49 @@ function leerAgarre(): GrabMode {
 }
 
 /**
- * Con qué mano se juega, y React se entera cuando cambia.
+ * Cuándo se gira el decorado con el stick, y React se entera cuando cambia.
  *
- * Como la altura: un valor primitivo leído en cada lectura, y el juego montado en la cabina está
- * en esta misma página, así que sin el aviso lo que va de una mano a la otra no cambiaría de lado
- * hasta recargar. En el servidor, la derecha.
+ * Como el agarre: se lee del almacenamiento en cada lectura, porque es un valor
+ * primitivo y ahí `useSyncExternalStore` compara bien sin ayuda.
  */
-export function useHand(): Hand {
-  return useSyncExternalStore(subscribe, leerMano, () => DEFAULT_HAND)
+export function useTurnMode(): TurnMode {
+  return useSyncExternalStore(subscribe, leerGiro, leerGiro)
 }
 
-/** Lo guardado, o la derecha si no hay nada o hay basura. */
-function leerMano(): Hand {
-  return readHand(settingsStorage())
+/** Lo guardado, o solo sentado si no hay nada o hay basura. */
+function leerGiro(): TurnMode {
+  return readTurnMode(settingsStorage())
+}
+
+/**
+ * Con qué mano se juega, y React se entera cuando cambia.
+ *
+ * Con la misma forma que el escenario, y por lo mismo: los juegos copian este bloque tal cual,
+ * y el juego montado en la cabina está en esta misma página, así que sin el aviso la pala o el
+ * bate no cambiarían de mano hasta recargar.
+ */
+export function useHand(): Hand {
+  return useSyncExternalStore(subscribe, currentHand, () => DEFAULT_HAND)
+}
+
+/**
+ * La mano elegida que el navegador no dejó guardar, o `null` si quedó guardada.
+ *
+ * Con el almacenamiento capado la escritura falla, y la lectura volvería a dar la derecha: el
+ * botón no se encendería y quien es zurdo seguiría con la pala en la mano mala. Aquí vive la
+ * elección mientras dure la visita.
+ */
+let unsavedHand: Hand | null = null
+
+/** Lo elegido en esta visita si no se pudo guardar; si no, lo guardado o la derecha. */
+function currentHand(): Hand {
+  return unsavedHand ?? readHand(settingsStorage())
+}
+
+/** Cambia la mano con la que se juega, en todo el arcade. */
+export function setHand(value: Hand): void {
+  // Si entra en el almacenamiento, manda lo guardado y el respaldo sobra; si no, el respaldo
+  // es lo único que lo recuerda.
+  unsavedHand = writeHand(settingsStorage(), value) ? null : value
+  avisarDelCambio()
 }

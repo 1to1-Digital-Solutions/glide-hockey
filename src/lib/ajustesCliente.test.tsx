@@ -7,15 +7,17 @@ import {
   DEFAULT_VOLUMES,
   DEFAULT_VOLUME_SETTINGS,
   GRAB_MODE_KEY,
-  LANG_COOKIE,
   HAND_KEY,
+  LANG_COOKIE,
   PLAY_HEIGHT_KEY,
   PLAY_HEIGHT_OFFSET_KEY,
   SCENERY_KEY,
+  TURN_MODE_KEY,
   VOLUME_KEYS,
 } from './ajustes'
 import {
   currentLang,
+  setHand,
   setLang,
   setScenery,
   setVolume,
@@ -26,6 +28,7 @@ import {
   usePlayHeight,
   usePlayHeightOffset,
   useScenery,
+  useTurnMode,
   useVolumes,
 } from './ajustesCliente'
 
@@ -298,6 +301,36 @@ describe('cómo se sujeta lo que se coge', () => {
   })
 })
 
+describe('cuándo se gira el decorado con el stick', () => {
+  it('sin nada guardado, solo sentado', () => {
+    const { result } = renderHook(() => useTurnMode())
+
+    expect(result.current).toBe('auto')
+  })
+
+  it('lo que se elige en el arcade llega a la cabina sin recargar', () => {
+    const { result } = renderHook(() => useTurnMode())
+
+    act(() => {
+      window.localStorage.setItem(TURN_MODE_KEY, 'stick')
+      window.dispatchEvent(new Event('xrcade:ajustes'))
+    })
+
+    expect(result.current).toBe('stick')
+  })
+
+  it('un giro que no existe deja el de siempre', () => {
+    const { result } = renderHook(() => useTurnMode())
+
+    act(() => {
+      window.localStorage.setItem(TURN_MODE_KEY, 'con-la-cabeza')
+      window.dispatchEvent(new Event('xrcade:ajustes'))
+    })
+
+    expect(result.current).toBe('auto')
+  })
+})
+
 describe('qué se ve alrededor con el visor', () => {
   it('empieza con el sitio dibujado', () => {
     const { result } = renderHook(() => useScenery())
@@ -384,13 +417,27 @@ describe('qué se ve alrededor con el visor', () => {
 })
 
 describe('con qué mano se juega', () => {
-  it('empieza con la derecha', () => {
+  beforeEach(() => {
+    // Vacía también lo que una prueba de almacenamiento capado dejara recordado en memoria.
+    setHand('right')
+  })
+
+  it('sin nada guardado, la derecha', () => {
     const { result } = renderHook(() => useHand())
 
     expect(result.current).toBe('right')
   })
 
-  it('la del salón llega a la cabina sin recargar, y una que no existe deja la derecha', () => {
+  it('la izquierda guardada en el salón es la izquierda', () => {
+    window.localStorage.setItem(HAND_KEY, 'left')
+
+    const { result } = renderHook(() => useHand())
+
+    expect(result.current).toBe('left')
+  })
+
+  it('lo que se cambia en el salón llega a la cabina sin recargar', () => {
+    // El panel del salón escribe la clave y avisa por el evento; otra pestaña, por `storage`.
     const { result } = renderHook(() => useHand())
 
     act(() => {
@@ -400,17 +447,55 @@ describe('con qué mano se juega', () => {
     expect(result.current).toBe('left')
 
     act(() => {
-      window.localStorage.setItem(HAND_KEY, 'zurdo')
-      window.dispatchEvent(new Event('xrcade:ajustes'))
+      window.localStorage.removeItem(HAND_KEY)
+      window.dispatchEvent(new Event('storage'))
     })
     expect(result.current).toBe('right')
   })
 
-  it('en el servidor es la derecha', () => {
+  it('una mano que no existe deja la derecha', () => {
+    const { result } = renderHook(() => useHand())
+
+    act(() => {
+      window.localStorage.setItem(HAND_KEY, 'zurda')
+      window.dispatchEvent(new Event('xrcade:ajustes'))
+    })
+
+    expect(result.current).toBe('right')
+  })
+
+  it('elegirla aquí escribe la clave del arcade y se ve a la vez', () => {
+    const { result } = renderHook(() => useHand())
+
+    act(() => setHand('left'))
+    expect(result.current).toBe('left')
+    expect(window.localStorage.getItem(HAND_KEY)).toBe('left')
+
+    act(() => setHand('right'))
+    expect(result.current).toBe('right')
+    expect(window.localStorage.getItem(HAND_KEY)).toBeNull()
+  })
+
+  it('con el almacenamiento lleno, lo elegido dura lo que dure la visita', () => {
+    const { result } = renderHook(() => useHand())
+    const guarda = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('lleno', 'QuotaExceededError')
+    })
+
+    act(() => setHand('left'))
+    expect(window.localStorage.getItem(HAND_KEY)).toBeNull()
+    expect(result.current).toBe('left')
+
+    guarda.mockRestore()
+  })
+
+  it('en el servidor se pinta con la derecha, para que la hidratación cuadre', () => {
+    window.localStorage.setItem(HAND_KEY, 'left')
+
     function Mano() {
-      return <>{useHand()}</>
+      return <output>{useHand()}</output>
     }
 
-    expect(renderToString(<Mano />)).toBe('right')
+    expect(renderToString(<Mano />)).toContain('right')
   })
 })

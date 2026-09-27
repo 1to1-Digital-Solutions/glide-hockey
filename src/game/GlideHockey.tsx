@@ -5,7 +5,8 @@ import { GameProvider } from '../components/GameProvider'
 import { GameScene } from '../components/game/GameScene'
 import { endXrSession } from '../components/xr/xrStore'
 import { setAssetsBase } from '../lib/assets'
-import type { Resultado, Reto } from '../lib/semilla'
+import type { ResultadoConHazanas } from '../lib/hazanas'
+import type { Reto } from '../lib/semilla'
 import { ExitProvider } from './exit'
 
 export interface GlideHockeyProps {
@@ -18,7 +19,7 @@ export interface GlideHockeyProps {
   /** El reto que se juega, como en `<GlideHockeyScene>`. */
   reto?: Reto
   /** A quién contarle cada partida terminada, como en `<GlideHockeyScene>`. */
-  onTerminar?: (resultado: Resultado) => void
+  onTerminar?: (resultado: ResultadoConHazanas) => void
 }
 
 /**

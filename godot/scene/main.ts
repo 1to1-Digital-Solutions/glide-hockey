@@ -111,7 +111,8 @@ import { PALETTE } from '@/lib/palette'
 import * as pellizco from '@/lib/pellizco'
 import { puckGlow } from '@/lib/puckGlow'
 import { HALF_LENGTH, HALF_WIDTH, constrainMallet, type Vec2 } from '@/lib/puckPhysics'
-import type { Resultado, Reto } from '@/lib/semilla'
+import type { ResultadoConHazanas } from '@/lib/hazanas'
+import type { Reto } from '@/lib/semilla'
 import { SLIDE_SMOOTHING } from '@/lib/slideSound'
 import * as uiHeight from '@/lib/uiHeight'
 
@@ -230,11 +231,11 @@ export function retoDelSalon(nodo: Node): Reto | null {
 }
 
 /**
- * Le cuenta al salón cómo ha acabado una partida con puntuación (`Resultado` de `semilla.ts`): si el
+ * Le cuenta al salón cómo ha acabado una partida con puntuación (`Resultado` de `semilla.ts`, con las hazañas estrenadas): si el
  * autoload tiene `report_result`, se le llama con el resultado en JSON; y siempre queda en el log.
  * Como `retoDelSalon`, es el enganche para cuando el hub nativo los recoja.
  */
-export function contarAlSalon(nodo: Node, resultado: Resultado): void {
+export function contarAlSalon(nodo: Node, resultado: ResultadoConHazanas): void {
   const texto = JSON.stringify(resultado)
   print(`GH-RESULTADO ${texto}`)
   const xrcade = nodo.get_node_or_null('/root/XRcade')
@@ -309,7 +310,9 @@ export default class GlideHockey extends Node3D {
   private logicUsecMaxEnJuego = 0
   private startedMs = 0
   private goles: ('player' | 'opponent')[] = []
-  private resultados: Resultado[] = []
+  private resultados: ResultadoConHazanas[] = []
+  /** Las hazañas que ha dado la mesa (`FrameResult.hazanas`), para que un test las compare con las contadas. */
+  private hazanasDeLaMesa: string[] = []
   /** El jugador automático juega el duelo (`--duelo`, o el metadato `duelo` de una escena de test). */
   private duelo = false
   /** Cada partida del duelo al acabar: con qué semilla jugó la máquina y cómo quedó. */
@@ -716,7 +719,7 @@ export default class GlideHockey extends Node3D {
   }
 
   /** Una partida con puntuación ha acabado: se cuenta al salón (y lo apunta un test). */
-  private alTerminar(resultado: Resultado): void {
+  private alTerminar(resultado: ResultadoConHazanas): void {
     this.resultados.push(resultado)
     contarAlSalon(this, resultado)
   }
@@ -831,6 +834,11 @@ export default class GlideHockey extends Node3D {
       playing: partida.gameState === 'playing' && partida.prompt === null,
     })
     this.table = frame.table
+    // Las hazañas antes que los goles que las traen: el último gol cierra la partida en el acto.
+    for (const hazana of frame.hazanas) {
+      this.hazanasDeLaMesa.push(hazana)
+      partida.apuntarHazana(hazana)
+    }
     for (const goal of frame.goals) {
       this.goles.push(goal)
       if (goal === 'player') partida.scorePlayer()
@@ -1071,6 +1079,7 @@ export default class GlideHockey extends Node3D {
       record: partida.isRecord,
       best: getBestPoints(partida.gameMode),
       resultados: this.resultados,
+      hazanasDeLaMesa: this.hazanasDeLaMesa,
       golpesRecibidos: this.golpe.dados,
       sfx: this.sfx.counts,
       roce: { ...this.roce.stats, sonando: this.roce.playing },

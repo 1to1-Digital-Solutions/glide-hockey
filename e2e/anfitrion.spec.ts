@@ -105,10 +105,14 @@ test.describe('Montado dentro de otro anfitrión', () => {
 
     // La máquina gana la primera ronda y el reto se acaba: un aviso, del reto.
     await expect
-      .poll(() => page.evaluate(() => window.__terminadas), {
+      .poll(() => page.evaluate(() => window.__terminadas.map(({ modo, puntos, reto }) => ({ modo, puntos, reto }))), {
         timeout: 90_000,
         message: 'la escena no avisó del final del reto',
       })
       .toEqual([{ modo: 'challenge', puntos: 0, reto: true }])
+    // El mazo aparcado en la banda puede desviar un tiro de la máquina a su propia portería: es
+    // la hazaña oculta, y es la única que esta partida puede dar (`lib/hazanas.ts`).
+    const [aviso] = await page.evaluate(() => window.__terminadas)
+    expect([undefined, ['GH_OWN_GOAL']]).toContainEqual(aviso?.hazanas)
   })
 })

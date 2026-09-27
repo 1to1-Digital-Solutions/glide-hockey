@@ -15,7 +15,7 @@ import { getBestEndlessStreak, getBestPoints } from '@/lib/highScore'
 import { getStarsList, getUnlockedLevel } from '@/lib/progress'
 import { goalPoints } from '@/lib/scoring'
 import { semillaDeLaMesa } from '@/lib/opponent'
-import type { Resultado } from '@/lib/semilla'
+import type { ResultadoConHazanas as Resultado } from '@/lib/hazanas'
 import { gameStorage } from '@/lib/storage'
 
 import { Partida, acotarGoles } from './partida'
@@ -110,7 +110,8 @@ describe('la partida en Godot hace lo que el store de la web', () => {
     expect(p.isRecord).toBe(true)
     expect(getBestPoints('practice')).toBe(p.points)
     p.scorePlayer()
-    expect(contados).toEqual([{ modo: 'practice', puntos: p.points, reto: false }])
+    // Ganada sin encajar: la primera vez trae la hazaña (`hazanas.ts`).
+    expect(contados).toEqual([{ modo: 'practice', puntos: p.points, reto: false, hazanas: ['GH_SHUTOUT'] }])
     // La siguiente con menos puntos no es récord.
     p.startGame()
     sacar(p)
@@ -246,5 +247,40 @@ describe('la partida en Godot hace lo que el store de la web', () => {
     marcar(p, DUEL_SETUP.goalTarget, 4)
     expect(p.duelView).toMatchObject({ over: true, winner: null })
     expect(getDuelTally()).toEqual({ wins: [0, 0], ties: 1 })
+  })
+
+  it('las hazañas van en el JSON que se le pasa al salón (`report_result`), una vez en la vida', () => {
+    const jsons: string[] = []
+    // Lo mismo que hace `contarAlSalon` en `main.ts` con el resultado.
+    const p = new Partida({ alTerminar: (r) => jsons.push(JSON.stringify(r)) })
+    p.setGoalTarget(3)
+    p.startGame()
+    sacar(p)
+    p.scoreOpponent()
+    p.apuntarHazana('GH_OWN_GOAL')
+    marcar(p, 3, 0)
+    // Con la partida decidida ya no se apunta nada.
+    p.apuntarHazana('GH_LONG_SHOT')
+    expect(JSON.parse(jsons[0] ?? '{}')).toEqual({ modo: 'practice', puntos: p.points, reto: false, hazanas: ['GH_OWN_GOAL'] })
+    p.startGame()
+    sacar(p)
+    p.apuntarHazana('GH_OWN_GOAL')
+    marcar(p, 3, 0)
+    expect(JSON.parse(jsons[1] ?? '{}').hazanas).toEqual(['GH_SHUTOUT'])
+    p.startGame()
+    sacar(p)
+    marcar(p, 3, 0)
+    expect(JSON.parse(jsons[2] ?? '{}')).not.toHaveProperty('hazanas')
+  })
+
+  it('en el reto, la ronda ganada sin encajar se cuenta al perderlo', () => {
+    const contados: Resultado[] = []
+    const p = new Partida({ reto: { semilla: 7 }, alTerminar: (r) => contados.push(r) })
+    sacar(p)
+    for (let i = 0; i < 20 && p.challengeRoundNumber === 1; i++) p.scorePlayer()
+    sacar(p)
+    for (let i = 0; i < 40 && p.gameState !== 'finished'; i++) p.scoreOpponent()
+    expect(contados).toHaveLength(1)
+    expect(contados[0]?.hazanas).toEqual(['GH_SHUTOUT'])
   })
 })

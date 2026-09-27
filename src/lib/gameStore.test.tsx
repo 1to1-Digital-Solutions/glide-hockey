@@ -641,7 +641,13 @@ describe('el reto que pasa el salón', () => {
     }
 
     expect(onTerminar).toHaveBeenCalledTimes(1)
-    expect(onTerminar).toHaveBeenCalledWith({ modo: 'practice', puntos: hook.result.current.points, reto: false })
+    // Ganada sin encajar: la primera vez trae la hazaña (`hazanas.ts`).
+    expect(onTerminar).toHaveBeenCalledWith({
+      modo: 'practice',
+      puntos: hook.result.current.points,
+      reto: false,
+      hazanas: ['GH_SHUTOUT'],
+    })
   })
 
   it('sin nada, la mesa juega con el número de partida, como siempre', () => {
@@ -807,5 +813,69 @@ describe('el duelo', () => {
   it('fuera del duelo no hay duelo', () => {
     const { result } = renderHook(() => useGameStoreValue())
     expect(result.current.duel).toBeNull()
+  })
+})
+
+describe('las hazañas de la partida', () => {
+  /** Una práctica a 3 goles, sacada. */
+  function practica(onTerminar: (resultado: Resultado) => void) {
+    const hook = renderHook(() => useGameStoreValue({ onTerminar }))
+    act(() => hook.result.current.setGoalTarget(3))
+    act(() => hook.result.current.startGame())
+    esperarAlSaque(hook)
+    return hook
+  }
+
+  it('las de la mesa se apuntan y se cuentan al salón al acabar, una vez en la vida', () => {
+    const onTerminar = vi.fn<(resultado: Resultado) => void>()
+    const hook = practica(onTerminar)
+    act(() => hook.result.current.scoreOpponent())
+    act(() => hook.result.current.apuntarHazana('GH_OWN_GOAL'))
+    for (let i = 0; i < 3; i += 1) act(() => hook.result.current.scorePlayer())
+    // 3-1: gana, pero no sin encajar.
+    expect(onTerminar).toHaveBeenLastCalledWith(expect.objectContaining({ hazanas: ['GH_OWN_GOAL'] }))
+
+    // Con la partida decidida ya no se apunta nada, y la siguiente no la repite.
+    act(() => hook.result.current.apuntarHazana('GH_LONG_SHOT'))
+    act(() => hook.result.current.startGame())
+    esperarAlSaque(hook)
+    act(() => hook.result.current.scoreOpponent())
+    act(() => hook.result.current.apuntarHazana('GH_OWN_GOAL'))
+    for (let i = 0; i < 3; i += 1) act(() => hook.result.current.scorePlayer())
+    expect(onTerminar).toHaveBeenCalledTimes(2)
+    expect(onTerminar.mock.calls[1]?.[0]).not.toHaveProperty('hazanas')
+  })
+
+  it('en el reto, la ronda ganada sin encajar se cuenta al perder el reto', () => {
+    const onTerminar = vi.fn<(resultado: Resultado) => void>()
+    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 }, onTerminar }))
+    esperarAlSaque(hook)
+    for (let i = 0; i < 20 && hook.result.current.round === 1; i += 1) {
+      act(() => hook.result.current.scorePlayer())
+    }
+    expect(hook.result.current.round).toBe(2)
+    esperarAlSaque(hook)
+    perderLaPartida(hook)
+    expect(onTerminar).toHaveBeenCalledWith(expect.objectContaining({ modo: 'challenge', hazanas: ['GH_SHUTOUT'] }))
+  })
+
+  it('casi: la ronda ganada encajando uno no la trae', () => {
+    const onTerminar = vi.fn<(resultado: Resultado) => void>()
+    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 }, onTerminar }))
+    esperarAlSaque(hook)
+    act(() => hook.result.current.scoreOpponent())
+    for (let i = 0; i < 20 && hook.result.current.round === 1; i += 1) {
+      act(() => hook.result.current.scorePlayer())
+    }
+    esperarAlSaque(hook)
+    perderLaPartida(hook)
+    expect(onTerminar.mock.calls[0]?.[0]).not.toHaveProperty('hazanas')
+  })
+
+  it('dejarla a medias no guarda las de la mesa', () => {
+    const hook = practica(vi.fn())
+    act(() => hook.result.current.apuntarHazana('GH_OWN_GOAL'))
+    act(() => hook.result.current.resetGame())
+    expect(localStorage.getItem('glide-hockey:hazanas')).toBeNull()
   })
 })

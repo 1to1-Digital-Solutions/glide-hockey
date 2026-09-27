@@ -27,7 +27,8 @@ import { semillaDeLaMesa } from '@/lib/opponent'
 import { getStarsList, getUnlockedLevel, saveLevelResult } from '@/lib/progress'
 import type { Scorer } from '@/lib/puckPhysics'
 import { scoreConceded, scoreGoal } from '@/lib/scoring'
-import type { Resultado, Reto } from '@/lib/semilla'
+import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana, type ResultadoConHazanas } from '@/lib/hazanas'
+import type { Reto } from '@/lib/semilla'
 import { SIN_HITOS, apuntarHito, type TutorialHitos, type TutorialStepKey } from '@/lib/tutorial'
 
 /** Las fases de la web (`GameState`), más la pregunta de salir, que allí es `prompt`. */
@@ -67,7 +68,7 @@ export interface OpcionesDeLaPartida {
   /** Jugar este reto: se entra directamente en una partida del reto con su semilla. */
   reto?: Reto | null
   /** Se llama una vez al acabar cada partida con puntuación (no al dejarla a medias). */
-  alTerminar?: (resultado: Resultado) => void
+  alTerminar?: (resultado: ResultadoConHazanas) => void
 }
 
 export class Partida {
@@ -108,7 +109,9 @@ export class Partida {
   private unlockedAtStart = 1
   private levelAtStart = 1
   private readonly semillaDelReto: number | null
-  private readonly alTerminar: ((resultado: Resultado) => void) | undefined
+  private readonly alTerminar: ((resultado: ResultadoConHazanas) => void) | undefined
+  /** Las hazañas de esta partida (en el reto, de todas sus rondas): se estrenan al cerrarla. */
+  private hazanas = new Set<Hazana>()
   /** La partida (su `runId`) cuyo final ya se guardó y se contó al salón. */
   private cerrada = 0
   /** Lo que dejó el final: si fue récord y cómo acabó el nivel. Se calcula una vez, al cerrar. */
@@ -304,6 +307,7 @@ export class Partida {
     this.challengeRoundNumber = 1
     this._isRecord = false
     this._levelResult = null
+    this.hazanas = new Set()
   }
 
   /** Empieza una partida con lo elegido: el botón de jugar, y el de otra vez. */
@@ -384,6 +388,15 @@ export class Partida {
   }
 
   /**
+   * Una hazaña de la mesa (`FrameResult.hazanas`), apuntada a la partida. Va **antes** que el gol
+   * que la trae: el último gol cierra la partida en el acto y se la dejaría fuera. Con la partida
+   * decidida no cuenta.
+   */
+  apuntarHazana(hazana: Hazana): void {
+    if (this.enJuego) this.hazanas.add(hazana)
+  }
+
+  /**
    * Un fotograma de reloj: la cuenta atrás baja, salvo con la pregunta delante o esperando el
    * mazo en el último segundo, que es lo que en la web hace el `setTimeout` de un segundo.
    */
@@ -401,6 +414,7 @@ export class Partida {
    */
   private alCambiar(): void {
     if (this.running && this.challenge && this.matchOutcome === 'won') {
+      for (const hazana of hazanasDelPartido({ ganado: true, encajados: this.opponentGoals, sinFin: false })) this.hazanas.add(hazana)
       this.previousPlayerGoals += this.playerGoals
       this.previousOpponentGoals += this.opponentGoals
       this.playerGoals = 0
@@ -435,6 +449,9 @@ export class Partida {
       saveBestPoints(this.gameMode, this.points)
       this._isRecord = this.points > this.recordToBeat && getBestPoints(this.gameMode) === this.points
     }
-    this.alTerminar?.({ modo: this.gameMode, puntos: this.points, reto: this.enReto })
+    for (const hazana of hazanasDelPartido({ ganado: this.outcome === 'won', encajados: this.opponentGoals, sinFin: endlessRun })) {
+      this.hazanas.add(hazana)
+    }
+    this.alTerminar?.(conHazanas({ modo: this.gameMode, puntos: this.points, reto: this.enReto }, estrenarHazanas(this.hazanas)))
   }
 }

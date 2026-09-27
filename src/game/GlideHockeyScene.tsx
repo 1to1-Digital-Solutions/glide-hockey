@@ -4,7 +4,8 @@ import { GameProvider } from '../components/GameProvider'
 import { GameWorld } from '../components/game/GameWorld'
 import { setAssetsBase } from '../lib/assets'
 import type { HostAnchor } from '../lib/hostAnchor'
-import type { Resultado, Reto } from '../lib/semilla'
+import type { ResultadoConHazanas } from '../lib/hazanas'
+import type { Reto } from '../lib/semilla'
 import { ExitProvider } from './exit'
 
 export interface GlideHockeySceneProps {
@@ -46,9 +47,10 @@ export interface GlideHockeySceneProps {
   reto?: Reto
   /**
    * Se llama una vez al acabar cada partida —no al dejarla a medias—, con el
-   * modo, los puntos aunque no sean récord y si era la partida del `reto`.
+   * modo, los puntos aunque no sean récord, si era la partida del `reto` y, si se estrenó
+   * alguna, las hazañas (`hazanas`: nombres de API de los logros de Steam).
    */
-  onTerminar?: (resultado: Resultado) => void
+  onTerminar?: (resultado: ResultadoConHazanas) => void
 }
 
 /**

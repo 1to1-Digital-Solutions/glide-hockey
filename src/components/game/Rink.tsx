@@ -86,6 +86,7 @@ export function Rink({
 }) {
   const {
     apuntarHito,
+    apuntarHazana,
     gameState,
     prompt,
     activeDifficulty,
@@ -172,6 +173,8 @@ export function Rink({
     } = fotograma
     table.current = next
 
+    // Cómo entró cada gol, si fue una hazaña: se apunta a la partida y se cuenta al salón al final.
+    for (const hazana of fotograma.hazanas) apuntarHazana(hazana)
     for (const goal of goals) {
       if (goal === 'player') scorePlayer()
       else scoreOpponent()

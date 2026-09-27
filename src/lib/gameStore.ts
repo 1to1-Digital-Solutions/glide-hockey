@@ -55,8 +55,9 @@ import {
   subscribeUnlockedLevel,
 } from './progress'
 import { migrateLegacyKeysOnce } from './legacyKeys'
+import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana, type ResultadoConHazanas } from './hazanas'
 import { semillaDeLaMesa } from './opponent'
-import type { Resultado, Reto } from './semilla'
+import type { Reto } from './semilla'
 import { forgetOwnScenery } from './scenery'
 import { gameStorage } from './storage'
 import { type Scorer } from './puckPhysics'
@@ -113,8 +114,11 @@ export interface OpcionesDelSalon {
    * otro montaje.
    */
   reto?: Reto
-  /** Se llama una vez al acabar cada partida con puntuación (no al dejarla a medias). */
-  onTerminar?: (resultado: Resultado) => void
+  /**
+   * Se llama una vez al acabar cada partida con puntuación (no al dejarla a medias), con las
+   * hazañas que se estrenan en ella (`hazanas.ts`).
+   */
+  onTerminar?: (resultado: ResultadoConHazanas) => void
 }
 
 export interface GameStore {
@@ -290,6 +294,11 @@ export interface GameStore {
   scorePlayer: () => void
   /** Gol de la máquina: descuenta puntos y corta la racha. Con la partida decidida no cuenta. */
   scoreOpponent: () => void
+  /**
+   * Apunta una hazaña de la mesa (un gol de un toque desde el fondo, uno en propia puerta) a la
+   * partida en curso: se guarda y se cuenta al salón al acabarla. Con la partida decidida no cuenta.
+   */
+  apuntarHazana: (hazana: Hazana) => void
   resetGame: () => void
 }
 
@@ -348,6 +357,10 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
   const [streak, setStreak] = useState(0)
   const [bestStreak, setBestStreak] = useState(0)
   const [immersive, setImmersive] = useState(false)
+  // Las hazañas de esta partida (en el reto, de todas sus rondas): se estrenan y se cuentan al
+  // salón al acabar. Un ref y no estado porque no se pintan, y un conjunto porque Strict Mode
+  // repite los efectos y la misma hazaña no tiene que contar dos veces.
+  const hazanasDeLaPartida = useRef(new Set<Hazana>())
 
   // El récord no es estado de React: vive en el navegador y el juego se
   // suscribe a él, así que no hay una copia que pueda discrepar de lo guardado.
@@ -492,6 +505,10 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
     /* v8 ignore next */
     if (advancedRound.current === challengeRoundNumber) return
     advancedRound.current = challengeRoundNumber
+    // Cada ronda del reto es un partido: ganarla sin encajar ya es la hazaña.
+    for (const hazana of hazanasDelPartido({ ganado: true, encajados: opponentGoals, sinFin: false })) {
+      hazanasDeLaPartida.current.add(hazana)
+    }
 
     setPreviousPlayerGoals((value) => value + playerGoals)
     setPreviousOpponentGoals((value) => value + opponentGoals)
@@ -590,8 +607,12 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
     /* v8 ignore next */
     if (avisada.current === runId) return
     avisada.current = runId
-    avisar.current?.({ modo: gameMode, puntos: points, reto: enReto })
-  }, [gameState, gameMode, duelMode, points, bestStreak, endlessRun, levelResult, activeLevel, runId, enReto])
+    for (const hazana of hazanasDelPartido({ ganado: outcome === 'won', encajados: opponentGoals, sinFin: endlessRun })) {
+      hazanasDeLaPartida.current.add(hazana)
+    }
+    const nuevas = estrenarHazanas(hazanasDeLaPartida.current)
+    avisar.current?.(conHazanas({ modo: gameMode, puntos: points, reto: enReto }, nuevas))
+  }, [gameState, gameMode, duelMode, points, bestStreak, endlessRun, levelResult, activeLevel, runId, enReto, outcome, opponentGoals])
 
   // La marca de este modo: puntos, o la racha en la partida sin fin. En Niveles
   // no hay marca que batir: hay estrellas. En el duelo, tampoco: hay quien gana.
@@ -670,6 +691,7 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
     setStreak(0)
     setBestStreak(0)
     setChallengeRoundNumber(1)
+    hazanasDeLaPartida.current = new Set()
   }, [])
 
   const startGame = useCallback(() => {
@@ -726,6 +748,14 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
     setStreak(0)
     setPoints((total) => scoreConceded(total))
   }, [enJuego])
+
+  const apuntarHazana = useCallback(
+    (hazana: Hazana) => {
+      if (!enJuego) return
+      hazanasDeLaPartida.current.add(hazana)
+    },
+    [enJuego],
+  )
 
   // Escribe la clave del arcade, no una del juego: el botón y el panel del salón son el mismo ajuste.
   const setScenery = useCallback((value: Scenery) => setArcadeScenery(value), [])
@@ -803,6 +833,7 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
       startGame,
       scorePlayer,
       scoreOpponent,
+      apuntarHazana,
       resetGame,
     }),
     [
@@ -858,6 +889,7 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
       startGame,
       scorePlayer,
       scoreOpponent,
+      apuntarHazana,
       resetGame,
       hitos,
       anotarHito,

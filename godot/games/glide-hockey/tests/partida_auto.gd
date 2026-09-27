@@ -26,6 +26,8 @@ const MUSIC_VOLUME := 0.22 * 0.6
 const MAX_FRAMES := 72 * 180
 ## Una semilla cualquiera para el reto.
 const SEMILLA := 20260926
+## Las hazañas del juego, en el orden en que se cuentan (`HAZANAS` de `hazanas.ts`).
+const HAZANAS := ["GH_SHUTOUT", "GH_LONG_SHOT", "GH_OWN_GOAL"]
 ## Lo que manda el duelo (`DUEL_SETUP` de `duel.ts`): a cuántos goles.
 const GOLES_DEL_DUELO := 7
 
@@ -128,6 +130,18 @@ func comprobar(r: Dictionary) -> void:
 	# Y el resultado se le cuenta al salón una vez, sin ser el reto.
 	if r.resultados.size() != 1 or r.resultados[0].modo != "practice" or r.resultados[0].reto:
 		fallos.append("al salón se le cuenta %s" % [r.resultados])
+	else:
+		# Con las hazañas de la partida (`hazanas.ts`): las que dio la mesa y, ganando sin encajar, la
+		# del partido. El guardado de la escena de test empieza vacío, así que todas se estrenan.
+		var esperadas: Array = []
+		for nombre in HAZANAS:
+			var de_la_mesa: bool = r.hazanasDeLaMesa.has(nombre)
+			var del_partido: bool = nombre == "GH_SHUTOUT" and r.outcome == "won" and maquina == 0
+			if de_la_mesa or del_partido:
+				esperadas.append(nombre)
+		var contadas: Array = r.resultados[0].get("hazanas", [])
+		if contadas != esperadas:
+			fallos.append("al salón se le cuentan las hazañas %s y la partida dio %s" % [contadas, esperadas])
 	# El roce del disco: suena mientras se juega, con el volumen y el tono de la velocidad. El bucle
 	# se renderizó a la velocidad máxima, así que ni el volumen ni el tono pasan de 1, y en una
 	# partida entera el disco va a varias velocidades, así que el tono se mueve.
@@ -140,8 +154,8 @@ func comprobar(r: Dictionary) -> void:
 		fallos.append("el tono del roce no sigue a la velocidad: %s" % [roce])
 	if not r.music.playing or absf(float(r.music.volume) - MUSIC_VOLUME) > 0.001:
 		fallos.append("la música no está sonando a %.3f: %s" % [MUSIC_VOLUME, r.music])
-	print("PARTIDA-AUTO %d–%d, %d toques, %d puntos, %d fotogramas, %d µs de media (%d de pico)" % [
-		jugador, maquina, r.playerHits, r.points, r.frames, r.logicUsecAvg, r.logicUsecMax,
+	print("PARTIDA-AUTO %d–%d, %d toques, %d puntos, %d fotogramas, %d µs de media (%d de pico), hazañas %s" % [
+		jugador, maquina, r.playerHits, r.points, r.frames, r.logicUsecAvg, r.logicUsecMax, r.hazanasDeLaMesa,
 	])
 
 

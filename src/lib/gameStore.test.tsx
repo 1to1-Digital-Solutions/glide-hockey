@@ -1,6 +1,8 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SCENERY_KEY } from './ajustes'
+import { DUEL_SETUP } from './duel'
+import { getDuelTally } from './duelTally'
 import { DEFAULT_GOALS, MAX_GOALS, MIN_GOALS } from './gameConfig'
 import { clampGoalTarget, useGame, useGameStoreValue } from './gameStore'
 import { getBestEndlessStreak, getBestPoints } from './highScore'
@@ -683,5 +685,127 @@ describe('un gol con la partida ya decidida', () => {
     expect(hook.result.current.points).toBe(0)
     expect(hook.result.current.playerGoals).toBe(0)
     expect(hook.result.current.opponentGoals).toBe(0)
+  })
+})
+
+describe('el duelo', () => {
+  type Hook = ReturnType<typeof renderHook<ReturnType<typeof useGameStoreValue>, unknown>>
+
+  /** Juega la partida de quien tiene el mando: `a` goles suyos y `b` de la máquina. */
+  function jugar(hook: Hook, a: number, b: number): void {
+    esperarAlSaque(hook)
+    for (let i = 0; i < a; i += 1) act(() => hook.result.current.scorePlayer())
+    for (let i = 0; i < b; i += 1) act(() => hook.result.current.scoreOpponent())
+  }
+
+  /** Monta el store, elige el duelo y empieza la partida del primero. */
+  function duelo(onTerminar?: (resultado: Resultado) => void): Hook {
+    const hook = renderHook(() => useGameStoreValue({ onTerminar }))
+    act(() => hook.result.current.setGameMode('duel'))
+    act(() => hook.result.current.startGame())
+    return hook
+  }
+
+  it('juega el primero, se pasa el mando y juega el segundo', () => {
+    const hook = duelo()
+    expect(hook.result.current.duel?.player).toBe(0)
+
+    jugar(hook, 3, DUEL_SETUP.goalTarget)
+    expect(hook.result.current.gameState).toBe('finished')
+    // El traspaso: la partida del primero ya cuenta, y le toca al segundo.
+    expect(hook.result.current.duel).toEqual({
+      player: 0,
+      matches: [{ scored: 3, conceded: DUEL_SETUP.goalTarget }, null],
+      next: 1,
+      over: false,
+      winner: null,
+    })
+
+    act(() => hook.result.current.startGame())
+    expect(hook.result.current.duel?.player).toBe(1)
+    expect(hook.result.current.playerGoals).toBe(0)
+  })
+
+  it('los dos juegan contra la misma máquina: mismo nivel, mismos goles y misma semilla', () => {
+    const hook = duelo()
+    // Lo elegido en la práctica no cuenta en el duelo.
+    const primera = hook.result.current
+    expect(primera.activeDifficulty).toBe(DUEL_SETUP.difficulty)
+    expect(primera.activeGoalTarget).toBe(DUEL_SETUP.goalTarget)
+
+    jugar(hook, 0, DUEL_SETUP.goalTarget)
+    act(() => hook.result.current.startGame())
+    const segunda = hook.result.current
+
+    expect(segunda.runId).toBe(primera.runId + 1)
+    expect(segunda.seed).toBe(primera.seed)
+    expect(segunda.activeDifficulty).toBe(primera.activeDifficulty)
+    expect(segunda.activeGoalTarget).toBe(primera.activeGoalTarget)
+  })
+
+  it('otro duelo es otra semilla', () => {
+    const hook = duelo()
+    const antes = hook.result.current.seed
+    jugar(hook, 0, DUEL_SETUP.goalTarget)
+    act(() => hook.result.current.startGame())
+    jugar(hook, 0, DUEL_SETUP.goalTarget)
+    act(() => hook.result.current.startGame())
+
+    expect(hook.result.current.seed).not.toBe(antes)
+  })
+
+  it('al acabar se sabe quién gana y se apunta en el marcador de la pareja', () => {
+    const hook = duelo()
+    jugar(hook, DUEL_SETUP.goalTarget, 2)
+    act(() => hook.result.current.startGame())
+    jugar(hook, 1, DUEL_SETUP.goalTarget)
+
+    expect(hook.result.current.duel?.over).toBe(true)
+    expect(hook.result.current.duel?.winner).toBe(0)
+    expect(hook.result.current.duel?.next).toBeNull()
+    expect(getDuelTally()).toEqual({ wins: [1, 0], ties: 0 })
+
+    // Otra vez es un duelo nuevo, que empieza el primero.
+    act(() => hook.result.current.startGame())
+    expect(hook.result.current.duel?.player).toBe(0)
+    expect(hook.result.current.duel?.matches).toEqual([null, null])
+  })
+
+  it('con la misma ventaja es empate, y se apunta como empate', () => {
+    const hook = duelo()
+    jugar(hook, DUEL_SETUP.goalTarget, 4)
+    act(() => hook.result.current.startGame())
+    jugar(hook, DUEL_SETUP.goalTarget, 4)
+
+    expect(hook.result.current.duel?.over).toBe(true)
+    expect(hook.result.current.duel?.winner).toBeNull()
+    expect(getDuelTally()).toEqual({ wins: [0, 0], ties: 1 })
+  })
+
+  it('volver al menú deja el duelo: el siguiente lo empieza el primero', () => {
+    const hook = duelo()
+    jugar(hook, 0, DUEL_SETUP.goalTarget)
+    act(() => hook.result.current.resetGame())
+    act(() => hook.result.current.startGame())
+
+    expect(hook.result.current.duel?.player).toBe(0)
+    expect(hook.result.current.duel?.matches).toEqual([null, null])
+  })
+
+  it('no hay récord ni se le cuenta al salón: los goles son de dos personas', () => {
+    const onTerminar = vi.fn()
+    const hook = duelo(onTerminar)
+    jugar(hook, DUEL_SETUP.goalTarget, 0)
+
+    expect(hook.result.current.isRecord).toBe(false)
+    expect(hook.result.current.bestPoints).toBe(0)
+    expect(getBestPoints('duel')).toBe(0)
+    expect(getBestPoints('practice')).toBe(0)
+    expect(onTerminar).not.toHaveBeenCalled()
+  })
+
+  it('fuera del duelo no hay duelo', () => {
+    const { result } = renderHook(() => useGameStoreValue())
+    expect(result.current.duel).toBeNull()
   })
 })

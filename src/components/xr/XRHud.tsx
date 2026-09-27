@@ -2,7 +2,10 @@
 
 import { useCallback } from 'react'
 
-import { useGame } from '../../lib/gameStore'
+import { PLAYER_LABELS, formatMargin, margin, type Player } from '../../lib/duel'
+import type { DuelTally } from '../../lib/duelTally'
+import { useGame, type DuelView } from '../../lib/gameStore'
+import { useDuelTally } from '../../lib/useDuelTally'
 import { useGrabMode, useLang } from '../../lib/ajustesCliente'
 import { traductor, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
@@ -59,10 +62,11 @@ export const SCOREBOARD_SIZE = { width: 0.52, height: 0.34 } as const
 
 /** El marcador de la partida en curso, con los puntos debajo. */
 export function XRScoreboard() {
-  const { gameState, playerGoals, opponentGoals, points, round, lap, gameMode, activeLevel } =
+  const { gameState, playerGoals, opponentGoals, points, round, lap, gameMode, activeLevel, duel } =
     useGame()
-  // La ronda del reto, o el nivel en Niveles: la misma fila.
-  const fila = round ?? (gameMode === 'levels' ? activeLevel : null)
+  // La ronda del reto, el nivel en Niveles o, en el duelo, qué jugador tiene el mando: la misma
+  // fila. Sin letras, el número del jugador es lo que dice de quién es el marcador cian.
+  const fila = round ?? (gameMode === 'levels' ? activeLevel : duel != null ? duel.player + 1 : null)
   // La vuelta a la escalera del reto, solo cuando ya hay más de una: en la
   // primera no dice nada que la ronda no diga ya (ver `lib/challenge.ts`).
   const vuelta = lap != null && lap > 1 ? lap : null
@@ -221,38 +225,156 @@ export function XRCountdown() {
   )
 }
 
+/** Lo que mide el panel del final de partida, en metros. */
+export const GAME_OVER_SIZE: [number, number] = [0.6, 0.42]
+
+/** Los tres botones del final de partida, en coordenadas del propio panel. */
+export const GAME_OVER_BOXES = {
+  play: hitBox(-0.12, -0.13, ACTION_BUTTON),
+  menu: hitBox(0.11, -0.13, SMALL_BUTTON),
+  exit: hitBox(0.24, -0.13, SMALL_BUTTON),
+}
+
+/**
+ * A qué tamaño se escribe el final del duelo, en metros de alto de letra.
+ *
+ * Una sola lista para quien pinta y para quien mide (`duelo.legible.test.ts`), los mismos que el
+ * aviso de salir, que va en la misma columna y a la misma escala.
+ */
+export const DUEL_TEXT = { title: 0.05, body: 0.034 } as const
+
+/**
+ * Lo que se escribe al acabar una partida del duelo.
+ *
+ * Es de las pocas cosas del visor con letras, y a propósito: «pásale el mando a Jugador 2» no se
+ * dice con una placa de color. Aparte del componente para poder **medirlo** en los dos idiomas
+ * (`duelo.legible.test.ts`): el español es más largo y es donde el texto se sale.
+ */
+export function dibujarElDuelo(
+  ctx: CanvasRenderingContext2D,
+  t: (clave: TextKey, valores?: Record<string, string | number>) => string,
+  duel: DuelView,
+  score: { scored: number; conceded: number },
+  tally: DuelTally,
+): void {
+  const nombre = (player: Player) => t(PLAYER_LABELS[player])
+  const ancho = GAME_OVER_SIZE[0] - 0.08
+  const titulo = duel.over
+    ? duel.winner != null
+      ? t('{player} wins', { player: nombre(duel.winner) })
+      : t('Tie')
+    : t('{player}: {scored}–{conceded}', { player: nombre(duel.player), ...score })
+  drawText(ctx, titulo, 0, 0.15, { size: DUEL_TEXT.title, color: PALETTE.foreground, weight: '700', maxWidth: ancho })
+
+  if (duel.next != null) {
+    drawParagraph(ctx, t('Pass the controller to {player}.', { player: nombre(duel.next) }), 0, 0.05, {
+      size: DUEL_TEXT.body,
+      color: PALETTE.foreground,
+      maxWidth: ancho,
+    })
+    return
+  }
+
+  ;([0, 1] as const).forEach((player, fila) => {
+    const partida = duel.matches[player]
+    if (partida == null) return
+    drawText(
+      ctx,
+      t('{player}: {scored}–{conceded} ({margin})', {
+        player: nombre(player),
+        scored: partida.scored,
+        conceded: partida.conceded,
+        margin: formatMargin(margin(partida)),
+      }),
+      0,
+      0.09 - fila * 0.05,
+      {
+        size: DUEL_TEXT.body,
+        color: duel.winner === player ? PALETTE.primary : DIM_COLOR,
+        weight: duel.winner === player ? '700' : '400',
+        maxWidth: ancho,
+      },
+    )
+  })
+  // Lo que llevan entre los dos es una frase con tres cifras que crecen con cada duelo: se reparte
+  // en líneas y no se encoge, porque encogida baja del tamaño que se lee a la distancia de la
+  // columna. Anclada arriba crece solo hacia abajo, hacia los botones.
+  drawParagraph(
+    ctx,
+    t('Duels won: {one}–{two} · tied: {ties}', { one: tally.wins[0], two: tally.wins[1], ties: tally.ties }),
+    0,
+    0.015,
+    { size: DUEL_TEXT.body, color: DIM_COLOR, maxWidth: ancho, anchor: 'top' },
+  )
+}
+
 /**
  * El final de partida: cuántos puntos, y qué hacer ahora.
  *
- * Sin texto tampoco aquí, así que el resultado se dice con el color de la
+ * Fuera del duelo, sin texto: el resultado se dice con el color de la
  * placa —el verde común de acierto si ganó, el rojo de fallo si perdió, los mismos
  * en todo el salón— y con el marcador, que sigue a la vista al lado. Los dos se
  * distinguen también por luz (`paleta.test.ts`), que es lo que queda sin ver el
- * color.
+ * color. En el duelo va escrito (`dibujarElDuelo`): de quién era la partida y a
+ * quién le toca, o quién gana.
  */
 export function XRGameOver() {
-  const { gameState, outcome, points, isRecord, levelResult, startGame, resetGame } =
-    useGame()
+  const {
+    gameState,
+    outcome,
+    points,
+    isRecord,
+    levelResult,
+    duel,
+    playerGoals,
+    opponentGoals,
+    startGame,
+    resetGame,
+  } = useGame()
   const exit = useExit()
+  const t = traductor(useLang())
+  const tally = useDuelTally()
+
+  const escribirElDuelo = useCallback(
+    (ctx: CanvasRenderingContext2D) => {
+      if (duel != null) dibujarElDuelo(ctx, t, duel, { scored: playerGoals, conceded: opponentGoals }, tally)
+    },
+    [t, duel, playerGoals, opponentGoals, tally],
+  )
 
   if (gameState !== 'finished') return null
 
   const won = outcome === 'won'
   return (
     <group>
-      <XRPanel width={0.6} height={0.42} />
+      <XRPanel width={GAME_OVER_SIZE[0]} height={GAME_OVER_SIZE[1]} />
 
-      <mesh position={[0, 0.13, -0.01]}>
-        <planeGeometry args={[0.5, 0.06]} />
-        <meshBasicMaterial {...materialEncendido(won ? PALETA.acierto : PALETA.fallo)} />
-      </mesh>
+      {/* En el duelo, lo que se dice va escrito. El botón de jugar empieza la partida del otro,
+          o un duelo nuevo. */}
+      {duel != null ? (
+        <group position={[0, 0, 0.004]}>
+          <CanvasPanel
+            width={GAME_OVER_SIZE[0]}
+            height={GAME_OVER_SIZE[1]}
+            draw={escribirElDuelo}
+            fallbackColor={PALETTE.background}
+          />
+        </group>
+      ) : (
+        <>
+          <mesh position={[0, 0.13, -0.01]}>
+            <planeGeometry args={[0.5, 0.06]} />
+            <meshBasicMaterial {...materialEncendido(won ? PALETA.acierto : PALETA.fallo)} />
+          </mesh>
 
-      <XRNumber
-        value={points}
-        size={0.11}
-        color={isRecord ? PALETA.oro : PALETTE.foreground}
-        position={[0, 0.02, 0]}
-      />
+          <XRNumber
+            value={points}
+            size={0.11}
+            color={isRecord ? PALETA.oro : PALETTE.foreground}
+            position={[0, 0.02, 0]}
+          />
+        </>
+      )}
 
       {/* Las estrellas del nivel, bajo los puntos: las ganadas encendidas. */}
       {levelResult ? (
@@ -271,7 +393,7 @@ export function XRGameOver() {
         </group>
       ) : null}
       <XRPressable
-        box={hitBox(-0.12, -0.13, ACTION_BUTTON)}
+        box={GAME_OVER_BOXES.play}
         onSelect={startGame}
       >
         <XRPlate
@@ -284,7 +406,7 @@ export function XRGameOver() {
 
       {/* Volver al menú y salir del juego son cosas distintas, así que llevan
           iconos distintos: dos aspas iguales no se pueden diferenciar. */}
-      <XRPressable box={hitBox(0.11, -0.13, SMALL_BUTTON)} onSelect={resetGame}>
+      <XRPressable box={GAME_OVER_BOXES.menu} onSelect={resetGame}>
         <XRPlate
           width={SMALL_BUTTON[0]}
           height={SMALL_BUTTON[1]}
@@ -294,7 +416,7 @@ export function XRGameOver() {
         <XRMenuIcon color={DIM_COLOR} />
       </XRPressable>
 
-      <XRPressable box={hitBox(0.24, -0.13, SMALL_BUTTON)} onSelect={exit}>
+      <XRPressable box={GAME_OVER_BOXES.exit} onSelect={exit}>
         <XRPlate
           width={SMALL_BUTTON[0]}
           height={SMALL_BUTTON[1]}

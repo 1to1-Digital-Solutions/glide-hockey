@@ -1,12 +1,14 @@
 'use client'
 
 import { useExit } from '../../game/exit'
+import { PLAYER_LABELS, formatMargin, margin, type Player } from '../../lib/duel'
 import { DIFFICULTY_LABELS } from '../../lib/gameConfig'
 import { GAME_MODE_LABELS, isEndless } from '../../lib/gameMode'
 import { useGame } from '../../lib/gameStore'
 import { useLang } from '../../lib/ajustesCliente'
 import { PALETA } from '../../lib/paleta'
 import { traductor } from '../../lib/textos'
+import { useDuelTally } from '../../lib/useDuelTally'
 
 /**
  * Lo que se ve encima de la mesa mientras se juega en escritorio: el marcador,
@@ -61,9 +63,13 @@ function Scoreboard() {
     lapMultiplier,
     activeLevel,
     gameMode,
+    duel,
   } = useGame()
   const endless = isEndless(activeGoalTarget)
   const t = traductor(useLang())
+  // En el duelo, el marcador de la izquierda es de quien tiene el mando: con dos personas
+  // delante, «Tú» no dice a cuál de las dos.
+  const quien = duel ? t(PLAYER_LABELS[duel.player]) : null
   return (
     <header className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-4">
       <div className="flex items-center gap-5 rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_82%,transparent)] px-5 py-3 backdrop-blur-sm">
@@ -71,7 +77,7 @@ function Scoreboard() {
             igual de que ha habido gol. */}
         <div className="flex items-center gap-4" aria-live="polite">
           <Stat
-            label={t('You')}
+            label={quien ?? t('You')}
             value={String(playerGoals)}
             color="var(--color-primary)"
             large
@@ -104,6 +110,7 @@ function Scoreboard() {
               ? ` ${t('· lap {lap} ×{multiplier}', { lap, multiplier: lapMultiplier })}`
               : null}
             {gameMode === 'levels' ? ` ${t('· level {level}', { level: activeLevel })}` : null}
+            {quien != null ? ` · ${quien}` : null}
           </span>
           <span>
             {t(DIFFICULTY_LABELS[activeDifficulty])} ·{' '}
@@ -264,6 +271,100 @@ function GameOver() {
   )
 }
 
+/**
+ * El final de una partida del duelo.
+ *
+ * Tras la del primero es **el traspaso**: cómo le ha ido y a quién pasarle el mando, con el botón
+ * que empieza la partida del otro. Tras la del segundo, quién gana y por cuánto, y lo que llevan
+ * entre los dos. La marca de puntos no sale: en el duelo lo que cuenta es la ventaja sobre la
+ * máquina (ver `lib/duel.ts`).
+ */
+function DuelOver() {
+  const t = traductor(useLang())
+  const { duel, playerGoals, opponentGoals, outcome, startGame, resetGame } = useGame()
+  const tally = useDuelTally()
+  // `DuelOver` solo se pinta en el duelo; el tipo no lo sabe.
+  if (duel == null) return null
+
+  const nombre = (player: Player) => t(PLAYER_LABELS[player])
+  const titulo = duel.over
+    ? duel.winner != null
+      ? t('{player} wins', { player: nombre(duel.winner) })
+      : t('Tie')
+    : t('{player}: {scored}–{conceded}', {
+        player: nombre(duel.player),
+        scored: playerGoals,
+        conceded: opponentGoals,
+      })
+
+  return (
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
+      <div className="pointer-events-auto animate-fade-slide-up w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_92%,transparent)] p-6 text-center shadow-2xl backdrop-blur-sm">
+        <h2
+          className="text-2xl font-bold"
+          // El final del duelo lo gana alguien de los que están delante: va en el verde de
+          // acierto. El traspaso, en el color de cómo le fue contra la máquina.
+          style={{ color: duel.over || outcome === 'won' ? PALETA.acierto : PALETA.fallo }}
+        >
+          {titulo}
+        </h2>
+
+        {duel.next != null ? (
+          <p className="mt-2 text-base text-white/80">
+            {t('Pass the controller to {player}.', { player: nombre(duel.next) })}
+          </p>
+        ) : (
+          <>
+            <ul className="mt-4 flex flex-col gap-1 text-base tabular-nums">
+              {([0, 1] as const).map((player) => {
+                const partida = duel.matches[player]
+                if (partida == null) return null
+                return (
+                  <li
+                    key={player}
+                    className={duel.winner === player ? 'font-bold text-white' : 'text-white/60'}
+                  >
+                    {t('{player}: {scored}–{conceded} ({margin})', {
+                      player: nombre(player),
+                      scored: partida.scored,
+                      conceded: partida.conceded,
+                      margin: formatMargin(margin(partida)),
+                    })}
+                  </li>
+                )
+              })}
+            </ul>
+            <p className="mt-3 text-sm text-white/50">
+              {t('Duels won: {one}–{two} · tied: {ties}', {
+                one: tally.wins[0],
+                two: tally.wins[1],
+                ties: tally.ties,
+              })}
+            </p>
+          </>
+        )}
+
+        <div className="mt-6 flex flex-col gap-2.5">
+          <button
+            type="button"
+            onClick={startGame}
+            className="cta-gradient min-h-12 w-full rounded-xl px-6 py-3 text-base font-bold transition"
+          >
+            {duel.next != null ? t('{player} to play', { player: nombre(duel.next) }) : t('New duel')}
+          </button>
+          <button
+            type="button"
+            onClick={resetGame}
+            className="min-h-11 w-full rounded-xl border border-white/15 px-6 py-2.5 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
+          >
+            {t('Back to the menu')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /** Dejar la partida a medias, sin esperar al final. */
 function QuitButton() {
   const { askToQuit, immersive, endRun, activeGoalTarget, gameState } = useGame()
@@ -350,13 +451,13 @@ function QuitConfirm() {
 }
 
 export function HUD() {
-  const { gameState, prompt } = useGame()
+  const { gameState, prompt, duel } = useGame()
 
   return (
     <>
       <Scoreboard />
       {gameState === 'countdown' ? <Countdown /> : null}
-      {gameState === 'finished' ? <GameOver /> : null}
+      {gameState === 'finished' ? duel != null ? <DuelOver /> : <GameOver /> : null}
       {gameState === 'playing' || gameState === 'countdown' ? (
         <QuitButton />
       ) : null}

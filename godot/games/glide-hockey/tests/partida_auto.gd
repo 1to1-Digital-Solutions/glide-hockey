@@ -7,6 +7,11 @@
 ## Y el contrato del reto: con un salón que presta una semilla (`challenge_seed`), el juego entra
 ## directo en el reto con los tiros de la máquina sacados de ella.
 ##
+## Y el duelo a dos, entero (`duel.ts`): el jugador automático juega la partida del primero, se queda
+## en el traspaso, le da a jugar la del segundo y acaba. Las dos contra la misma máquina —la misma
+## semilla y lo que manda `DUEL_SETUP`—, sin récord ni aviso al salón, con quien gana según la
+## ventaja, apuntado en el marcador de la pareja, y el final sonando a ganar.
+##
 ## Se lanza con `--fixed-fps 72`, como el jugador automático.
 extends Node
 
@@ -21,6 +26,8 @@ const MUSIC_VOLUME := 0.22 * 0.6
 const MAX_FRAMES := 72 * 180
 ## Una semilla cualquiera para el reto.
 const SEMILLA := 20260926
+## Lo que manda el duelo (`DUEL_SETUP` de `duel.ts`): a cuántos goles.
+const GOLES_DEL_DUELO := 7
 
 var game: Node
 var salon: Node
@@ -37,10 +44,12 @@ func _ready() -> void:
 	montar()
 
 
-func montar() -> void:
+func montar(duelo := false) -> void:
 	frames = 0
 	game = (load(MAIN) as PackedScene).instantiate()
 	game.set_meta("harness", true)
+	if duelo:
+		game.set_meta("duelo", true)
 	game.set_meta("sfx_bus", "Mudo")
 	add_child(game)
 
@@ -56,7 +65,14 @@ func _process(_delta: float) -> void:
 			terminar()
 	elif fase == "reto" and frames > 10:
 		comprobar_el_reto()
-		terminar()
+		empezar_el_duelo()
+	elif fase == "duelo":
+		if game.has_meta("result"):
+			comprobar_el_duelo(JSON.parse_string(game.get_meta("result")))
+			terminar()
+		elif frames > MAX_FRAMES * 2:
+			fallos.append("el duelo no ha acabado en %d fotogramas" % (MAX_FRAMES * 2))
+			terminar()
 
 
 func cuenta(de: Dictionary, nombre: String) -> int:
@@ -146,6 +162,70 @@ func comprobar_el_reto() -> void:
 		fallos.append("con la semilla del salón la partida no es el reto")
 	if game.fase() == "menu":
 		fallos.append("con el reto del salón se entra a jugar, no al menú")
+
+
+func empezar_el_duelo() -> void:
+	game.queue_free()
+	# Sin salón: el duelo no es un reto, y con la semilla del salón se entraría en el reto. Fuera
+	# del árbol ya, no al final del fotograma: la escena nueva lo buscaría antes.
+	salon.get_parent().remove_child(salon)
+	salon.queue_free()
+	salon = null
+	fase = "duelo"
+	montar(true)
+
+
+func comprobar_el_duelo(r: Dictionary) -> void:
+	var duelo = r.duel
+	if duelo == null:
+		fallos.append("el duelo no se ha jugado como duelo: %s" % r.mode)
+		return
+	var partidas: Array = duelo.partidas
+	if partidas.size() != 2:
+		fallos.append("el duelo tiene %d partidas y no dos" % partidas.size())
+		return
+	if not duelo.over or duelo.next != null:
+		fallos.append("el duelo no ha acabado: %s" % [duelo])
+	# Las dos contra la misma máquina: la misma semilla y a los goles del duelo.
+	if int(partidas[0].seed) != int(partidas[1].seed):
+		fallos.append("la máquina juega con otra semilla a cada uno: %s y %s" % [partidas[0].seed, partidas[1].seed])
+	for i in 2:
+		var p: Dictionary = partidas[i]
+		if maxi(int(p.scored), int(p.conceded)) != GOLES_DEL_DUELO:
+			fallos.append("la partida %d acaba %d–%d y el duelo es a %d" % [i + 1, p.scored, p.conceded, GOLES_DEL_DUELO])
+		var apuntada: Dictionary = duelo.matches[i]
+		if int(apuntada.scored) != int(p.scored) or int(apuntada.conceded) != int(p.conceded):
+			fallos.append("la partida %d se apunta %s y acabó %s" % [i + 1, apuntada, p])
+	# El mismo jugador automático contra la misma máquina saca lo mismo: es lo que la semilla
+	# compartida promete (dentro de una plataforma; ver «Lo que se sabe» en el README).
+	if int(partidas[0].scored) != int(partidas[1].scored) or int(partidas[0].conceded) != int(partidas[1].conceded):
+		fallos.append("el mismo jugador contra la misma máquina acaba %s y %s" % [partidas[0], partidas[1]])
+	# Gana quien le saca más ventaja a la máquina; con la misma, empate.
+	var ventaja := func(p: Dictionary) -> int: return int(p.scored) - int(p.conceded)
+	var diferencia: int = ventaja.call(partidas[0]) - ventaja.call(partidas[1])
+	var ganador = null if diferencia == 0 else (0 if diferencia > 0 else 1)
+	if duelo.winner != ganador:
+		fallos.append("gana %s con ventajas %d y %d" % [duelo.winner, ventaja.call(partidas[0]), ventaja.call(partidas[1])])
+	var pareja: Dictionary = duelo.pareja
+	var esperada := [0, 0]
+	var empates := 0
+	if ganador == null:
+		empates = 1
+	else:
+		esperada[ganador] = 1
+	if int(pareja.wins[0]) != esperada[0] or int(pareja.wins[1]) != esperada[1] or int(pareja.ties) != empates:
+		fallos.append("el marcador de la pareja queda %s" % [pareja])
+	# Ni récord ni aviso al salón: los goles son de dos personas.
+	if r.record or int(r.best) != 0 or not r.resultados.is_empty():
+		fallos.append("el duelo deja récord (%s, %s) o avisa al salón: %s" % [r.record, r.best, r.resultados])
+	# Dos finales: el del primero suena a cómo le fue, el del duelo a ganar.
+	var cierres: Array = r.cierres
+	var primero := "win" if int(partidas[0].scored) > int(partidas[0].conceded) else "loss"
+	if cierres != [primero, "win"]:
+		fallos.append("los cierres del duelo son %s y no [%s, win]" % [cierres, primero])
+	print("PARTIDA-AUTO duelo %d–%d y %d–%d, gana %s, semilla %d" % [
+		partidas[0].scored, partidas[0].conceded, partidas[1].scored, partidas[1].conceded, duelo.winner, partidas[0].seed,
+	])
 
 
 func terminar() -> void:

@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { DIFFICULTY_LABELS } from './gameConfig'
 import { GAME_MODE_HINTS, GAME_MODE_LABELS } from './gameMode'
+import { PLAYER_LABELS } from './duel'
 import { SCENERY_HINTS, SCENERY_LABELS } from './scenery'
 import { CONFORT_LABELS, CONFORT_LEGEND } from './confort'
 import { TEXT_KEYS, formatea, texto, traductor } from './textos'
@@ -53,6 +54,7 @@ describe('el diccionario', () => {
       ...Object.values(SCENERY_LABELS),
       ...Object.values(SCENERY_HINTS),
       ...Object.values(CONFORT_LABELS),
+      ...PLAYER_LABELS,
       CONFORT_LEGEND,
     ]
     const sinTraducir = etiquetas.filter((e) => texto('es', e) === e)

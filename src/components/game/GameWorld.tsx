@@ -7,6 +7,7 @@ import { XRUiHeight } from '../xr/XRUiHeight'
 import { useXR } from '@react-three/xr'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
 import { contarMontaje } from '../../lib/montajes'
+import { finalSuenaAGanar } from '../../lib/duel'
 import { useGame } from '../../lib/gameStore'
 import { showsPlace } from '../../lib/ajustes'
 import { HALF_LENGTH } from '../../lib/puckPhysics'
@@ -225,7 +226,9 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
     isRecord,
     totalPlayerGoals,
     totalOpponentGoals,
+    duel,
   } = useGame()
+  const duelAcabado = duel?.over ?? false
   const mode = useXR((state) => state.mode)
 
   // El sonido cuelga de la escena y no de la mesa: la mesa se estrena en cada
@@ -255,10 +258,12 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
     }
     if (terminado.current) return
     terminado.current = true
-    play(totalPlayerGoals > totalOpponentGoals ? 'win' : 'loss')
+    // El final del duelo suena a ganar: lo gana uno de los dos que están delante (`duel.ts`).
+    const gana = finalSuenaAGanar(duelAcabado, { scored: totalPlayerGoals, conceded: totalOpponentGoals })
+    play(gana ? 'win' : 'loss')
     haptics.sentir({ tipo: 'final' })
     if (isRecord) play('record')
-  }, [gameState, play, haptics, isRecord, totalPlayerGoals, totalOpponentGoals])
+  }, [gameState, play, haptics, isRecord, totalPlayerGoals, totalOpponentGoals, duelAcabado])
 
   // Los reflejos de la mesa y del disco, calculados una vez (ver el hook).
   const environment = useRoomEnvironment()

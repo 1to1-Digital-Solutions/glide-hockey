@@ -71,6 +71,8 @@ que le pasa sus opciones); sin ellas el juego es el de siempre.
   la máquina de siempre y `reto: false`. Dejarla a medias (volver al menú o
   salir) no la cuenta; la prueba sin fin sí, al terminarla con su botón, que
   es su final.
+  El duelo a dos **no se cuenta**: sus goles son de dos personas, no de quien
+  lleva el visor, y no tiene récord.
 
 ```tsx
 <GlideHockeyScene reto={{ semilla: 20260925 }} onTerminar={apuntarPartida} onExit={volverAlSalon} />
@@ -164,12 +166,13 @@ rompe el build: rompe la partida.
 
 ## Almacenamiento que usa
 
-Tres claves en `localStorage`, sin nada que identifique a nadie:
+Cuatro claves en `localStorage`, sin nada que identifique a nadie:
 
 | Clave | Qué |
 | --- | --- |
 | `glide-hockey:best-points` | El récord del modo prueba. |
 | `glide-hockey:best-points:challenge` | El récord del modo reto. |
+| `glide-hockey:duel-tally` | Los duelos ganados por cada uno de la pareja y los empatados (`{ wins: [n, n], ties: n }`). No es un récord. |
 | `glide-hockey:muted` | Si el jugador dejó el juego callado (`1`) o sonando (`0`). |
 
 El escenario —la sala o la habitación de quien juega— **no** es suyo: es `xrcade:scenery`, la
@@ -186,7 +189,8 @@ esa clave con `useHand()`, como el escenario, en vez de preguntarla en su menú.
 
 Sus dos menús —el de la web y el del visor— **empiezan por el modo, y solo la práctica
 pregunta**: en ella se eligen el nivel de la máquina y los goles; en niveles solo qué nivel
-desbloqueado se juega, y en el reto nada, porque la escalera ya los pone.
+desbloqueado se juega, y en el reto nada, porque la escalera ya los pone. En el duelo
+tampoco: los dos juegan lo mismo (`DUEL_SETUP` en `src/lib/duel.ts`).
 
 Si el almacenamiento está bloqueado (ventana privada, política del navegador),
 el juego funciona igual: se juega sin récord y sonando.

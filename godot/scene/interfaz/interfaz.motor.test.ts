@@ -35,11 +35,11 @@ import { MENU_PANEL, MENU_TEXT } from '@/lib/xrMenuLayout'
 
 import { CLAVE_DEL_CONFORT, CLAVE_DEL_IDIOMA, confort, idioma, niveles } from './ajustes'
 import { AvisoDeSalir } from './aviso'
-import { FinalDeLaPartida, LETRA_DEL_FINAL } from './final'
+import { FinalDeLaPartida, LETRA_DEL_DUELO, LETRA_DEL_FINAL } from './final'
 import { InterfazDelJuego } from './interfaz'
 import { CuentaAtras } from './marcador'
 import { MenuDelJuego, type EstadoDelMenu } from './menu'
-import { Partida } from './partida'
+import { Partida, type VistaDelDuelo } from './partida'
 import {
   AVISO,
   AVISO_DEL_MAZO,
@@ -126,6 +126,18 @@ describe('el menú mide lo que la web', () => {
     expect(filas('practice')).toEqual(['Mode', 'Level', 'Goals'])
     expect(filas('levels')).toEqual(['Mode', 'Stage'])
     expect(filas('challenge')).toEqual(['Mode'])
+    expect(filas('duel')).toEqual(['Mode'])
+  })
+
+  it('cada modo lleva su icono, el duelo los dos discos, y el elegido se enciende', () => {
+    menu.pintar(estadoDelMenu({ modo: 'duel' }))
+    for (const modo of GAME_MODE_ORDER) {
+      const b = menu.boton(`modo ${modo}`)
+      expect(b.nodo.visible, modo).toBe(true)
+    }
+    // Ninguna letra dentro de los botones de modo: lo que es el elegido lo dice la línea de abajo.
+    expect(menu.panel.escritos.some((e) => e.texto.startsWith('Take turns'))).toBe(true)
+    expect(menu.panel.escritos.some((e) => /Practice|Levels|Challenge|Duel/.test(e.texto))).toBe(false)
   })
 
   it('con la letra de Godot cada texto mide lo que estima la web, con un cuarto de margen', () => {
@@ -210,7 +222,7 @@ describe('el final, el aviso, la cuenta y el tutorial se leen', () => {
         { outcome: 'won' as const, esRecord: true, nivel: null },
         { outcome: 'lost' as const, esRecord: false, nivel: { nivel: 12, stars: 0 as const, passed: false } },
       ]) {
-        final.pintar({ lang, puntos: 98765, ...estado })
+        final.pintar({ lang, puntos: 98765, duelo: null, ...estado })
         const donde = `${lang} ${JSON.stringify(estado)}`
         expect(medir(final.panel.escritos, FINAL, COLUMNA, ESCALA_DE_LA_COLUMNA), donde).toEqual([])
         expect(sizesOffList(final.panel.escritos, ALTO_DE_LINEA, [LETRA_DEL_FINAL]), donde).toEqual([])
@@ -218,6 +230,31 @@ describe('el final, el aviso, la cuenta y el tutorial se leen', () => {
     }
     const resto = [CAJAS_DEL_FINAL.again, CAJAS_DEL_FINAL.menu]
     expect(problemasDeLaSalida(CAJAS_DEL_FINAL.exit, resto, FINAL)).toEqual([])
+  })
+
+  it('el final del duelo: el traspaso, el ganador y el empate, en los dos idiomas', () => {
+    const final = new FinalDeLaPartida({ otraVez() {}, menu() {}, salir() {} }, new Punteria())
+    const pareja = { wins: [123, 99] as const, ties: 42 }
+    const primera = { scored: 7, conceded: 5 }
+    const vistas: VistaDelDuelo[] = [
+      { player: 0, matches: [primera, null], next: 1, over: false, winner: null },
+      { player: 1, matches: [primera, { scored: 7, conceded: 2 }], next: null, over: true, winner: 1 },
+      { player: 1, matches: [primera, { scored: 4, conceded: 2 }], next: null, over: true, winner: null },
+    ]
+    for (const lang of LANGS) {
+      for (const [i, vista] of vistas.entries()) {
+        final.pintar({ lang, outcome: 'won', puntos: 0, esRecord: false, nivel: null, duelo: { vista, marcador: { scored: 7, conceded: 5 }, pareja } })
+        const donde = `${lang} duelo ${i}`
+        expect(medir(final.panel.escritos, FINAL, COLUMNA, ESCALA_DE_LA_COLUMNA), donde).toEqual([])
+        expect(sizesOffList(final.panel.escritos, ALTO_DE_LINEA, Object.values(LETRA_DEL_DUELO)), donde).toEqual([])
+        expect(textsOnButtons(final.panel.escritos, [CAJAS_DEL_FINAL.again, CAJAS_DEL_FINAL.menu, CAJAS_DEL_FINAL.exit]), donde).toEqual([])
+      }
+    }
+    const t = traductor('es')
+    final.pintar({ lang: 'es', outcome: 'lost', puntos: 0, esRecord: false, nivel: null, duelo: { vista: vistas[0], marcador: primera, pareja } })
+    expect(final.panel.escritos.map((e) => e.texto).join(' ')).toContain(t('Pass the controller to {player}.', { player: t('Player 2') }))
+    final.pintar({ lang: 'es', outcome: 'won', puntos: 0, esRecord: false, nivel: null, duelo: { vista: vistas[1], marcador: primera, pareja } })
+    expect(final.panel.escritos.map((e) => e.texto).join(' ')).toContain('Gana Jugador 2')
   })
 
   it('el aviso de dejar la partida, en los dos idiomas', () => {

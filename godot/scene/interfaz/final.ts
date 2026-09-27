@@ -10,6 +10,10 @@
  * **Lo añadido respecto a la web**: la franja lleva escrito cómo ha acabado («Partida ganada»,
  * «Nivel 3 superado»…). En la web no lleva nada porque su lienzo no escribía en ese panel; aquí la
  * letra es del motor, y la medimos con el mismo instrumento que el resto.
+ *
+ * **En el duelo no hay franja ni puntos: va escrito** (`dibujarElDuelo` de la web, con sus cotas y
+ * sus letras): tras la partida del primero, cómo le fue y a quién pasarle el mando —el botón ancho
+ * empieza la del otro—; con las dos jugadas, quién gana, por cuánto y cuántos duelos lleva la pareja.
  */
 import { Node3D, Vector3 } from 'godot'
 
@@ -27,12 +31,19 @@ import { PALETA } from '@/lib/paleta'
 import { PALETTE } from '@/lib/palette'
 import { traductor } from '@/lib/textos'
 
+import { PLAYER_LABELS, formatMargin, margin, type Player } from '@/lib/duel'
+import type { DuelTally } from '@/lib/duelTally'
+
 import { Cifras } from './cifras'
 import { DIM, triangulosDeRombo } from './menu'
+import type { VistaDelDuelo } from './partida'
 import { CAJAS_DEL_FINAL, CIFRA_DEL_FINAL, FINAL } from './reparto'
 
 /** La letra de la franja: la de los rótulos del menú, que ya se mide a esta distancia. */
 export const LETRA_DEL_FINAL = 0.034
+
+/** Las letras del final del duelo: las de la web (`DUEL_TEXT` de `XRHud.tsx`). */
+export const LETRA_DEL_DUELO = { title: 0.05, body: 0.034 } as const
 
 /** Lo que enseña el final. */
 export interface EstadoDelFinal {
@@ -42,6 +53,8 @@ export interface EstadoDelFinal {
   esRecord: boolean
   /** En los niveles: cuál y con cuántas estrellas. */
   nivel: { nivel: number; stars: Stars; passed: boolean } | null
+  /** En el duelo: cómo va, el marcador de la partida y lo que lleva la pareja. */
+  duelo: { vista: VistaDelDuelo; marcador: { scored: number; conceded: number }; pareja: DuelTally } | null
 }
 
 /** Tres rayas: el icono de volver al menú (`XRMenuIcon`). */
@@ -98,6 +111,9 @@ export class FinalDeLaPartida {
     if (clave === this.pintado) return
     this.pintado = clave
     const t = traductor(estado.lang)
+    const duelo = estado.duelo
+    this.franja.visible = duelo == null
+    this.puntos.nodo.visible = duelo == null
     const gano = estado.outcome === 'won'
     const franja = gano ? PALETA.acierto : PALETA.fallo
     pintar(this.franja, franja)
@@ -114,6 +130,53 @@ export class FinalDeLaPartida {
           ? t('New record!')
           : t(gano ? 'Game won' : 'Game lost')
     this.panel.borrarTextos()
+    if (duelo != null) {
+      this.escribirElDuelo(estado.lang, duelo)
+      return
+    }
     this.panel.escribir(titulo, 0, 0.13, { alto: LETRA_DEL_FINAL, color: PALETTE.background, anchoMax: 0.46 })
+  }
+
+  /** Lo que se escribe al acabar una partida del duelo (`dibujarElDuelo` de la web). */
+  private escribirElDuelo(lang: Lang, { vista, marcador, pareja }: NonNullable<EstadoDelFinal['duelo']>): void {
+    const t = traductor(lang)
+    const { panel } = this
+    const nombre = (jugador: Player) => t(PLAYER_LABELS[jugador])
+    const ancho = FINAL.width - 0.08
+    const titulo = vista.over
+      ? vista.winner != null
+        ? t('{player} wins', { player: nombre(vista.winner) })
+        : t('Tie')
+      : t('{player}: {scored}–{conceded}', { player: nombre(vista.player), ...marcador })
+    panel.escribir(titulo, 0, 0.15, { alto: LETRA_DEL_DUELO.title, color: PALETTE.foreground, anchoMax: ancho })
+    if (vista.next != null) {
+      panel.parrafo(t('Pass the controller to {player}.', { player: nombre(vista.next) }), 0, 0.05, {
+        alto: LETRA_DEL_DUELO.body,
+        color: PALETTE.foreground,
+        anchoMax: ancho,
+      })
+      return
+    }
+    for (const jugador of [0, 1] as const) {
+      const partida = vista.matches[jugador]
+      if (partida == null) continue
+      panel.escribir(
+        t('{player}: {scored}–{conceded} ({margin})', {
+          player: nombre(jugador),
+          scored: partida.scored,
+          conceded: partida.conceded,
+          margin: formatMargin(margin(partida)),
+        }),
+        0,
+        0.09 - jugador * 0.05,
+        { alto: LETRA_DEL_DUELO.body, color: vista.winner === jugador ? PALETTE.primary : DIM, anchoMax: ancho },
+      )
+    }
+    panel.parrafo(t('Duels won: {one}–{two} · tied: {ties}', { one: pareja.wins[0], two: pareja.wins[1], ties: pareja.ties }), 0, 0.015, {
+      alto: LETRA_DEL_DUELO.body,
+      color: DIM,
+      anchoMax: ancho,
+      ancla: 'top',
+    })
   }
 }

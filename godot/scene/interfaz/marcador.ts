@@ -31,7 +31,7 @@ export interface EstadoDelMarcador {
   jugador: number
   maquina: number
   puntos: number
-  /** La ronda del reto o el nivel, o `null` en la práctica. */
+  /** La ronda del reto, el nivel o el jugador del duelo que tiene el mando; `null` en la práctica. */
   fila: number | null
   /** La vuelta a la escalera del reto, solo pasada la primera. */
   vuelta: number | null

@@ -1,4 +1,5 @@
 import { DIFFICULTY_ORDER } from './gameConfig'
+import { GAME_MODE_ORDER } from './gameMode'
 import { CONFORTS } from './golpeRecibido'
 
 /**
@@ -73,7 +74,8 @@ export const MENU_TEXT = { label: 0.034, scenery: 0.034, hint: 0.034, comfort: 0
 
 /** Lo que mide cada clase de botón del menú. */
 export const MENU_BUTTON = {
-  mode: [0.22, 0.13] as [number, number],
+  /** Cuatro en la fila desde que hay duelo: a 22 cm no cabían en los 78 del panel. */
+  mode: [0.17, 0.13] as [number, number],
   level: LEVEL_BUTTON,
   small: [0.11, 0.11] as [number, number],
   play: [0.28, 0.12] as [number, number],
@@ -132,6 +134,9 @@ export const MENU_RECORD_X = 0.26
  */
 export const MENU_COMFORT_X = [0.08, 0.2, 0.32] as const
 
+/** De centro a centro entre dos botones de modo: dos centímetros de aire entre ellos. */
+const MODE_STEP = 0.19
+
 /** Una caja de pulsación del menú: centro y medidas, en coordenadas del panel. */
 export interface MenuBox {
   readonly position: [number, number, number]
@@ -149,9 +154,14 @@ function caja(x: number, y: number, [width, height]: readonly [number, number]):
  * invisibles, y un rótulo que se mete en una no lo canta nadie más (`menu.legible.test.ts`).
  */
 export const MENU_BOXES = {
-  'modo practice': caja(-0.25, MENU_ROW.mode, MENU_BUTTON.mode),
-  'modo levels': caja(0, MENU_ROW.mode, MENU_BUTTON.mode),
-  'modo challenge': caja(0.25, MENU_ROW.mode, MENU_BUTTON.mode),
+  // Los modos, repartidos alrededor del centro: recorren la lista, así que un modo nuevo tiene su
+  // botón sin que nadie se acuerde de añadirlo aquí.
+  ...Object.fromEntries(
+    GAME_MODE_ORDER.map((mode, index) => [
+      `modo ${mode}`,
+      caja((index - (GAME_MODE_ORDER.length - 1) / 2) * MODE_STEP, MENU_ROW.mode, MENU_BUTTON.mode),
+    ]),
+  ),
   ...Object.fromEntries(
     DIFFICULTY_ORDER.map((level, index) => [`nivel ${level}`, caja((index - 2) * 0.135, MENU_ROW.level, LEVEL_BUTTON)]),
   ),

@@ -101,7 +101,8 @@ function StarsRow({ lit, size = 0.02, color = PALETA.oro }: { lit: number; size?
 
 /**
  * Silueta de cada modo: un disco para la prueba, tres estrellas para los
- * niveles, una escalera para el reto.
+ * niveles, una escalera para el reto y dos discos para el duelo, el mismo
+ * dibujo que el duelo de table-tennis (dos pelotas): dos que juegan lo mismo.
  */
 function ModeIcon({ mode, lit }: { mode: GameMode; lit: boolean }) {
   const color = lit ? PALETTE.primary : DIM_COLOR
@@ -116,6 +117,18 @@ function ModeIcon({ mode, lit }: { mode: GameMode; lit: boolean }) {
   }
 
   if (mode === 'levels') return <StarsRow lit={lit ? 3 : 0} color={color} />
+  if (mode === 'duel') {
+    return (
+      <group>
+        {[-0.03, 0.03].map((x) => (
+          <mesh key={x} position={[x, 0, 0]}>
+            <circleGeometry args={[0.022, 20]} />
+            <meshBasicMaterial color={color} toneMapped={false} />
+          </mesh>
+        ))}
+      </group>
+    )
+  }
   return (
     <group>
       {[0, 1, 2].map((step) => (

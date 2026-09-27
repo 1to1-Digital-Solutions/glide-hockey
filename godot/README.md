@@ -7,16 +7,26 @@ sobre el kit común de `xrcade/godot-kit/`.
 **Estado: se juega entero, en plano y con visor simulado; con visor de verdad no se ha probado.**
 La mesa avanza con `advanceTable` de `matchLoop.ts` a pasos fijos de 1/60 s —la física de Godot no
 se usa—, la máquina elige sus tiros con su semilla (`opponent.ts`), y los puntos, los modos, la
-escalera del reto y los niveles son los de la web. Se empieza en el **menú** del visor de la web
-(`lib/xrMenuLayout.ts` sin tocar una cota): el confort del golpe recibido arriba, el modo, y solo
-lo que el modo pregunta (en la práctica el nivel de la máquina y a cuántos goles, o sin fin; en los
-niveles, cuál, con sus estrellas; en el desafío, nada), jugar en medio y salir en la esquina de
-abajo a la derecha. La partida empieza con la **cuenta atrás**, que con visor se para en su último
+escalera del reto, los niveles y el **duelo a dos** son los de la web. Se empieza en el **menú** del
+visor de la web (`lib/xrMenuLayout.ts` sin tocar una cota): el confort del golpe recibido arriba, el
+modo —con los iconos de la web: disco, estrellas, escalera y dos discos para el duelo—, y solo lo
+que el modo pregunta (en la práctica el nivel de la máquina y a cuántos goles, o sin fin; en los
+niveles, cuál, con sus estrellas; en el desafío y en el duelo, nada), jugar en medio y salir en la
+esquina de abajo a la derecha. La partida empieza con la **cuenta atrás**, que con visor se para en su último
 segundo hasta que el mazo está en la mano y lo dice; mientras, el **marcador** de siete segmentos
 sobre la portería de la máquina, el botón de parar y el **aviso** antes de dejar la partida; al
 acabar, el **final** con los puntos (en oro si son récord), las estrellas del nivel, otra vez, menú
-y salir. Lo guardado —récords, la mejor racha sin fin, niveles y estrellas, el confort— va con el
-`highScore.ts` y el `progress.ts` de la web sobre el guardado del kit en `user://`.
+y salir. Lo guardado —récords, la mejor racha sin fin, niveles y estrellas, el confort, los duelos de
+la pareja— va con el `highScore.ts`, el `progress.ts` y el `duelTally.ts` de la web sobre el guardado
+del kit en `user://`.
+
+**El duelo** (`lib/duel.ts`, tal cual): dos personas se pasan el mando y cada una juega una partida
+contra la misma máquina —Media, a 7 y con la misma semilla (`Duel.seed`)—; gana quien le saque más
+ventaja (goles a favor menos en contra) y con la misma es empate. El final de la partida del primero
+es el **traspaso**, escrito como en la web (`dibujarElDuelo`): «Jugador 1: 7–0 · Pásale el mando a
+Jugador 2», y el botón ancho empieza la del segundo; el de la segunda dice quién gana, las dos
+ventajas y cuántos duelos lleva la pareja, y **suena a ganar** (`finalSuenaAGanar`). El marcador
+enseña en su fila de abajo el número de quien tiene el mando. Sin récord ni aviso al salón.
 
 Alrededor está **el salón recreativo de la web** (`Room.tsx`): la moqueta con sus bandas, tres
 paredes con zócalo, el techo, los dos neones del fondo, diez recreativas apagadas con su cartel
@@ -71,14 +81,14 @@ Por qué existe y qué se midió: `xrcade/docs/salir-en-steam.md`, sección 4.
 | `games/glide-hockey/mandos/`, `CREDITS.md` | Los mandos de Quest (`npm run godot:mandos`, de `public/webxr-profiles/`) con su licencia MIT, y los créditos del paquete. Se versionan; el preset «pack» incluye los `.json`, la licencia y los créditos |
 | `games/glide-hockey/` | Lo que va en el `.pck`; `tests/` se queda fuera al exportar |
 | `games/glide-hockey/sfx/`, `music/` | Los efectos renderizados (`npm run godot:sfx`) y la música de `public/audio/`. Se versionan |
-| `games/glide-hockey/tests/partida_auto.*` | Una partida automática contra la máquina hasta el final: goles de los dos lados, marcador, sonidos, golpe recibido, resultado al salón; y el reto con la semilla del salón |
+| `games/glide-hockey/tests/partida_auto.*` | Una partida automática contra la máquina hasta el final: goles de los dos lados, marcador, sonidos, golpe recibido, resultado al salón; el reto con la semilla del salón; y un duelo entero a dos (las dos partidas con la misma semilla y a 7, el traspaso, quién gana por la ventaja, el marcador de la pareja, sin récord ni aviso al salón, y los cierres «como le fue» y «ganar») |
 | `games/glide-hockey/tests/menu_raton.*` | La escena de verdad con clics del ratón: elegir modo, jugar, Escape, volver al menú desde el aviso y salir |
 | `games/glide-hockey/tests/xr_mando.*` | Dos partidas con visor simulado (mandos de mentira del kit): diestro sentado en el salón que tarda en coger el mazo, y zurdo de pie con un toque. La mano que coge, la cuenta que espera al mazo con el agarre encendido en los dos mandos, la altura del mundo y de la interfaz, el anclaje, el giro, los pulsos, las cuatro ayudas (y ninguna al acabar), el tutorial con el mando de verdad en las dos manos y la sala |
 | `tests/run.sh` | Todo lo del motor de una vez (`npm run godot:test`) |
 
-**Qué tests entran en el motor** lo decide el kit por el grafo de imports: 33 de los 45 ficheros de
-`src/lib`, más los del kit y los del port: **538 tests**. `npm run godot:build -- --list-tests`
-dice cuáles y por qué no los otros 12 (los que usan `vi`, los que tocan `window` en el propio test,
+**Qué tests entran en el motor** lo decide el kit por el grafo de imports: 34 de los 47 ficheros de
+`src/lib`, más los del kit y los del port: **560 tests**. `npm run godot:build -- --list-tests`
+dice cuáles y por qué no los otros 13 (los que usan `vi`, los que tocan `window` en el propio test,
 `textos.test.ts` que lee el disco). `haptics.ts` y `audioEngine.ts` no entran porque el segundo abre
 un `AudioContext`: por eso `scene/juego/sucesos.ts` copia `impactStrength` y los sucesos de la
 mano; si pasaran a un fichero sin navegador, esa copia se borraría.
@@ -102,8 +112,9 @@ $GODOT --headless --xr-mode off --path . res://games/glide-hockey/tests/domain_t
 (cd .. && npm run godot:mandos)
 
 # Una partida automática contra la máquina (práctica, Imposible, a 7): imprime WAM-RESULT con el
-# marcador y el coste por fotograma. `--dificultad=` y `--goles=` para otra
+# marcador y el coste por fotograma. `--dificultad=` y `--goles=` para otra; `--duelo`, un duelo entero
 $GODOT --headless --xr-mode off --fixed-fps 72 --path . -- --autoplay
+$GODOT --headless --xr-mode off --fixed-fps 72 --path . -- --autoplay --duelo
 
 # El reto con una semilla
 $GODOT --xr-mode off --path . -- --reto=4242
@@ -111,8 +122,11 @@ $GODOT --xr-mode off --path . -- --reto=4242
 # Jugar en plano con el ratón (Escape para parar o salir); `--lang=es|en`, `--tutorial`, `--ayudas`,
 # `--habitacion` (tu habitación sin visor, para ver lo que se quita)
 $GODOT --xr-mode off --path .
-# Capturas: el menú, a mitad de partida y el final
+# Capturas: el menú (`--modo=duel` lo deja con ese modo elegido), a mitad de partida y el final
+# (con `--duelo`, el traspaso)
 $GODOT --xr-mode off --path . -- --shot-menu=/tmp/menu.png --lang=es
+$GODOT --xr-mode off --path . -- --shot-menu=/tmp/menu-duelo.png --modo=duel --lang=es
+$GODOT --xr-mode off --fixed-fps 60 --path . -- --autoplay --duelo --shot-final=/tmp/traspaso.png --lang=es
 $GODOT --xr-mode off --fixed-fps 60 --path . -- --autoplay --shot=/tmp/partida.png
 $GODOT --xr-mode off --fixed-fps 60 --path . -- --autoplay --shot-final=/tmp/final.png
 # Las ayudas recién empezada la partida: en plano, o con el visor simulado (la cámara es la cabeza de
@@ -161,6 +175,10 @@ y comprueba que el hub lo monta, le cede la pantalla y vuelve al salón con Esca
   deja los pies fuera del cuadro; con `--visor-simulado --cabeceo=-50` sí.
 - **No está**: el precalentado de shaders (`Calentar`), el mapa de reflejos de la mesa
   (`useRoomEnvironment`) ni la sonda de la escena para los e2e de la web.
+- **El duelo contra el jugador automático acaba siempre en empate**: juega igual las dos partidas
+  contra la misma máquina, y la semilla compartida hace que saque lo mismo (7–0 y 7–0 en Media). Es
+  lo que el test comprueba; que gane uno u otro según la ventaja lo prueban `duel.test.ts` y
+  `partida.motor.test.ts`.
 - **Lo que solo puede decir el visor**, además de lo de `salir-en-steam.md` 4.2 y 4.3: que el mazo
   se coja al acercar el puño al pomo (18,6 cm desde el pomo, en 3D; la web mide solo en el plano de
   la mesa), que golpear con la mano se sienta como en la web, que la cuenta atrás parada en el 1

@@ -54,12 +54,15 @@ const ES = {
   Practice: 'Práctica',
   Levels: 'Niveles',
   Challenge: 'Desafío',
+  Duel: 'Duelo',
   'You choose the level and the goals. Losing costs nothing.':
     'Eliges el nivel y los goles. Perder no cuesta nada.',
   'One game at a time. The level you win stays unlocked for next time.':
     'Una partida cada vez. El nivel que ganas queda desbloqueado para la próxima.',
   'It steps up on its own, in one run. The first game you lose ends it.':
     'Sube solo, en una tanda. La primera partida que pierdas la termina.',
+  'Take turns with one controller against the same machine: whoever beats it by more wins.':
+    'Por turnos con un mando contra la misma máquina: gana quien le saque más ventaja.',
   Easy: 'Fácil',
   Medium: 'Media',
   Hard: 'Difícil',
@@ -114,6 +117,18 @@ const ES = {
   'Best streak': 'Mejor racha',
   Again: 'Otra vez',
   'Back to the menu': 'Volver al menú',
+
+  // El duelo
+  'Player 1': 'Jugador 1',
+  'Player 2': 'Jugador 2',
+  '{player}: {scored}–{conceded}': '{player}: {scored}–{conceded}',
+  '{player}: {scored}–{conceded} ({margin})': '{player}: {scored}–{conceded} ({margin})',
+  'Pass the controller to {player}.': 'Pásale el mando a {player}.',
+  '{player} to play': 'Le toca a {player}',
+  '{player} wins': 'Gana {player}',
+  Tie: 'Empate',
+  'Duels won: {one}–{two} · tied: {ties}': 'Duelos ganados: {one}–{two} · empatados: {ties}',
+  'New duel': 'Nuevo duelo',
 
   // Progreso, en la portada
   'Levels cleared:': 'Niveles superados:',

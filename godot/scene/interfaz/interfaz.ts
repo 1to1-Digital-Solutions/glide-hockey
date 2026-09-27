@@ -24,6 +24,7 @@ import type { MandoEnLaMano } from '@kit/runtime/ui/tutorial'
 
 import type { GrabMode, Lang, Scenery } from '@/lib/ajustes'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '@/lib/gameConfig'
+import { getDuelTally } from '@/lib/duelTally'
 import { isEndless } from '@/lib/gameMode'
 
 import { alCambiarElIdioma, confort, elegirConfort, idioma } from './ajustes'
@@ -246,19 +247,22 @@ export class InterfazDelJuego {
         jugador: p.playerGoals,
         maquina: p.opponentGoals,
         puntos: p.points,
-        fila: p.round ?? (p.levels ? p.activeLevel : null),
+        // En el duelo, el número de quien tiene el mando: sin letras, es lo que dice de quién es el cian.
+        fila: p.round ?? (p.levels ? p.activeLevel : p.duelView != null ? p.duelView.player + 1 : null),
         vuelta: p.lap != null && p.lap > 1 ? p.lap : null,
       })
     }
     this.cuenta.pintar(fase === 'countdown' ? { cuenta: p.cuenta, esperandoElMazo: p.esperandoElMazo, conUnToque: agarre === 'toggle', lang } : null)
     if (fase === 'finished') {
       const nivel = p.levelResult
+      const duelo = p.duelView
       this.final.pintar({
         lang,
         outcome: p.outcome!,
         puntos: p.points,
         esRecord: p.isRecord,
         nivel: nivel == null ? null : { nivel: p.activeLevel, stars: nivel.stars, passed: nivel.passed },
+        duelo: duelo == null ? null : { vista: duelo, marcador: { scored: p.playerGoals, conceded: p.opponentGoals }, pareja: getDuelTally() },
       })
     }
     if (p.prompt != null) this.aviso.escribir(lang)

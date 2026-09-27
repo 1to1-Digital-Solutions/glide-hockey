@@ -8,6 +8,8 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import { DUEL_SETUP } from '@/lib/duel'
+import { getDuelTally } from '@/lib/duelTally'
 import { COUNTDOWN_SECONDS, DEFAULT_GOALS, MAX_GOALS, MIN_GOALS } from '@/lib/gameConfig'
 import { getBestEndlessStreak, getBestPoints } from '@/lib/highScore'
 import { getStarsList, getUnlockedLevel } from '@/lib/progress'
@@ -192,5 +194,57 @@ describe('la partida en Godot hace lo que el store de la web', () => {
     expect(p.gameState).toBe('menu')
     expect([p.playerGoals, p.points, p.streak]).toEqual([0, 0, 0])
     expect(getBestPoints('practice')).toBe(0)
+  })
+
+  it('el duelo: juega el primero, luego el segundo, contra la misma máquina, y gana quien saca más ventaja', () => {
+    const avisos: Resultado[] = []
+    const p = new Partida({ alTerminar: (r) => avisos.push(r) })
+    expect(p.duelView).toBeNull()
+    p.setGameMode('duel')
+    p.setDifficulty('impossible')
+    p.startGame()
+    expect(p.duelView?.player).toBe(0)
+    // Lo elegido en la práctica no cuenta: el duelo se juega siempre igual.
+    expect([p.activeDifficulty, p.activeGoalTarget]).toEqual([DUEL_SETUP.difficulty, DUEL_SETUP.goalTarget])
+    const semilla = p.seed
+    sacar(p)
+    marcar(p, DUEL_SETUP.goalTarget, 2)
+    expect(p.gameState).toBe('finished')
+    expect(p.duelView).toMatchObject({ player: 0, next: 1, over: false })
+
+    // El traspaso: la del segundo, con la misma semilla y en otra mesa.
+    const mesa = p.runId
+    p.startGame()
+    expect(p.duelView?.player).toBe(1)
+    expect(p.seed).toBe(semilla)
+    expect(p.runId).toBe(mesa + 1)
+    sacar(p)
+    marcar(p, 3, DUEL_SETUP.goalTarget)
+    expect(p.duelView).toMatchObject({ over: true, winner: 0, next: null })
+    expect(getDuelTally()).toEqual({ wins: [1, 0], ties: 0 })
+    // Sin récord ni aviso al salón: los goles son de dos personas.
+    expect([p.isRecord, p.bestPoints, getBestPoints('duel'), avisos.length]).toEqual([false, 0, 0, 0])
+
+    // Otra vez tras un duelo cerrado es un duelo nuevo, con otra semilla; volver al menú también lo deja.
+    p.startGame()
+    expect(p.duelView?.player).toBe(0)
+    expect(p.seed).not.toBe(semilla)
+    sacar(p)
+    marcar(p, 0, DUEL_SETUP.goalTarget)
+    p.resetGame()
+    expect(p.duelo.matches).toEqual([null, null])
+  })
+
+  it('el duelo con la misma ventaja es empate, y se apunta como empate', () => {
+    const p = new Partida()
+    p.setGameMode('duel')
+    p.startGame()
+    sacar(p)
+    marcar(p, DUEL_SETUP.goalTarget, 4)
+    p.startGame()
+    sacar(p)
+    marcar(p, DUEL_SETUP.goalTarget, 4)
+    expect(p.duelView).toMatchObject({ over: true, winner: null })
+    expect(getDuelTally()).toEqual({ wins: [0, 0], ties: 1 })
   })
 })

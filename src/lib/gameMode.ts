@@ -14,21 +14,28 @@
  *   ganada encadena la siguiente y la primera perdida cierra el reto. No tiene
  *   final: se aguanta lo que se aguante, y de ahí sale la puntuación. Es el
  *   modo heroico: del tirón, sin puntos de control.
+ * - **Duelo**: dos jugadores, por turnos con un mando. Cada uno juega una partida contra la
+ *   misma máquina —mismo nivel, mismos goles, misma semilla— y gana quien le saque más ventaja
+ *   (`duel.ts` explica por qué así).
  *
  * Todo son funciones puras sobre marcadores: el estado vive en `gameStore` y la
  * interfaz solo lo pinta, igual que con la puntuación.
  */
 
-export type GameMode = 'practice' | 'levels' | 'challenge'
+export type GameMode = 'practice' | 'levels' | 'challenge' | 'duel'
 
-/** Orden de los modos en los selectores, del más suave al más exigente. */
-export const GAME_MODE_ORDER: GameMode[] = ['practice', 'levels', 'challenge']
+/**
+ * Orden de los modos en los selectores: los de uno solo, del más suave al más exigente, y al
+ * final el de dos, que es otra forma de jugar y no un escalón más.
+ */
+export const GAME_MODE_ORDER: GameMode[] = ['practice', 'levels', 'challenge', 'duel']
 
 /** Etiqueta visible, en inglés: es la clave con la que se traduce (ver `textos.ts`). */
 export const GAME_MODE_LABELS = {
   practice: 'Practice',
   levels: 'Levels',
   challenge: 'Challenge',
+  duel: 'Duel',
 } as const satisfies Record<GameMode, string>
 
 /** Qué promete cada modo, en una línea, para el menú. */
@@ -36,6 +43,7 @@ export const GAME_MODE_HINTS = {
   practice: 'You choose the level and the goals. Losing costs nothing.',
   levels: 'One game at a time. The level you win stays unlocked for next time.',
   challenge: 'It steps up on its own, in one run. The first game you lose ends it.',
+  duel: 'Take turns with one controller against the same machine: whoever beats it by more wins.',
 } as const satisfies Record<GameMode, string>
 
 /**

@@ -13,6 +13,7 @@ import {
   GAME_MODE_ORDER,
 } from '../../lib/gameMode'
 import { useGame } from '../../lib/gameStore'
+import { useDuelTally } from '../../lib/useDuelTally'
 import { useLang } from '../../lib/ajustesCliente'
 import { traductor } from '../../lib/textos'
 import { SCENERIES } from '../../lib/ajustes'
@@ -27,7 +28,8 @@ import { getXrStore } from '../xr/xrStore'
 
 /**
  * La pantalla de inicio de escritorio: las tres decisiones del juego —modo,
- * nivel de la máquina y a cuántos goles— más la entrada al visor.
+ * nivel de la máquina y a cuántos goles— más la entrada al visor. En el duelo
+ * no se elige ni nivel ni goles: los dos juegan lo mismo (`DUEL_SETUP`).
  *
  * Se superpone al Canvas en vez de sustituirlo, para que la mesa se vea de
  * fondo mientras se elige: es lo que hace que se entienda a qué se está jugando
@@ -112,6 +114,9 @@ export function StartScreen() {
   const t = traductor(useLang())
   const practice = gameMode === 'practice'
   const levels = gameMode === 'levels'
+  // Lo que lleva la pareja que está delante, en el duelo; con ninguno jugado no se dice nada.
+  const tally = useDuelTally()
+  const duelos = tally.wins[0] + tally.wins[1] + tally.ties
 
   return (
     <main className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-y-auto p-4">
@@ -132,7 +137,8 @@ export function StartScreen() {
           <fieldset className="flex flex-col gap-2">
             <legend className="sr-only">{t('Game mode')}</legend>
             <FieldLabel>{t('Mode')}</FieldLabel>
-            <div className="grid grid-cols-3 gap-2">
+            {/* Cuatro en fila no caben en un móvil con «Desafío» dentro: dos filas de dos. */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {GAME_MODE_ORDER.map((mode) => (
                 <OptionButton
                   key={mode}
@@ -315,7 +321,17 @@ export function StartScreen() {
           </fieldset>
         </div>
 
-        {levels ? (
+        {gameMode === 'duel' ? (
+          duelos > 0 ? (
+            <p className="mt-5 text-sm text-white/55">
+              {t('Duels won: {one}–{two} · tied: {ties}', {
+                one: tally.wins[0],
+                two: tally.wins[1],
+                ties: tally.ties,
+              })}
+            </p>
+          ) : null
+        ) : levels ? (
           <p className="mt-5 text-sm text-white/55">
             {t('Levels cleared:')}{' '}
             <strong className="font-semibold text-white">

@@ -18,7 +18,8 @@
  * - **en plano, con el ratón** sobre la mesa: el mazo persigue al puntero con su tope de
  *   velocidad, como en la web;
  * - **con `-- --autoplay`**, el jugador automático (`bot.ts`): juega una partida entera contra la
- *   máquina hasta el final, que es lo que usan los tests y la medida del coste por fotograma.
+ *   máquina hasta el final, que es lo que usan los tests y la medida del coste por fotograma. Con
+ *   `--duelo` juega el duelo entero: la partida del primero, el traspaso y la del segundo.
  *
  * **Alrededor, el salón recreativo de la web** (`mundo/sala.ts`), o tu habitación si el salón la pide
  * y el visor tiene paso de cámara (`Escenario` del kit). Con visor, las **ayudas** de la web
@@ -93,7 +94,9 @@ import {
   TABLE_LENGTH,
   TABLE_WIDTH,
 } from '@/lib/gameConfig'
-import type { GameMode } from '@/lib/gameMode'
+import { finalSuenaAGanar, type MatchScore } from '@/lib/duel'
+import { getDuelTally } from '@/lib/duelTally'
+import { GAME_MODE_ORDER, type GameMode } from '@/lib/gameMode'
 import type { Difficulty } from '@/lib/gameConfig'
 import { FUERZA_DEL_GOL_EN_CONTRA, direccionDelGolEnContra } from '@/lib/golEnContra'
 import { MANO_QUE_JUEGA } from '@/lib/guionDeAyudas'
@@ -185,6 +188,12 @@ const CAMARA_EN_PLANO = { position: new Vector3(0, 2.65, 1.5), mira: new Vector3
  * pase también por el golpe recibido.
  */
 const PARTIDA_DEL_BOT: { modo: GameMode; goles: number; dificultad: Difficulty } = { modo: 'practice', goles: 7, dificultad: 'impossible' }
+
+/**
+ * Cuántos fotogramas se queda el jugador automático del duelo en el traspaso antes de darle a jugar
+ * la partida del segundo: medio segundo con el panel a la vista, como quien lee a quién le toca.
+ */
+const FOTOGRAMAS_DEL_TRASPASO = 36
 
 /** A qué altura sobre la mesa lleva el puño el jugador automático con visor. */
 const ALTURA_DEL_PUNO = 0.06
@@ -301,6 +310,12 @@ export default class GlideHockey extends Node3D {
   private startedMs = 0
   private goles: ('player' | 'opponent')[] = []
   private resultados: Resultado[] = []
+  /** El jugador automático juega el duelo (`--duelo`, o el metadato `duelo` de una escena de test). */
+  private duelo = false
+  /** Cada partida del duelo al acabar: con qué semilla jugó la máquina y cómo quedó. */
+  private partidasDelDuelo: (MatchScore & { seed: number })[] = []
+  /** Los cierres que han sonado, en orden: `win` o `loss` por final. */
+  private cierres: string[] = []
   private shotPath: string | null = null
   private shotMenuPath: string | null = null
   private shotFinalPath: string | null = null
@@ -319,6 +334,7 @@ export default class GlideHockey extends Node3D {
     // automático acabaría como récord de quien tenga el juego, y cada pasada dependería de la anterior.
     aislarElGuardado(this.harness)
     const autoplay = hayBandera('autoplay') || (this.harness && !this.harnessMenu)
+    this.duelo = hayBandera('duelo') || (this.harness && this.has_meta('duelo'))
     this.shotPath = argumento('shot')
     this.shotMenuPath = argumento('shot-menu')
     this.shotFinalPath = argumento('shot-final')
@@ -367,7 +383,7 @@ export default class GlideHockey extends Node3D {
     })
     // El jugador automático no pasa por el menú: juega siempre la misma partida (`PARTIDA_DEL_BOT`).
     if ((this.driver === 'bot' || this.sim != null) && !this.partida.running) {
-      this.partida.setGameMode(PARTIDA_DEL_BOT.modo)
+      this.partida.setGameMode(this.duelo ? 'duel' : PARTIDA_DEL_BOT.modo)
       this.partida.setGoalTarget(Number(argumento('goles') ?? PARTIDA_DEL_BOT.goles))
       const dificultad = argumento('dificultad') ?? (this.has_meta('dificultad') ? String(this.get_meta('dificultad')) : null)
       this.partida.setDifficulty(dificultad != null && dificultad in OPPONENT_SKILLS ? (dificultad as Difficulty) : PARTIDA_DEL_BOT.dificultad)
@@ -375,6 +391,10 @@ export default class GlideHockey extends Node3D {
     } else if (this.shotAyudasPath != null) {
       // La captura de las ayudas entra en la partida sin jugador: es lo que se ve al empezar.
       this.partida.startGame()
+    } else {
+      // `--modo=duel` (o el que sea) deja elegido ese modo en el menú: es para capturarlo.
+      const modo = argumento('modo')
+      if (modo != null && (GAME_MODE_ORDER as string[]).includes(modo)) this.partida.setGameMode(modo as GameMode)
     }
     this.startedMs = Time.get_ticks_msec()
   }
@@ -763,7 +783,12 @@ export default class GlideHockey extends Node3D {
 
     this.capturas()
     const automatico = this.driver === 'bot' || this.sim != null
-    if (automatico && fase === 'finished' && this.framesEnFase === 1 && this.shotFinalPath == null) this.reportAndQuit()
+    if (automatico && fase === 'finished' && this.shotFinalPath == null) {
+      // En el duelo, con la partida del primero acabada, se pasa el mando: la del segundo.
+      const traspaso = partida.duelView != null && !partida.duelView.over
+      if (traspaso && this.framesEnFase === FOTOGRAMAS_DEL_TRASPASO) partida.startGame()
+      else if (!traspaso && this.framesEnFase === 1) this.reportAndQuit()
+    }
   }
 
   /** La interfaz sube con los ojos de quien juega (`XRUiHeight` de la web); la mesa no. */
@@ -842,7 +867,12 @@ export default class GlideHockey extends Node3D {
   private alAcabar(): void {
     const partida = this.partida
     this.terminada = partida.runId
-    this.sfx.play(partida.totalPlayerGoals > partida.totalOpponentGoals ? 'win' : 'loss')
+    const marcador = { scored: partida.totalPlayerGoals, conceded: partida.totalOpponentGoals }
+    if (partida.duelView != null) this.partidasDelDuelo.push({ ...marcador, seed: partida.seed })
+    // El final del duelo suena a ganar: lo gana uno de los dos que están delante (`duel.ts`).
+    const cierre = finalSuenaAGanar(partida.duelView?.over ?? false, marcador) ? 'win' : 'loss'
+    this.cierres.push(cierre)
+    this.sfx.play(cierre)
     this.sentir({ tipo: 'final' })
     if (partida.isRecord) this.sfx.play('record')
   }
@@ -1045,6 +1075,8 @@ export default class GlideHockey extends Node3D {
       variants: Object.fromEntries(SOUNDS.map((name) => [name, this.sfx.variantCount(name)])),
       music: { playing: this.music.playing, volume: Number(this.music.volume.toFixed(3)) },
       levels: niveles(),
+      duel: partida.duelView == null ? null : { ...partida.duelView, partidas: this.partidasDelDuelo, pareja: getDuelTally() },
+      cierres: this.cierres,
       xr: this.xrReport(),
     }
     // `print` del motor y no `console.log`: en las plantillas release GodotJS solo deja pasar los

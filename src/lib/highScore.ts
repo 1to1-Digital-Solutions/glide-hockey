@@ -17,6 +17,9 @@ export const HIGH_SCORE_KEYS: Record<GameMode, string> = {
   practice: 'glide-hockey:best-points',
   levels: 'glide-hockey:best-points:levels',
   challenge: 'glide-hockey:best-points:challenge',
+  // En el duelo no se guarda récord —los goles son de dos personas y no dicen nada de la marca
+  // de ninguna—, pero el modo existe y la lectura del récord se hace por modo.
+  duel: 'glide-hockey:best-points:duel',
 }
 
 /**

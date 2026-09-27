@@ -21,6 +21,18 @@ import {
   MIN_GOALS,
   type Difficulty,
 } from './gameConfig'
+import {
+  DUEL_SETUP,
+  controllerHolder,
+  duelOver,
+  duelTurn,
+  duelWinner,
+  newDuel,
+  recordMatch,
+  type Duel,
+  type Player,
+} from './duel'
+import { saveDuelResult } from './duelTally'
 import { ENDLESS, type GameMode, type RunOutcome, isEndless, runOutcome } from './gameMode'
 import {
   getBestEndlessStreak,
@@ -66,6 +78,19 @@ import { scoreConceded, scoreGoal } from './scoring'
 
 export type GameState = 'menu' | 'countdown' | 'playing' | 'finished'
 
+/** Cómo va el duelo, visto desde la pantalla. */
+export interface DuelView {
+  /** De quién es la partida que está en pantalla, o la que va a empezar. */
+  player: Player
+  /** Las dos partidas, contando la que acaba de terminar. */
+  matches: Duel['matches']
+  /** A quién le toca después, o `null` si ya han jugado los dos. */
+  next: Player | null
+  over: boolean
+  /** Quién ha ganado, o `null` si no ha acabado o es empate. */
+  winner: Player | null
+}
+
 /**
  * El modo que se juega con el `reto` del salón: el del récord de la cabina
  * (`glide-hockey:best-points:challenge`).
@@ -97,7 +122,7 @@ export interface GameStore {
   goalTarget: number
   /** Nivel elegido. En reto lo manda la ronda y esto no se toca. */
   difficulty: Difficulty
-  /** Prueba, niveles o reto (ver `gameMode.ts`). */
+  /** Prueba, niveles, reto o duelo (ver `gameMode.ts`). */
   gameMode: GameMode
   /** Prueba sin fin: la partida no se acaba por goles, la termina el jugador. */
   endless: boolean
@@ -111,6 +136,9 @@ export interface GameStore {
   levelStars: readonly Stars[]
   /** Cómo acabó el nivel jugado, solo con la partida terminada en Niveles. */
   levelResult: { stars: Stars; passed: boolean; unlocked: number | null } | null
+
+  /** El duelo por turnos, o `null` fuera de ese modo (ver `duel.ts`). */
+  duel: DuelView | null
 
   /** Ronda del reto, o `null` en un modo que no las tiene. */
   round: number | null
@@ -189,7 +217,8 @@ export interface GameStore {
   runId: number
   /**
    * Con qué semilla elige sus tiros la máquina en la mesa que se está jugando (`AimSeed.match`):
-   * el número de partida, o en el reto la de su semilla y su ronda (`semillaDeLaMesa`).
+   * el número de partida, o en el reto la de su semilla y su ronda (`semillaDeLaMesa`). En el
+   * duelo, la del duelo: la misma para los dos (`Duel.seed`).
    */
   seed: number
   /**
@@ -306,6 +335,9 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
   // Ronda del reto. Vive aquí y no se deriva porque es lo único que sobrevive
   // de una partida a la siguiente dentro del mismo reto.
   const [challengeRoundNumber, setChallengeRoundNumber] = useState(1)
+  // Las partidas del duelo ya cerradas y su semilla. La que acaba de terminar no se apunta aquí
+  // hasta que empieza la siguiente: mientras se ve el resumen se deduce del marcador (`duelNow`).
+  const [duel, setDuel] = useState<Duel>(() => newDuel(0))
 
   const [playerGoals, setPlayerGoals] = useState(0)
   const [opponentGoals, setOpponentGoals] = useState(0)
@@ -377,6 +409,7 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
 
   const challenge = gameMode === 'challenge'
   const levels = gameMode === 'levels'
+  const duelMode = gameMode === 'duel'
   const round = challenge ? challengeRoundNumber : null
   const currentRound = challengeRound(challengeRoundNumber)
   const lap = challenge ? currentRound.lap : null
@@ -389,19 +422,23 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
     ? currentRound.difficulty
     : levels
       ? currentLevel.difficulty
-      : difficulty
+      : duelMode
+        ? DUEL_SETUP.difficulty
+        : difficulty
   const activeGoalTarget = challenge
     ? currentRound.goalTarget
     : levels
       ? currentLevel.goalTarget
-      : endless
-        ? ENDLESS
-        : goalTarget
+      : duelMode
+        ? DUEL_SETUP.goalTarget
+        : endless
+          ? ENDLESS
+          : goalTarget
   const endlessRun = isEndless(activeGoalTarget)
   const totalPlayerGoals = previousPlayerGoals + playerGoals
   // La ronda y no el `runId`: dentro del reto, la mesa de cada ronda es la misma
   // para todos, pase lo que pase en las anteriores.
-  const seed = semillaDeLaMesa(enReto ? semillaDelReto : null, runId, challengeRoundNumber)
+  const seed = duelMode ? duel.seed : semillaDeLaMesa(enReto ? semillaDelReto : null, runId, challengeRoundNumber)
   const totalOpponentGoals = previousOpponentGoals + opponentGoals
 
   // Cuándo se acaba una partida lo decide el marcador (ver `gameMode.ts`).
@@ -482,6 +519,42 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
     return { stars, passed, unlocked: abre ? activeLevel + 1 : null }
   }, [levels, gameState, outcome, playerGoals, opponentGoals, activeLevel, unlockedAtStart])
 
+  // El duelo con la partida recién terminada ya contada. Se deduce en vez de apuntarla al acabar
+  // para no escribir estado desde un efecto: se apunta de verdad al empezar el turno siguiente
+  // (`startGame`).
+  const duelNow = useMemo(
+    () =>
+      duelMode && gameState === 'finished'
+        ? recordMatch(duel, { scored: playerGoals, conceded: opponentGoals })
+        : duel,
+    [duelMode, gameState, duel, playerGoals, opponentGoals],
+  )
+  const duelView = useMemo<DuelView | null>(
+    () =>
+      duelMode
+        ? {
+            player: controllerHolder(duel),
+            matches: duelNow.matches,
+            next: duelTurn(duelNow),
+            over: duelOver(duelNow),
+            winner: duelWinner(duelNow),
+          }
+        : null,
+    [duelMode, duel, duelNow],
+  )
+
+  // Qué duelo se apuntó ya en el marcador de la pareja. Es un ref y no estado porque no se pinta:
+  // solo evita sumar dos veces el mismo duelo si el efecto se repite.
+  const savedDuelRun = useRef(0)
+  useEffect(() => {
+    if (!duelMode || gameState !== 'finished' || !duelOver(duelNow)) return
+    // Strict Mode repite los efectos en desarrollo: sin esta marca, un duelo contaría doble.
+    /* v8 ignore next */
+    if (savedDuelRun.current === runId) return
+    savedDuelRun.current = runId
+    saveDuelResult(duelWinner(duelNow))
+  }, [duelMode, gameState, duelNow, runId])
+
   /**
    * La partida (su `runId`) de la que ya se avisó al salón. El aviso cuelga del
    * mismo efecto que guarda el récord, que se rehace con cada render que cambie
@@ -503,6 +576,9 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
   // siendo la marca a batir.
   useEffect(() => {
     if (gameState !== 'finished') return
+    // En el duelo no hay récord: los goles son de dos personas (ver `highScore.ts`). Por lo mismo
+    // tampoco se avisa al salón: no son de quien lleva el visor.
+    if (duelMode) return
     if (levelResult) saveLevelResult(activeLevel, levelResult.stars)
     else if (endlessRun) saveBestEndlessStreak(bestStreak)
     else saveBestPoints(gameMode, points)
@@ -515,11 +591,11 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
     if (avisada.current === runId) return
     avisada.current = runId
     avisar.current?.({ modo: gameMode, puntos: points, reto: enReto })
-  }, [gameState, gameMode, points, bestStreak, endlessRun, levelResult, activeLevel, runId, enReto])
+  }, [gameState, gameMode, duelMode, points, bestStreak, endlessRun, levelResult, activeLevel, runId, enReto])
 
   // La marca de este modo: puntos, o la racha en la partida sin fin. En Niveles
-  // no hay marca que batir: hay estrellas.
-  const bestForMode = endlessRun ? bestEndlessStreak : levels ? 0 : bestPoints
+  // no hay marca que batir: hay estrellas. En el duelo, tampoco: hay quien gana.
+  const bestForMode = endlessRun ? bestEndlessStreak : levels || duelMode ? 0 : bestPoints
   const scoreForRecord = endlessRun ? bestStreak : points
 
   // La partida ha batido el récord con el que empezó *y* lo guardado es
@@ -531,6 +607,7 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
   const isRecord =
     gameState === 'finished' &&
     !levels &&
+    !duelMode &&
     scoreForRecord > recordToBeat &&
     bestForMode === scoreForRecord
   /**
@@ -600,6 +677,12 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
     // en el mismo modo.
     setEnReto(false)
     setPrompt(null)
+    // En el duelo, empezar tras la partida del primero es el turno del segundo: se apunta la que
+    // acaba de terminar y la semilla sigue. Con los dos jugados, o desde el menú, es un duelo
+    // nuevo, con la semilla de esta partida: no repite los tiros del duelo anterior.
+    if (duelMode) {
+      setDuel(gameState === 'finished' && !duelOver(duelNow) ? duelNow : newDuel(runId + 1))
+    }
     clearRun()
     advancedRound.current = 0
     setEndedByPlayer(false)
@@ -611,7 +694,7 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
     setRunId((id) => id + 1)
     setCountdown(COUNTDOWN_SECONDS)
     setRunning(true)
-  }, [clearRun, gameMode, endless, selectedLevel])
+  }, [clearRun, gameMode, endless, selectedLevel, duelMode, gameState, duelNow, runId])
   // Solo cuenta el gol de una partida viva. El disco sigue rodando cuando la partida ya se ha
   // decidido —la mesa se entera un fotograma tarde—, y un gol así cambiaba los puntos después
   // del final y volvía a guardar el récord con ellos. Tampoco cuenta con la ronda del reto ya
@@ -653,6 +736,8 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
   const resetGame = useCallback(() => {
     setEnReto(false)
     setPrompt(null)
+    // Volver al menú deja el duelo: el turno del otro ya no tiene contra qué compararse.
+    setDuel(newDuel(0))
     clearRun()
     setCountdown(0)
     setEndedByPlayer(false)
@@ -674,6 +759,7 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
       unlockedLevel,
       levelStars: levelStarsAll,
       levelResult,
+      duel: duelView,
       round,
       lap,
       lapMultiplier: lapFactor,
@@ -735,6 +821,7 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
       unlockedLevel,
       levelStarsAll,
       levelResult,
+      duelView,
       round,
       lap,
       lapFactor,

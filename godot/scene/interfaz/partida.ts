@@ -5,8 +5,8 @@
  * tiene React, así que aquí se escribe la misma máquina como una clase que la escena avanza a cada
  * fotograma. **Las reglas no se reescriben**: el marcador y el final salen de `gameMode.ts`
  * (`runOutcome`), los puntos de `scoring.ts`, la escalera del reto de `challenge.ts`, los niveles
- * y sus estrellas de `levels.ts`, lo guardado de `highScore.ts` y `progress.ts`, y la semilla de
- * la máquina de `opponent.ts` (`semillaDeLaMesa`). Lo que queda aquí es lo que en la web hacen los
+ * y sus estrellas de `levels.ts`, el duelo por turnos de `duel.ts`, lo guardado de `highScore.ts`,
+ * `progress.ts` y `duelTally.ts`, y la semilla de la máquina de `opponent.ts` (`semillaDeLaMesa`). Lo que queda aquí es lo que en la web hacen los
  * `useState`: qué se ha elegido, en qué fase se está y el marcador de la partida en curso.
  *
  * Igual que en la web, **casi todo se deriva**: la fase sale de si hay partida, de la cuenta atrás
@@ -17,6 +17,8 @@
  * montar la escena.
  */
 import { challengeRound } from '@/lib/challenge'
+import { DUEL_SETUP, controllerHolder, duelOver, duelTurn, duelWinner, newDuel, recordMatch, type Duel, type Player } from '@/lib/duel'
+import { saveDuelResult } from '@/lib/duelTally'
 import { COUNTDOWN_SECONDS, DEFAULT_GOALS, MAX_GOALS, MIN_GOALS, type Difficulty } from '@/lib/gameConfig'
 import { ENDLESS, isEndless, runOutcome, type GameMode, type RunOutcome } from '@/lib/gameMode'
 import { getBestEndlessStreak, getBestPoints, saveBestEndlessStreak, saveBestPoints } from '@/lib/highScore'
@@ -46,6 +48,19 @@ export interface ResultadoDelNivel {
 export function acotarGoles(goles: number): number {
   if (Number.isNaN(goles)) return DEFAULT_GOALS
   return Math.min(MAX_GOALS, Math.max(MIN_GOALS, Math.round(goles)))
+}
+
+/** Cómo va el duelo, visto desde la pantalla (`DuelView` de la web). */
+export interface VistaDelDuelo {
+  /** De quién es la partida que está en pantalla, o la que va a empezar. */
+  player: Player
+  /** Las dos partidas, contando la que acaba de terminar. */
+  matches: Duel['matches']
+  /** A quién le toca después, o `null` si ya han jugado los dos. */
+  next: Player | null
+  over: boolean
+  /** Quién ha ganado, o `null` si no ha acabado o es empate. */
+  winner: Player | null
 }
 
 export interface OpcionesDeLaPartida {
@@ -86,6 +101,8 @@ export class Partida {
   challengeRoundNumber = 1
   /** Lo que quien juega ya ha hecho, para el tutorial: se acumula y no se deshace. */
   hitos: TutorialHitos = SIN_HITOS
+  /** Las partidas del duelo ya cerradas y su semilla; la recién terminada se apunta al empezar la siguiente. */
+  duelo: Duel = newDuel(0)
   private endedByPlayer = false
   private recordToBeat = 0
   private unlockedAtStart = 1
@@ -118,6 +135,10 @@ export class Partida {
 
   get levels(): boolean {
     return this.gameMode === 'levels'
+  }
+
+  get duel(): boolean {
+    return this.gameMode === 'duel'
   }
 
   /** Ronda del reto, o `null` en un modo que no las tiene. */
@@ -157,12 +178,14 @@ export class Partida {
   get activeDifficulty(): Difficulty {
     if (this.challenge) return challengeRound(this.challengeRoundNumber).difficulty
     if (this.levels) return levelSpec(this.activeLevel).difficulty
+    if (this.duel) return DUEL_SETUP.difficulty
     return this.difficulty
   }
 
   get activeGoalTarget(): number {
     if (this.challenge) return challengeRound(this.challengeRoundNumber).goalTarget
     if (this.levels) return levelSpec(this.activeLevel).goalTarget
+    if (this.duel) return DUEL_SETUP.goalTarget
     return this.endless ? ENDLESS : this.goalTarget
   }
 
@@ -174,8 +197,9 @@ export class Partida {
     return this.previousOpponentGoals + this.opponentGoals
   }
 
-  /** Con qué semilla elige sus tiros la máquina en la mesa de ahora. */
+  /** Con qué semilla elige sus tiros la máquina en la mesa de ahora: en el duelo, la de los dos. */
   get seed(): number {
+    if (this.duel) return this.duelo.seed
     return semillaDeLaMesa(this.enReto ? this.semillaDelReto : null, this.runId, this.challengeRoundNumber)
   }
 
@@ -223,7 +247,27 @@ export class Partida {
   /** El récord del modo elegido que enseña el menú (`bestPoints` de la web). */
   get bestPoints(): number {
     if (this.gameMode === 'practice' && this.endless) return getBestEndlessStreak()
-    return this.levels ? 0 : getBestPoints(this.gameMode)
+    return this.levels || this.duel ? 0 : getBestPoints(this.gameMode)
+  }
+
+  /** El duelo con la partida recién terminada ya contada (`duelNow` de la web). */
+  private get dueloAhora(): Duel {
+    return this.duel && this.gameState === 'finished'
+      ? recordMatch(this.duelo, { scored: this.playerGoals, conceded: this.opponentGoals })
+      : this.duelo
+  }
+
+  /** Cómo va el duelo, o `null` fuera de ese modo. */
+  get duelView(): VistaDelDuelo | null {
+    if (!this.duel) return null
+    const ahora = this.dueloAhora
+    return {
+      player: controllerHolder(this.duelo),
+      matches: ahora.matches,
+      next: duelTurn(ahora),
+      over: duelOver(ahora),
+      winner: duelWinner(ahora),
+    }
   }
 
   // Lo que se elige entre partidas: con una en marcha no cambia nada, como en la web.
@@ -266,6 +310,13 @@ export class Partida {
   startGame(): void {
     this.enReto = false
     this.prompt = null
+    // En el duelo, empezar tras la partida del primero es el turno del segundo: se apunta la que
+    // acaba de terminar y la semilla sigue. Con los dos jugados, o desde el menú, es un duelo nuevo
+    // con la semilla de esta partida.
+    if (this.duel) {
+      const ahora = this.dueloAhora
+      this.duelo = this.gameState === 'finished' && !duelOver(ahora) ? ahora : newDuel(this.runId + 1)
+    }
     this.clearRun()
     this.endedByPlayer = false
     this.recordToBeat = this.gameMode === 'practice' && this.endless ? getBestEndlessStreak() : getBestPoints(this.gameMode)
@@ -280,6 +331,8 @@ export class Partida {
   resetGame(): void {
     this.enReto = false
     this.prompt = null
+    // Volver al menú deja el duelo: el turno del otro ya no tiene contra qué compararse.
+    this.duelo = newDuel(0)
     this.clearRun()
     this.countdown = 0
     this.endedByPlayer = false
@@ -360,6 +413,13 @@ export class Partida {
     }
     if (this.gameState !== 'finished' || this.cerrada === this.runId) return
     this.cerrada = this.runId
+    // En el duelo no hay récord ni se avisa al salón: los goles son de dos personas. Lo que se
+    // apunta, con los dos jugados, es quién ganó en el marcador de la pareja.
+    if (this.duel) {
+      const ahora = this.dueloAhora
+      if (duelOver(ahora)) saveDuelResult(duelWinner(ahora))
+      return
+    }
     const endlessRun = isEndless(this.activeGoalTarget)
     if (this.levels) {
       const stars = levelStars(this.outcome === 'won', this.playerGoals, this.opponentGoals)

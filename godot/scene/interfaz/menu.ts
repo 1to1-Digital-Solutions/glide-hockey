@@ -14,13 +14,15 @@
  * habitación que enseñar. Su icono es la ventana de `XRSceneryIcon`: cerrada, la sala; abierta, tu
  * habitación.
  *
- * **Lo simplificado respecto a la web**: los modos llevan su nombre escrito en vez de un icono (la
- * web los dibuja porque la fuente de drei no pasa la política de seguridad del salón; en el motor
- * la letra es de casa). Las cifras —goles, nivel, récord— son de siete segmentos, como en la web.
+ * **Los modos, con el icono de la web** (`ModeIcon`): un disco la práctica, tres estrellas los
+ * niveles, una escalera el desafío y dos discos el duelo. Llevaron su nombre escrito mientras
+ * fueron tres; con el duelo son cuatro en la fila, y «Challenge» no cabe en 15 cm a la letra que
+ * se lee. Lo que es cada uno lo dice la línea de abajo. Las cifras —goles, nivel, récord— son de
+ * siete segmentos, como en la web.
  */
 import { Node3D, Vector3 } from 'godot'
 
-import { triangulosDeArco, triangulosDeTrazo } from '@kit/lib/ui/iconos'
+import { desplazar, triangulosDeArco, triangulosDeTrazo } from '@kit/lib/ui/iconos'
 import type { Punto2 } from '@kit/lib/ui/salida'
 import { Boton } from '@kit/runtime/ui/boton'
 import { barra, botonDeSalir, iconoDeJugar, iconoDeSigno } from '@kit/runtime/ui/iconos'
@@ -30,7 +32,7 @@ import type { Punteria } from '@kit/runtime/ui/punteria'
 
 import type { Lang, Scenery } from '@/lib/ajustes'
 import { DIFFICULTY_ORDER, MAX_GOALS, MIN_GOALS, type Difficulty } from '@/lib/gameConfig'
-import { GAME_MODE_HINTS, GAME_MODE_LABELS, GAME_MODE_ORDER, type GameMode } from '@/lib/gameMode'
+import { GAME_MODE_HINTS, GAME_MODE_ORDER, type GameMode } from '@/lib/gameMode'
 import { CONFORTS, type Confort } from '@/lib/golpeRecibido'
 import { LEVEL_COUNT, type Stars } from '@/lib/levels'
 import { PALETA } from '@/lib/paleta'
@@ -95,6 +97,30 @@ export function triangulosDeRombo(lado: number): Punto2[] {
   return [[0, -r], [r, 0], [0, r], [0, -r], [0, r], [-r, 0]]
 }
 
+/** Un rectángulo de `ancho × alto` centrado en `(x, y)`. */
+function rectangulo(x: number, y: number, ancho: number, alto: number): Punto2[] {
+  const a = ancho / 2
+  const b = alto / 2
+  return [[x - a, y - b], [x + a, y - b], [x + a, y + b], [x - a, y - b], [x + a, y + b], [x - a, y + b]]
+}
+
+/** Un círculo lleno de `radio`, centrado en `(x, y)`. */
+function circulo(radio: number, x = 0, y = 0, lados = 24): Punto2[] {
+  return desplazar(triangulosDeArco(0, radio, 0, Math.PI * 2, lados), x, y)
+}
+
+/**
+ * La silueta de cada modo (`ModeIcon` de la web, con sus medidas): un disco la práctica, tres
+ * estrellas los niveles, una escalera el desafío y dos discos el duelo —el dibujo del duelo de
+ * table-tennis—.
+ */
+export function triangulosDelModo(modo: GameMode): Punto2[] {
+  if (modo === 'practice') return circulo(0.032)
+  if (modo === 'levels') return [0, 1, 2].flatMap((i) => desplazar(triangulosDeRombo(0.02), (i - 1) * 0.02 * 1.9, 0))
+  if (modo === 'duel') return [...circulo(0.022, -0.03, 0, 20), ...circulo(0.022, 0.03, 0, 20)]
+  return [0, 1, 2].flatMap((paso) => rectangulo((paso - 1) * 0.03, -0.024 + paso * 0.016, 0.024, 0.016 + paso * 0.032))
+}
+
 /** El icono de cada confort (`ConfortIcon`): tachado, una onda o dos. */
 export function triangulosDelConfort(confort: Confort): Punto2[] {
   if (confort === 'off') {
@@ -146,6 +172,7 @@ export class MenuDelJuego {
   readonly botones = new Map<string, Boton>()
   private readonly barras = new Map<Difficulty, ReturnType<typeof barra>>()
   private readonly iconosDelConfort = new Map<Confort, ReturnType<typeof figura>>()
+  private readonly iconosDelModo = new Map<GameMode, ReturnType<typeof figura>>()
   private readonly aroDelSinFin: ReturnType<typeof figura>
   private readonly aroDeLosGoles: ReturnType<typeof figura>
   private readonly estrellas: ReturnType<typeof figura>[] = []
@@ -164,7 +191,10 @@ export class MenuDelJuego {
       const b = this.anadir(`confort ${confort}`, PALETTE.rail, 0.7, () => acciones.elegirConfort(confort))
       this.iconosDelConfort.set(confort, b.dibujo(figura(triangulosDelConfort(confort), DIM), DIM))
     }
-    for (const modo of GAME_MODE_ORDER) this.anadir(`modo ${modo}`, PALETTE.rail, 0.7, () => acciones.elegirModo(modo))
+    for (const modo of GAME_MODE_ORDER) {
+      const b = this.anadir(`modo ${modo}`, PALETTE.rail, 0.7, () => acciones.elegirModo(modo))
+      this.iconosDelModo.set(modo, b.dibujo(figura(triangulosDelModo(modo), DIM), DIM))
+    }
     DIFFICULTY_ORDER.forEach((nivel, i) => {
       const b = this.anadir(`nivel ${nivel}`, PALETTE.rail, 0.85, () => acciones.elegirDificultad(nivel))
       const alto = levelBarHeight(i, DIFFICULTY_ORDER.length)
@@ -242,6 +272,7 @@ export class MenuDelJuego {
     for (const modo of GAME_MODE_ORDER) {
       const elegido = modo === estado.modo
       this.boton(`modo ${modo}`).colorear(elegido ? PALETTE.primaryDeep : PALETTE.rail, elegido ? 0.95 : 0.7)
+      this.boton(`modo ${modo}`).colorDelDibujo(this.iconosDelModo.get(modo)!, elegido ? PALETTE.primary : DIM)
     }
     // La escalera de nivel: la barra crece y el color va del verde al rojo, así que se lee por
     // forma y por color, no solo por color.
@@ -307,15 +338,6 @@ export class MenuDelJuego {
         color: DIM,
         alinear: 'left',
         anchoMax: MENU_PANEL.width / 2,
-      })
-    }
-    for (const modo of GAME_MODE_ORDER) {
-      const b = this.boton(`modo ${modo}`)
-      panel.escribir(t(GAME_MODE_LABELS[modo]), b.caja.x, b.caja.y, {
-        alto: MENU_TEXT.label,
-        color: modo === estado.modo ? PALETTE.foreground : DIM,
-        anchoMax: b.caja.width - 0.02,
-        en: b,
       })
     }
     const desde = MENU_BOXES.escenario.position[0] + MENU_BUTTON.small[0] / 2 + 0.02

@@ -24,6 +24,7 @@ comentarios: ahí es el objeto, no el producto.
 | --- | --- |
 | **Prueba** | Eliges nivel (de Fácil a Imposible) y a cuántos goles se juega, de 3 a 15. Perder no cuesta nada. |
 | **Reto** | Se empieza por lo más fácil y la escalera va apretando: primero partidas más largas y después más nivel. Cada partida ganada encadena la siguiente; la primera que pierdas se acabó. |
+| **Duelo** | Dos personas y un mando: cada una juega una partida contra la misma máquina (Media, a 7, con la misma semilla) y gana quien le saque más ventaja. Entre las dos partidas se pide pasar el mando. Lo que lleva la pareja se apunta aparte; el récord no se toca. |
 
 La puntuación premia marcarle a un nivel alto y encadenar goles sin encajar. Un
 gol en contra descuenta y corta la racha. El récord de cada modo se guarda en el

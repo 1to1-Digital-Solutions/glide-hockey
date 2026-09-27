@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GameProvider } from '../GameProvider'
 import { GAME_MODE_LABELS } from '../../lib/gameMode'
+import { saveDuelResult } from '../../lib/duelTally'
 import { StartScreen } from './StartScreen'
 
 // Sin visor no hay entrada al visor: lo que se prueba es qué pregunta el menú.
@@ -64,6 +65,28 @@ describe('el menú de la web', () => {
     expect(screen.queryByRole('button', { name: 'Impossible' })).toBeNull()
     expect(screen.queryByLabelText(/^Goals/)).toBeNull()
     expect(screen.getByRole('button', { name: /^Level 1,/ })).toBeDefined()
+  })
+
+  it('el duelo tampoco pregunta nada: los dos juegan contra la misma máquina', async () => {
+    await abrir()
+    fireEvent.click(screen.getByRole('button', { name: GAME_MODE_LABELS.duel }))
+
+    expect(screen.getByText(/whoever beats it by more wins/)).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Impossible' })).toBeNull()
+    expect(screen.queryByLabelText(/^Goals/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Endless' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Play' })).toBeDefined()
+    // Sin duelos jugados no hay marcador de la pareja que enseñar.
+    expect(screen.queryByText(/^Duels won/)).toBeNull()
+  })
+
+  it('y enseña lo que lleva la pareja', async () => {
+    saveDuelResult(0)
+    saveDuelResult(null)
+    await abrir()
+    fireEvent.click(screen.getByRole('button', { name: GAME_MODE_LABELS.duel }))
+
+    expect(screen.getByText('Duels won: 1–0 · tied: 1')).toBeDefined()
   })
 
   it('no tiene fila de mano: el mazo se coge con la que esté libre', async () => {

@@ -5,14 +5,18 @@
  * **Primero el modo, y solo pregunta lo que el modo necesita**, como en la web: en la práctica, el
  * nivel de la máquina y a cuántos goles (o sin fin); en los niveles, qué nivel, con sus estrellas;
  * en el desafío, nada más que jugar. Lo que no toca no se pinta; lo que toca pero no se puede
- * (bajar del nivel 1, la habitación sin realidad aumentada) se apaga en vez de esconderse. Arriba
+ * (bajar del nivel 1, tu habitación sin realidad aumentada) se apaga en vez de esconderse. Arriba
  * del todo, el confort del golpe recibido; abajo, jugar en medio y **salir en la esquina de abajo a
  * la derecha**, la de todas las cabinas (`exitCorner.ts`).
  *
+ * **El decorado** (la sala o tu habitación) es el escenario del salón (`xrcade:scenery`): el botón lo
+ * alterna para todas las cabinas y se apaga si el visor no da realidad aumentada, que sin ella no hay
+ * habitación que enseñar. Su icono es la ventana de `XRSceneryIcon`: cerrada, la sala; abierta, tu
+ * habitación.
+ *
  * **Lo simplificado respecto a la web**: los modos llevan su nombre escrito en vez de un icono (la
  * web los dibuja porque la fuente de drei no pasa la política de seguridad del salón; en el motor
- * la letra es de casa), y el decorado sale apagado siempre, porque en Godot todavía no hay
- * passthrough. Las cifras —goles, nivel, récord— son de siete segmentos, como en la web.
+ * la letra es de casa). Las cifras —goles, nivel, récord— son de siete segmentos, como en la web.
  */
 import { Node3D, Vector3 } from 'godot'
 
@@ -24,7 +28,7 @@ import { figura, pintar } from '@kit/runtime/ui/malla'
 import { Panel } from '@kit/runtime/ui/panel'
 import type { Punteria } from '@kit/runtime/ui/punteria'
 
-import type { Lang } from '@/lib/ajustes'
+import type { Lang, Scenery } from '@/lib/ajustes'
 import { DIFFICULTY_ORDER, MAX_GOALS, MIN_GOALS, type Difficulty } from '@/lib/gameConfig'
 import { GAME_MODE_HINTS, GAME_MODE_LABELS, GAME_MODE_ORDER, type GameMode } from '@/lib/gameMode'
 import { CONFORTS, type Confort } from '@/lib/golpeRecibido'
@@ -65,6 +69,26 @@ export function cajaDe(box: MenuBox): Caja {
   return { x: box.position[0], y: box.position[1], width: box.size[0], height: box.size[1] }
 }
 
+/**
+ * La ventana del decorado (`XRSceneryIcon` de la web, a 5 cm): el marco siempre, y dentro el cristal
+ * entero (la sala, cerrada) o solo el travesaño (tu habitación, abierta).
+ */
+export function triangulosDeLaVentana(habitacion: boolean, lado = 0.05): { marco: Punto2[]; dentro: Punto2[] } {
+  const g = lado * 0.12
+  const rect = (x: number, y: number, ancho: number, alto: number): Punto2[] => {
+    const a = ancho / 2
+    const b = alto / 2
+    return [[x - a, y - b], [x + a, y - b], [x + a, y + b], [x - a, y - b], [x + a, y + b], [x - a, y + b]]
+  }
+  const marco = [
+    ...rect(0, lado * 0.34, lado * 0.8, g),
+    ...rect(0, -lado * 0.34, lado * 0.8, g),
+    ...rect(-lado * 0.34, 0, g, lado * 0.8),
+    ...rect(lado * 0.34, 0, g, lado * 0.8),
+  ]
+  return { marco, dentro: habitacion ? rect(0, 0, lado * 0.68, g) : rect(0, 0, lado * 0.56, lado * 0.56) }
+}
+
 /** Tres rombos, las estrellas de un nivel (`StarsRow`): una punta de dos milímetros no se ve. */
 export function triangulosDeRombo(lado: number): Punto2[] {
   const r = lado * 0.71
@@ -97,6 +121,10 @@ export interface EstadoDelMenu {
   /** El récord del modo elegido; cero si no hay ninguno que batir. */
   record: number
   confort: Confort
+  /** Si el visor da realidad aumentada: sin ella no hay habitación y el botón se apaga. */
+  habitacion: boolean
+  /** El escenario que tiene elegido el salón: la sala o tu habitación. */
+  escenario: Scenery
 }
 
 export interface AccionesDelMenu {
@@ -106,6 +134,8 @@ export interface AccionesDelMenu {
   /** −1 o +1: un gol en la práctica, un nivel en los niveles. */
   mover(signo: -1 | 1): void
   sinFin(): void
+  /** La sala o tu habitación: cambia el escenario del salón. */
+  alternarEscenario(): void
   jugar(): void
   salir(): void
 }
@@ -119,6 +149,8 @@ export class MenuDelJuego {
   private readonly aroDelSinFin: ReturnType<typeof figura>
   private readonly aroDeLosGoles: ReturnType<typeof figura>
   private readonly estrellas: ReturnType<typeof figura>[] = []
+  /** La ventana del decorado: el marco y los dos interiores, la sala y tu habitación. */
+  private readonly ventana: { marco: ReturnType<typeof figura>; place: ReturnType<typeof figura>; room: ReturnType<typeof figura> }
   readonly goles = new Cifras(CIFRAS_DEL_MENU.goles, PALETTE.foreground)
   readonly nivel = new Cifras(CIFRAS_DEL_MENU.nivel, PALETTE.foreground)
   readonly total = new Cifras(CIFRAS_DEL_MENU.total, DIM)
@@ -142,10 +174,15 @@ export class MenuDelJuego {
     this.anadir('mas', PALETTE.rail, 0.8, () => acciones.mover(1)).dibujo(iconoDeSigno('mas', 0.04, PALETTE.foreground), PALETTE.foreground)
     const sinFin = this.anadir('sin fin', PALETTE.rail, 0.8, () => acciones.sinFin())
     this.aroDelSinFin = sinFin.dibujo(figura(triangulosDeArco(0.018, 0.028), DIM), DIM)
-    // El decorado: la sala o tu habitación. Sin passthrough en Godot, se ve apagado con lo que está
-    // puesto al lado, como en la web fuera de la realidad aumentada.
-    const escenario = this.anadir('escenario', PALETTE.rail, 0.8, () => {})
-    escenario.dibujo(figura(triangulosDeArco(0.012, 0.03, 0, Math.PI * 2, 4), DIM), DIM)
+    // El decorado: la sala o tu habitación. Sin realidad aumentada se ve apagado con lo que está
+    // puesto al lado, como en la web.
+    const escenario = this.anadir('escenario', PALETTE.rail, 0.8, () => acciones.alternarEscenario())
+    const cerrada = triangulosDeLaVentana(false)
+    this.ventana = {
+      marco: escenario.dibujo(figura(cerrada.marco, DIM), DIM),
+      place: escenario.dibujo(figura(cerrada.dentro, DIM), DIM),
+      room: escenario.dibujo(figura(triangulosDeLaVentana(true).dentro, DIM), DIM),
+    }
     escenario.apagado = true
     this.anadir('jugar', PALETTE.primary, 1, () => acciones.jugar()).dibujo(iconoDeJugar(0.045, PALETTE.primaryInk), PALETTE.primaryInk)
     const salir = botonDeSalir({
@@ -242,6 +279,13 @@ export class MenuDelJuego {
     this.record.nodo.visible = estado.record > 0 && !niveles
     this.record.pintar(estado.record)
 
+    const escenario = this.boton('escenario')
+    escenario.apagado = !estado.habitacion
+    const tinta = estado.habitacion ? PALETTE.foreground : DIM
+    for (const pieza of [this.ventana.marco, this.ventana.place, this.ventana.room]) escenario.colorDelDibujo(pieza, tinta)
+    this.ventana.place.visible = estado.escenario !== 'room'
+    this.ventana.room.visible = estado.escenario === 'room'
+
     // Lo escrito se rehace entero: son una docena de etiquetas y cambian con el idioma y el modo.
     const { panel } = this
     panel.borrarTextos()
@@ -275,7 +319,7 @@ export class MenuDelJuego {
       })
     }
     const desde = MENU_BOXES.escenario.position[0] + MENU_BUTTON.small[0] / 2 + 0.02
-    panel.escribir(t(SCENERY_LABELS.place), desde, MENU_ROW.record, {
+    panel.escribir(t(SCENERY_LABELS[estado.escenario]), desde, MENU_ROW.record, {
       alto: MENU_TEXT.scenery,
       color: DIM,
       alinear: 'left',

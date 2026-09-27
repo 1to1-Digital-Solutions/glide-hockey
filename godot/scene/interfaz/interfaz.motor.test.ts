@@ -14,7 +14,7 @@
  *
  * Corre dentro del motor, con los tests de dominio (`npm run godot:build -- --tests`).
  */
-import { Camera3D, Engine, InputEventMouseButton, InputEventMouseMotion, MouseButton, Node, Node3D, SceneTree, Vector2, Vector3 } from 'godot'
+import { Camera3D, Engine, InputEventMouseButton, InputEventMouseMotion, MouseButton, Node, Node3D, OS, SceneTree, Vector2, Vector3 } from 'godot'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { problemasDeLegibilidad } from '@kit/lib/ui/instrumento'
@@ -91,6 +91,8 @@ function estadoDelMenu(cambios: Partial<EstadoDelMenu> = {}): EstadoDelMenu {
     estrellas: Array.from({ length: 15 }, () => 0 as const),
     record: 0,
     confort: 'normal',
+    habitacion: false,
+    escenario: 'place',
     ...cambios,
   }
 }
@@ -104,6 +106,7 @@ function momentosDelMenu(): { donde: string; estado: EstadoDelMenu }[] {
       momentos.push({ donde: `${lang} ${modo} con récord`, estado: estadoDelMenu({ lang, modo, record: 98765, nivel: 12, abierto: 15, confort: 'off' }) })
     }
     momentos.push({ donde: `${lang} sin fin`, estado: estadoDelMenu({ lang, sinFin: true }) })
+    momentos.push({ donde: `${lang} en tu habitación`, estado: estadoDelMenu({ lang, habitacion: true, escenario: 'room', record: 98765 }) })
   }
   return momentos
 }
@@ -111,7 +114,7 @@ function momentosDelMenu(): { donde: string; estado: EstadoDelMenu }[] {
 describe('el menú mide lo que la web', () => {
   const punteria = new Punteria()
   const menu = new MenuDelJuego(
-    { elegirModo() {}, elegirDificultad() {}, elegirConfort() {}, mover() {}, sinFin() {}, jugar() {}, salir() {} },
+    { elegirModo() {}, elegirDificultad() {}, elegirConfort() {}, mover() {}, sinFin() {}, alternarEscenario() {}, jugar() {}, salir() {} },
     punteria,
   )
 
@@ -179,6 +182,12 @@ describe('el menú mide lo que la web', () => {
     menu.pintar(estadoDelMenu({ sinFin: true }))
     expect(menu.boton('menos').apagado).toBe(true)
     expect(menu.goles.nodo.visible).toBe(false)
+    // Con realidad aumentada, el decorado se puede cambiar y dice cuál está puesto.
+    menu.pintar(estadoDelMenu({ habitacion: true, escenario: 'room' }))
+    expect(menu.boton('escenario').apagado).toBe(false)
+    expect(menu.panel.escritos.map((e) => e.texto)).toContain('Your room')
+    menu.pintar(estadoDelMenu({ habitacion: true, escenario: 'place' }))
+    expect(menu.panel.escritos.map((e) => e.texto)).toContain('The room')
   })
 
   it('las cifras son de siete segmentos: los goles, el nivel y su total, y el récord', () => {
@@ -304,6 +313,8 @@ describe('con el ratón: el menú lleva a jugar, parar pregunta y el final vuelv
   let partida: Partida
   let interfaz: InterfazDelJuego
   let salidas: number
+  /** Un escenario del salón con realidad aumentada, que apunta lo elegido. */
+  let escenario: { elegido: 'place' | 'room'; hayHabitacion: boolean; alternar(): void }
 
   beforeEach(() => {
     gameStorage()?.clear()
@@ -320,7 +331,14 @@ describe('con el ratón: el menú lleva a jugar, parar pregunta y el final vuelv
     camara.current = true
     salidas = 0
     partida = new Partida()
-    interfaz = new InterfazDelJuego(partida, { salir: () => salidas++ }, { mesa, camara, visor: false })
+    escenario = {
+      elegido: 'place',
+      hayHabitacion: true,
+      alternar() {
+        this.elegido = this.elegido === 'room' ? 'place' : 'room'
+      },
+    }
+    interfaz = new InterfazDelJuego(partida, { salir: () => salidas++ }, { raiz: mesa, camara, visor: false, escenario })
   })
 
   afterEach(() => {
@@ -364,6 +382,17 @@ describe('con el ratón: el menú lleva a jugar, parar pregunta y el final vuelv
     clic('modo challenge')
     expect(partida.gameMode).toBe('challenge')
     expect(interfaz.punteria.boton('mas')?.nodo.is_visible_in_tree()).toBe(false)
+  })
+
+  it('el botón del decorado alterna la sala y tu habitación, y el menú lo dice', () => {
+    clic('escenario')
+    expect(escenario.elegido).toBe('room')
+    interfaz.actualizar(0.016)
+    expect(interfaz.menu.panel.escritos.map((e) => e.texto)).toContain('Your room')
+    // Un segundo roce en menos de 300 ms no cuenta (`Punteria`): se espera como una mano de verdad.
+    OS.delay_msec(320)
+    clic('escenario')
+    expect(escenario.elegido).toBe('place')
   })
 
   it('la flecha de la esquina sale; Escape en el menú, también', () => {

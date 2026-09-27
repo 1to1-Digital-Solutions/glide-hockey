@@ -6,11 +6,17 @@
 ##
 ## - el mazo lo coge la mano buena del guardado (`xrcade:hand`), y la cuenta atrás lo espera: sin
 ##   mazo en la mano no se saca;
-## - sentado a los ojos el mundo baja lo que los ojos bajan de 1,6 m; de pie, nada;
+## - sentado a los ojos el mundo baja lo que los ojos bajan de 1,6 m; de pie, nada; y la interfaz
+##   sube sobre el mundo lo que le falta para quedar a los ojos (`uiRiseOverWorld`, el `XRUiHeight`
+##   de la web);
 ## - con salón, la mesa se planta donde presta el anclaje; sin él, a los pies y de frente;
 ## - el stick de la otra mano gira el decorado 30° sentado, y de pie no;
 ## - vibra en la mano que lleva el mazo, y solo en ella: los golpes al disco, los goles y el final
-##   (y el golpe recibido del gol en contra, que va a las dos).
+##   (y el golpe recibido del gol en contra, que va a las dos);
+## - se ven las cuatro ayudas del guion de la web —las huellas, el mando de verdad junto al mazo
+##   fantasma, el fantasma y la marca de la portería— y al acabar ninguna; el tutorial sale, con el
+##   mando de verdad en las dos manos; quien tarda en coger el mazo ve el agarre encendido en los
+##   dos mandos mientras la cuenta lo espera; y sin realidad aumentada, alrededor está la sala.
 ##
 ## Se lanza con `--fixed-fps 72`, como el jugador automático.
 extends Node
@@ -20,6 +26,8 @@ const SALON := preload("res://games/glide-hockey/tests/salon_de_mentira.gd")
 const REFERENCIA := 1.6
 const PASO_DE_GIRO := PI / 6
 const MAX_FRAMES := 72 * 180
+const PERFIL_DE_OPENXR := "/interaction_profiles/oculus/touch_controller"
+const AYUDAS := ["suelo", "mando", "gesto", "porteria"]
 
 const CASOS := [
 	{
@@ -28,6 +36,7 @@ const CASOS := [
 		"ojos": 1.15,
 		"anclaje": {"position": Vector3(0.3, 0.0, -0.2), "yaw": 0.25},
 		"gira": true,
+		"coge_tarde": true,
 	},
 	{
 		"nombre": "zurdo de pie, con un toque, sin salón",
@@ -35,6 +44,7 @@ const CASOS := [
 		"ojos": 1.7,
 		"anclaje": null,
 		"gira": false,
+		"coge_tarde": false,
 	},
 ]
 
@@ -81,6 +91,8 @@ func siguiente() -> void:
 	game.set_meta("xr_simulado", true)
 	game.set_meta("ojos", c.ojos)
 	game.set_meta("ajustes", JSON.stringify(c.ajustes))
+	if c.coge_tarde:
+		game.set_meta("coge_tarde", true)
 	add_child.call_deferred(game)
 
 
@@ -88,6 +100,11 @@ func _process(_delta: float) -> void:
 	if game == null or not game.is_inside_tree():
 		return
 	frames += 1
+	# Los mandos de mentira llegan sin perfil: se les pone el de los de Quest, como haría el visor.
+	for mano in ["left_hand", "right_hand"]:
+		var tracker := XRServer.get_tracker(mano) as XRPositionalTracker
+		if tracker != null and tracker.profile != PERFIL_DE_OPENXR:
+			tracker.profile = PERFIL_DE_OPENXR
 	if game.has_meta("result"):
 		comprobar(JSON.parse_string(game.get_meta("result")))
 		siguiente()
@@ -117,6 +134,10 @@ func comprobar(r: Dictionary) -> void:
 	if not cerca(float(xr.subida), subida):
 		f.append("el mundo ha subido %.3f y tenía que subir %.3f" % [xr.subida, subida])
 
+	var interfaz: float = (c.ojos - REFERENCIA) - subida
+	if not cerca(float(xr.subidaDeLaInterfaz), interfaz):
+		f.append("la interfaz sube %.3f sobre el mundo y tenía que subir %.3f" % [xr.subidaDeLaInterfaz, interfaz])
+
 	var colocacion: Dictionary = xr.colocacion
 	if c.anclaje != null:
 		if not (cerca(colocacion.x, c.anclaje.position.x) and cerca(colocacion.z, c.anclaje.position.z) and cerca(colocacion.yaw, c.anclaje.yaw)):
@@ -135,9 +156,23 @@ func comprobar(r: Dictionary) -> void:
 	if otra in xr.manosQueVibraron and int(r.golpesRecibidos) == 0:
 		f.append("ha vibrado la mano %s, que no lleva el mazo" % otra)
 
+	for ayuda in AYUDAS:
+		if not ayuda in xr.ayudas:
+			f.append("la ayuda «%s» no se ha visto (se vieron %s)" % [ayuda, xr.ayudas])
+	if not xr.ayudasAlFinal.is_empty():
+		f.append("al acabar siguen a la vista %s" % [xr.ayudasAlFinal])
+	if not xr.tutorial:
+		f.append("el tutorial no ha salido")
+	if not ("left" in xr.mandosDelTutorial and "right" in xr.mandosDelTutorial):
+		f.append("el mando de verdad del tutorial ha salido en %s y tenía que salir en las dos" % [xr.mandosDelTutorial])
+	if c.coge_tarde and not ("left" in xr.mandosDeLaCuenta and "right" in xr.mandosDeLaCuenta):
+		f.append("la cuenta parada tenía que encender el agarre en los dos mandos y lo encendió en %s" % [xr.mandosDeLaCuenta])
+	if not xr.conSala:
+		f.append("sin realidad aumentada tenía que verse la sala")
+
 	for fallo in f:
 		fallos.append("%s: %s" % [c.nombre, fallo])
-	print("XR-MANDO caso «%s»: %d–%d, %d toques, %d pulsos, subida %.3f, giro %.3f%s" % [
-		c.nombre, r.playerGoals, r.opponentGoals, r.playerHits, xr.vibraciones, xr.subida, xr.giro,
+	print("XR-MANDO caso «%s»: %d–%d, %d toques, %d pulsos, subida %.3f (interfaz %.3f), giro %.3f, ayudas %s, %d µs de media%s" % [
+		c.nombre, r.playerGoals, r.opponentGoals, r.playerHits, xr.vibraciones, xr.subida, xr.subidaDeLaInterfaz, xr.giro, xr.ayudas, r.logicUsecAvg,
 		"" if f.is_empty() else " — FAIL",
 	])

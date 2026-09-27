@@ -20,6 +20,12 @@
  * - **con `-- --autoplay`**, el jugador automático (`bot.ts`): juega una partida entera contra la
  *   máquina hasta el final, que es lo que usan los tests y la medida del coste por fotograma.
  *
+ * **Alrededor, el salón recreativo de la web** (`mundo/sala.ts`), o tu habitación si el salón la pide
+ * y el visor tiene paso de cámara (`Escenario` del kit). Con visor, las **ayudas** de la web
+ * (`mundo/ayudas.ts`) enseñan el gesto sin letras, la interfaz **sube con los ojos** de quien juega
+ * (`XRUiHeight`), y la cuenta atrás que espera el mazo y el tutorial encienden el botón que toca **en
+ * el mando de verdad** de cada mano.
+ *
  * Suena con los efectos de la web, renderizados de su `audioEngine.ts` por
  * `xrcade/godot-kit/render-sfx.mjs`, con el roce del disco en bucle siguiendo a su velocidad, y con
  * su música y su fundido. El gol en contra es además un
@@ -55,19 +61,25 @@ import {
   Vector3,
   WorldEnvironment,
   XRServer,
+  type XRPositionalTracker,
   print,
 } from 'godot'
 
 import { triangulosDeArco } from '@kit/lib/ui/iconos'
+import { PERFIL_POR_DEFECTO } from '@kit/lib/ui/mando'
 import type { Punto2 } from '@kit/lib/ui/salida'
 import type { Mano } from '@kit/lib/xr/manos'
 import { IDENTIDAD } from '@kit/lib/xr/pose'
 import { gameStorage } from '@kit/motor/almacen-godot'
-import { aislarElGuardado, argumento, hayBandera } from '@kit/runtime/argumentos'
+import { aislarElGuardado, argumento, argumentosDelVisor, hayBandera } from '@kit/runtime/argumentos'
+import { baseDe, deCuaternion, giroSobre, multiplicar } from '@kit/runtime/escena/matrices'
+import { Escenario, vistaDelVisor } from '@kit/runtime/escena/escenario'
 import { Music, Sfx, type Loop } from '@kit/runtime/sfx'
 import { figura } from '@kit/runtime/ui/malla'
+import { MandoDeVerdad } from '@kit/runtime/ui/mando'
+import { MandoCompartido } from '@kit/runtime/ui/turnoDelMando'
 import { XRPlayer, type Agarrable } from '@kit/runtime/xr/jugador'
-import { simularMandos, type Simulacion } from '@kit/runtime/xr/simulado'
+import { simularMandos, verConLaCabezaSimulada, type Simulacion } from '@kit/runtime/xr/simulado'
 
 import * as agarre from '@/lib/agarre'
 import {
@@ -84,6 +96,7 @@ import {
 import type { GameMode } from '@/lib/gameMode'
 import type { Difficulty } from '@/lib/gameConfig'
 import { FUERZA_DEL_GOL_EN_CONTRA, direccionDelGolEnContra } from '@/lib/golEnContra'
+import { MANO_QUE_JUEGA } from '@/lib/guionDeAyudas'
 import { getBestPoints } from '@/lib/highScore'
 import * as hostAnchor from '@/lib/hostAnchor'
 import { ALCANCE_DE_AGARRE } from '@/lib/malletGrab'
@@ -104,6 +117,8 @@ import { GolpeRecibido } from './juego/golpe'
 import { confort, niveles } from './interfaz/ajustes'
 import { InterfazDelJuego } from './interfaz/interfaz'
 import { Partida } from './interfaz/partida'
+import { AyudasDelJuego, juntoAlMazo } from './mundo/ayudas'
+import { ROOM_BACKDROP, Sala } from './mundo/sala'
 import { efectoDelChoque, impactStrength, pulsosDelSuceso, roceDelDisco, sucesosDelFotograma, type SucesoEnLaMano } from './juego/sucesos'
 
 /**
@@ -136,8 +151,26 @@ const MALLET_KNOB = 0.045
 const MARKING_COLOR = '#9db4cc'
 const GOAL_MOUTH_COLOR = '#050a12'
 const LEG_COLOR = '#0d1626'
-const CARPET_COLOR = '#141d33'
-const CEILING_COLOR = '#070b14'
+
+/** Los modelos de los mandos, copiados de `public/webxr-profiles/` (`npm run godot:mandos`). */
+const DIR_DE_LOS_MANDOS = 'res://games/glide-hockey/mandos'
+
+/** Cada cuántos fotogramas se vuelve a preguntar al visor si da realidad aumentada (medio segundo). */
+const RELEER_EL_ESCENARIO = 36
+
+/**
+ * Quién enciende el mando de verdad de cada mano, por orden: la cuenta atrás parada esperando el
+ * mazo (`XRCountdown` de la web, con el agarre) y el tutorial con el botón de su paso. No coinciden
+ * —el tutorial sale jugando—, pero el mando es uno y lo usa uno cada vez.
+ */
+type QuienUsaElMando = 'cuenta' | 'tutorial'
+const TURNO_DEL_MANDO: readonly QuienUsaElMando[] = ['cuenta', 'tutorial']
+
+/** El perfil de interacción de OpenXR de los mandos de Quest: el que se da a los de mentira. */
+const PERFIL_DE_OPENXR = '/interaction_profiles/oculus/touch_controller'
+
+/** En qué segundo de la partida se toma la captura de las ayudas: encendidas del todo. */
+const CAPTURA_DE_LAS_AYUDAS = 2.5
 
 /**
  * La cámara en plano, la de la web (`GameCanvas.tsx`): asomada sobre la mesa desde su borde, más
@@ -155,6 +188,12 @@ const PARTIDA_DEL_BOT: { modo: GameMode; goles: number; dificultad: Difficulty }
 
 /** A qué altura sobre la mesa lleva el puño el jugador automático con visor. */
 const ALTURA_DEL_PUNO = 0.06
+/**
+ * Dónde esperan las manos de mentira en la captura de las ayudas con el visor simulado, en el espacio
+ * de quien juega: a la altura de la mesa y a los lados, sin coger nada, como quien acaba de entrar.
+ */
+const MANOS_QUIETAS = { x: 0.25, y: 1.0, z: -0.35 } as const
+
 /** En qué fotograma empuja el jugador automático el stick de la mano libre, para girar. */
 const FOTOGRAMA_DEL_GIRO = 60
 
@@ -207,8 +246,20 @@ export default class GlideHockey extends Node3D {
   private escena!: Node3D
   /** El espacio de la mesa: su centro, a la altura del tablero. */
   private mesa!: Node3D
-  /** Lo que se sacude con el golpe recibido: la sala, no la mesa. */
-  private sala!: Node3D
+  /** El salón alrededor: lo que se sacude con el golpe recibido (la mesa no) y lo que quita tu habitación. */
+  private sala!: Sala
+  private escenario!: Escenario
+  /** De donde cuelga la interfaz: el espacio de la mesa, subido con los ojos (`XRUiHeight`). */
+  private flotante!: Node3D
+  private ayudas!: AyudasDelJuego
+  /** Las ayudas también en plano (`-- --ayudas`), para mirarlas sin visor. */
+  private ayudasEnPlano = false
+  /** El mando de verdad en cada puño, que encienden la cuenta atrás y el tutorial. */
+  private manosDeVerdad: MandoCompartido<QuienUsaElMando>[] = []
+  /** Lo que se ha llegado a ver con visor, para la escena de test. */
+  private readonly ayudasVistas = new Set<string>()
+  private tutorialVisto = false
+  private readonly mandosVistos: Record<QuienUsaElMando, Set<Mano>> = { cuenta: new Set(), tutorial: new Set() }
   private camera: Camera3D | null = null
   private puck!: Node3D
   private puckMaterial!: StandardMaterial3D
@@ -223,6 +274,13 @@ export default class GlideHockey extends Node3D {
   private agarreDelMazo: Agarrable | null = null
   private sim: Simulacion | null = null
   private framesXr = 0
+  /**
+   * Hacia dónde mira la cabeza de mentira con `-- --visor-simulado`: el giro (`--mirar=<grados>`) y
+   * el cabeceo (`--cabeceo=<grados>`, negativo hacia abajo), para sacar la captura desde donde la saca
+   * la web (`e2e/ayudas.spec.ts`, a −50°).
+   */
+  private mirar = 0
+  private cabeceo = 0
   /** Dónde lleva la mano el jugador automático con visor, en la mesa. */
   private manoDelBot: Vec2 = playerStart()
   private manosQueLoLlevaron = new Set<Mano>()
@@ -246,6 +304,8 @@ export default class GlideHockey extends Node3D {
   private shotPath: string | null = null
   private shotMenuPath: string | null = null
   private shotFinalPath: string | null = null
+  /** La partida recién empezada en plano con las ayudas encendidas (`-- --shot-ayudas=<ruta>`). */
+  private shotAyudasPath: string | null = null
   private framesEnFase = 0
   /** Lo pone una escena de test (metadato `harness`): juega sola y deja el resultado en `result`. */
   private harness = false
@@ -262,16 +322,24 @@ export default class GlideHockey extends Node3D {
     this.shotPath = argumento('shot')
     this.shotMenuPath = argumento('shot-menu')
     this.shotFinalPath = argumento('shot-final')
-    const simulado = this.harness && this.has_meta('xr_simulado')
+    this.shotAyudasPath = argumento('shot-ayudas')
+    this.ayudasEnPlano = hayBandera('ayudas') || this.shotAyudasPath != null
+    // El visor simulado: el de la escena de test, o `-- --visor-simulado` para mirar en plano lo que
+    // se ve con el visor (la cámara es la cabeza de mentira).
+    const visor = argumentosDelVisor(this.harness && this.has_meta('xr_simulado'))
+    const simulado = visor.simulado
+    this.mirar = visor.mirar
+    this.cabeceo = (Number(argumento('cabeceo') ?? 0) * Math.PI) / 180
     this.driver = simulado ? 'xr' : autoplay ? 'bot' : this.startXr() ? 'xr' : 'mouse'
 
     this.escena = this
     if (this.driver === 'xr') this.buildXrPlayer(simulado)
-    this.buildWorld()
+    this.buildWorld(hayBandera('habitacion'))
     this.buildTable()
     this.buildPieces()
     if (this.player == null) this.buildCamera()
     this.buildSound()
+    this.buildAyudas()
 
     this.partida = new Partida({ reto: retoDelSalon(this), alTerminar: (r) => this.alTerminar(r) })
     this.partida.immersive = this.driver === 'xr'
@@ -279,17 +347,19 @@ export default class GlideHockey extends Node3D {
       this.partida,
       { salir: () => this.exit() },
       {
-        mesa: this.mesa,
+        raiz: this.flotante,
         camara: this.camera,
         punteros: this.player?.punteros() ?? [],
         visor: this.driver === 'xr',
         lang: argumento('lang'),
         tutorial: hayBandera('tutorial'),
+        manos: this.manosDeVerdad.map((m) => m.delTutorial),
+        escenario: this.escenario,
       },
     )
     this.golpe = new GolpeRecibido({
       reloj: () => this.tiempo,
-      sacudido: this.sala,
+      sacudido: this.sala.nodo,
       camara: this.player?.camara ?? this.camera,
       confort,
       vibrar: this.player == null ? undefined : (pulsos) => this.player!.vibrar(pulsos),
@@ -301,6 +371,9 @@ export default class GlideHockey extends Node3D {
       this.partida.setGoalTarget(Number(argumento('goles') ?? PARTIDA_DEL_BOT.goles))
       const dificultad = argumento('dificultad') ?? (this.has_meta('dificultad') ? String(this.get_meta('dificultad')) : null)
       this.partida.setDifficulty(dificultad != null && dificultad in OPPONENT_SKILLS ? (dificultad as Difficulty) : PARTIDA_DEL_BOT.dificultad)
+      this.partida.startGame()
+    } else if (this.shotAyudasPath != null) {
+      // La captura de las ayudas entra en la partida sin jugador: es lo que se ve al empezar.
       this.partida.startGame()
     }
     this.startedMs = Time.get_ticks_msec()
@@ -391,10 +464,15 @@ export default class GlideHockey extends Node3D {
     this.mesa.add_child(nodo)
   }
 
-  private buildWorld(): void {
+  /**
+   * El entorno, la luz y el salón —o tu habitación, si el salón la pide y el visor da realidad
+   * aumentada—. `habitacion` la fuerza en plano (`-- --habitacion`), para ver lo que se quita sin
+   * visor y sin tocar el guardado.
+   */
+  private buildWorld(habitacion: boolean): void {
     const environment = new Environment()
     environment.background_mode = Environment.BGMode.BG_COLOR
-    environment.background_color = Color.html(CEILING_COLOR)
+    environment.background_color = Color.html(ROOM_BACKDROP)
     environment.ambient_light_source = Environment.AmbientSource.AMBIENT_SOURCE_COLOR
     environment.ambient_light_color = Color.html('#5a6b8c')
     const world = new WorldEnvironment()
@@ -408,12 +486,14 @@ export default class GlideHockey extends Node3D {
     sun.shadow_enabled = true
     this.add_child(sun)
 
-    this.sala = new Node3D()
-    this.sala.set_name('Sala')
-    this.escena.add_child(this.sala)
-    const floor = this.box(new Vector3(9, 0.02, 10), CARPET_COLOR, 0.95)
-    floor.position = new Vector3(0, -0.01, TABLE_CENTER_Z)
-    this.sala.add_child(floor)
+    this.sala = new Sala(environment)
+    this.escena.add_child(this.sala.nodo)
+    this.escenario = new Escenario({
+      mostrar: (conSala) => this.sala.mostrar(conSala),
+      vista: vistaDelVisor(this.get_viewport()!),
+      forzado: habitacion ? 'room' : null,
+    })
+    this.escenario.actualizar()
   }
 
   /** La mesa de `Table.tsx`: tablero, marcas, bandas partidas por las porterías y patas. */
@@ -422,6 +502,9 @@ export default class GlideHockey extends Node3D {
     this.mesa.set_name('Mesa')
     this.mesa.position = new Vector3(0, TABLE_HEIGHT, TABLE_CENTER_Z)
     this.escena.add_child(this.mesa)
+    this.flotante = new Node3D()
+    this.flotante.set_name('Interfaz')
+    this.mesa.add_child(this.flotante)
 
     const top = this.box(new Vector3(TABLE_WIDTH, TOP_THICKNESS, TABLE_LENGTH), PALETTE.table, 0.18)
     top.position = new Vector3(0, -TOP_THICKNESS / 2, 0)
@@ -520,6 +603,29 @@ export default class GlideHockey extends Node3D {
     })
   }
 
+  /**
+   * Las ayudas, con el mando de verdad junto al mazo fantasma: el de la mano que enseña la web
+   * (`MANO_QUE_JUEGA`), con el perfil del visor, o el del Quest 3 en plano. Y con visor, el mando de
+   * verdad en cada puño para la cuenta atrás y el tutorial: en las dos, que el mazo se coge con
+   * cualquiera.
+   */
+  private buildAyudas(): void {
+    const player = this.player
+    const junto = new MandoDeVerdad({
+      mano: MANO_QUE_JUEGA,
+      dir: DIR_DE_LOS_MANDOS,
+      junto: juntoAlMazo(),
+      ...(player == null ? { perfil: () => PERFIL_POR_DEFECTO } : {}),
+    })
+    this.ayudas = new AyudasDelJuego(this.escena, this.mesa, junto)
+    if (player == null) return
+    for (const m of ['left', 'right'] as const) {
+      const enLaMano = new MandoDeVerdad({ mano: m, dir: DIR_DE_LOS_MANDOS })
+      player.puno[m].add_child(enLaMano.nodo)
+      this.manosDeVerdad.push(new MandoCompartido(enLaMano, TURNO_DEL_MANDO))
+    }
+  }
+
   private buildCamera(): void {
     const camera = new Camera3D()
     camera.fov = CAMARA_EN_PLANO.fov
@@ -542,6 +648,14 @@ export default class GlideHockey extends Node3D {
     }
     this.player = new XRPlayer(this, { comunes: { uiHeight, hostAnchor, agarre, pellizco } })
     this.escena = this.player.mundo
+    if (simulado && !this.harness) {
+      verConLaCabezaSimulada(this.player.camara)
+      // Los mandos de mentira llegan sin perfil: el de los de Quest, como el visor, para ver sus modelos.
+      for (const nombre of ['left_hand', 'right_hand']) {
+        const tracker = XRServer.get_tracker(nombre) as XRPositionalTracker | null
+        if (tracker != null) tracker.profile = PERFIL_DE_OPENXR
+      }
+    }
     for (const mano of ['left', 'right'] as const) {
       this.player.rayo[mano].button_pressed.connect(Callable.create(this, this.onButton))
     }
@@ -597,6 +711,7 @@ export default class GlideHockey extends Node3D {
     if (this.sim != null) this.driveXrBot(delta)
     this.placeAsa()
     this.player?.update(delta)
+    this.ponerLaInterfazALaAltura()
     this.readHand()
 
     partida.tick(delta)
@@ -620,6 +735,23 @@ export default class GlideHockey extends Node3D {
     this.roce.pitch = roce.pitch
     this.roce.update(delta)
     this.interfaz.actualizar(delta, { agarre: this.player?.ajustes.agarre ?? 'hold' })
+    // La cuenta parada en el último segundo enseña el agarre en el mando de verdad (`XRCountdown`):
+    // el paso de coger del tutorial se supera en la cuenta, antes de que su panel llegue a salir.
+    const esperandoElMazo = fase === 'countdown' && partida.esperandoElMazo
+    for (const m of this.manosDeVerdad) {
+      if (esperandoElMazo) m.pedir('cuenta', 'agarre')
+      else m.soltar('cuenta')
+      m.actualizar(delta)
+    }
+    // Si el visor da realidad aumentada se vuelve a preguntar cada medio segundo, no a cada fotograma.
+    if (this.frames % RELEER_EL_ESCENARIO === 0) this.escenario.releer()
+    this.escenario.actualizar()
+    const hitos = partida.hitos
+    this.ayudas.actualizar(delta, {
+      dando: this.driver === 'xr' || this.ayudasEnPlano,
+      hechos: { tanda: fase !== 'menu', grab: hitos.grab, hit: hitos.hit, goal: hitos.goal },
+    })
+    if (this.player != null) this.apuntarLoQueSeVe()
 
     const spent = Time.get_ticks_usec() - t0
     this.frames++
@@ -632,6 +764,24 @@ export default class GlideHockey extends Node3D {
     this.capturas()
     const automatico = this.driver === 'bot' || this.sim != null
     if (automatico && fase === 'finished' && this.framesEnFase === 1 && this.shotFinalPath == null) this.reportAndQuit()
+  }
+
+  /** La interfaz sube con los ojos de quien juega (`XRUiHeight` de la web); la mesa no. */
+  private ponerLaInterfazALaAltura(): void {
+    const player = this.player
+    if (player == null) return
+    const subida = uiHeight.uiRiseOverWorld(player.estadoDelDecorado.altura.held, player.ajustes.altura === 'eyes')
+    if (subida !== this.flotante.position.y) this.flotante.position = new Vector3(0, subida, 0)
+  }
+
+  /** Lo que se ha llegado a ver con visor: las ayudas, el tutorial y el mando de verdad de cada mano. */
+  private apuntarLoQueSeVe(): void {
+    for (const a of this.ayudas.visibles()) this.ayudasVistas.add(a)
+    if (this.interfaz.tutorial.vista.visible) this.tutorialVisto = true
+    for (const m of this.manosDeVerdad) {
+      const mando = m.mando as MandoDeVerdad
+      if (m.quien != null && mando.visible) this.mandosVistos[m.quien].add(mando.mano)
+    }
   }
 
   /** Avanza la mesa con el reloj (frenado por el golpe recibido) y cuenta lo que ha pasado. */
@@ -744,14 +894,29 @@ export default class GlideHockey extends Node3D {
     const otra: Mano = mano === 'left' ? 'right' : 'left'
     this.framesXr++
     const ojos = this.has_meta('ojos') ? Number(this.get_meta('ojos')) : 1.6
-    sim.cabeza(new Transform3D(Basis.IDENTITY, new Vector3(0, ojos, 0)))
+    // El giro, pasados unos fotogramas: el decorado se planta hacia donde se mira al entrar.
+    const yaw = this.framesXr > 5 ? this.mirar : 0
+    const giro = multiplicar(deCuaternion(giroSobre({ x: 0, y: 1, z: 0 }, yaw)), deCuaternion(giroSobre({ x: 1, y: 0, z: 0 }, this.cabeceo)))
+    sim.cabeza(new Transform3D(baseDe(giro), new Vector3(0, ojos, 0)))
+    if (this.shotAyudasPath != null) {
+      // La captura de las ayudas: nadie coge nada ni gira, las manos esperan a los lados de la mesa.
+      for (const m of ['left', 'right'] as const) {
+        sim.manos[m].agarre(0)
+        const lado = m === 'left' ? -1 : 1
+        sim.manos[m].poner(new Transform3D(Basis.IDENTITY, this.escena.to_global(new Vector3(lado * MANOS_QUIETAS.x, MANOS_QUIETAS.y, MANOS_QUIETAS.z))))
+      }
+      return
+    }
     sim.manos[otra].stick(this.framesXr === FOTOGRAMA_DEL_GIRO ? 1 : 0, 0)
     const toque = player.ajustes.agarre === 'toggle'
     let puno: Vector3
     if (this.agarreDelMazo?.mano == null) {
       // A por el asa, y a apretar cuando ya hay mazo en la mesa (en el menú el asa está fuera).
       puno = this.asa!.global_position
-      const hayMazo = this.table != null
+      // Con el metadato `coge_tarde` espera a que la cuenta se pare pidiendo el mazo, como quien
+      // tarda en encontrarlo: es lo que enseña el agarre en el mando de verdad.
+      const tarde = this.has_meta('coge_tarde') && this.partida.gameState === 'countdown' && !this.partida.esperandoElMazo
+      const hayMazo = this.table != null && !tarde
       sim.manos[mano].agarre(!hayMazo ? 0 : toque ? this.framesXr % 2 : 1)
       if (this.table != null) this.manoDelBot = this.table.player.position
     } else {
@@ -795,12 +960,13 @@ export default class GlideHockey extends Node3D {
       // La textura del viewport tiene el fotograma ya dibujado, que es el que se guarda.
       this.get_viewport()!.get_texture()!.get_image()!.save_png(ruta)
       print(`GH-SHOT ${ruta}`)
-      this.shotPath = this.shotMenuPath = this.shotFinalPath = null
+      this.shotPath = this.shotMenuPath = this.shotFinalPath = this.shotAyudasPath = null
       this.get_tree().quit(0)
     }
     // Veinte fotogramas: las etiquetas en MSDF se generan al primer dibujo. La partida, con dos
     // goles ya en el marcador y el disco por el centro de la mesa.
-    if (this.shotMenuPath != null && fase === 'menu' && this.framesEnFase > 20) guardar(this.shotMenuPath)
+    if (this.shotAyudasPath != null && fase !== 'menu' && this.ayudas.segundos > CAPTURA_DE_LAS_AYUDAS) guardar(this.shotAyudasPath)
+    else if (this.shotMenuPath != null && fase === 'menu' && this.framesEnFase > 20) guardar(this.shotMenuPath)
     else if (this.shotFinalPath != null && fase === 'finished' && this.framesEnFase > 20) guardar(this.shotFinalPath)
     else if (this.shotPath != null && fase === 'playing' && this.goles.length >= 2 && this.table != null && this.table.pause <= 0 && Math.abs(this.table.puck.position.z) < 0.5) guardar(this.shotPath)
   }
@@ -837,11 +1003,18 @@ export default class GlideHockey extends Node3D {
       mano: player.manoBuena,
       llevaron: [...this.manosQueLoLlevaron],
       subida: player.subida,
+      subidaDeLaInterfaz: this.flotante.position.y,
       colocacion: decorado.colocacion,
       giro: decorado.giro.yaw,
       mundo: { x: mundo.origin.x, y: mundo.origin.y, z: mundo.origin.z },
       vibraciones: player.vibraciones.length,
       manosQueVibraron: [...new Set(player.vibraciones.map((v) => v.mano))],
+      ayudas: [...this.ayudasVistas],
+      ayudasAlFinal: this.ayudas.visibles(),
+      tutorial: this.tutorialVisto,
+      mandosDelTutorial: [...this.mandosVistos.tutorial],
+      mandosDeLaCuenta: [...this.mandosVistos.cuenta],
+      conSala: this.escenario.conSitio,
     }
   }
 

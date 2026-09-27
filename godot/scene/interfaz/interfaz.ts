@@ -9,6 +9,9 @@
  * plano** —donde la web pone su menú en DOM— la columna va a la izquierda de la mesa, de cara a la
  * cámara, y el botón de parar junto al marcador: la cámara de plano no ve lo que hay a 55°.
  *
+ * **Todo cuelga de la raíz** (`raiz`): el espacio de la mesa subido con los ojos de quien juega, como
+ * el `XRUiHeight` de la web, que la escena mueve; la mesa no sube con ella.
+ *
  * **Nunca dos paneles llenos a la vez en la columna**: el menú, el final y el aviso se turnan, y la
  * fase la decide la partida (`partida.ts`), no la interfaz.
  */
@@ -19,7 +22,7 @@ import { Punteria } from '@kit/runtime/ui/punteria'
 import { PunteroDeRaton } from '@kit/runtime/ui/raton'
 import type { MandoEnLaMano } from '@kit/runtime/ui/tutorial'
 
-import type { GrabMode, Lang } from '@/lib/ajustes'
+import type { GrabMode, Lang, Scenery } from '@/lib/ajustes'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '@/lib/gameConfig'
 import { isEndless } from '@/lib/gameMode'
 
@@ -46,9 +49,20 @@ export interface EscenaDelJuego {
   salir(): void
 }
 
+/** El escenario del salón, visto desde el menú: qué hay elegido, si se puede cambiar y cómo. */
+export interface EscenarioDelMenu {
+  readonly elegido: Scenery
+  /** Si hay habitación que enseñar (realidad aumentada): sin ella, el botón se apaga. */
+  readonly hayHabitacion: boolean
+  alternar(): void
+}
+
 export interface OpcionesDeLaInterfaz {
-  /** El espacio de la mesa: su centro, a la altura del tablero. De ahí cuelga todo, como en la web. */
-  mesa: Node3D
+  /**
+   * De donde cuelga todo: el espacio de la mesa (su centro, a la altura del tablero), subido con los
+   * ojos de quien juega (`XRUiHeight` de la web). En plano, el de la mesa tal cual.
+   */
+  raiz: Node3D
   /** La cámara de plano, de la que sale el rayo del ratón. Con visor, `null`. */
   camara: Camera3D | null
   /** Los punteros del visor (`XRPlayer.punteros()`), además del ratón. */
@@ -58,7 +72,10 @@ export interface OpcionesDeLaInterfaz {
   lang?: string | null
   /** Enseñar el tutorial también en plano (`--tutorial`). */
   tutorial?: boolean
+  /** El mando de verdad de cada mano, para el tutorial (`MandoDeVerdad` del kit). */
   manos?: readonly MandoEnLaMano[]
+  /** El escenario del salón; sin él, la sala y el botón apagado. */
+  escenario?: EscenarioDelMenu
 }
 
 /**
@@ -92,6 +109,7 @@ export class InterfazDelJuego {
   private readonly langForzado: string | null
   private readonly tutorialEnPlano: boolean
   private readonly visor: boolean
+  private readonly escenario: EscenarioDelMenu | null
   private readonly dejarDeEscuchar: () => void
 
   constructor(
@@ -102,9 +120,10 @@ export class InterfazDelJuego {
     this.visor = opciones.visor
     this.langForzado = opciones.lang ?? null
     this.tutorialEnPlano = opciones.tutorial ?? false
+    this.escenario = opciones.escenario ?? null
     this.raton = opciones.camara == null ? null : new PunteroDeRaton(opciones.camara)
     this.punteria = new Punteria([...(this.raton == null ? [] : [this.raton]), ...(opciones.punteros ?? [])])
-    const { mesa } = opciones
+    const mesa = opciones.raiz
 
     this.columna.set_name('Columna')
     mesa.add_child(this.columna)
@@ -123,6 +142,7 @@ export class InterfazDelJuego {
         elegirConfort: (c) => elegirConfort(c),
         mover: (signo) => (partida.levels ? partida.setLevel(partida.activeLevel + signo) : partida.setGoalTarget(partida.goalTarget + signo)),
         sinFin: () => partida.setEndless(!partida.endless),
+        alternarEscenario: () => this.escenario?.alternar(),
         jugar: () => partida.startGame(),
         salir: () => escena.salir(),
       },
@@ -201,6 +221,8 @@ export class InterfazDelJuego {
       estrellas: p.levelStars,
       record: p.bestPoints,
       confort: confort(),
+      habitacion: this.escenario?.hayHabitacion ?? false,
+      escenario: this.escenario?.elegido ?? 'place',
     }
   }
 

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { abrirJuego } from './helpers'
+import { drawCallBudget } from './support/presupuesto'
 
 /**
  * Lo que cuesta pintar la mesa, medido sobre la escena de verdad.
@@ -68,7 +69,7 @@ async function medianaDeLlamadas(page: Page, count = 30): Promise<number> {
  * las marcas, las porterías, las patas y la sala; la interfaz de escritorio
  * no cuenta (es DOM).
  */
-const TECHO_MESA = 40
+const TECHO_MESA = drawCallBudget('mesa').max
 
 test('la mesa cabe en su presupuesto de llamadas de dibujo', async ({ page }) => {
   await countDrawCalls(page)

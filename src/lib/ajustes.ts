@@ -567,3 +567,35 @@ export function readPlayHeightOffset(storage: Pick<Storage, 'getItem'> | null): 
 export function playHeightOffsetMeters(cm: number): number {
   return cm / 100
 }
+
+/**
+ * **El contrato con el salón, con número**: su versión y lo que este fichero sabe leer.
+ *
+ * Cada capacidad es un ajuste del salón que un juego puede leer o no: el idioma, los volúmenes,
+ * el escenario, la altura de juego y su ajuste fino, el agarre, el giro con el stick y la mano.
+ * Este fichero es **el mismo en los diecisiete**, así que aquí no se dice cuáles usa cada uno:
+ * eso lo declara el `package.json` de cada juego en `xrcade.capabilities`, y lo comprueba contra
+ * su código `src/lib/contrato.test.ts`. El salón lee las dos cosas importando el paquete
+ * instalado —no buscando texto en él— para saber qué ajustes enseñar para cada cabina y qué
+ * exigir al publicar (`xrcade/docs/anadir-un-juego.md`).
+ *
+ * **La versión sube** cuando cambia el significado de una capacidad que ya existe (otra clave,
+ * otros valores); añadir una capacidad nueva no la sube, porque un salón que no la conoce
+ * simplemente no la enseña.
+ */
+export const XRCADE_CONTRACT = {
+  version: 1,
+  capabilities: [
+    'lang',
+    'volumes',
+    'scenery',
+    'playHeight',
+    'playHeightOffset',
+    'grab',
+    'turn',
+    'hand',
+  ] as const,
+} as const
+
+/** Un ajuste del salón que un juego puede declarar que lee. */
+export type XrcadeCapability = (typeof XRCADE_CONTRACT.capabilities)[number]

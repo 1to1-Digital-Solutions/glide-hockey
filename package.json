@@ -29,6 +29,22 @@
   "sideEffects": [
     "*.css"
   ],
+  "xrcade": {
+    "capabilities": [
+      "lang",
+      "volumes",
+      "scenery",
+      "playHeight",
+      "playHeightOffset",
+      "grab",
+      "hand"
+    ],
+    "budget": {
+      "drawCalls": {
+        "mesa": 40
+      }
+    }
+  },
   "scripts": {
     "dev": "next dev",
     "dev:https": "next dev --experimental-https",
@@ -55,14 +71,17 @@
     "react-dom": "^19.2.0",
     "three": "^0.185.1"
   },
+  "overrides": {
+    "three": "$three"
+  },
   "devDependencies": {
-    "@playwright/test": "^1.62.1",
+    "@playwright/test": "^1.63.0",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
     "@react-three/xr": "^6.6.30",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.1",
-    "@testing-library/react": "^16.3.2",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -71,11 +90,12 @@
     "@webxr-input-profiles/assets": "^1.0.20",
     "esbuild": "^0.28.2",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint-config-next": "16.3.6",
+    "iwer": "~2.4.0",
     "jsdom": "^30.0.1",
-    "next": "16.3.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "next": "16.3.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "tailwindcss": "^4",
     "three": "^0.185.1",
     "typescript": "^5",

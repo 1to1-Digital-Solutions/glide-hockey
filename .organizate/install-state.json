@@ -19,14 +19,6 @@
       "source": "rules/git-workflow.md"
     },
     {
-      "path": ".claude/agents/code-reviewer.md",
-      "source": "catalog/agents/code-reviewer.md"
-    },
-    {
-      "path": ".claude/agents/dev-implementer.md",
-      "source": "catalog/agents/dev-implementer.md"
-    },
-    {
       "path": "CLAUDE.md",
       "source": "catalog/templates/CLAUDE.md.tmpl"
     },

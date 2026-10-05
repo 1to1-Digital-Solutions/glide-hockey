@@ -1,22 +1,29 @@
 {
   "profile": "xrcade-game",
-  "appliedAt": "2026-09-27T17:39:13.759Z",
+  "profiles": [
+    "xrcade-game"
+  ],
+  "appliedAt": "2026-10-05T08:15:31.138Z",
   "files": [
     {
       "path": ".claude/rules/architecture.md",
-      "source": "rules/architecture.md"
+      "source": "rules/architecture.md",
+      "sha256": "d54bad68e509128a2bda0c58d9bbe130b716c9b3a0c7c5ed2edc099d2fde027b"
     },
     {
       "path": ".claude/rules/security.md",
-      "source": "rules/security.md"
+      "source": "rules/security.md",
+      "sha256": "0ff1b82679fc120e38de49d6287633cf8c756bcc9a600a8f27304739891db578"
     },
     {
       "path": ".claude/rules/design.md",
-      "source": "rules/design.md"
+      "source": "rules/design.md",
+      "sha256": "643530214ba79009ae5dc638ac498c56ee7d6cf7c367326bb4bc8b4802137a76"
     },
     {
       "path": ".claude/rules/git-workflow.md",
-      "source": "rules/git-workflow.md"
+      "source": "rules/git-workflow.md",
+      "sha256": "88e22b11348f7203f1b05c55e6223e84fb0007f7f39a473cd8c5a4ceefb5cd6b"
     },
     {
       "path": "CLAUDE.md",
@@ -27,24 +34,19 @@
       "source": "catalog/templates/ESTADO.md.tmpl"
     },
     {
-      "path": ".nvmrc",
-      "source": "catalog/templates/nvmrc.tmpl"
-    },
-    {
-      "path": ".github/workflows/ci.yml",
-      "source": "catalog/templates/ci.yml.tmpl"
-    },
-    {
       "path": ".claude/rules/xr.md",
-      "source": "rules/xr.md"
+      "source": "rules/xr.md",
+      "sha256": "8710927e887745c8117a41ae25cb38e3f673441c741036ca56c31176d6c1da7d"
     },
     {
       "path": ".claude/rules/xr-three.md",
-      "source": "rules/xr-three.md"
+      "source": "rules/xr-three.md",
+      "sha256": "6bbd82700015fb9e1270322de2ea8d25a621b7a3c775d3ada51144b30cba015a"
     },
     {
       "path": ".claude/skills/interaccion-en-el-visor/SKILL.md",
-      "source": "skills/interaccion-en-el-visor/SKILL.md"
+      "source": "skills/interaccion-en-el-visor/SKILL.md",
+      "sha256": "4915c7debbc1604d80f53569b2c599eba939ff8803d10fe8e197c0614155a406"
     },
     {
       "path": "AGENTS.md",
@@ -52,7 +54,8 @@
     },
     {
       "path": "src/handoff.test.ts",
-      "source": "catalog/templates/handoff.test.ts.tmpl"
+      "source": "catalog/templates/handoff.test.ts.tmpl",
+      "sha256": "1cf43d85e612123d8e49b0da1e28d64524b2900749970fe56fc407061d3446a3"
     }
   ]
 }

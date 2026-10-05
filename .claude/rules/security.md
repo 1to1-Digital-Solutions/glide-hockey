@@ -9,13 +9,12 @@
 
 - **Ninguno en un commit, nunca**: ni claves, ni tokens, ni contraseñas, ni credenciales, tampoco
   en tests o fixtures. Usa variables de entorno y ficheros `.env*` ya ignorados por git. No
-  imprimas secretos en logs. Un secreto commiteado se queda en el historial aunque lo borres
-  después.
+  imprimas secretos en logs.
 - **No commitees** `.env` ni datos sensibles. Verifica el `.gitignore` (y que `.env*` esté ignorado
   salvo `.env.example`). Si necesitas documentar variables, usa un `.env.example` con los nombres
   y SIN valores reales.
-- Si detectas una vulnerabilidad o secreto expuesto en el repo, **párate y repórtalo**; no lo
-  "arregles" silenciosamente commiteando el secreto.
+- **Un secreto commiteado está comprometido aunque se borre después**: hay que rotarlo. Si ves
+  uno (o una vulnerabilidad), **párate y dilo** en tu resumen; no lo arregles en silencio.
 - **En una revisión**, un secreto, un `.env` con valores reales o unas credenciales en el diff son
   **BLOQUEANTES**: el veredicto es "rechazar" hasta que desaparezcan (también del historial de la
   rama, no solo del último commit).
@@ -44,7 +43,8 @@ regla de "no silenciar la verificación" prohíbe.
 
 ## Lo demás
 
-- **Valida y sanea** toda entrada externa (formularios, params, datos de red) antes de usarla.
+- **Valida y sanea en el servidor** toda entrada externa (formularios, params, datos de red),
+  aunque el cliente ya valide.
 - **Mínimo privilegio**: no abras permisos, CORS, RLS ni endpoints más de lo necesario.
 - **Paquetes nuevos**: comprueba que existe y es el oficial (cuidado con typosquatting y
   supply-chain).

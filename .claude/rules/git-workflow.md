@@ -4,12 +4,9 @@
   mover el trabajo a `develop` lo hace Organízate cuando la verificación pasa.
 - **No hagas `push` a ningún remoto**, ni uses `gh`, ni toques remotos. No es una preferencia:
   está bloqueado. Tú commiteas en local y ahí acaba tu responsabilidad: publicar lo hace
-  Organízate, que es quien tiene los candados de organización y el escáner de secretos. Nunca
-  `push --force`; si algún día hace falta forzar, solo `--force-with-lease`, y lo decide el
-  humano, no un agente.
-- **La CI de GitHub solo corre al integrar en `main`** (push y PRs a `main`, o a mano): Actions va
-  en la capa gratuita de la organización y no da para cada merge. Antes de `develop` mandan los
-  gates locales de Organízate, que ejecutan lo mismo que la CI: que pasen es lo que cuenta.
+  Organízate, que es quien tiene los candados de organización y el escáner de secretos.
+- **La CI de GitHub, si el repo la tiene, solo corre al integrar en `main`**: antes de `develop`
+  mandan los gates locales de Organízate, no esperes que la CI vea tu rama.
 - **Candado de organización:** nunca interactúes con repositorios fuera de
   **`1to1-Digital-Solutions`**. No añadas remotos nuevos ni cambies la URL de `origin`.
 - **Commits enfocados y atómicos**: uno por unidad lógica. Mensajes **en inglés** siguiendo

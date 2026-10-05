@@ -2,6 +2,15 @@
 
 ## Desde Organízate
 
+- [x] El botón de jugar sale apagado, como sombreado <!-- org:718146fc-265d-463d-83fa-05432c56bbe7 -->
+- [x] Sin coger el mazo, la cuenta atrás se queda en 1 sin decir por qué <!-- org:14f9a213-96f0-490e-8f1b-0a1a9cac7c62 -->
+- [x] El menú de configuración, enfrente y arriba a la derecha <!-- org:5cdccc5d-5ee1-42a2-a54d-2876da1d4d19 -->
+- [x] Un gol que entra después de acabar la partida sigue sumando puntos y reescribe el récord <!-- org:d64a1a57-ce11-439a-8de7-6dafa6f91f76 -->
+- [x] Los tests de legibilidad del visor miden a 1,2 m paneles que están a ~1,5 m <!-- org:b0ef03aa-df18-417f-ac7d-2bdb0efb912e -->
+- [x] Con el resumen en pantalla se pueden cambiar los goles o el modo sin fin y la partida vuelve a estar en juego <!-- org:65e227ca-becc-4417-9f60-de9f001516cc -->
+- [x] La IA de Glide Hockey es determinista y se memoriza en tres partidas: es el rival de la demo de Steam <!-- org:66049801-7f1e-4ab4-bd8a-829744ad26a6 -->
+- [x] Los mandos vibran todo el rato; solo deberían vibrar al golpear el disco <!-- org:d2bb6697-6885-49da-982c-64491f97640f -->
+- [x] El botón de ajustes está a la izquierda y el menú se abre a la derecha <!-- org:d398cb75-3bca-4c74-a6fc-7884763150ab -->
 - [x] Inicializar el proyecto: construir la primera versión <!-- org:762a2f57-55ab-45c4-8ae8-daec28ec1875 -->
 - [x] Montado en el salón se queda sin interfaz <!-- org:22a016a7-1e2d-41ac-91d3-402e0fef1ce2 -->
 - [x] Sonido de deslizamiento según la velocidad del disco <!-- org:0718b0d5-c258-4366-a3ba-af4345dc873e -->
@@ -101,7 +110,7 @@
   usan los paneles—, incluidas las mallas de dentro de un modelo cargado, que no lo heredan
   del `<primitive>`.
 
-- [x] [alta] El tutorial: botón de siguiente, botón de saltar, y que enseñe el mando
+- [x] [alta] El tutorial: botón de siguiente, botón de saltar, y que enseñe el mando <!-- org:28c0e6a6-6ad4-4fe9-af13-b5e73d346ff6 -->
   **Hecho, con el modelo de hachas.** Cada paso se supera **haciéndolo** —coger el mazo, darle al disco y marcar—, el juego no se
   para mientras tanto y el paso se **calcula** de lo que la partida ya apunta (`hitos`), así
   que no puede discrepar de ella. Dibuja el mando con el botón resaltado, lleva siguiente y

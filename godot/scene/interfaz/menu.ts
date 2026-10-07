@@ -34,7 +34,7 @@ import type { Punteria } from '@kit/runtime/ui/punteria'
 import type { Lang, Scenery } from '@/lib/ajustes'
 import { daMedalla, fraseDeLaMedalla } from '@/lib/cartelDelMarcador'
 import { DIFFICULTY_ORDER, MAX_GOALS, MIN_GOALS, type Difficulty } from '@/lib/gameConfig'
-import { GAME_MODE_HINTS, GAME_MODE_ORDER, type GameMode } from '@/lib/gameMode'
+import { GAME_MODE_HINTS, GAME_MODE_LABELS, GAME_MODE_ORDER, type GameMode } from '@/lib/gameMode'
 import { CONFORTS, type Confort } from '@/lib/golpeRecibido'
 import { LEVEL_COUNT, type Stars } from '@/lib/levels'
 import type { Objetivo } from '@/lib/objetivo'
@@ -54,6 +54,8 @@ import {
   MENU_ROW_LABEL_RISE,
   MENU_ROW_LABEL_SIZE,
   MENU_TEXT,
+  MENU_MODE_ICON_RISE,
+  MENU_MODE_LABEL_DROP,
   levelBarHeight,
   type MenuBox,
 } from '@/lib/xrMenuLayout'
@@ -204,7 +206,8 @@ export class MenuDelJuego {
     }
     for (const modo of GAME_MODE_ORDER) {
       const b = this.anadir(`modo ${modo}`, PALETTE.rail, 0.7, () => acciones.elegirModo(modo))
-      this.iconosDelModo.set(modo, b.dibujo(figura(triangulosDelModo(modo), DIM), DIM))
+      // El icono, subido para dejarle al nombre la franja de abajo del botón (`MENU_MODE_ICON_RISE`).
+      this.iconosDelModo.set(modo, b.dibujo(figura(desplazar(triangulosDelModo(modo), 0, MENU_MODE_ICON_RISE), DIM), DIM))
       const esquina = [MENU_BUTTON.mode[0] / 2 - MARCA_DE_MEDALLA * 1.6, MENU_BUTTON.mode[1] / 2 - MARCA_DE_MEDALLA * 1.6] as const
       this.marcasDeMedalla.set(modo, b.dibujo(figura(circulo(MARCA_DE_MEDALLA, esquina[0], esquina[1], 20), PALETA.oro), PALETA.oro))
     }
@@ -352,6 +355,15 @@ export class MenuDelJuego {
         color: DIM,
         alinear: 'left',
         anchoMax: MENU_PANEL.width / 2,
+      })
+    }
+    // El nombre de cada modo, debajo de su icono y dentro de su botón (`MENU_MODE_LABEL_DROP`).
+    for (const modo of GAME_MODE_ORDER) {
+      const [x, y] = MENU_BOXES[`modo ${modo}`].position
+      panel.escribir(t(GAME_MODE_LABELS[modo]), x, y + MENU_MODE_LABEL_DROP, {
+        alto: MENU_TEXT.mode,
+        color: modo === estado.modo ? PALETTE.foreground : DIM,
+        anchoMax: MENU_BUTTON.mode[0] - 0.004,
       })
     }
     // Si el modo elegido cuenta para medalla, en la línea del rótulo «Modo» y a su derecha.

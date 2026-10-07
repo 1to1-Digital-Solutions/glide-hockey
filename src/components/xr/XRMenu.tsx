@@ -12,7 +12,7 @@ import { useGame } from '../../lib/gameStore'
 import { useLang } from '../../lib/ajustesCliente'
 import { traductor, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
-import { GAME_MODE_HINTS, GAME_MODE_ORDER, type GameMode } from '../../lib/gameMode'
+import { GAME_MODE_HINTS, GAME_MODE_LABELS, GAME_MODE_ORDER, type GameMode } from '../../lib/gameMode'
 import { daMedalla, fraseDeLaMedalla } from '../../lib/cartelDelMarcador'
 import type { Objetivo } from '../../lib/objetivo'
 import { LEVEL_COUNT } from '../../lib/levels'
@@ -24,6 +24,8 @@ import {
   MENU_BUTTON,
   MENU_HINT_Y,
   MENU_MEDAL_WIDTH,
+  MENU_MODE_ICON_RISE,
+  MENU_MODE_LABEL_DROP,
   MENU_PANEL,
   MENU_ROW,
   MENU_ROW_LABEL_RISE,
@@ -248,6 +250,18 @@ export function dibujarLosNombres(
     maxWidth: MENU_MEDAL_WIDTH,
   })
 
+  // El nombre de cada modo, en la franja de abajo de su botón (`MENU_MODE_LABEL_DROP`): los iconos
+  // solos no dicen qué modo es cada uno. El elegido, en claro, como su icono.
+  for (const modo of GAME_MODE_ORDER) {
+    const [x, y] = MENU_BOXES[`modo ${modo}`].position
+    drawText(ctx, t(GAME_MODE_LABELS[modo]), x, y + MENU_MODE_LABEL_DROP, {
+      size: MENU_TEXT.mode,
+      color: modo === gameMode ? PALETTE.foreground : DIM_COLOR,
+      weight: '600',
+      maxWidth: MENU_BUTTON.mode[0] - 0.004,
+    })
+  }
+
   // Y qué es el modo elegido. Los tres se llamaban «Práctica», «Niveles» y «Reto» y
   // nada más: lo que los distingue solo lo contaba la pantalla de la web, que con el
   // visor puesto no se ve.
@@ -348,7 +362,9 @@ export function XRMenu() {
               color={selected ? PALETTE.primaryDeep : PALETTE.rail}
               opacity={selected ? 0.95 : 0.7}
             />
-            <ModeIcon mode={mode} lit={selected} />
+            <group position={[0, MENU_MODE_ICON_RISE, 0]}>
+              <ModeIcon mode={mode} lit={selected} />
+            </group>
             {/* El modo que da medalla lleva su marca en la esquina: un disco dorado, que se
                 distingue por estar o no estar, además de decirlo la frase de abajo. */}
             {daMedalla(objetivo, mode) ? (

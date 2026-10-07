@@ -3,14 +3,14 @@ import { dibujarLosNombres } from './XRMenu'
 import { ALTO_DE_LINEA } from './canvasPanel'
 import { lienzoQueApunta, problemasDeLegibilidad, type Escrito } from './legibilidad'
 import { MENU_BOXES, MENU_PANEL, MENU_RECORD_X, MENU_ROW, MENU_TEXT } from '../../lib/xrMenuLayout'
-import { GAME_MODE_HINTS, GAME_MODE_ORDER } from '../../lib/gameMode'
+import { GAME_MODE_HINTS, GAME_MODE_LABELS, GAME_MODE_ORDER } from '../../lib/gameMode'
 import { SCENERIES } from '../../lib/ajustes'
 import { SCENERY_LABELS } from '../../lib/scenery'
 import {
   EYE_HEIGHTS,
   MIN_READING_DEGREES,
   eyesAt,
-  noTextOwnsAButton,
+  centreInside,
   panelRotation,
   pointOnPanel,
   sizesOffList,
@@ -99,6 +99,24 @@ describe('los nombres de las filas del menú se leen', () => {
   })
 })
 
+describe('cada modo lleva su nombre', () => {
+  it('debajo de su icono, dentro de su botón y sin encogerse, en los dos idiomas', () => {
+    for (const lang of IDIOMAS) {
+      const t = traductor(lang)
+      const { ctx, escritos } = lienzoQueApunta()
+      dibujarLosNombres(ctx, t, false, 'challenge')
+      for (const modo of GAME_MODE_ORDER) {
+        const nombre = escritos.find((e) => e.texto === t(GAME_MODE_LABELS[modo]))
+        expect(nombre, `${lang} ${modo}`).toBeDefined()
+        const { position, size } = MENU_BOXES[`modo ${modo}`]
+        expect(Math.abs(nombre!.x - position[0]) * 2 + nombre!.ancho, `${lang} ${modo} a lo ancho`).toBeLessThanOrEqual(size[0])
+        expect(Math.abs(nombre!.y - position[1]) * 2 + nombre!.alto, `${lang} ${modo} a lo alto`).toBeLessThanOrEqual(size[1] + 1e-9)
+        expect(nombre!.alto / ALTO_DE_LINEA).toBeCloseTo(MENU_TEXT.mode, 9)
+      }
+    }
+  })
+})
+
 describe('el menú dice de cada modo si cuenta para medalla', () => {
   it('en la línea del rótulo «Modo», con letras: solo el reto cuenta', () => {
     for (const lang of IDIOMAS) {
@@ -172,8 +190,12 @@ describe('cada letra del menú se lee de un vistazo', () => {
       // Hasta cuatro cifras de 4 cm.
       { x: MENU_RECORD_X, y: MENU_ROW.record, width: 0.1, height: 0.05 },
     ]
+    // Lo único escrito dentro de un botón es el nombre de cada modo, en el suyo.
+    const nombresDeLosModos = new Set(IDIOMAS.flatMap((lang) => GAME_MODE_ORDER.map((modo) => traductor(lang)(GAME_MODE_LABELS[modo]))))
+    const suyo = (texto: Escrito, boton: { x: number; y: number; width: number; height: number }) =>
+      nombresDeLosModos.has(texto.texto) && centreInside(texto, boton) && Math.abs(boton.y - MENU_ROW.mode) < 1e-9
     for (const { donde, escritos } of todosLosMomentos()) {
-      expect(textsOnButtons(escritos, botones, noTextOwnsAButton), donde).toEqual([])
+      expect(textsOnButtons(escritos, botones, suyo), donde).toEqual([])
     }
   })
 

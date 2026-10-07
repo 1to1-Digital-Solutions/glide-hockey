@@ -70,7 +70,7 @@ export const MENU_HINT_Y = -0.37 - MENU_COMFORT_BAND / 2
  * El nombre del confort, un poco más: va en la fila de arriba del todo, la más lejana y la más
  * escorzada para quien juega con los ojos bajos, y a 34 mm se quedaba en 1,38°.
  */
-export const MENU_TEXT = { label: 0.034, scenery: 0.034, hint: 0.034, comfort: 0.038, medal: 0.034 } as const
+export const MENU_TEXT = { label: 0.034, scenery: 0.034, hint: 0.034, comfort: 0.038, medal: 0.034, mode: 0.029 } as const
 
 /**
  * Lo ancho que puede ocupar la frase de si el modo cuenta para medalla, que va en la línea del
@@ -139,6 +139,21 @@ export const MENU_RECORD_X = 0.26
  * borde derecho, para dejarle al nombre de la fila todo el ancho que queda a su izquierda.
  */
 export const MENU_COMFORT_X = [0.08, 0.2, 0.32] as const
+
+/**
+ * El nombre de cada modo, **dentro de su botón y debajo del icono**.
+ *
+ * Con el visor, los modos eran cuatro dibujos y un solo rótulo, «Modo»: un disco, unos rombos, una
+ * escalera y dos discos no dicen «Práctica», «Niveles», «Reto» y «Duelo» a quien no los ha visto
+ * nunca. Debajo del botón no cabe —ahí está el rótulo de la fila siguiente—, así que el icono sube
+ * (`MENU_MODE_ICON_RISE`) y el nombre va en la franja de abajo del botón, a `MENU_TEXT.mode`: la
+ * letra más pequeña que sigue leyéndose desde donde se juega y con la que «Challenge», el más
+ * largo, cabe en el botón sin encogerse. Lo miden `menu.legible.test.ts`, en los dos idiomas.
+ */
+export const MENU_MODE_ICON_RISE = 0.016
+
+/** A qué altura va el nombre del modo, desde el centro de su botón. */
+export const MENU_MODE_LABEL_DROP = -0.044
 
 /** De centro a centro entre dos botones de modo: dos centímetros de aire entre ellos. */
 const MODE_STEP = 0.19

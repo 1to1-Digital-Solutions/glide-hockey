@@ -143,15 +143,17 @@ describe('el menú mide lo que la web', () => {
     expect(filas('duel')).toEqual(['Mode'])
   })
 
-  it('cada modo lleva su icono, el duelo los dos discos, y el elegido se enciende', () => {
+  it('cada modo lleva su icono y su nombre debajo, como en la web, y el elegido se enciende', () => {
     menu.pintar(estadoDelMenu({ modo: 'duel' }))
     for (const modo of GAME_MODE_ORDER) {
       const b = menu.boton(`modo ${modo}`)
       expect(b.nodo.visible, modo).toBe(true)
     }
-    // Ninguna letra dentro de los botones de modo: lo que es el elegido lo dice la línea de abajo.
+    // El nombre de cada modo, dentro de su botón; y qué es el elegido, en la línea de abajo.
     expect(menu.panel.escritos.some((e) => e.texto.startsWith('Take turns'))).toBe(true)
-    expect(menu.panel.escritos.some((e) => /Practice|Levels|Challenge|Duel/.test(e.texto))).toBe(false)
+    for (const nombre of ['Practice', 'Levels', 'Challenge', 'Duel']) {
+      expect(menu.panel.escritos.filter((e) => e.texto === nombre), nombre).toHaveLength(1)
+    }
   })
 
   it('con la letra de Godot cada texto mide lo que estima la web, con un cuarto de margen', () => {

@@ -15,6 +15,7 @@ const FOTO: SceneProbe = {
   puck: { x: 0, z: 0 },
   puckScreen: { x: 640, y: 300 },
   playerHits: 2,
+  goalsAgainst: 0,
 }
 
 describe('screenPointFromNdc', () => {

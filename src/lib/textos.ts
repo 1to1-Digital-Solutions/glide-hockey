@@ -163,6 +163,8 @@ const ES = {
     'Cierra la mano sobre el mazo para cogerlo',
   'Push the puck with it':
     'Empuja el disco con él',
+  // Al cerrar el tutorial en el reto, en el cartel: lo de antes no contaba, lo que viene ya sí.
+  'Now it counts for your medal': 'Ahora cuenta para medalla',
   'Score a goal':
     'Marca un gol',
   'Press the grip button on the mallet to pick it up':

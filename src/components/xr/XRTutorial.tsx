@@ -1,7 +1,7 @@
 'use client'
 
 import { useXR } from '@react-three/xr'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useGrabMode, useLang } from '../../lib/ajustesCliente'
 import { PALETTE } from '../../lib/palette'
@@ -186,7 +186,7 @@ export function XRTutorial({
   /** Como el `rotation` de three: con el orden, si no es `'XYZ'`. */
   rotation?: [number, number, number] | [number, number, number, 'YXZ']
 } = {}) {
-  const { gameState, hitos, setTutorialRunning, enReto } = useGame()
+  const { gameState, gameMode, hitos, setTutorialRunning, setAprendiendo, acabarLaLeccion, enReto } = useGame()
   const t = traductor(useLang())
   const frases = useGrabMode() === 'toggle' ? FRASES_CON_UN_TOQUE : FRASES
   const enSesion = useXR((state) => state.mode != null)
@@ -204,8 +204,28 @@ export function XRTutorial({
   // discrepando de la partida, y aquí lo que manda es la partida.
   const step = tutorialStep(hitos, saltados)
   // **En el reto del salón no hay tutorial**: es la misma partida para todos, y la
-  // demostración retrasa el saque solo a quien no lo ha hecho.
-  const activo = enSesion && pendiente && gameState === 'playing' && step !== null && !enReto
+  // demostración retrasa el saque solo a quien no lo ha hecho. **Ni en el duelo**: las dos
+  // partidas tienen que ser iguales, y el tutorial solo le saldría a quien no lo ha hecho.
+  const activo = enSesion && pendiente && gameState === 'playing' && step !== null && !enReto && gameMode !== 'duel'
+
+  // Mientras se enseña, en el reto no cuenta lo que mete la máquina (`aprendiendo`).
+  useEffect(() => {
+    setAprendiendo(activo)
+  }, [activo, setAprendiendo])
+  useEffect(() => () => setAprendiendo(false), [setAprendiendo])
+
+  // Y al cerrarse con la partida en marcha —por sus pasos, por «Siguiente» o por «Saltar»—, el
+  // reto empieza desde cero y el cartel avisa de que ahora cuenta (`acabarLaLeccion`). Que se
+  // acabe la partida o se salga del visor no es cerrarlo.
+  const ensenaba = useRef(false)
+  useEffect(() => {
+    if (activo) {
+      ensenaba.current = true
+      return
+    }
+    if (ensenaba.current && step === null && gameState === 'playing') acabarLaLeccion()
+    ensenaba.current = false
+  }, [activo, step, gameState, acabarLaLeccion])
 
   const siguiente = useCallback(() => setSaltados((n) => n + 1), [])
   const saltar = useCallback(() => setSaltados(TUTORIAL_STEPS.length), [])

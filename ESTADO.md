@@ -44,6 +44,8 @@ Hecho y medido en tests; **con las gafas no se ha visto**. Qué mirar, y dónde 
 | El listón cruzado: color, pulso, dos notas tras el gol y golpe en la mano del mazo; encajar puede bajar de un listón ya celebrado | `medalRecipe` (`audioEngine.ts`), `pulsosDelListon` |
 | El tutorial ya no tapa cartel ni marcador: va a 32° a la derecha, a 1,2 m. ¿Se ve sin buscarlo? | `TUTORIAL_A_UN_LADO` (`cartelDelMarcador.ts`) |
 | Menú: «Cuenta para medalla» junto a «Modo» y el disco dorado del reto | `MENU_MEDAL_WIDTH` (`xrMenuLayout.ts`) |
+| Tanda UX 07/10: el nombre de cada modo bajo su icono, a 29 mm (`MENU_TEXT.mode`). ¿Se lee? ¿Se pisa con el icono? | `MENU_MODE_ICON_RISE`, `MENU_MODE_LABEL_DROP` (`xrMenuLayout.ts`) |
+| Aprendiendo el reto los goles de la máquina no cuentan; al cerrar el tutorial el reto vuelve a empezar (cuenta atrás) con «Ahora cuenta para medalla» 2,5 s en el cartel. ¿Se entiende el reinicio? | `acabarLaLeccion` (`gameStore.ts`), `conElAvisoDeQueCuenta` (`cartelDelMarcador.ts`) |
 
 ## ▶️ Cómo arrancar
 

@@ -43,6 +43,11 @@ export interface SceneProbe {
   puckScreen: ScreenPoint
   /** Golpes del mazo del jugador al disco desde que empezó la partida. */
   playerHits: number
+  /**
+   * Goles que ha metido la máquina **en la mesa** desde que se montó, cuenten o no en el
+   * marcador: aprendiendo el reto no cuentan (`aprendiendo`), y así se ve que entraron igual.
+   */
+  goalsAgainst: number
 }
 
 declare global {

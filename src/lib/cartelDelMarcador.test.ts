@@ -8,6 +8,7 @@ import {
   SONIDO_DEL_LISTON,
   TUTORIAL_A_UN_LADO,
   cantoDeArribaDelMarcador,
+  conElAvisoDeQueCuenta,
   daMedalla,
   fraseDeLaMedalla,
   loQueCallaElMarcador,
@@ -293,5 +294,23 @@ describe('lo que se aparta del cartel', () => {
     expect(arriba.y - abajo.y).toBeCloseTo(0.3, 10)
     expect(abajo.ancho).toBeLessThan(arriba.ancho)
     expect(NEONES_DEL_FONDO.grueso).toBeGreaterThan(0)
+  })
+})
+
+describe('al cerrar el tutorial, el cartel avisa de que ya cuenta', () => {
+  const vista = { titulo: 'Win games until you lose one', detalle: 'Bronze 1500', barra: null, medalla: null, discreto: false }
+  const es = traductorSuave('es')
+
+  it('en el reto, la línea grande lo dice en el idioma de quien juega', () => {
+    expect(conElAvisoDeQueCuenta(vista, 'challenge', true, es)).toEqual({ ...vista, titulo: 'Ahora cuenta para medalla' })
+    expect(conElAvisoDeQueCuenta(vista, 'challenge', true, traductorSuave('en'))?.titulo).toBe('Now it counts for your medal')
+  })
+
+  it('pasado el aviso, fuera del reto, con el cartel discreto o sin cartel, lo de siempre', () => {
+    expect(conElAvisoDeQueCuenta(vista, 'challenge', false, es)).toBe(vista)
+    expect(conElAvisoDeQueCuenta(vista, 'practice', true, es)).toBe(vista)
+    const discreto = { ...vista, discreto: true }
+    expect(conElAvisoDeQueCuenta(discreto, 'challenge', true, es)).toBe(discreto)
+    expect(conElAvisoDeQueCuenta(null, 'challenge', true, es)).toBeNull()
   })
 })

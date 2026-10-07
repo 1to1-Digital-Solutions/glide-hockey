@@ -13,7 +13,7 @@
 import { challengeRound } from './challenge'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from './gameConfig'
 import { GAME_MODE_LABELS, type GameMode } from './gameMode'
-import { MEDALLAS, cuentaParaMedalla, type Medalla, type Objetivo, type Partida, type Traducir } from './objetivo'
+import { MEDALLAS, cuentaParaMedalla, type Medalla, type Objetivo, type Partida, type Traducir, type VistaDelCartel } from './objetivo'
 import { distanceFromEyes, eyesAt, panelRotation, pointOnPanel, type PanelPose, type Triple } from './panelReading'
 import { HALF_LENGTH } from './puckPhysics'
 import { goalPoints } from './scoring'
@@ -259,4 +259,31 @@ export function pulsosDelListon(medalla: Medalla, mano: Mano | null): Pulso[] {
     ...pulso,
     retardo: pulso.retardo + RECETAS.llegada.ms,
   }))
+}
+
+/**
+ * Lo que dura el aviso de que la partida ya cuenta, en milisegundos: lo justo para leer una
+ * línea antes de que la cuenta atrás llegue al saque.
+ */
+export const AVISO_DE_QUE_CUENTA_MS = 2500
+
+/** La frase del aviso; el inglés es la clave. */
+export const AVISO_DE_QUE_CUENTA = 'Now it counts for your medal'
+
+/**
+ * El cartel justo al cerrar el tutorial en el reto: su línea grande dice que **ahora cuenta para
+ * medalla**, y luego vuelve a lo de siempre.
+ *
+ * Mientras se aprende, los goles encajados no cuentan; al cerrarse el tutorial —por sus pasos,
+ * por «Siguiente» o por «Saltar»— el reto empieza desde cero, y quien juega tiene que saber que lo
+ * que viene ya sí cuenta. Solo en el reto, que es lo único que da medalla.
+ */
+export function conElAvisoDeQueCuenta(
+  vista: VistaDelCartel | null,
+  gameMode: GameMode,
+  avisando: boolean,
+  t: Traducir,
+): VistaDelCartel | null {
+  if (vista == null || vista.discreto || gameMode !== 'challenge' || !avisando) return vista
+  return { ...vista, titulo: t(AVISO_DE_QUE_CUENTA) }
 }

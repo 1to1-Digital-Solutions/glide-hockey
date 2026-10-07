@@ -112,6 +112,8 @@ export function Rink({
   // de su semilla y de la ronda (`semillaDeLaMesa`). Se lee al montar, que es
   // exactamente una vez por partida y por ronda del reto (`key={runId}`).
   const table = useRef<TableState>(startTable({ skill, lastScorer, seed }))
+  /** Los goles de la máquina en esta mesa, cuenten o no: solo para quien mire (`sceneProbe`). */
+  const golesEnContra = useRef(0)
   /** Lo rápido que va el disco, para su halo (`Puck`) y su roce (`play.slide`). */
   const puckSpeed = useRef(0)
 
@@ -177,7 +179,10 @@ export function Rink({
     for (const hazana of fotograma.hazanas) apuntarHazana(hazana)
     for (const goal of goals) {
       if (goal === 'player') scorePlayer()
-      else scoreOpponent()
+      else {
+        golesEnContra.current += 1
+        scoreOpponent()
+      }
     }
 
     // Lo que se oye de la mesa, en el orden en que pasa: el mazo lanza el
@@ -238,6 +243,7 @@ export function Rink({
         puck: next.puck.position,
         puckScreen: screenPoint(state, world),
         playerHits: next.playerHits,
+        goalsAgainst: golesEnContra.current,
       })
     }
   })

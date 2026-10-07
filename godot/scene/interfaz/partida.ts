@@ -17,7 +17,7 @@
  * montar la escena.
  */
 import type { Lang } from '@/lib/ajustes'
-import { loQueCallaElMarcador, partidaDelCartel } from '@/lib/cartelDelMarcador'
+import { AVISO_DE_QUE_CUENTA_MS, conElAvisoDeQueCuenta, loQueCallaElMarcador, partidaDelCartel } from '@/lib/cartelDelMarcador'
 import { challengeRound } from '@/lib/challenge'
 import { DUEL_SETUP, controllerHolder, duelOver, duelTurn, duelWinner, newDuel, recordMatch, type Duel, type Player } from '@/lib/duel'
 import { saveDuelResult } from '@/lib/duelTally'
@@ -29,7 +29,7 @@ import { cartelDeObjetivo, medallaQueCelebra, type Medalla, type Objetivo, type 
 import { semillaDeLaMesa } from '@/lib/opponent'
 import { getStarsList, getUnlockedLevel, saveLevelResult } from '@/lib/progress'
 import type { Scorer } from '@/lib/puckPhysics'
-import { scoreConceded, scoreGoal } from '@/lib/scoring'
+import { concededPenalty, scoreConceded, scoreGoal } from '@/lib/scoring'
 import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana } from '@/lib/hazanas'
 import type { Resultado, Reto } from '@/lib/semilla'
 import { traductorSuave } from '@/lib/textos'
@@ -116,6 +116,13 @@ export class Partida {
   challengeRoundNumber = 1
   /** Lo que quien juega ya ha hecho, para el tutorial: se acumula y no se deshace. */
   hitos: TutorialHitos = SIN_HITOS
+  /**
+   * Si el tutorial se está enseñando ahora mismo; lo dice la interfaz. En el reto, aprendiendo,
+   * los goles de la máquina no cuentan (`aprendiendo` de la web).
+   */
+  aprendiendo = false
+  /** Segundos que le quedan al aviso de que ya cuenta (`conElAvisoDeQueCuenta`). */
+  private avisoQueCuenta = 0
   /** Las partidas del duelo ya cerradas y su semilla; la recién terminada se apunta al empezar la siguiente. */
   duelo: Duel = newDuel(0)
   private endedByPlayer = false
@@ -292,7 +299,9 @@ export class Partida {
    */
   cartel(lang: Lang): VistaDelCartel | null {
     const partida = this.paraElCartel(lang)
-    return partida == null ? null : cartelDeObjetivo(partida, traductorSuave(lang))
+    if (partida == null) return null
+    const t = traductorSuave(lang)
+    return conElAvisoDeQueCuenta(cartelDeObjetivo(partida, t), this.gameMode, this.avisoQueCuenta > 0, t)
   }
 
   /** La medalla que ya es de quien juega en esta partida: cuando sube, se celebra el listón. */
@@ -361,6 +370,7 @@ export class Partida {
     this._isRecord = false
     this._levelResult = null
     this.hazanas = new Set()
+    this.avisoQueCuenta = 0
   }
 
   /** Empieza una partida con lo elegido: el botón de jugar, y el de otra vez. */
@@ -430,14 +440,30 @@ export class Partida {
     this.alCambiar()
   }
 
-  /** Gol de la máquina: descuenta puntos y corta la racha. */
+  /**
+   * Gol de la máquina: descuenta puntos y corta la racha. Aprendiendo en el reto no cuenta, y en
+   * su primera ronda no resta (`concededPenalty`).
+   */
   scoreOpponent(): void {
-    if (!this.enJuego) return
+    if (!this.enJuego || (this.aprendiendo && this.challenge)) return
     this.opponentGoals++
     this.lastScorer = 'opponent'
     this.streak = 0
-    this.points = scoreConceded(this.points)
+    this.points = scoreConceded(this.points, concededPenalty(this.round))
     this.alCambiar()
+  }
+
+  /**
+   * El tutorial se ha cerrado con la partida en marcha (`acabarLaLeccion` de la web): en el reto,
+   * la partida vuelve a empezar desde cero, con su cuenta atrás, y el cartel avisa de que ya cuenta.
+   */
+  acabarLaLeccion(): void {
+    if (!this.challenge || !this.running) return
+    this.clearRun()
+    this.endedByPlayer = false
+    this.runId++
+    this.countdown = COUNTDOWN_SECONDS
+    this.avisoQueCuenta = AVISO_DE_QUE_CUENTA_MS / 1000
   }
 
   /**
@@ -454,6 +480,7 @@ export class Partida {
    * mazo en el último segundo, que es lo que en la web hace el `setTimeout` de un segundo.
    */
   tick(delta: number): void {
+    this.avisoQueCuenta = Math.max(0, this.avisoQueCuenta - Math.max(0, delta))
     if (!this.running || this.countdown <= 0 || this.prompt !== null) return
     if (this.esperandoElMazo) return
     // Con el mazo sin coger, la cuenta se queda en el último segundo en vez de pasarlo.

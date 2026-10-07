@@ -49,6 +49,8 @@ export class TutorialDelJuego {
   private saltados = 0
   private pendiente: boolean
   private pintado: string | null = null
+  /** Si en el fotograma anterior se enseñaba un paso. */
+  private ensenaba = false
 
   constructor(punteria: Punteria, manos: readonly MandoEnLaMano[] = []) {
     // Se decide una vez, al empezar: leerlo a cada fotograma lo apagaría en cuanto se marca.
@@ -89,16 +91,21 @@ export class TutorialDelJuego {
    * Un fotograma: si toca enseñarlo (`activo`: jugando, con visor y no en un reto), el paso de
    * ahora; si no, fuera. Al acabar los pasos se guarda como visto.
    */
-  actualizar(activo: boolean, hitos: TutorialHitos, lang: Lang, agarre: GrabMode, delta: number): void {
+  actualizar(activo: boolean, hitos: TutorialHitos, lang: Lang, agarre: GrabMode, delta: number): EstadoDelTutorial {
     const paso = this.paso(hitos)
     if (this.pendiente && paso == null) {
       markTutorialSeen()
       this.pendiente = false
     }
-    if (!activo || paso == null) {
+    const ensenando = activo && paso != null
+    // Se cierra cuando estaba enseñando y ya no queda paso: por sus hitos, «Siguiente» o «Saltar».
+    // Que se acabe la partida o se salga del visor (`activo` falso con paso) no es cerrarlo.
+    const cerrado = this.ensenaba && paso == null && activo
+    this.ensenaba = ensenando
+    if (!ensenando) {
       this.vista.ocultar()
       this.pintado = null
-      return
+      return { ensenando, cerrado }
     }
     const clave = `${paso}:${lang}:${agarre}`
     if (clave !== this.pintado) {
@@ -109,5 +116,14 @@ export class TutorialDelJuego {
       this.pintado = clave
     }
     this.vista.actualizar(delta)
+    return { ensenando, cerrado }
   }
+}
+
+/** Lo que el tutorial le cuenta a la partida tras un fotograma. */
+export interface EstadoDelTutorial {
+  /** Si se está enseñando un paso: en el reto, lo que mete la máquina no cuenta. */
+  readonly ensenando: boolean
+  /** Si se acaba de cerrar con la partida en marcha: el reto empieza desde cero. */
+  readonly cerrado: boolean
 }

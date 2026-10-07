@@ -4,6 +4,7 @@ import {
   BASE_GOAL_POINTS,
   CONCEDED_PENALTY,
   MAX_STREAK_MULTIPLIER,
+  concededPenalty,
   goalPoints,
   scoreConceded,
   scoreGoal,
@@ -65,6 +66,20 @@ describe('la puntuación de una partida', () => {
 
   it('no baja de cero por muchos goles que te metan', () => {
     expect(scoreConceded(scoreConceded(10))).toBe(0)
+  })
+})
+
+describe('lo que cuesta encajar en el reto', () => {
+  it('en la primera ronda, nada: perderla 1–3 con un gol marcado deja los puntos del gol', () => {
+    let puntos = scoreGoal(0, { difficulty: 'easy', streak: 1 })
+    for (let gol = 0; gol < 3; gol += 1) puntos = scoreConceded(puntos, concededPenalty(1))
+    expect(puntos).toBe(100)
+  })
+
+  it('desde la segunda, y fuera del reto, lo de siempre', () => {
+    expect(concededPenalty(2)).toBe(CONCEDED_PENALTY)
+    expect(concededPenalty(16)).toBe(CONCEDED_PENALTY)
+    expect(concededPenalty(null)).toBe(CONCEDED_PENALTY)
   })
 })
 

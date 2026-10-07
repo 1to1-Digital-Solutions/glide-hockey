@@ -13,7 +13,7 @@ import {
 } from 'react'
 import { volumeFactor, type Scenery } from './ajustes'
 import { setScenery as setArcadeScenery, useLang, useScenery, useVolumes } from './ajustesCliente'
-import { loQueCallaElMarcador, partidaDelCartel } from './cartelDelMarcador'
+import { AVISO_DE_QUE_CUENTA_MS, conElAvisoDeQueCuenta, loQueCallaElMarcador, partidaDelCartel } from './cartelDelMarcador'
 import { challengeRound } from './challenge'
 import {
   COUNTDOWN_SECONDS,
@@ -63,7 +63,7 @@ import type { Resultado, Reto } from './semilla'
 import { forgetOwnScenery } from './scenery'
 import { gameStorage } from './storage'
 import { type Scorer } from './puckPhysics'
-import { scoreConceded, scoreGoal } from './scoring'
+import { concededPenalty, scoreConceded, scoreGoal } from './scoring'
 import { traductorSuave } from './textos'
 
 /**
@@ -297,6 +297,21 @@ export interface GameStore {
   tutorialRunning: boolean
   setTutorialRunning: (running: boolean) => void
   /**
+   * Si el tutorial se está enseñando ahora mismo. Lo dice `XRTutorial`.
+   *
+   * **En el reto, aprendiendo no se pierde nada**: los goles de la máquina no cuentan —ni en el
+   * marcador ni en los puntos—, aunque se oyen y se sienten igual. Al cerrarse el tutorial el reto
+   * empieza desde cero (`acabarLaLeccion`).
+   */
+  aprendiendo: boolean
+  setAprendiendo: (aprendiendo: boolean) => void
+  /**
+   * El tutorial se ha cerrado —por sus pasos, por «Siguiente» o por «Saltar»— con la partida en
+   * marcha. En el reto, la partida vuelve a empezar desde cero, con su cuenta atrás, y el cartel
+   * avisa un momento de que ahora cuenta para medalla. Fuera del reto no hace nada.
+   */
+  acabarLaLeccion: () => void
+  /**
    * Lo que se está preguntando ahora mismo, o `null` si no se pregunta nada.
    *
    * Dejar la partida a medias **pierde lo que se lleva**, y el botón se pulsa sin querer:
@@ -358,6 +373,9 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
   const [countdown, setCountdown] = useState(reto != null ? COUNTDOWN_SECONDS : 0)
   const [prompt, setPrompt] = useState<'quit' | null>(null)
   const [tutorialRunning, setTutorialRunning] = useState(false)
+  const [aprendiendo, setAprendiendo] = useState(false)
+  /** Si el cartel está avisando de que ya cuenta (`conElAvisoDeQueCuenta`). */
+  const [avisoQueCuenta, setAvisoQueCuenta] = useState(false)
   const [malletHeld, setMalletHeld] = useState(false)
   const [runId, setRunId] = useState(reto != null ? 1 : 0)
   // El reto se mira una sola vez, al montar: es lo que decide con qué se arranca.
@@ -649,7 +667,10 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
       ),
     [objetivo, gameMode, gameState, challengeRoundNumber, goles, points, streak, recordToBeat, t],
   )
-  const cartel = useMemo(() => (partida == null ? null : cartelDeObjetivo(partida, t)), [partida, t])
+  const cartel = useMemo(
+    () => (partida == null ? null : conElAvisoDeQueCuenta(cartelDeObjetivo(partida, t), gameMode, avisoQueCuenta, t)),
+    [partida, t, gameMode, avisoQueCuenta],
+  )
   const medalla = partida == null ? null : medallaQueCelebra(partida)
   const callado = useMemo(() => loQueCallaElMarcador(partida), [partida])
 
@@ -731,6 +752,7 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
     setBestStreak(0)
     setChallengeRoundNumber(1)
     hazanasDeLaPartida.current = new Set()
+    setAvisoQueCuenta(false)
   }, [])
 
   const startGame = useCallback(() => {
@@ -780,13 +802,35 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
     })
   }, [enJuego, activeDifficulty, lapFactor, anotarHito])
 
+  // Aprendiendo en el reto, lo que mete la máquina no cuenta (`aprendiendo`).
+  const aprendiendoElReto = aprendiendo && challenge
   const scoreOpponent = useCallback(() => {
-    if (!enJuego) return
+    if (!enJuego || aprendiendoElReto) return
     setOpponentGoals((value) => value + 1)
     setLastScorer('opponent')
     setStreak(0)
-    setPoints((total) => scoreConceded(total))
-  }, [enJuego])
+    // En la primera ronda del reto encajar no resta (`concededPenalty`).
+    setPoints((total) => scoreConceded(total, concededPenalty(round)))
+  }, [enJuego, aprendiendoElReto, round])
+
+  const acabarLaLeccion = useCallback(() => {
+    if (!challenge || !running) return
+    // El reto, desde cero: lo de antes era aprender. La mesa se estrena (`runId`) con el disco
+    // en el centro, y la cuenta atrás vuelve a esperar al mazo en la mano.
+    clearRun()
+    advancedRound.current = 0
+    setEndedByPlayer(false)
+    setRunId((id) => id + 1)
+    setCountdown(COUNTDOWN_SECONDS)
+    setAvisoQueCuenta(true)
+  }, [challenge, running, clearRun])
+
+  // El aviso se quita solo.
+  useEffect(() => {
+    if (!avisoQueCuenta) return
+    const quitar = setTimeout(() => setAvisoQueCuenta(false), AVISO_DE_QUE_CUENTA_MS)
+    return () => clearTimeout(quitar)
+  }, [avisoQueCuenta])
 
   const apuntarHazana = useCallback(
     (hazana: Hazana) => {
@@ -817,6 +861,9 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
       prompt,
       tutorialRunning,
       setTutorialRunning,
+      aprendiendo,
+      setAprendiendo,
+      acabarLaLeccion,
       askToQuit,
       keepPlaying,
       goalTarget,
@@ -882,6 +929,8 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
     [
       prompt,
       tutorialRunning,
+      aprendiendo,
+      acabarLaLeccion,
       askToQuit,
       keepPlaying,
       malletHeld,

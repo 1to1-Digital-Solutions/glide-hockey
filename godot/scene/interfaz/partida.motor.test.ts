@@ -339,7 +339,7 @@ describe('el cartel del objetivo, como en la web', () => {
     expect(p.medalla).toBeNull()
   })
 
-  it('al cruzar un listón la medalla sube, encajando se puede perder, y al acabar dice lo que faltó', () => {
+  it('al cruzar un listón la medalla sube, en la primera ronda encajar no resta, y al acabar dice lo que faltó', () => {
     const p = new Partida({ objetivo: OBJETIVO })
     p.startGame()
     sacar(p)
@@ -349,12 +349,54 @@ describe('el cartel del objetivo, como en la web', () => {
     expect(p.cartel('en')?.titulo).toBe('Silver at 8,000 · you have 220')
     marcar(p, 0, 3)
     expect(p.gameState).toBe('finished')
-    expect(p.medalla).toBeNull()
-    expect(p.cartel('en')).toMatchObject({ titulo: 'No medal · 40 points in the challenge', detalle: '110 short of bronze' })
+    expect(p.medalla).toBe('bronce')
+    expect(p.cartel('en')).toMatchObject({ titulo: 'Bronze · 220 points in the challenge', detalle: '7,780 short of silver' })
     expect(p.callado).toEqual({ puntos: true, ronda: false })
     // Otra vez —el botón resaltado del final— vuelve a la misión, sin pasar por el menú.
     p.startGame()
     expect(p.cartel('en')?.titulo).toBe('Win games until you lose one')
+  })
+
+  it('perder la primera ronda 1–3 con un gol marcado no deja cero; desde la segunda, encajar resta', () => {
+    const p = new Partida({ objetivo: OBJETIVO })
+    p.startGame()
+    sacar(p)
+    marcar(p, 1, 3)
+    expect([p.gameState, p.points]).toEqual(['finished', 100])
+    p.startGame()
+    sacar(p)
+    marcar(p, 3, 0)
+    sacar(p)
+    const antes = p.points
+    p.scoreOpponent()
+    expect([p.round, p.points]).toEqual([2, antes - 60])
+  })
+
+  it('aprendiendo el reto, la máquina no cuenta; al cerrar el tutorial empieza desde cero y avisa', () => {
+    const p = new Partida({ objetivo: OBJETIVO })
+    p.startGame()
+    sacar(p)
+    p.aprendiendo = true
+    marcar(p, 1, 5)
+    expect([p.playerGoals, p.opponentGoals, p.gameState]).toEqual([1, 0, 'playing'])
+    const mesa = p.runId
+    p.aprendiendo = false
+    p.acabarLaLeccion()
+    expect([p.playerGoals, p.points, p.runId, p.gameState]).toEqual([0, 0, mesa + 1, 'countdown'])
+    expect(p.cartel('es')?.titulo).toBe('Ahora cuenta para medalla')
+    for (let i = 0; i < 160; i++) p.tick(1 / 60)
+    expect(p.cartel('es')?.titulo).not.toBe('Ahora cuenta para medalla')
+  })
+
+  it('fuera del reto, aprender no cambia nada y cerrar el tutorial no vuelve a empezar', () => {
+    const p = enPractica()
+    p.startGame()
+    sacar(p)
+    p.aprendiendo = true
+    p.scoreOpponent()
+    const mesa = p.runId
+    p.acabarLaLeccion()
+    expect([p.opponentGoals, p.runId]).toEqual([1, mesa])
   })
 
   it('la cuenta atrás de la segunda ronda ya no es la misión', () => {

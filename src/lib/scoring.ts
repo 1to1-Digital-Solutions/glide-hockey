@@ -17,7 +17,8 @@ import { type Difficulty } from './gameConfig'
  *   reto vale uno y no cambia nada.
  *
  * La puntuación **no baja de cero**: es una marca que se compara con el récord,
- * y una negativa no dice nada que no diga el marcador.
+ * y una negativa no dice nada que no diga el marcador. Y **en la primera ronda del reto
+ * encajar no resta** (`concededPenalty`): perderla con un gol marcado no deja cero.
  */
 
 /** Puntos de un gol antes de aplicar ningún multiplicador. */
@@ -87,7 +88,19 @@ export function scoreGoal(
   return points + goalPoints(options)
 }
 
+/**
+ * Lo que descuenta un gol encajado en esa ronda del reto (`null` fuera de él).
+ *
+ * **En la primera ronda del reto, nada.** Es la de quien estrena el juego, en Fácil y a tres
+ * goles: marcar uno y perderla 1–3 restaba 180 y el cartel cerraba con «0 puntos», que le decía
+ * a quien acaba de marcar su primer gol que no había hecho nada. Desde la segunda ronda, lo de
+ * siempre. Fuera del reto, también.
+ */
+export function concededPenalty(round: number | null): number {
+  return round === 1 ? 0 : CONCEDED_PENALTY
+}
+
 /** La puntuación tras encajar un gol, con el cero como suelo. */
-export function scoreConceded(points: number): number {
-  return Math.max(0, points - CONCEDED_PENALTY)
+export function scoreConceded(points: number, penalty: number = CONCEDED_PENALTY): number {
+  return Math.max(0, points - penalty)
 }

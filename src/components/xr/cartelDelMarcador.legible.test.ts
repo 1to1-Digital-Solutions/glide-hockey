@@ -11,7 +11,14 @@ import { ALTO_DE_LINEA } from './canvasPanel'
 import { MIN_ANGULO, lienzoQueApunta, problemasDeLegibilidad, type Escrito } from './legibilidad'
 import { SITIO_DEL_CARTEL } from '../game/CartelDelMarcador'
 import { XR_UI, delEspacioDelJugador, vistasDelPanel } from '../game/GameWorld'
-import { MARCADOR_DEL_FONDO, NEONES_DEL_FONDO, partidaDelCartel, sitioDelCartel, type LoQueSeJuega } from '../../lib/cartelDelMarcador'
+import {
+  MARCADOR_DEL_FONDO,
+  NEONES_DEL_FONDO,
+  conElAvisoDeQueCuenta,
+  partidaDelCartel,
+  sitioDelCartel,
+  type LoQueSeJuega,
+} from '../../lib/cartelDelMarcador'
 import { TABLE_CENTER_Z } from '../../lib/gameConfig'
 import { GAME_MODE_ORDER } from '../../lib/gameMode'
 import { cartelDeObjetivo, type Objetivo, type VistaDelCartel } from '../../lib/objetivo'
@@ -67,6 +74,11 @@ function vistas(lang: (typeof IDIOMAS)[number]): VistaDelCartel[] {
     for (const momento of MOMENTOS) {
       todas.push(cartelDeObjetivo(partidaDelCartel({ ...base, objetivo, ...momento }, t)!, t))
     }
+  }
+  // Al cerrar el tutorial, el aviso de que ya cuenta, con lo que diga debajo en la cuenta atrás.
+  for (const objetivo of [OBJETIVO, null]) {
+    const vista = cartelDeObjetivo(partidaDelCartel({ ...base, objetivo, gameState: 'countdown' }, t)!, t)
+    todas.push(conElAvisoDeQueCuenta(vista, 'challenge', true, t)!)
   }
   for (const gameMode of GAME_MODE_ORDER) {
     if (gameMode === 'challenge') continue

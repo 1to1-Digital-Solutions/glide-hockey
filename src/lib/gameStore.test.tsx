@@ -142,6 +142,65 @@ describe('el reto', () => {
   })
 })
 
+describe('aprender jugando el reto', () => {
+  const OBJETIVO = {
+    medallas: { bronce: 150, plata: 8000, oro: 20000 },
+    mejorEs: 'mas',
+    unidad: 'points in the challenge',
+    record: null,
+    modo: 'challenge',
+  } as const
+
+  it('con el tutorial enseñándose, los goles de la máquina no cuentan', () => {
+    const hook = renderHook(() => useGameStoreValue({ objetivo: OBJETIVO }))
+    act(() => hook.result.current.startGame())
+    esperarAlSaque(hook)
+    act(() => hook.result.current.setAprendiendo(true))
+    for (let i = 0; i < 5; i += 1) act(() => hook.result.current.scoreOpponent())
+    expect(hook.result.current.opponentGoals).toBe(0)
+    expect(hook.result.current.gameState).toBe('playing')
+  })
+
+  it('al cerrarse el tutorial el reto empieza desde cero, y el cartel avisa un momento de que ya cuenta', () => {
+    const hook = renderHook(() => useGameStoreValue({ objetivo: OBJETIVO }))
+    act(() => hook.result.current.startGame())
+    esperarAlSaque(hook)
+    act(() => hook.result.current.setAprendiendo(true))
+    act(() => hook.result.current.scorePlayer())
+    const mesa = hook.result.current.runId
+    act(() => hook.result.current.setAprendiendo(false))
+    act(() => hook.result.current.acabarLaLeccion())
+
+    expect(hook.result.current.playerGoals).toBe(0)
+    expect(hook.result.current.points).toBe(0)
+    expect(hook.result.current.runId).toBe(mesa + 1)
+    expect(hook.result.current.gameState).toBe('countdown')
+    expect(hook.result.current.cartel?.titulo).toBe('Now it counts for your medal')
+
+    act(() => void vi.advanceTimersByTime(2600))
+    expect(hook.result.current.cartel?.titulo).not.toBe('Now it counts for your medal')
+  })
+
+  it('fuera del reto, aprender no cambia nada y cerrar el tutorial no vuelve a empezar', () => {
+    const hook = enPractica()
+    act(() => hook.result.current.startGame())
+    esperarAlSaque(hook)
+    act(() => hook.result.current.setAprendiendo(true))
+    act(() => hook.result.current.scoreOpponent())
+    expect(hook.result.current.opponentGoals).toBe(1)
+    const mesa = hook.result.current.runId
+    act(() => hook.result.current.acabarLaLeccion())
+    expect(hook.result.current.runId).toBe(mesa)
+    expect(hook.result.current.opponentGoals).toBe(1)
+  })
+
+  it('y en el menú tampoco hace nada', () => {
+    const hook = renderHook(() => useGameStoreValue())
+    act(() => hook.result.current.acabarLaLeccion())
+    expect(hook.result.current.gameState).toBe('menu')
+  })
+})
+
 describe('los niveles', () => {
   it('solo se puede elegir entre los abiertos', () => {
     const hook = enPractica()
@@ -758,7 +817,7 @@ describe('el cartel del objetivo', () => {
     })
   })
 
-  it('al cruzar un listón la medalla sube, encajando se puede perder, y al acabar el cartel dice lo que faltó', () => {
+  it('al cruzar un listón la medalla sube, en la primera ronda encajar no resta, y al acabar el cartel dice lo que faltó', () => {
     const hook = renderHook(() => useGameStoreValue({ objetivo: OBJETIVO }))
     act(() => hook.result.current.startGame())
     esperarAlSaque(hook)
@@ -770,20 +829,18 @@ describe('el cartel del objetivo', () => {
     expect(hook.result.current.medalla).toBe('bronce')
     expect(hook.result.current.cartel?.titulo).toBe('Silver at 8,000 · you have 220')
 
-    // Un gol encajado resta, pero el bronce aguanta: la medalla es la de los puntos que se llevan.
+    // En la primera ronda del reto, un gol encajado no resta (`concededPenalty`).
     act(() => hook.result.current.scoreOpponent())
-    expect(hook.result.current.points).toBe(160)
+    expect(hook.result.current.points).toBe(220)
     expect(hook.result.current.medalla).toBe('bronce')
 
-    // Y perdiendo la ronda se baja del listón ya cruzado: al acabar, el cartel dice lo que faltó.
+    // Y perdiendo la ronda se queda lo marcado: al acabar, el cartel dice lo que faltó.
     perder(hook)
-    const puntos = hook.result.current.points
     expect(hook.result.current.gameState).toBe('finished')
-    expect(puntos).toBe(40)
-    expect(hook.result.current.medalla).toBeNull()
+    expect(hook.result.current.points).toBe(220)
     expect(hook.result.current.cartel).toMatchObject({
-      titulo: 'No medal · 40 points in the challenge',
-      detalle: '110 short of bronze',
+      titulo: 'Bronze · 220 points in the challenge',
+      detalle: '7,780 short of silver',
     })
     // La ronda en que se quedó vuelve al marcador; los puntos siguen en el cartel.
     expect(hook.result.current.callado).toEqual({ puntos: true, ronda: false })
@@ -793,6 +850,28 @@ describe('el cartel del objetivo', () => {
     expect(hook.result.current.gameMode).toBe('challenge')
     expect(hook.result.current.cartel?.titulo).toBe('Win games until you lose one')
     expect(hook.result.current.medalla).toBeNull()
+  })
+
+  it('perder la primera ronda 1–3 con un gol marcado no deja cero', () => {
+    const hook = renderHook(() => useGameStoreValue({ objetivo: OBJETIVO }))
+    act(() => hook.result.current.startGame())
+    esperarAlSaque(hook)
+    act(() => hook.result.current.scorePlayer())
+    perder(hook)
+    expect(hook.result.current.gameState).toBe('finished')
+    expect(hook.result.current.points).toBe(100)
+  })
+
+  it('desde la segunda ronda, encajar resta y se puede bajar de un listón ya cruzado', () => {
+    const hook = renderHook(() => useGameStoreValue({ objetivo: OBJETIVO }))
+    act(() => hook.result.current.startGame())
+    esperarAlSaque(hook)
+    for (let i = 0; i < 3; i += 1) act(() => hook.result.current.scorePlayer())
+    esperarAlSaque(hook)
+    expect(hook.result.current.round).toBe(2)
+    const antes = hook.result.current.points
+    act(() => hook.result.current.scoreOpponent())
+    expect(hook.result.current.points).toBe(antes - 60)
   })
 
   it('la cuenta atrás de la segunda ronda ya no es la misión: sigue el listón, con su ronda', () => {

@@ -291,8 +291,11 @@ export class InterfazDelJuego {
       })
     }
     if (p.prompt != null) this.aviso.escribir(lang)
-    const tutorial = fase === 'playing' && (this.visor || this.tutorialEnPlano) && !p.enReto
-    this.tutorial.actualizar(tutorial, p.hitos, lang, agarre, delta)
+    // Ni en el reto del salón ni en el duelo: tienen que ser la misma partida para todos.
+    const tutorial = fase === 'playing' && (this.visor || this.tutorialEnPlano) && !p.enReto && !p.duel
+    const { ensenando, cerrado } = this.tutorial.actualizar(tutorial, p.hitos, lang, agarre, delta)
+    p.aprendiendo = ensenando
+    if (cerrado) p.acabarLaLeccion()
   }
 
   /** Enseña los paneles de la fase, ya: un botón que aparece tiene que poder pulsarse enseguida. */

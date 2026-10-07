@@ -95,7 +95,8 @@ test.describe('Montado dentro de otro anfitrión', () => {
       .toBe(true)
 
     // El saque espera al mazo en la mano: se coge, y se aparta a una banda para que la máquina
-    // marque sola. Sin tutorial, que en el reto no se da.
+    // marque sola. Sin tutorial, que en el reto no se da: aquí está pendiente (no se ha visto
+    // nunca) y, si saliera, los goles de la máquina no contarían y el reto no acabaría.
     await page.evaluate(() => {
       window.__xrTest.placeController('right', 0, 0.95, -0.48)
       window.__xrTest.squeeze('right', true)

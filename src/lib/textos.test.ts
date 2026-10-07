@@ -6,7 +6,7 @@ import { GAME_MODE_HINTS, GAME_MODE_LABELS } from './gameMode'
 import { PLAYER_LABELS } from './duel'
 import { SCENERY_HINTS, SCENERY_LABELS } from './scenery'
 import { CONFORT_LABELS, CONFORT_LEGEND } from './confort'
-import { TEXT_KEYS, formatea, texto, traductor, traductorSuave } from './textos'
+import { TEXT_KEYS, formatea, formatoDeCifra, texto, traductor, traductorSuave } from './textos'
 
 /**
  * El diccionario del juego.
@@ -126,5 +126,40 @@ describe('los huecos de una frase', () => {
   it('llega hasta el traductor', () => {
     expect(traductor('es')('Level {level}, locked', { level: 3 })).toBe('Nivel 3, bloqueado')
     expect(traductor('en')('Level {level}, locked', { level: 3 })).toBe('Level 3, locked')
+  })
+})
+
+describe('las cifras, en el idioma de quien juega', () => {
+  it('agrupan los miles con punto en español y con coma en inglés', () => {
+    expect(formatoDeCifra(12400, 'es')).toBe('12.400')
+    expect(formatoDeCifra(12400, 'en')).toBe('12,400')
+    expect(formatoDeCifra(1234567, 'es')).toBe('1.234.567')
+    expect(formatoDeCifra(-20000, 'es')).toBe('-20.000')
+    expect(formatoDeCifra(999, 'es')).toBe('999')
+  })
+
+  it('en español desde las cinco cifras, como el cartel; en inglés, desde las cuatro', () => {
+    expect(formatoDeCifra(8068, 'es')).toBe('8068')
+    expect(formatoDeCifra(8068, 'en')).toBe('8,068')
+    expect(formatoDeCifra(9999.6, 'es')).toBe('10.000')
+  })
+
+  it('lo que no es una cifra se escribe como cero', () => {
+    expect(formatoDeCifra(Number.NaN, 'es')).toBe('0')
+  })
+
+  it('y en el código no queda ningún `toLocaleString`, que escribía «8,068» en español', () => {
+    const encontrados: string[] = []
+    const recorrer = (dir: string) => {
+      for (const entrada of readdirSync(dir, { withFileTypes: true })) {
+        const ruta = join(dir, entrada.name)
+        if (entrada.isDirectory()) recorrer(ruta)
+        else if (/\.tsx?$/.test(entrada.name) && !/\.test\.tsx?$/.test(entrada.name)) {
+          if (readFileSync(ruta, 'utf8').includes('.toLocaleString(')) encontrados.push(ruta)
+        }
+      }
+    }
+    recorrer(join(__dirname, '..'))
+    expect(encontrados).toEqual([])
   })
 })

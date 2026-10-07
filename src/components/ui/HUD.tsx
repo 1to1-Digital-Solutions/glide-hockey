@@ -7,7 +7,7 @@ import { GAME_MODE_LABELS, isEndless } from '../../lib/gameMode'
 import { useGame } from '../../lib/gameStore'
 import { useLang } from '../../lib/ajustesCliente'
 import { PALETA } from '../../lib/paleta'
-import { traductor } from '../../lib/textos'
+import { formatoDeCifra, traductor } from '../../lib/textos'
 import { useDuelTally } from '../../lib/useDuelTally'
 
 /**
@@ -67,7 +67,8 @@ function Scoreboard() {
     cartel,
   } = useGame()
   const endless = isEndless(activeGoalTarget)
-  const t = traductor(useLang())
+  const lang = useLang()
+  const t = traductor(lang)
   // En el duelo, el marcador de la izquierda es de quien tiene el mando: con dos personas
   // delante, «Tú» no dice a cuál de las dos.
   const quien = duel ? t(PLAYER_LABELS[duel.player]) : null
@@ -96,7 +97,7 @@ function Scoreboard() {
 
         <span aria-hidden className="h-8 w-px bg-white/10" />
 
-        <Stat label={t('Points')} value={points.toLocaleString('en-GB')} />
+        <Stat label={t('Points')} value={formatoDeCifra(points, lang)} />
         {streak > 1 ? <Stat label={t('Streak')} value={`×${streak}`} /> : null}
 
         <span aria-hidden className="h-8 w-px bg-white/10" />
@@ -174,7 +175,8 @@ function GameOver() {
 
   const won = outcome === 'won'
   const endless = isEndless(activeGoalTarget)
-  const t = traductor(useLang())
+  const lang = useLang()
+  const t = traductor(lang)
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
       <div className="pointer-events-auto animate-fade-slide-up w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_92%,transparent)] p-6 text-center shadow-2xl backdrop-blur-sm">
@@ -229,7 +231,7 @@ function GameOver() {
                 })}
         </p>
         <p className="mt-5 text-5xl font-bold tabular-nums">
-          {points.toLocaleString('en-GB')}
+          {formatoDeCifra(points, lang)}
         </p>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/40">
           {t('points')}

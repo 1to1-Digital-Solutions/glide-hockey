@@ -16,7 +16,7 @@ import { useGame } from '../../lib/gameStore'
 import { daMedalla, fraseDeLaMedalla } from '../../lib/cartelDelMarcador'
 import { useDuelTally } from '../../lib/useDuelTally'
 import { useLang } from '../../lib/ajustesCliente'
-import { traductor } from '../../lib/textos'
+import { formatoDeCifra, traductor } from '../../lib/textos'
 import { SCENERIES } from '../../lib/ajustes'
 import { SCENERY_HINTS, SCENERY_LABELS } from '../../lib/scenery'
 import { CONFORTS } from '../../lib/golpeRecibido'
@@ -113,7 +113,8 @@ export function StartScreen() {
   // **Solo la práctica pregunta.** En reto y en niveles la escalera reparte nivel y goles, así
   // que la partida ya está hecha: se elige el modo y se le da a Jugar. Sus filas no se
   // enseñan ni apagadas, que eran dos filas de opciones que no se podían tocar.
-  const t = traductor(useLang())
+  const lang = useLang()
+  const t = traductor(lang)
   const practice = gameMode === 'practice'
   const levels = gameMode === 'levels'
   // Lo que lleva la pareja que está delante, en el duelo; con ninguno jugado no se dice nada.
@@ -363,7 +364,7 @@ export function StartScreen() {
                   mode: t(GAME_MODE_LABELS[gameMode]).toLowerCase(),
                 })}{' '}
                 <strong className="font-semibold text-white">
-                  {bestPoints.toLocaleString('en-GB')}
+                  {formatoDeCifra(bestPoints, lang)}
                 </strong>{' '}
                 {t('points')}
               </>

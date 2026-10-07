@@ -235,3 +235,29 @@ export function traductor(lang: Lang) {
     return valores === undefined ? frase : formatea(frase, valores)
   }
 }
+
+/**
+ * Una cifra con sus miles separados como se escriben en ese idioma: «12.400» y «12,400».
+ *
+ * El inglés agrupa con coma desde las cuatro cifras («2,100») y el español con punto y **desde
+ * las cinco** («2100», «12.400»): es la regla de la RAE y de CLDR, y la misma del cartel de
+ * objetivo (`ESCRITURA`, en `objetivo.ts`), para que el marcador y el cartel escriban igual.
+ *
+ * A mano y no con `toLocaleString`: lo que devuelve depende de los datos de idioma que traiga
+ * el navegador —el del visor no trae todos—, y con `'en-GB'` fijo la versión española decía
+ * «8,068». Es la cuenta de Gloop Pop.
+ */
+export function formatoDeCifra(n: number, lang: Lang): string {
+  if (!Number.isFinite(n)) return '0'
+  const { separador, desde } = lang === 'es' ? { separador: '.', desde: 5 } : { separador: ',', desde: 4 }
+  const redondeado = Math.round(n)
+  let resto = String(Math.abs(redondeado))
+  let miles = ''
+  // Se decide una vez, con la cifra entera: o se agrupa toda o no se agrupa.
+  const seAgrupa = resto.length >= desde
+  while (seAgrupa && resto.length > 3) {
+    miles = `${separador}${resto.slice(-3)}${miles}`
+    resto = resto.slice(0, -3)
+  }
+  return `${redondeado < 0 ? '-' : ''}${resto}${miles}`
+}

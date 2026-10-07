@@ -48,7 +48,8 @@ al empezar la sesión (ver `components/game/WorldAnchor.tsx`). El juego no pone
 ### El reto y el aviso de fin de partida
 
 Dos props opcionales, en la escena y en `<GlideHockey>` (y en `mountGlideHockey`,
-que le pasa sus opciones); sin ellas el juego es el de siempre.
+que le pasa sus opciones), y una tercera, `objetivo`, solo en la escena; sin ellas el juego es
+el de siempre.
 
 - **`reto?: Reto`** (`{ semilla }`, un entero de 32 bits): la partida del reto
   del día o de «reta mi puntuación». Con él la escena **no abre el menú: entra
@@ -73,6 +74,14 @@ que le pasa sus opciones); sin ellas el juego es el de siempre.
   es su final.
   El duelo a dos **no se cuenta**: sus goles son de dos personas, no de quien
   lleva el visor, y no tiene récord.
+- **`objetivo?: Objetivo`** (el tipo de `src/lib/objetivo.ts`, exportado por el paquete; solo en
+  `<GlideHockeyScene>`): `{ medallas: { bronce, plata, oro }, mejorEs: 'mas' | 'menos', unidad,
+  record, modo }`. Con él, el **cartel de encima del marcador del fondo** dice qué hay que
+  superar: en la primera cuenta atrás, la misión y los tres listones; jugando, el listón que
+  falta, lo que se lleva, la ronda y lo que vale el próximo gol; al acabar, lo que faltó. `modo`
+  es el modo del que salen las medallas (`challenge`): en cualquier otro, el cartel dice que la
+  partida no cuenta para medalla. Sin la prop, en el reto dice la misión y el récord guardado en
+  este navegador. `unidad` llega ya en el idioma de quien juega. El menú abre siempre en el reto.
 
 ```tsx
 <GlideHockeyScene reto={{ semilla: 20260925 }} onTerminar={apuntarPartida} onExit={volverAlSalon} />

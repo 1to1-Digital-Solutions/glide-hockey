@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
+import { Vector3 } from 'three'
 import { XR, XROrigin, createXRStore } from '@react-three/xr'
-import { GlideHockeyScene, type Resultado } from '../../src/game'
+import { GlideHockeyScene, type Objetivo, type Resultado } from '../../src/game'
 import { XRControllerGrip } from '../../src/components/xr/XRControllerGrip'
 
 /**
@@ -35,6 +36,8 @@ const aLaCarta = mount.dataset.cabina === 'a-la-carta'
  */
 const semillaDelReto = mount.dataset.reto
 const reto = semillaDelReto === undefined ? undefined : { semilla: Number(semillaDelReto) }
+/** Los listones de medalla, si el salón los está pasando (`data-objetivo`, en JSON). */
+const objetivo = mount.dataset.objetivo === undefined ? undefined : (JSON.parse(mount.dataset.objetivo) as Objetivo)
 window.__terminadas = []
 const apuntarTerminada = (resultado: Resultado) => {
   window.__terminadas.push(resultado)
@@ -59,11 +62,17 @@ declare global {
       enterAR: () => Promise<void>
       /** Monta la escena, como al elegir cabina. Solo hace algo con `data-cabina`. */
       entrarEnLaCabina: () => void
+      /**
+       * Enseña o esconde el cartel del objetivo, y dice si estaba colgado. Es para medir lo que
+       * cuesta pintarlo: la misma escena, en el mismo fotograma de la partida, con él y sin él.
+       */
+      verElCartel: (visible: boolean) => boolean
     }
   }
 }
 
 let entrar = () => {}
+let verElCartel: (visible: boolean) => boolean = () => false
 
 window.__glideHockeyHost = {
   async enterVR() {
@@ -75,6 +84,28 @@ window.__glideHockeyHost = {
     await store.enterAR()
   },
   entrarEnLaCabina: () => entrar(),
+  verElCartel: (visible) => verElCartel(visible),
+}
+
+/** Le da al anfitrión de prueba la mano con la que buscar el cartel en la escena. */
+function ManoEnLaEscena() {
+  const scene = useThree((state) => state.scene)
+  const camera = useThree((state) => state.camera)
+  useEffect(() => {
+    verElCartel = (visible) => {
+      const cartel = scene.getObjectByName('cartel-de-objetivo')
+      if (cartel == null) return false
+      // La cámara de este anfitrión no es la cabeza de nadie: se la pone mirando al cartel, que
+      // lo que queda fuera de la imagen no se pinta y no habría nada que medir.
+      camera.lookAt(cartel.getWorldPosition(new Vector3()))
+      cartel.visible = visible
+      return true
+    }
+    return () => {
+      verElCartel = () => false
+    }
+  }, [scene, camera])
+  return null
 }
 
 /** La cabina: la escena, montada cuando toca. */
@@ -89,7 +120,7 @@ function Cabina() {
 
   if (!dentro) return null
   // Volver es cosa del anfitrión, y aquí no hay a dónde.
-  return <GlideHockeyScene assetsBase={assetsBase} onExit={() => {}} reto={reto} onTerminar={apuntarTerminada} />
+  return <GlideHockeyScene assetsBase={assetsBase} onExit={() => {}} reto={reto} onTerminar={apuntarTerminada} objetivo={objetivo} />
 }
 
 function Host() {
@@ -98,6 +129,7 @@ function Host() {
       <XR store={store}>
         <XROrigin position={[0, 0, 0]} />
         <Cabina />
+        <ManoEnLaEscena />
       </XR>
     </Canvas>
   )

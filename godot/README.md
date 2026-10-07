@@ -29,7 +29,8 @@ ventajas y cuántos duelos lleva la pareja, y **suena a ganar** (`finalSuenaAGan
 enseña en su fila de abajo el número de quien tiene el mando. Sin récord ni aviso al salón.
 
 Alrededor está **el salón recreativo de la web** (`Room.tsx`): la moqueta con sus bandas, tres
-paredes con zócalo, el techo, los dos neones del fondo, diez recreativas apagadas con su cartel
+paredes con zócalo, el techo, los dos neones del fondo (a la altura que deja libre el cartel:
+`NEONES_DEL_FONDO`), diez recreativas apagadas con su cartel
 encendido y el halo bajo la mesa. Con **tu habitación** —el escenario del salón (`xrcade:scenery`),
 que el botón de la ventana del menú alterna— y un visor con paso de cámara, la sala se esconde y el
 fondo se vuelve transparente (`Escenario` del kit); sin realidad aumentada el botón sale apagado y
@@ -45,7 +46,8 @@ recetas de `tactos.ts` en la mano que lo lleva: el golpe al disco con su fuerza,
 El gol en contra es además el **golpe que recibe el cuerpo** (`lib/golpeRecibido.ts` y
 `golEnContra.ts`): viñeta, sacudida de la sala, cámara lenta de la mesa, paso bajo en el bus del
 juego y el háptico común, con el confort que se elija. La columna va a 55° a la izquierda y
-agrandada, y el **tutorial** de la web sale la primera vez sobre la mesa. **El mando de verdad** (los
+agrandada, y el **tutorial** de la web sale la primera vez a la altura de la vista y a 32° a la
+derecha, a un lado del cartel y del marcador para no taparlos (`sitioDelTutorial`; en plano, de frente). **El mando de verdad** (los
 modelos de Quest, `MandoDeVerdad` del kit) va en las dos manos: con el agarre encendido mientras la
 cuenta atrás espera el mazo —el paso de coger se supera ahí, antes de que el tutorial llegue a
 salir, como en `XRCountdown`— y con el botón de cada paso del tutorial; los dos se turnan el mismo
@@ -56,11 +58,25 @@ en la portería contraria. En plano, el mazo sigue al ratón y la columna va a u
 cara a la cámara; las ayudas y el tutorial, como en la web, solo con visor.
 
 Suena con los efectos de la web renderizados de su `audioEngine.ts` (el golpe y el rebote a tres
-fuerzas, el gol, ganar, perder y el récord, y el roce del disco en bucle siguiendo su velocidad) y
+fuerzas, el gol, ganar, perder, el récord y los tres listones de medalla, y el roce del disco en
+bucle siguiendo su velocidad) y
 con su música y su fundido; el idioma y los volúmenes son los del salón, del guardado.
 
+**El menú abre en el reto** y **el objetivo se lee encima del marcador del fondo**
+(`interfaz/cartel.ts`): el cartel de la web con lo que dice `objetivo.ts` y en el sitio de
+`cartelDelMarcador.ts` —la misión en la primera cuenta atrás; lo que se lleva, la ronda y lo que
+vale el próximo gol mientras se juega; lo que faltó al acabar—, del mismo tamaño en el ojo que en
+la web; el marcador calla lo que el cartel ya dice (los puntos y la ronda) y se queda con los goles.
+El menú dice de cada modo si cuenta para medalla, y el que la da lleva un disco dorado en su botón.
+Al cruzar un listón el cartel cambia de color, crece y vuelve, suena (`medal-*`) y se nota en la
+mano del mazo. **Los listones de medalla los pasa el salón nativo** en el metadato `goal` de su
+autoload `XRcade`: `objetivoDelSalon` (`main.ts`) lo lee con el lector del kit (`objetivoDe`, el de
+`base.objetivo()`) y se lo da a `Partida`, igual que la web recibe la prop `objetivo`. Con él el
+cartel dice los listones, celebra las medallas y fuera del modo del récord dice que no cuenta; con
+el juego suelto dice la misión y el récord guardado, y fuera del reto no se cuelga.
+
 **El reto del salón** (`semilla.ts`): con `-- --reto=<semilla>`, o si el autoload `XRcade` lleva
-el metadato `challenge_seed`, se entra directo en el desafío con los tiros de la máquina sacados
+el metadato `challenge_seed`, se entra directo en el reto con los tiros de la máquina sacados
 de esa semilla (`semillaDeLaMesa`); al acabar cada partida con puntuación se imprime
 `GH-RESULTADO {modo, puntos, reto}` y, si el salón tiene `report_result(json)`, se le llama. **El
 hub nativo todavía no pasa retos ni recoge resultados**: son los enganches para cuando lo haga.
@@ -81,14 +97,14 @@ Por qué existe y qué se midió: `xrcade/docs/salir-en-steam.md`, sección 4.
 | `games/glide-hockey/mandos/`, `CREDITS.md` | Los mandos de Quest (`npm run godot:mandos`, de `public/webxr-profiles/`) con su licencia MIT, y los créditos del paquete. Se versionan; el preset «pack» incluye los `.json`, la licencia y los créditos |
 | `games/glide-hockey/` | Lo que va en el `.pck`; `tests/` se queda fuera al exportar |
 | `games/glide-hockey/sfx/`, `music/` | Los efectos renderizados (`npm run godot:sfx`) y la música de `public/audio/`. Se versionan |
-| `games/glide-hockey/tests/partida_auto.*` | Una partida automática contra la máquina hasta el final: goles de los dos lados, marcador, sonidos, golpe recibido, resultado al salón; el reto con la semilla del salón; y un duelo entero a dos (las dos partidas con la misma semilla y a 7, el traspaso, quién gana por la ventaja, el marcador de la pareja, sin récord ni aviso al salón, y los cierres «como le fue» y «ganar») |
+| `games/glide-hockey/tests/partida_auto.*` | Una partida automática contra la máquina hasta el final: goles de los dos lados, marcador, sonidos, golpe recibido, resultado al salón; el reto con la semilla del salón, sin listones y con los del metadato `goal` en el cartel; y un duelo entero a dos (las dos partidas con la misma semilla y a 7, el traspaso, quién gana por la ventaja, el marcador de la pareja, sin récord ni aviso al salón, y los cierres «como le fue» y «ganar») |
 | `games/glide-hockey/tests/menu_raton.*` | La escena de verdad con clics del ratón: elegir modo, jugar, Escape, volver al menú desde el aviso y salir |
 | `games/glide-hockey/tests/xr_mando.*` | Dos partidas con visor simulado (mandos de mentira del kit): diestro sentado en el salón que tarda en coger el mazo, y zurdo de pie con un toque. La mano que coge, la cuenta que espera al mazo con el agarre encendido en los dos mandos, la altura del mundo y de la interfaz, el anclaje, el giro, los pulsos, las cuatro ayudas (y ninguna al acabar), el tutorial con el mando de verdad en las dos manos y la sala |
 | `tests/run.sh` | Todo lo del motor de una vez (`npm run godot:test`) |
 
-**Qué tests entran en el motor** lo decide el kit por el grafo de imports: 34 de los 47 ficheros de
-`src/lib`, más los del kit y los del port: **560 tests**. `npm run godot:build -- --list-tests`
-dice cuáles y por qué no los otros 13 (los que usan `vi`, los que tocan `window` en el propio test,
+**Qué tests entran en el motor** lo decide el kit por el grafo de imports: 37 de los 51 ficheros de
+`src/lib`, más los del kit y los del port: **695 tests**. `npm run godot:build -- --list-tests`
+dice cuáles y por qué no los otros 14 (los que usan `vi`, los que tocan `window` en el propio test,
 `textos.test.ts` que lee el disco). `haptics.ts` y `audioEngine.ts` no entran porque el segundo abre
 un `AudioContext`: por eso `scene/juego/sucesos.ts` copia `impactStrength` y los sucesos de la
 mano; si pasaran a un fichero sin navegador, esa copia se borraría.

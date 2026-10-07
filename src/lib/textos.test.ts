@@ -6,7 +6,7 @@ import { GAME_MODE_HINTS, GAME_MODE_LABELS } from './gameMode'
 import { PLAYER_LABELS } from './duel'
 import { SCENERY_HINTS, SCENERY_LABELS } from './scenery'
 import { CONFORT_LABELS, CONFORT_LEGEND } from './confort'
-import { TEXT_KEYS, formatea, texto, traductor } from './textos'
+import { TEXT_KEYS, formatea, texto, traductor, traductorSuave } from './textos'
 
 /**
  * El diccionario del juego.
@@ -83,6 +83,30 @@ describe('el diccionario', () => {
     const huerfanas = TEXT_KEYS.filter((clave) => !fuente.includes(clave))
 
     expect(huerfanas).toEqual([])
+  })
+})
+
+describe('el traductor que acepta cualquier frase', () => {
+  it('traduce lo que está en el diccionario, con sus huecos', () => {
+    expect(traductorSuave('es')('Back to the menu')).toBe('Volver al menú')
+    expect(traductorSuave('es')('Level {level}, locked', { level: 3 })).toBe('Nivel 3, bloqueado')
+    expect(traductorSuave('en')('Level {level}, locked', { level: 3 })).toBe('Level 3, locked')
+  })
+
+  it('y lo que no está —la unidad del récord, que el salón pasa ya dicha— sale tal cual', () => {
+    expect(traductorSuave('es')('puntos en el reto')).toBe('puntos en el reto')
+    expect(traductorSuave('en')('puntos en el reto')).toBe('puntos en el reto')
+    // Ni lo que solo se llama como algo de los objetos de JavaScript.
+    expect(traductorSuave('es')('toString')).toBe('toString')
+  })
+
+  it('sabe las frases del cartel del objetivo, comunes a todos los juegos', () => {
+    expect(traductorSuave('es')('{missing} short of gold', { missing: 40 })).toBe('Te han faltado 40 para el oro')
+    expect(traductorSuave('es')('New record!')).toBe('¡Nuevo récord!')
+  })
+
+  it('el modo que cuenta se llama Reto', () => {
+    expect(traductor('es')('Challenge')).toBe('Reto')
   })
 })
 

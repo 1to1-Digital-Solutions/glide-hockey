@@ -12,7 +12,8 @@ import {
   useSyncExternalStore,
 } from 'react'
 import { volumeFactor, type Scenery } from './ajustes'
-import { setScenery as setArcadeScenery, useScenery, useVolumes } from './ajustesCliente'
+import { setScenery as setArcadeScenery, useLang, useScenery, useVolumes } from './ajustesCliente'
+import { loQueCallaElMarcador, partidaDelCartel } from './cartelDelMarcador'
 import { challengeRound } from './challenge'
 import {
   COUNTDOWN_SECONDS,
@@ -56,12 +57,14 @@ import {
 } from './progress'
 import { migrateLegacyKeysOnce } from './legacyKeys'
 import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana } from './hazanas'
+import { cartelDeObjetivo, medallaQueCelebra, type Medalla, type Objetivo, type VistaDelCartel } from './objetivo'
 import { semillaDeLaMesa } from './opponent'
 import type { Resultado, Reto } from './semilla'
 import { forgetOwnScenery } from './scenery'
 import { gameStorage } from './storage'
 import { type Scorer } from './puckPhysics'
 import { scoreConceded, scoreGoal } from './scoring'
+import { traductorSuave } from './textos'
 
 /**
  * El estado de una partida de air hockey y las tres cosas que se eligen antes
@@ -119,6 +122,12 @@ export interface OpcionesDelSalon {
    * hazañas que se estrenan en ella (`hazanas.ts`).
    */
   onTerminar?: (resultado: Resultado) => void
+  /**
+   * Los listones de medalla del juego y la marca de quien juega, para el cartel de encima del
+   * marcador (`objetivo.ts`). Sin él —el juego abierto suelto— el cartel dice la misión y el
+   * récord local.
+   */
+  objetivo?: Objetivo
 }
 
 export interface GameStore {
@@ -182,6 +191,18 @@ export interface GameStore {
   isRecord: boolean
   /** Cómo acabó, o `null` mientras sigue viva. */
   outcome: RunOutcome | null
+
+  /** Lo que pasó el salón, o `null` con el juego abierto suelto: los menús dicen qué modo da medalla. */
+  objetivo: Objetivo | null
+  /**
+   * Lo que dice el cartel de encima del marcador (`objetivo.ts`), o `null` si no hay nada que
+   * colgar: en el menú, y fuera del reto con el juego abierto suelto.
+   */
+  cartel: VistaDelCartel | null
+  /** La medalla que ya es de quien juega en esta partida: cuando sube, se celebra el listón. */
+  medalla: Medalla | null
+  /** Lo que el marcador del fondo calla porque ya lo dice el cartel (`loQueCallaElMarcador`). */
+  callado: { puntos: boolean; ronda: boolean }
 
   gameState: GameState
 
@@ -310,7 +331,7 @@ export function clampGoalTarget(goals: number): number {
   return Math.min(MAX_GOALS, Math.max(MIN_GOALS, Math.round(goals)))
 }
 
-export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): GameStore {
+export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSalon = {}): GameStore {
   // Lo guardado cuando el juego se llamaba `air-hockey`, traído a las claves de ahora.
   // Durante el render y no en un efecto: el récord y los niveles se leen más abajo con
   // `useSyncExternalStore`, que lee ya en esta misma pasada (ver `lib/legacyKeys.ts`).
@@ -322,9 +343,10 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
     setHitos((actuales) => apuntarHito(actuales, hito))
   }, [])
   const [difficulty, setDifficulty] = useState<Difficulty>('easy')
-  // Se entra en prueba: quien acaba de llegar no tiene por qué estrenarse en un
-  // reto que se acaba a la primera derrota. El reto está a un toque, al lado.
-  const [gameMode, setGameModeState] = useState<GameMode>(reto != null ? MODO_DEL_RETO : 'practice')
+  // El menú abre **siempre** en el reto, con salón o sin él, y no recuerda el último modo: es el
+  // del récord y el de las medallas, así que quien entra y pulsa Jugar sin tocar nada tiene que
+  // estar jugando a lo que cuenta, con su objetivo delante. La práctica queda a un toque, al lado.
+  const [gameMode, setGameModeState] = useState<GameMode>(MODO_DEL_RETO)
   const [endless, setEndlessState] = useState(false)
   // `null` es «el más alto desbloqueado»: así el menú enseña el nivel que toca
   // sin leer el almacenamiento en el primer render, que no está en el servidor.
@@ -614,6 +636,23 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
     avisar.current?.(conHazanas({ modo: gameMode, puntos: points, reto: enReto }, nuevas))
   }, [gameState, gameMode, duelMode, points, bestStreak, endlessRun, levelResult, activeLevel, runId, enReto, outcome, opponentGoals])
 
+  // El cartel de encima del marcador: qué hay que superar y cuánto falta. Se arma ya traducido,
+  // como lo pinta: sus frases son plantillas, y componerlas fuera obligaría a partirlas.
+  const lang = useLang()
+  const t = useMemo(() => traductorSuave(lang), [lang])
+  const goles = totalPlayerGoals + totalOpponentGoals
+  const partida = useMemo(
+    () =>
+      partidaDelCartel(
+        { objetivo, gameMode, gameState, round: challengeRoundNumber, goles, points, streak, record: recordToBeat },
+        t,
+      ),
+    [objetivo, gameMode, gameState, challengeRoundNumber, goles, points, streak, recordToBeat, t],
+  )
+  const cartel = useMemo(() => (partida == null ? null : cartelDeObjetivo(partida, t)), [partida, t])
+  const medalla = partida == null ? null : medallaQueCelebra(partida)
+  const callado = useMemo(() => loQueCallaElMarcador(partida), [partida])
+
   // La marca de este modo: puntos, o la racha en la partida sin fin. En Niveles
   // no hay marca que batir: hay estrellas. En el duelo, tampoco: hay quien gana.
   const bestForMode = endlessRun ? bestEndlessStreak : levels || duelMode ? 0 : bestPoints
@@ -806,6 +845,10 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
       bestPoints: bestForMode,
       isRecord,
       outcome,
+      objetivo: objetivo ?? null,
+      cartel,
+      medalla,
+      callado,
       gameState,
       hitos,
       apuntarHito: anotarHito,
@@ -869,6 +912,10 @@ export function useGameStoreValue({ reto, onTerminar }: OpcionesDelSalon = {}): 
       bestForMode,
       isRecord,
       outcome,
+      objetivo,
+      cartel,
+      medalla,
+      callado,
       gameState,
       countdown,
       runId,

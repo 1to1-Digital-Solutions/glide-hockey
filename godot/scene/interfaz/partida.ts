@@ -16,6 +16,8 @@
  * No toca el motor (ni `godot` ni nodos), así que se prueba entera en `partida.motor.test.ts` sin
  * montar la escena.
  */
+import type { Lang } from '@/lib/ajustes'
+import { loQueCallaElMarcador, partidaDelCartel } from '@/lib/cartelDelMarcador'
 import { challengeRound } from '@/lib/challenge'
 import { DUEL_SETUP, controllerHolder, duelOver, duelTurn, duelWinner, newDuel, recordMatch, type Duel, type Player } from '@/lib/duel'
 import { saveDuelResult } from '@/lib/duelTally'
@@ -23,12 +25,14 @@ import { COUNTDOWN_SECONDS, DEFAULT_GOALS, MAX_GOALS, MIN_GOALS, type Difficulty
 import { ENDLESS, isEndless, runOutcome, type GameMode, type RunOutcome } from '@/lib/gameMode'
 import { getBestEndlessStreak, getBestPoints, saveBestEndlessStreak, saveBestPoints } from '@/lib/highScore'
 import { LEVEL_COUNT, clampLevel, levelPassed, levelSpec, levelStars, type Stars } from '@/lib/levels'
+import { cartelDeObjetivo, medallaQueCelebra, type Medalla, type Objetivo, type Partida as PartidaDelObjetivo, type VistaDelCartel } from '@/lib/objetivo'
 import { semillaDeLaMesa } from '@/lib/opponent'
 import { getStarsList, getUnlockedLevel, saveLevelResult } from '@/lib/progress'
 import type { Scorer } from '@/lib/puckPhysics'
 import { scoreConceded, scoreGoal } from '@/lib/scoring'
 import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana } from '@/lib/hazanas'
 import type { Resultado, Reto } from '@/lib/semilla'
+import { traductorSuave } from '@/lib/textos'
 import { SIN_HITOS, apuntarHito, type TutorialHitos, type TutorialStepKey } from '@/lib/tutorial'
 
 /** Las fases de la web (`GameState`), más la pregunta de salir, que allí es `prompt`. */
@@ -69,13 +73,23 @@ export interface OpcionesDeLaPartida {
   reto?: Reto | null
   /** Se llama una vez al acabar cada partida con puntuación (no al dejarla a medias). */
   alTerminar?: (resultado: Resultado) => void
+  /**
+   * Los listones de medalla del juego y la marca de quien juega, para el cartel de encima del
+   * marcador (`objetivo.ts`). Sin él, el cartel dice la misión y el récord guardado aquí.
+   */
+  objetivo?: Objetivo | null
 }
 
 export class Partida {
   // Lo que se elige en el menú.
   goalTarget = DEFAULT_GOALS
   difficulty: Difficulty = 'easy'
-  gameMode: GameMode = 'practice'
+  /**
+   * El menú abre **siempre** en el reto, con salón o sin él, y no recuerda el último modo: es el
+   * del récord y el de las medallas, así que jugar sin tocar nada es jugar a lo que cuenta. La
+   * práctica queda a un toque.
+   */
+  gameMode: GameMode = MODO_DEL_RETO
   endless = false
   /** Nivel elegido en Niveles, o `null` = el más alto desbloqueado. */
   level: number | null = null
@@ -109,6 +123,8 @@ export class Partida {
   private unlockedAtStart = 1
   private levelAtStart = 1
   private readonly semillaDelReto: number | null
+  /** Lo que pasó el salón, o `null` con el juego abierto suelto. */
+  readonly objetivo: Objetivo | null
   private readonly alTerminar: ((resultado: Resultado) => void) | undefined
   /** Las hazañas de esta partida (en el reto, de todas sus rondas): se estrenan al cerrarla. */
   private hazanas = new Set<Hazana>()
@@ -118,12 +134,12 @@ export class Partida {
   private _isRecord = false
   private _levelResult: ResultadoDelNivel | null = null
 
-  constructor({ reto = null, alTerminar }: OpcionesDeLaPartida = {}) {
+  constructor({ reto = null, alTerminar, objetivo = null }: OpcionesDeLaPartida = {}) {
+    this.objetivo = objetivo
     this.semillaDelReto = reto?.semilla ?? null
     this.alTerminar = alTerminar
     if (reto != null) {
       // Con el reto del salón se entra directamente a jugar, como en la web.
-      this.gameMode = MODO_DEL_RETO
       this.running = true
       this.countdown = COUNTDOWN_SECONDS
       this.runId = 1
@@ -251,6 +267,43 @@ export class Partida {
   get bestPoints(): number {
     if (this.gameMode === 'practice' && this.endless) return getBestEndlessStreak()
     return this.levels || this.duel ? 0 : getBestPoints(this.gameMode)
+  }
+
+  /** La partida tal y como se le cuenta al cartel del objetivo (`partidaDelCartel` de la web). */
+  private paraElCartel(lang: Lang): PartidaDelObjetivo | null {
+    return partidaDelCartel(
+      {
+        objetivo: this.objetivo,
+        gameMode: this.gameMode,
+        gameState: this.gameState,
+        round: this.challengeRoundNumber,
+        goles: this.totalPlayerGoals + this.totalOpponentGoals,
+        points: this.points,
+        streak: this.streak,
+        record: this.recordToBeat,
+      },
+      traductorSuave(lang),
+    )
+  }
+
+  /**
+   * Lo que dice el cartel de encima del marcador, en ese idioma, o `null` si no hay nada que
+   * colgar: en el menú, y fuera del reto con el juego abierto suelto.
+   */
+  cartel(lang: Lang): VistaDelCartel | null {
+    const partida = this.paraElCartel(lang)
+    return partida == null ? null : cartelDeObjetivo(partida, traductorSuave(lang))
+  }
+
+  /** La medalla que ya es de quien juega en esta partida: cuando sube, se celebra el listón. */
+  get medalla(): Medalla | null {
+    const partida = this.paraElCartel('en')
+    return partida == null ? null : medallaQueCelebra(partida)
+  }
+
+  /** Lo que el marcador del fondo calla porque ya lo dice el cartel (`loQueCallaElMarcador`). */
+  get callado(): { puntos: boolean; ronda: boolean } {
+    return loQueCallaElMarcador(this.paraElCartel('en'))
   }
 
   /** El duelo con la partida recién terminada ya contada (`duelNow` de la web). */

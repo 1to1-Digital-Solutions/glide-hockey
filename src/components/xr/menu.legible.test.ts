@@ -99,6 +99,31 @@ describe('los nombres de las filas del menú se leen', () => {
   })
 })
 
+describe('el menú dice de cada modo si cuenta para medalla', () => {
+  it('en la línea del rótulo «Modo», con letras: solo el reto cuenta', () => {
+    for (const lang of IDIOMAS) {
+      const t = traductor(lang)
+      for (const gameMode of GAME_MODE_ORDER) {
+        const { ctx, escritos } = lienzoQueApunta()
+        dibujarLosNombres(ctx, t, gameMode === 'levels', gameMode, 'place')
+        const frase = t(gameMode === 'challenge' ? 'Counts for a medal' : 'Does not count for a medal')
+        const escrita = escritos.find((e) => e.texto === frase)
+        const rotulo = escritos.find((e) => e.texto === t('Mode'))!
+        expect(escrita, `${lang} ${gameMode}`).toBeDefined()
+        expect(escrita!.y).toBeCloseTo(rotulo.y)
+        expect(escrita!.x).toBeGreaterThan(rotulo.x)
+      }
+    }
+  })
+
+  it('y si el salón saca las medallas de otro modo, el reto tampoco cuenta', () => {
+    const { ctx, escritos } = lienzoQueApunta()
+    const otro = { medallas: { bronce: 1, plata: 2, oro: 3 }, mejorEs: 'mas', unidad: 'points', record: null, modo: 'levels' } as const
+    dibujarLosNombres(ctx, traductor('en'), false, 'challenge', 'place', otro)
+    expect(escritos.map((e) => e.texto)).toContain('Does not count for a medal')
+  })
+})
+
 describe('el menú empieza por el modo, y solo la práctica pregunta', () => {
   /** Los nombres de las filas que se pintan con ese modo. */
   function filas(gameMode: (typeof GAME_MODE_ORDER)[number]): string[] {
@@ -259,6 +284,8 @@ describe('lo que el menú deja ver', () => {
   })
 
   it('el control: centrado sobre la mesa y a la altura de los ojos, tapaba los tres', () => {
+    // La demostración ya no está de frente —va a un lado del cartel (`sitioDelTutorial`)— y aun
+    // así un menú centrado le pisaba el canto; cuando estaba de frente, la tapaba entera.
     const comoEstaba = delEspacioDelJugador([0, 0.62, 0.2])
     const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
     expect(
@@ -271,7 +298,7 @@ describe('lo que el menú deja ver', () => {
     ).toEqual([
       'el panel tapa la mesa en 116 de 196 puntos',
       'el panel tapa el marcador en 49 de 49 puntos',
-      'el panel tapa la demostración del gesto en 49 de 49 puntos',
+      'el panel tapa la demostración del gesto en 10 de 49 puntos',
     ])
   })
 })

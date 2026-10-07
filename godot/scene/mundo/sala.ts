@@ -24,6 +24,7 @@ import { BoxMesh, Color, Node3D, QuadMesh, Vector2, Vector3, type Environment, t
 import { cuadro, anillo, conSombra, mate, multimalla, basico, translucido, tumbar } from '@kit/runtime/escena/piezas'
 import { deCuaternion, escalar, giroSobre, multiplicar, transformDe, type M3 } from '@kit/runtime/escena/matrices'
 
+import { NEONES_DEL_FONDO } from '@/lib/cartelDelMarcador'
 import { TABLE_CENTER_Z } from '@/lib/gameConfig'
 import { PALETTE } from '@/lib/palette'
 
@@ -116,12 +117,11 @@ export class Sala {
     n.add_child(techo)
 
     // Los neones de la pared del fondo: dos rayas de luz, sin tono (`toneMapped={false}`).
-    for (const neon of [
-      { y: 2.6, color: NEON_PINK, ancho: 5 },
-      { y: 2.3, color: NEON_CYAN, ancho: 3.6 },
-    ]) {
-      n.add_child(cuadro(neon.ancho, 0.06, basico(neon.color), new Vector3(0, neon.y, centre - ROOM.depth / 2 + 0.03)))
-    }
+    // A la altura que deja libre el cartel del objetivo (`NEONES_DEL_FONDO`).
+    NEONES_DEL_FONDO.tiras.forEach((neon, i) => {
+      const color = [NEON_PINK, NEON_CYAN][i]!
+      n.add_child(cuadro(neon.ancho, NEONES_DEL_FONDO.grueso, basico(color), new Vector3(0, neon.y, centre - ROOM.depth / 2 + 0.03)))
+    })
 
     // Las máquinas: el mueble, la pantalla apagada algo inclinada y el cartel encendido de arriba.
     const sitios = sitiosDeLasMaquinas(centre)

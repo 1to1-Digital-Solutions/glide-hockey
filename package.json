@@ -41,7 +41,11 @@
     ],
     "budget": {
       "drawCalls": {
-        "mesa": 40
+        "mesa": 40,
+        "cartel-del-objetivo": {
+          "min": 1,
+          "max": 2
+        }
       }
     }
   },

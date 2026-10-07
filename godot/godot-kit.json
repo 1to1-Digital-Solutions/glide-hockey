@@ -15,7 +15,10 @@
       "goal": {},
       "win": {},
       "loss": {},
-      "record": {}
+      "record": {},
+      "medal-bronze": {},
+      "medal-silver": {},
+      "medal-gold": {}
     },
     "loops": {
       "slide": { "calls": [["play", "strike", 0], ["slide", 6]] }

@@ -17,25 +17,30 @@
 import { Camera3D, Engine, InputEventMouseButton, InputEventMouseMotion, MouseButton, Node, Node3D, OS, SceneTree, Vector2, Vector3 } from 'godot'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { problemasDeLegibilidad } from '@kit/lib/ui/instrumento'
+import { MIN_ANGULO, problemasDeLegibilidad } from '@kit/lib/ui/instrumento'
 import { ALTO_DE_LINEA, medidorAproximado, type Escrito } from '@kit/lib/ui/texto'
 import { PANEL_DEL_TUTORIAL } from '@kit/lib/ui/tutorial'
 import { Sfx } from '@kit/runtime/sfx'
 import { Punteria } from '@kit/runtime/ui/punteria'
 
 import { LANGS, VOLUME_KEYS } from '@/lib/ajustes'
+import { partidaDelCartel, sitioDelCartel, type LoQueSeJuega } from '@/lib/cartelDelMarcador'
 import { COUNTDOWN_SECONDS, DIFFICULTY_ORDER } from '@/lib/gameConfig'
 import { GAME_MODE_ORDER, type GameMode } from '@/lib/gameMode'
 import { problemasDeLaSalida } from '@/lib/exitCorner'
+import { panelPoints, whatThePanelHides } from '@/lib/panelOcclusion'
 import { sizesOffList, textsOnButtons, unreadableTexts, worstReadingDistance, type PanelPose } from '@/lib/panelReading'
 import { gameStorage } from '@/lib/storage'
-import { traductor } from '@/lib/textos'
+import { cartelDeObjetivo, type Objetivo, type VistaDelCartel } from '@/lib/objetivo'
+import { traductor, traductorSuave } from '@/lib/textos'
 import { TUTORIAL_STEPS } from '@/lib/tutorial'
+import { REFERENCE_EYE_HEIGHT } from '@/lib/uiHeight'
 import { MENU_PANEL, MENU_TEXT } from '@/lib/xrMenuLayout'
 
 import { CLAVE_DEL_IDIOMA, idioma, niveles } from '@kit/runtime/ajustes'
 import { CLAVE_DEL_CONFORT, confort } from './confort'
 import { AvisoDeSalir } from './aviso'
+import { Cartel } from './cartel'
 import { FinalDeLaPartida, LETRA_DEL_DUELO, LETRA_DEL_FINAL } from './final'
 import { InterfazDelJuego } from './interfaz'
 import { CuentaAtras } from './marcador'
@@ -45,8 +50,15 @@ import {
   AVISO,
   AVISO_DEL_MAZO,
   CAJAS_DEL_FINAL,
+  CARTEL,
+  FILAS_DEL_MARCADOR,
+  MARCADOR,
+  SITIO_DEL_CARTEL,
   ESCALA_DE_LA_COLUMNA,
   MEDIDAS_DEL_TUTORIAL,
+  PROPORCION_DEL_CARTEL,
+  TUTORIAL_EN_PLANO,
+  delEspacioDelJugador,
   FINAL,
   LETRA_DEL_AVISO,
   LETRA_DEL_AVISO_DE_SALIR,
@@ -94,6 +106,7 @@ function estadoDelMenu(cambios: Partial<EstadoDelMenu> = {}): EstadoDelMenu {
     confort: 'normal',
     habitacion: false,
     escenario: 'place',
+    objetivo: null,
     ...cambios,
   }
 }
@@ -213,6 +226,148 @@ describe('el menú mide lo que la web', () => {
   })
 })
 
+describe('el menú dice de cada modo si cuenta para medalla', () => {
+  const menu = new MenuDelJuego(
+    { elegirModo() {}, elegirDificultad() {}, elegirConfort() {}, mover() {}, sinFin() {}, alternarEscenario() {}, jugar() {}, salir() {} },
+    new Punteria(),
+  )
+
+  it('con letras, en la línea del rótulo «Modo»: solo el reto cuenta, en los dos idiomas', () => {
+    for (const lang of LANGS) {
+      const t = traductor(lang)
+      for (const modo of GAME_MODE_ORDER) {
+        menu.pintar(estadoDelMenu({ lang, modo }))
+        const frase = t(modo === 'challenge' ? 'Counts for a medal' : 'Does not count for a medal')
+        const escrita = menu.panel.escritos.find((e) => e.texto === frase)
+        const rotulo = menu.panel.escritos.find((e) => e.texto === t('Mode'))!
+        expect(escrita, `${lang} ${modo}`).toBeDefined()
+        expect(escrita!.y).toBeCloseTo(rotulo.y)
+        expect(escrita!.x).toBeGreaterThan(rotulo.x)
+      }
+    }
+  })
+
+  it('y si el salón saca las medallas de otro modo, el reto tampoco cuenta', () => {
+    const otro = { medallas: { bronce: 1, plata: 2, oro: 3 }, mejorEs: 'mas', unidad: 'points', record: null, modo: 'levels' } as const
+    menu.pintar(estadoDelMenu({ modo: 'challenge', objetivo: otro }))
+    expect(menu.panel.escritos.map((e) => e.texto)).toContain('Does not count for a medal')
+  })
+})
+
+describe('el cartel del objetivo se lee, con la letra de Godot', () => {
+  const OBJETIVO: Objetivo = {
+    medallas: { bronce: 1500, plata: 8000, oro: 20000 },
+    mejorEs: 'mas',
+    unidad: 'points in the challenge',
+    record: 104250,
+    modo: 'challenge',
+  }
+  const PANEL = { width: CARTEL.ancho, height: CARTEL.alto }
+  /** Desde donde se juega con el visor: a tres alturas de ojos, con el mundo de pie o a su altura. */
+  const VISTAS = vistasDelPanel(SITIO_DEL_CARTEL.position, SITIO_DEL_CARTEL.rotation)
+  /** Lo que se agranda el cartel donde cuelga: está pintado para leerse a `CARTEL.distancia`. */
+  const ESCALA = SITIO_DEL_CARTEL.distancia / CARTEL.distancia
+
+  /** Las partidas que se miden: de la primera cuenta atrás a un reto de dos vueltas, y el final. */
+  const MOMENTOS: Partial<LoQueSeJuega>[] = [
+    { gameState: 'countdown' },
+    { gameState: 'playing' },
+    { round: 5, points: 1650, goles: 20, streak: 4 },
+    { round: 12, points: 19850, goles: 70, streak: 11 },
+    { round: 28, points: 123450, goles: 180, streak: 12 },
+    { gameState: 'finished', round: 4, points: 1650, goles: 20 },
+    { gameState: 'finished', round: 30, points: 123450, goles: 190 },
+    { gameMode: 'practice' },
+    { gameMode: 'duel' },
+  ]
+
+  function vistas(lang: (typeof LANGS)[number]): VistaDelCartel[] {
+    const t = traductorSuave(lang)
+    const base: LoQueSeJuega = { gameMode: 'challenge', gameState: 'playing', round: 1, goles: 0, points: 0, streak: 0, record: 104250 }
+    const todas: VistaDelCartel[] = []
+    for (const objetivo of [OBJETIVO, null]) {
+      for (const momento of MOMENTOS) {
+        const partida = partidaDelCartel({ ...base, objetivo, ...momento }, t)
+        if (partida != null) todas.push(cartelDeObjetivo(partida, t))
+      }
+    }
+    return todas
+  }
+
+  it('todo lo que dice cabe y no se pisa, y cada letra pasa de lo que se lee desde donde se juega', () => {
+    const cartel = new Cartel()
+    cartel.colocar(SITIO_DEL_CARTEL)
+    let medidas = 0
+    for (const lang of LANGS) {
+      for (const vista of vistas(lang)) {
+        cartel.actualizar(vista, null, lang, 0.016)
+        const escritos = cartel.panel.escritos
+        const donde = `${lang}: ${vista.titulo} / ${vista.detalle}`
+        expect(escritos.map((e) => e.texto), donde).toEqual([vista.titulo, ...(vista.detalle == null ? [] : [vista.detalle])])
+        expect(problemasDeLegibilidad(escritos, { panel: PANEL, distancia: CARTEL.distancia }), donde).toEqual([])
+        for (const { pose, ojos, donde: desde } of VISTAS) {
+          expect(unreadableTexts(aLaEscala(escritos, ESCALA), pose, ojos, ALTO_DE_LINEA, MIN_ANGULO), `${donde}, ${desde}`).toEqual([])
+        }
+        medidas++
+      }
+    }
+    expect(medidas).toBeGreaterThan(20)
+    cartel.nodo.free()
+  })
+
+  it('la misión y lo que se mira jugando se leen de un vistazo: más de un grado', () => {
+    const cartel = new Cartel()
+    cartel.colocar(SITIO_DEL_CARTEL)
+    const base: LoQueSeJuega = { objetivo: OBJETIVO, gameMode: 'challenge', gameState: 'playing', round: 5, goles: 20, points: 1650, streak: 4, record: 0 }
+    for (const lang of LANGS) {
+      const t = traductorSuave(lang)
+      for (const momento of [{ gameState: 'countdown', round: 1, goles: 0, points: 0, streak: 0 }, {}] as Partial<LoQueSeJuega>[]) {
+        cartel.actualizar(cartelDeObjetivo(partidaDelCartel({ ...base, ...momento }, t)!, t), null, lang, 0.016)
+        const escritos = aLaEscala(cartel.panel.escritos, ESCALA)
+        for (const { pose, ojos, donde } of VISTAS) {
+          expect(unreadableTexts(escritos, pose, ojos, ALTO_DE_LINEA, 1), `${lang}, ${donde}`).toEqual([])
+        }
+      }
+    }
+    cartel.nodo.free()
+  })
+
+  it('mide lo que el de la web: 24° por 4,5° a su distancia, con la letra del título a 1,4°', () => {
+    const grado = (2 * CARTEL.distancia * Math.tan((MIN_ANGULO * Math.PI) / 180 / 2)) / MIN_ANGULO
+    expect(CARTEL.ancho / grado).toBeCloseTo(24)
+    expect(CARTEL.alto / grado).toBeCloseTo(4.5)
+    expect(CARTEL.titulo / grado).toBeCloseTo(1.4)
+    expect(CARTEL.detalle / grado).toBeCloseTo(1.2)
+    expect(SITIO_DEL_CARTEL).toEqual(sitioDelCartel({ ancho: CARTEL.ancho / CARTEL.distancia, alto: CARTEL.alto / CARTEL.distancia }))
+  })
+
+  it('celebra el listón cruzado: lo devuelve una vez, crece y vuelve, y recién colgado no celebra nada', () => {
+    const cartel = new Cartel()
+    cartel.colocar(SITIO_DEL_CARTEL)
+    const t = traductorSuave('en')
+    const base: LoQueSeJuega = { objetivo: OBJETIVO, gameMode: 'challenge', gameState: 'playing', round: 4, goles: 14, points: 1650, streak: 0, record: 0 }
+    const vista = cartelDeObjetivo(partidaDelCartel(base, t)!, t)
+
+    // Colgado con el bronce ya en la mano: no se ha visto cruzar el listón.
+    expect(cartel.actualizar(vista, 'bronce', 'en', 0.016)).toBeNull()
+    expect(cartel.celebrando).toBeNull()
+    expect(cartel.actualizar(vista, 'plata', 'en', 0.016)).toBe('plata')
+    expect(cartel.celebrando).toBe('plata')
+    expect(cartel.actualizar(vista, 'plata', 'en', 0.1)).toBeNull()
+    expect(cartel.nodo.scale.x).toBeGreaterThan(ESCALA)
+    // Pasado el festejo vuelve a su tamaño y deja de celebrar.
+    for (let i = 0; i < 20; i++) cartel.actualizar(vista, 'plata', 'en', 0.1)
+    expect(cartel.celebrando).toBeNull()
+    expect(cartel.nodo.scale.x).toBeCloseTo(ESCALA)
+    // Bajar de un listón —un gol encajado— no se celebra.
+    expect(cartel.actualizar(vista, 'bronce', 'en', 0.016)).toBeNull()
+    // Sin vista se esconde.
+    cartel.actualizar(null, null, 'en', 0.016)
+    expect(cartel.nodo.visible).toBe(false)
+    cartel.nodo.free()
+  })
+})
+
 describe('el final, el aviso, la cuenta y el tutorial se leen', () => {
   it('el final, en los dos idiomas, ganado, perdido, con récord y en un nivel', () => {
     const final = new FinalDeLaPartida({ otraVez() {}, menu() {}, salir() {} }, new Punteria())
@@ -303,6 +458,25 @@ describe('el final, el aviso, la cuenta y el tutorial se leen', () => {
     }
   })
 
+  it('el tutorial va a un lado del cartel y del marcador: no tapa ninguno, a ninguna altura de ojos', () => {
+    const cartel = { width: PROPORCION_DEL_CARTEL.ancho * SITIO_DEL_CARTEL.distancia, height: PROPORCION_DEL_CARTEL.alto * SITIO_DEL_CARTEL.distancia }
+    const loQueSeLee = (sube: number) => {
+      const c = delEspacioDelJugador(SITIO_DEL_CARTEL.position)
+      const m = delEspacioDelJugador(XR_UI.scoreboard)
+      return [
+        { que: 'el cartel', puntos: panelPoints([c[0], c[1] + sube, c[2]], cartel, 8) },
+        { que: 'el marcador', puntos: panelPoints([m[0], m[1] + sube, m[2]], MARCADOR, 8) },
+      ]
+    }
+    for (const { donde, pose, ojos } of vistasDelPanel(XR_UI.tutorial, XR_UI_ROTATION.tutorial)) {
+      const sube = pose.position[1] - delEspacioDelJugador(XR_UI.tutorial)[1]
+      expect(whatThePanelHides(pose, PANEL_DEL_TUTORIAL, ojos, loQueSeLee(sube)), donde).toEqual([])
+    }
+    // El control: de frente, donde sigue en plano, los tapa enteros.
+    const [deFrente] = vistasDelPanel(TUTORIAL_EN_PLANO, XR_UI_ROTATION.tutorialEnPlano).filter((v) => v.ojos.y === REFERENCE_EYE_HEIGHT)
+    expect(whatThePanelHides(deFrente!.pose, PANEL_DEL_TUTORIAL, deFrente!.ojos, loQueSeLee(0))).toHaveLength(2)
+  })
+
   it('el tutorial pide lo que toca: el agarre, el golpe y el gol, y se puede saltar', () => {
     const tutorial = new TutorialDelJuego(new Punteria())
     tutorial.forzar()
@@ -368,7 +542,10 @@ describe('con el ratón: el menú lleva a jugar, parar pregunta y el final vuelv
     camara.look_at_from_position(new Vector3(0, 2.65, 1.5), new Vector3(0, 0.9, -1.2), Vector3.UP)
     camara.current = true
     salidas = 0
+    // El menú abre en el reto (lo comprueba «abre en el reto», abajo); aquí se pulsa el de la
+    // práctica, que es el que pregunta el nivel y los goles.
     partida = new Partida()
+    partida.setGameMode('practice')
     escenario = {
       elegido: 'place',
       hayHabitacion: true,
@@ -412,6 +589,44 @@ describe('con el ratón: el menú lleva a jugar, parar pregunta y el final vuelv
     expect([partida.activeDifficulty, partida.activeGoalTarget]).toEqual([DIFFICULTY_ORDER[2], 8])
     expect(interfaz.menu.nodo.visible).toBe(false)
     expect(interfaz.marcador.nodo.visible).toBe(true)
+  })
+
+  it('abre en el reto: jugar sin tocar nada lo empieza, con el cartel del objetivo encima del marcador', () => {
+    interfaz.soltar()
+    partida = new Partida()
+    interfaz = new InterfazDelJuego(partida, { salir: () => salidas++ }, { raiz: mesa, camara, visor: false, escenario })
+    interfaz.actualizar(0.016)
+    expect(partida.gameMode).toBe('challenge')
+    expect(interfaz.menu.panel.escritos.map((e) => e.texto)).toContain('Counts for a medal')
+    expect(interfaz.cartel.nodo.visible).toBe(false)
+
+    clic('jugar')
+    interfaz.actualizar(0.016)
+    expect([partida.gameMode, partida.gameState]).toEqual(['challenge', 'countdown'])
+    expect(interfaz.cartel.nodo.visible).toBe(true)
+    expect(interfaz.cartel.panel.escritos.map((e) => e.texto)).toEqual(['Win games until you lose one'])
+    // Cuelga de la raíz de la interfaz, por encima del marcador entero.
+    expect(interfaz.cartel.nodo.get_parent()).toBe(mesa)
+    expect(interfaz.cartel.nodo.position.y - (CARTEL.alto / 2) * interfaz.cartel.nodo.scale.y).toBeGreaterThan(XR_UI.scoreboard[1] + MARCADOR.height / 2)
+    expect(interfaz.cartel.nodo.position.x).toBeCloseTo(0)
+
+    // Jugando, el marcador calla los puntos y la ronda, que ya dice el cartel, y los goles van en medio.
+    for (let i = 0; i < COUNTDOWN_SECONDS * 60 + 2; i++) partida.tick(1 / 60)
+    partida.scorePlayer()
+    interfaz.actualizar(0.016)
+    expect(interfaz.cartel.panel.escritos.map((e) => e.texto)).toEqual(['You have 100', 'Round 1 · to 3 goals · goal +120'])
+    expect(interfaz.marcador.puntos.nodo.visible).toBe(false)
+    expect(interfaz.marcador.fila.nodo.visible).toBe(false)
+    expect(interfaz.marcador.jugador.nodo.position.y).toBe(0)
+    expect(interfaz.liston).toBeNull()
+  })
+
+  it('en la práctica el marcador lo dice todo y no hay cartel: sin salón no hay medalla de la que hablar', () => {
+    clic('jugar')
+    interfaz.actualizar(0.016)
+    expect(interfaz.cartel.nodo.visible).toBe(false)
+    expect(interfaz.marcador.puntos.nodo.visible).toBe(true)
+    expect(interfaz.marcador.jugador.nodo.position.y).toBeCloseTo(FILAS_DEL_MARCADOR.goals)
   })
 
   it('elegir el confort lo guarda, y el modo cambia lo que pregunta', () => {

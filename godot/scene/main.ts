@@ -69,6 +69,7 @@ import {
 import { triangulosDeArco } from '@kit/lib/ui/iconos'
 import { PERFIL_POR_DEFECTO } from '@kit/lib/ui/mando'
 import type { Punto2 } from '@kit/lib/ui/salida'
+import { objetivoDe } from '@kit/lib/juegoBase'
 import type { Mano } from '@kit/lib/xr/manos'
 import { IDENTIDAD } from '@kit/lib/xr/pose'
 import { gameStorage } from '@kit/motor/almacen-godot'
@@ -95,6 +96,7 @@ import {
   TABLE_LENGTH,
   TABLE_WIDTH,
 } from '@/lib/gameConfig'
+import { SONIDO_DEL_LISTON } from '@/lib/cartelDelMarcador'
 import { finalSuenaAGanar, type MatchScore } from '@/lib/duel'
 import { getDuelTally } from '@/lib/duelTally'
 import { GAME_MODE_ORDER, type GameMode } from '@/lib/gameMode'
@@ -106,6 +108,7 @@ import { ALCANCE_DE_AGARRE } from '@/lib/malletGrab'
 import { advanceTable, startTable, type TableState } from '@/lib/matchLoop'
 import { MUSIC_VOLUME } from '@/lib/music'
 import { MUSIC_FADE_MS, fadeVolume } from '@/lib/musicFade'
+import type { Objetivo } from '@/lib/objetivo'
 import { playerStart } from '@/lib/opponent'
 import { PALETTE } from '@/lib/palette'
 import * as pellizco from '@/lib/pellizco'
@@ -127,7 +130,7 @@ import { efectoDelChoque, impactStrength, pulsosDelSuceso, roceDelDisco, sucesos
 
 /**
  * Todos los efectos renderizados (`godot-kit.json`, `sfx.sounds`): el golpe y el rebote a tres
- * fuerzas, el gol y los tres cierres. El roce del disco va aparte: es un bucle (`sfx.loops`) que
+ * fuerzas, el gol, los tres cierres y los tres listones de medalla. El roce del disco va aparte: es un bucle (`sfx.loops`) que
  * suena mientras el disco se mueve.
  */
 export const SOUNDS = [
@@ -141,6 +144,9 @@ export const SOUNDS = [
   'win',
   'loss',
   'record',
+  'medal-bronze',
+  'medal-silver',
+  'medal-gold',
 ] as const
 const SFX_DIR = 'res://games/glide-hockey/sfx'
 const BUS_DEL_JUEGO = 'GlideHockey'
@@ -228,6 +234,17 @@ export function retoDelSalon(nodo: Node): Reto | null {
   const xrcade = nodo.get_node_or_null('/root/XRcade')
   if (xrcade != null && xrcade.has_meta('challenge_seed')) return { semilla: Number(xrcade.get_meta('challenge_seed')) >>> 0 }
   return null
+}
+
+/**
+ * El objetivo de la cabina que presta el salón: los listones de medalla, la mejor marca y el modo
+ * en el que cuenta, del metadato `goal` de su autoload `XRcade` —lo mismo que lee `base.objetivo()`
+ * del kit, con su mismo lector (`objetivoDe`), y lo que la web recibe en la prop `objetivo`—.
+ * `null` con el juego suelto, o si el salón no le pone medallas: el cartel se queda en la misión.
+ */
+export function objetivoDelSalon(nodo: Node): Objetivo | null {
+  const xrcade = nodo.get_node_or_null('/root/XRcade')
+  return objetivoDe(xrcade != null && xrcade.has_meta('goal') ? xrcade.get_meta('goal') : null)
 }
 
 /**
@@ -319,6 +336,8 @@ export default class GlideHockey extends Node3D {
   private partidasDelDuelo: (MatchScore & { seed: number })[] = []
   /** Los cierres que han sonado, en orden: `win` o `loss` por final. */
   private cierres: string[] = []
+  /** Los listones de medalla cruzados, en orden: lo que celebró el cartel del objetivo. */
+  private listones: string[] = []
   private shotPath: string | null = null
   private shotMenuPath: string | null = null
   private shotFinalPath: string | null = null
@@ -360,7 +379,7 @@ export default class GlideHockey extends Node3D {
     this.buildSound()
     this.buildAyudas()
 
-    this.partida = new Partida({ reto: retoDelSalon(this), alTerminar: (r) => this.alTerminar(r) })
+    this.partida = new Partida({ reto: retoDelSalon(this), objetivo: objetivoDelSalon(this), alTerminar: (r) => this.alTerminar(r) })
     this.partida.immersive = this.driver === 'xr'
     this.interfaz = new InterfazDelJuego(
       this.partida,
@@ -759,6 +778,14 @@ export default class GlideHockey extends Node3D {
     this.roce.pitch = roce.pitch
     this.roce.update(delta)
     this.interfaz.actualizar(delta, { agarre: this.player?.ajustes.agarre ?? 'hold' })
+    // El listón de medalla cruzado: el color y el pulso son del cartel; aquí, el sonido corto y el
+    // golpe en la mano del mazo, como en la web (`GameWorld.tsx`).
+    const liston = this.interfaz.liston
+    if (liston != null) {
+      this.listones.push(liston)
+      this.sfx.play(SONIDO_DEL_LISTON[liston])
+      this.sentir({ tipo: 'liston', medalla: liston })
+    }
     // La cuenta parada en el último segundo enseña el agarre en el mando de verdad (`XRCountdown`):
     // el paso de coger del tutorial se supera en la cuenta, antes de que su panel llegue a salir.
     const esperandoElMazo = fase === 'countdown' && partida.esperandoElMazo
@@ -1020,9 +1047,20 @@ export default class GlideHockey extends Node3D {
     return this.partida.enReto
   }
 
-  /** A qué modo es la partida de ahora (o la última). */
+  /** A qué modo es la partida de ahora (o la última), que es también el elegido en el menú. */
   modo_de_la_partida(): string {
     return this.partida.gameMode
+  }
+
+  /** Lo que dice el cartel del objetivo ahora mismo, sus dos líneas en una; vacío si no está colgado. */
+  cartel_dice(): string {
+    const vista = this.partida.cartel(this.interfaz.lang)
+    return vista == null ? '' : [vista.titulo, vista.detalle ?? ''].join(' | ')
+  }
+
+  /** Si el cartel del objetivo se ve. */
+  cartel_visible(): boolean {
+    return this.interfaz.cartel.nodo.visible
   }
 
   /** Dónde cae en la pantalla un botón de la interfaz, para que un test lo pulse con el ratón. */
@@ -1088,6 +1126,7 @@ export default class GlideHockey extends Node3D {
       levels: niveles(),
       duel: partida.duelView == null ? null : { ...partida.duelView, partidas: this.partidasDelDuelo, pareja: getDuelTally() },
       cierres: this.cierres,
+      listones: this.listones,
       xr: this.xrReport(),
     }
     // `print` del motor y no `console.log`: en las plantillas release GodotJS solo deja pasar los

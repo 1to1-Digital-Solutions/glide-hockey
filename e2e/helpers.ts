@@ -20,7 +20,8 @@ export async function abrirJuego(page: Page): Promise<void> {
 }
 
 /**
- * Empieza una partida de prueba con el nivel y los goles que se pidan.
+ * Empieza una partida de prueba con el nivel y los goles que se pidan. El menú abre en el reto
+ * —lo comprueba `partida.spec.ts`—, así que lo primero es elegir la práctica.
  *
  * El nivel importa para lo que tarda un test en resolverse: con el mazo del
  * jugador parado, la máquina marca cada pocos segundos en Imposible y cada
@@ -30,6 +31,7 @@ export async function jugarPartida(
   page: Page,
   { goles, nivel, sinFin = false }: { goles: number; nivel: string; sinFin?: boolean },
 ): Promise<void> {
+  await page.getByRole('button', { name: 'Practice', exact: true }).click()
   await page.getByRole('button', { name: nivel }).click()
   await page.locator('#goal-target').fill(String(goles))
   // Después de los goles: sin fin apaga el deslizador.

@@ -20,8 +20,19 @@
  */
 
 import type { Lang } from './ajustes'
+import { OBJETIVO_ES } from './objetivo'
 
 const ES = {
+  // El cartel del objetivo, común a todos los juegos del salón. Lo primero, para que lo que el
+  // juego ya decía por su cuenta no choque.
+  ...OBJETIVO_ES,
+  // Y lo que este juego le da: la misión del reto y lo que queda (`cartelDelMarcador.ts`).
+  'Win games until you lose one': 'Gana partidos hasta perder uno',
+  'Round {round} · to {goals} goals · goal +{points}': 'Ronda {round} · a {goals} goles · gol +{points}',
+  // Lo que el menú dice de cada modo.
+  'Counts for a medal': 'Cuenta para medalla',
+  'Does not count for a medal': 'No cuenta para medalla',
+
   // Lo que dice la pestaña y lo que se lee al compartir el enlace. El nombre se queda en
   // inglés a propósito: es el del producto, el mismo que rotula la cabina del salón y el
   // que irá en la ficha de la tienda. Lo que se traduce es lo que va detrás.
@@ -53,7 +64,7 @@ const ES = {
   // Modos, dificultades y escenario
   Practice: 'Práctica',
   Levels: 'Niveles',
-  Challenge: 'Desafío',
+  Challenge: 'Reto',
   Duel: 'Duelo',
   'You choose the level and the goals. Losing costs nothing.':
     'Eliges el nivel y los goles. Perder no cuesta nada.',
@@ -100,7 +111,7 @@ const ES = {
   'Level {level} not cleared': 'Nivel {level} no superado',
   'Game won': 'Partida ganada',
   'Game lost': 'Partida perdida',
-  'The challenge ends at round {round}.': 'El desafío acaba en la ronda {round}.',
+  'The challenge ends at round {round}.': 'El reto acaba en la ronda {round}.',
   '{stars} star · level {level} unlocked.': '{stars} estrella · nivel {level} desbloqueado.',
   '{stars} stars · level {level} unlocked.': '{stars} estrellas · nivel {level} desbloqueado.',
   '{stars} star · score {scored}–{conceded}.': '{stars} estrella · marcador {scored}–{conceded}.',
@@ -193,6 +204,23 @@ export function formatea(plantilla: string, valores: Record<string, string | num
   return plantilla.replace(/\{(\w+)\}/g, (hueco, nombre: string) =>
     nombre in valores ? String(valores[nombre]) : hueco,
   )
+}
+
+/** Un traductor que acepta cualquier frase: el del cartel del objetivo (`Traducir` de `objetivo.ts`). */
+export type Traductor = (clave: string, valores?: Record<string, string | number>) => string
+
+/**
+ * El traductor que no exige que la frase esté en el diccionario: la que no está sale tal cual.
+ *
+ * Es el que recibe el cartel del objetivo, que traduce sus frases y además lo que le llega ya
+ * dicho de fuera —la unidad del récord, que el salón pasa en el idioma de quien juega—.
+ */
+export function traductorSuave(lang: Lang): Traductor {
+  return (frase, valores) => {
+    // Con `hasOwnProperty` y no con `in`: una unidad que se llamara como algo de `Object` no es una frase.
+    const dicho = lang === 'es' && Object.prototype.hasOwnProperty.call(ES, frase) ? ES[frase as TextKey] : frase
+    return valores === undefined ? dicho : formatea(dicho, valores)
+  }
 }
 
 /**

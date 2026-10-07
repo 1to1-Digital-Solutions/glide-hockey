@@ -10,16 +10,21 @@ import {
   dibujarElPaso,
   repartoDelPaso,
 } from './XRTutorial'
+import { proporcionDelCartel } from './CartelDeObjetivo'
+import { SCOREBOARD_SIZE } from './XRHud'
 import { ALTO_DE_LINEA } from './canvasPanel'
 import { lienzoQueApunta, problemasDeLegibilidad, type Escrito } from './legibilidad'
 import { ALTO_DEL_MANDO } from './mandoDibujado'
 import { TUTORIAL_STEPS } from '../../lib/tutorial'
 import { traductor } from '../../lib/textos'
-import { HALF_LENGTH } from '../../lib/puckPhysics'
+import { sitioDelTutorial } from '../../lib/cartelDelMarcador'
+import { panelPoints, tablePoints, whatThePanelHides } from '../../lib/panelOcclusion'
 import { REFERENCE_EYE_HEIGHT } from '../../lib/uiHeight'
 import {
   MIN_READING_DEGREES,
+  distanceFromEyes,
   eyesAt,
+  panelRotation,
   pointOnPanel,
   sizesOffList,
   textsOnButtons,
@@ -27,6 +32,7 @@ import {
   worstReadingDistance,
   type PanelPose,
 } from '../../lib/panelReading'
+import { SITIO_DEL_CARTEL } from '../game/CartelDelMarcador'
 import { XR_UI, XR_UI_ROTATION, delEspacioDelJugador, vistasDelPanel } from '../game/GameWorld'
 
 /**
@@ -162,14 +168,67 @@ describe('cada letra del tutorial se lee de un vistazo', () => {
 })
 
 describe('dónde se planta el tutorial', () => {
-  it('por encima de la vista del fondo de la mesa: no tapa el pasillo del disco', () => {
-    // La recta de los ojos al borde del fondo de la mesa, donde para el disco la máquina, pasa por
-    // debajo del borde de abajo del panel.
+  const MEDIDAS = { width: PANEL_WIDTH, height: PANEL_HEIGHT }
+  /** Lo que mide el cartel donde cuelga, y el marcador. */
+  const CARTEL = {
+    width: proporcionDelCartel().ancho * SITIO_DEL_CARTEL.distancia,
+    height: proporcionDelCartel().alto * SITIO_DEL_CARTEL.distancia,
+  }
+
+  /** El cartel y el marcador, que suben con los ojos igual que el tutorial. */
+  function loQueSeLee(sube: number) {
+    const cartel = delEspacioDelJugador(SITIO_DEL_CARTEL.position)
+    const marcador = delEspacioDelJugador(XR_UI.scoreboard)
+    return [
+      { que: 'el cartel', puntos: panelPoints([cartel[0], cartel[1] + sube, cartel[2]], CARTEL, 8) },
+      { que: 'el marcador', puntos: panelPoints([marcador[0], marcador[1] + sube, marcador[2]], SCOREBOARD_SIZE, 8) },
+    ]
+  }
+
+  it('no tapa la mesa: ni el tablero ni el disco, desde los ojos con los que se colocó', () => {
     const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
     const tutorial: PanelPose = { position: delEspacioDelJugador(XR_UI.tutorial), rotation: XR_UI_ROTATION.tutorial }
-    const abajo = pointOnPanel(tutorial, 0, -PANEL_HEIGHT / 2)
-    const fondo = delEspacioDelJugador([0, 0, -HALF_LENGTH])
-    const recta = ojos.y + ((fondo[1] - ojos.y) * abajo.z) / fondo[2]
-    expect(abajo.y - recta).toBeGreaterThan(0.05)
+    const mesa = [
+      { que: 'la mesa', puntos: tablePoints(13) },
+      { que: 'el disco y los mazos', puntos: tablePoints(13).map((p) => ({ ...p, y: p.y + 0.12 })) },
+    ]
+    expect(whatThePanelHides(tutorial, MEDIDAS, ojos, mesa)).toEqual([])
+  })
+
+  it('ni el cartel del objetivo ni el marcador, a ninguna altura de ojos: está a un lado', () => {
+    for (const { donde, pose, ojos } of VISTAS) {
+      const sube = pose.position[1] - delEspacioDelJugador(XR_UI.tutorial)[1]
+      expect(whatThePanelHides(pose, MEDIDAS, ojos, loQueSeLee(sube)), donde).toEqual([])
+    }
+  })
+
+  it('con dos grados de aire entre su canto y el del cartel', () => {
+    const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
+    const azimut = (p: { x: number; z: number }) => (Math.atan2(p.x - ojos.x, -(p.z - ojos.z)) * 180) / Math.PI
+    const tutorial: PanelPose = { position: delEspacioDelJugador(XR_UI.tutorial), rotation: XR_UI_ROTATION.tutorial }
+    const cartel: PanelPose = { position: delEspacioDelJugador(SITIO_DEL_CARTEL.position), rotation: SITIO_DEL_CARTEL.rotation }
+    const cantoDelTutorial = Math.min(...[-1, 1].map((y) => azimut(pointOnPanel(tutorial, -PANEL_WIDTH / 2, (y * PANEL_HEIGHT) / 2))))
+    const cantoDelCartel = Math.max(...[-1, 1].map((y) => azimut(pointOnPanel(cartel, CARTEL.width / 2, (y * CARTEL.height) / 2))))
+    expect(cantoDelTutorial - cantoDelCartel).toBeGreaterThan(1.5)
+    // Y sin irse más lejos de lo que hace falta: se sigue viendo girando poco la cabeza.
+    expect(cantoDelTutorial - cantoDelCartel).toBeLessThan(3)
+  })
+
+  it('a la misma distancia de los ojos que tenía de frente: cada letra ocupa lo mismo', () => {
+    const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
+    expect(distanceFromEyes(delEspacioDelJugador(XR_UI.tutorial), ojos)).toBeCloseTo(
+      distanceFromEyes(delEspacioDelJugador(sitioDelTutorial(0)), ojos),
+      10,
+    )
+  })
+
+  it('el control: de frente, donde estaba, tapaba el cartel y el marcador enteros', () => {
+    const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
+    const position = delEspacioDelJugador(sitioDelTutorial(0))
+    const deFrente: PanelPose = { position, rotation: panelRotation(position, ojos) }
+    expect(whatThePanelHides(deFrente, MEDIDAS, ojos, loQueSeLee(0))).toEqual([
+      'el panel tapa el cartel en 81 de 81 puntos',
+      'el panel tapa el marcador en 81 de 81 puntos',
+    ])
   })
 })

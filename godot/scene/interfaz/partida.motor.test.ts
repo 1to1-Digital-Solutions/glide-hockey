@@ -18,11 +18,21 @@ import { semillaDeLaMesa } from '@/lib/opponent'
 import type { Resultado } from '@/lib/semilla'
 import { gameStorage } from '@/lib/storage'
 
-import { Partida, acotarGoles } from './partida'
+import { Partida, acotarGoles, type OpcionesDeLaPartida } from './partida'
 
 /** Pasa la cuenta atrás entera, a fotogramas de 1/60. */
 function sacar(partida: Partida): void {
   for (let i = 0; i < COUNTDOWN_SECONDS * 60 + 2; i++) partida.tick(1 / 60)
+}
+
+/**
+ * Una partida con **la práctica** elegida, que es lo que juegan casi todos estos tests: el menú
+ * abre en el reto (lo comprueba el primero).
+ */
+function enPractica(opciones: OpcionesDeLaPartida = {}): Partida {
+  const partida = new Partida(opciones)
+  partida.setGameMode('practice')
+  return partida
 }
 
 function marcar(partida: Partida, jugador: number, maquina: number): void {
@@ -33,10 +43,22 @@ function marcar(partida: Partida, jugador: number, maquina: number): void {
 describe('la partida en Godot hace lo que el store de la web', () => {
   beforeEach(() => gameStorage()?.clear())
 
-  it('empieza en el menú, con la práctica, Fácil y los goles de partida', () => {
+  it('empieza en el menú, con el reto elegido, Fácil y los goles de partida: jugar sin tocar nada es el reto', () => {
     const p = new Partida()
     expect(p.gameState).toBe('menu')
-    expect([p.gameMode, p.difficulty, p.goalTarget]).toEqual(['practice', 'easy', DEFAULT_GOALS])
+    expect([p.gameMode, p.difficulty, p.goalTarget]).toEqual(['challenge', 'easy', DEFAULT_GOALS])
+    expect(p.enReto).toBe(false)
+    p.startGame()
+    expect([p.gameMode, p.gameState, p.round]).toEqual(['challenge', 'countdown', 1])
+    expect(p.cartel('en')?.titulo).toBe('Win games until you lose one')
+  })
+
+  it('siempre: no recuerda el modo de la última partida, y la práctica queda a un toque', () => {
+    const primera = new Partida()
+    primera.setGameMode('practice')
+    primera.startGame()
+    expect([primera.gameMode, primera.round]).toEqual(['practice', null])
+    expect(new Partida().gameMode).toBe('challenge')
   })
 
   it('los goles se quedan entre el mínimo y el máximo', () => {
@@ -46,7 +68,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
   })
 
   it('jugar abre la cuenta atrás y, pasada, se juega; con la partida en marcha no se elige nada', () => {
-    const p = new Partida()
+    const p = enPractica()
     p.startGame()
     expect(p.gameState).toBe('countdown')
     expect(p.cuenta).toBe(COUNTDOWN_SECONDS)
@@ -59,7 +81,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
   })
 
   it('con la pregunta de salir delante la cuenta atrás no corre', () => {
-    const p = new Partida()
+    const p = enPractica()
     p.startGame()
     p.askToQuit()
     sacar(p)
@@ -70,7 +92,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
   })
 
   it('con el visor, la cuenta se para en el último segundo hasta que el mazo está en la mano', () => {
-    const p = new Partida()
+    const p = enPractica()
     p.immersive = true
     p.startGame()
     sacar(p)
@@ -84,7 +106,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
   })
 
   it('los goles antes de sacar no cuentan; en juego suman, restan y llevan la racha', () => {
-    const p = new Partida()
+    const p = enPractica()
     p.startGame()
     p.scorePlayer()
     expect(p.playerGoals).toBe(0)
@@ -100,7 +122,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
 
   it('la práctica acaba al llegar a los goles, guarda el récord y lo cuenta una vez', () => {
     const contados: Resultado[] = []
-    const p = new Partida({ alTerminar: (r) => contados.push(r) })
+    const p = enPractica({ alTerminar: (r) => contados.push(r) })
     p.setGoalTarget(3)
     p.startGame()
     sacar(p)
@@ -122,7 +144,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
   })
 
   it('la práctica sin fin la termina quien juega, y su récord es la mejor racha', () => {
-    const p = new Partida()
+    const p = enPractica()
     p.setEndless(true)
     p.startGame()
     sacar(p)
@@ -136,7 +158,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
   })
 
   it('en los niveles, ganar da estrellas y abre el siguiente; perder no abre nada', () => {
-    const p = new Partida()
+    const p = enPractica()
     p.setGameMode('levels')
     p.startGame()
     sacar(p)
@@ -154,7 +176,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
   })
 
   it('en el reto, ganar la ronda pasa a la siguiente con mesa nueva, y perder lo acaba', () => {
-    const p = new Partida()
+    const p = enPractica()
     p.setGameMode('challenge')
     p.startGame()
     sacar(p)
@@ -187,7 +209,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
   })
 
   it('volver al menú no guarda nada y deja todo a cero', () => {
-    const p = new Partida()
+    const p = enPractica()
     p.startGame()
     sacar(p)
     marcar(p, 2, 0)
@@ -199,7 +221,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
 
   it('el duelo: juega el primero, luego el segundo, contra la misma máquina, y gana quien saca más ventaja', () => {
     const avisos: Resultado[] = []
-    const p = new Partida({ alTerminar: (r) => avisos.push(r) })
+    const p = enPractica({ alTerminar: (r) => avisos.push(r) })
     expect(p.duelView).toBeNull()
     p.setGameMode('duel')
     p.setDifficulty('impossible')
@@ -237,7 +259,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
   })
 
   it('el duelo con la misma ventaja es empate, y se apunta como empate', () => {
-    const p = new Partida()
+    const p = enPractica()
     p.setGameMode('duel')
     p.startGame()
     sacar(p)
@@ -252,7 +274,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
   it('las hazañas van en el JSON que se le pasa al salón (`report_result`), una vez en la vida', () => {
     const jsons: string[] = []
     // Lo mismo que hace `contarAlSalon` en `main.ts` con el resultado.
-    const p = new Partida({ alTerminar: (r) => jsons.push(JSON.stringify(r)) })
+    const p = enPractica({ alTerminar: (r) => jsons.push(JSON.stringify(r)) })
     p.setGoalTarget(3)
     p.startGame()
     sacar(p)
@@ -282,5 +304,82 @@ describe('la partida en Godot hace lo que el store de la web', () => {
     for (let i = 0; i < 40 && p.gameState !== 'finished'; i++) p.scoreOpponent()
     expect(contados).toHaveLength(1)
     expect(contados[0]?.hazanas).toEqual(['GH_SHUTOUT'])
+  })
+})
+
+describe('el cartel del objetivo, como en la web', () => {
+  beforeEach(() => gameStorage()?.clear())
+
+  const OBJETIVO = {
+    medallas: { bronce: 150, plata: 8000, oro: 20000 },
+    mejorEs: 'mas',
+    unidad: 'points in the challenge',
+    record: null,
+    modo: 'challenge',
+  } as const
+
+  it('en el menú no hay cartel que valga: se cuelga al jugar', () => {
+    const p = new Partida({ objetivo: OBJETIVO })
+    expect(p.objetivo).toBe(OBJETIVO)
+    expect(p.cartel('en')).toBeNull()
+    expect(p.medalla).toBeNull()
+    expect(p.callado).toEqual({ puntos: false, ronda: false })
+  })
+
+  it('con el objetivo: la misión y los listones en la cuenta atrás, y después el que falta y lo que queda', () => {
+    const p = new Partida({ objetivo: OBJETIVO })
+    p.startGame()
+    expect(p.cartel('en')).toMatchObject({ titulo: 'Win games until you lose one', detalle: 'Bronze 150 · Silver 8,000 · Gold 20,000' })
+    expect(p.cartel('es')?.titulo).toBe('Gana partidos hasta perder uno')
+    expect(p.callado).toEqual({ puntos: true, ronda: true })
+    sacar(p)
+    expect(p.cartel('en')).toMatchObject({ titulo: 'Bronze at 150 · you have 0', detalle: 'Round 1 · to 3 goals · goal +100' })
+    marcar(p, 1, 0)
+    expect(p.cartel('es')).toMatchObject({ titulo: 'Bronce a 150 · llevas 100', detalle: 'Ronda 1 · a 3 goles · gol +120' })
+    expect(p.medalla).toBeNull()
+  })
+
+  it('al cruzar un listón la medalla sube, encajando se puede perder, y al acabar dice lo que faltó', () => {
+    const p = new Partida({ objetivo: OBJETIVO })
+    p.startGame()
+    sacar(p)
+    marcar(p, 2, 0)
+    expect(p.points).toBe(220)
+    expect(p.medalla).toBe('bronce')
+    expect(p.cartel('en')?.titulo).toBe('Silver at 8,000 · you have 220')
+    marcar(p, 0, 3)
+    expect(p.gameState).toBe('finished')
+    expect(p.medalla).toBeNull()
+    expect(p.cartel('en')).toMatchObject({ titulo: 'No medal · 40 points in the challenge', detalle: '110 short of bronze' })
+    expect(p.callado).toEqual({ puntos: true, ronda: false })
+    // Otra vez —el botón resaltado del final— vuelve a la misión, sin pasar por el menú.
+    p.startGame()
+    expect(p.cartel('en')?.titulo).toBe('Win games until you lose one')
+  })
+
+  it('la cuenta atrás de la segunda ronda ya no es la misión', () => {
+    const p = new Partida({ objetivo: OBJETIVO })
+    p.startGame()
+    sacar(p)
+    marcar(p, 3, 0)
+    expect([p.round, p.gameState]).toEqual([2, 'countdown'])
+    expect(p.cartel('en')?.detalle).toBe(`Round 2 · to 5 goals · goal +${goalPoints({ difficulty: 'easy', streak: 4 })}`)
+  })
+
+  it('en la práctica, con salón, dice bajito que no cuenta; con el juego suelto, nada', () => {
+    const conSalon = enPractica({ objetivo: OBJETIVO })
+    conSalon.startGame()
+    expect(conSalon.cartel('es')).toMatchObject({ titulo: 'Práctica · no cuenta para medalla', discreto: true })
+    expect(conSalon.callado).toEqual({ puntos: false, ronda: false })
+    const suelto = enPractica()
+    suelto.startGame()
+    expect(suelto.cartel('en')).toBeNull()
+  })
+
+  it('con el juego suelto, en el reto: la misión y el récord guardado aquí', () => {
+    gameStorage()?.setItem('glide-hockey:best-points:challenge', '3100')
+    const p = new Partida()
+    p.startGame()
+    expect(p.cartel('en')).toMatchObject({ titulo: 'Win games until you lose one', detalle: 'Your record 3,100' })
   })
 })

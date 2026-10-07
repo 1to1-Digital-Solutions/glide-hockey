@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { expect, type Page } from '@playwright/test'
+import type { Objetivo } from '../../src/lib/objetivo'
 import { HOST_BUNDLE } from './globalSetup'
 
 /** Donde el salón sirve los estáticos de este juego. */
@@ -11,9 +12,10 @@ const BUNDLE_PATH = '/anfitrion-de-prueba.js'
 const PUBLIC_DIR = path.join(process.cwd(), 'public')
 
 /** El HTML del anfitrión. */
-function html(aLaCarta: boolean, reto?: number): string {
+function html(aLaCarta: boolean, reto?: number, objetivo?: Objetivo): string {
   const cabina = aLaCarta ? ` data-cabina="a-la-carta"` : ''
   const conReto = reto === undefined ? '' : ` data-reto="${reto}"`
+  const conObjetivo = objetivo === undefined ? '' : ` data-objetivo='${JSON.stringify(objetivo)}'`
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -24,7 +26,7 @@ function html(aLaCarta: boolean, reto?: number): string {
     </style>
   </head>
   <body>
-    <div id="juego" data-assets-base="${ASSETS_BASE}"${cabina}${conReto}></div>
+    <div id="juego" data-assets-base="${ASSETS_BASE}"${cabina}${conReto}${conObjetivo}></div>
     <script src="${BUNDLE_PATH}"></script>
   </body>
 </html>
@@ -50,6 +52,8 @@ export interface HostOptions {
   aLaCarta?: boolean
   /** La semilla del reto que pasa el salón: la escena entra ya jugándolo (`reto`). */
   reto?: number
+  /** Los listones de medalla que pasa el salón, para el cartel del objetivo (`objetivo`). */
+  objetivo?: Objetivo
 }
 
 /**
@@ -59,7 +63,7 @@ export interface HostOptions {
  */
 export async function openHost(
   page: Page,
-  { aLaCarta = false, reto }: HostOptions = {},
+  { aLaCarta = false, reto, objetivo }: HostOptions = {},
 ): Promise<TestHost> {
   const csp = (await page.request.get('/')).headers()['content-security-policy']
   expect(csp, 'el servidor no devolvió política de seguridad').toBeTruthy()
@@ -72,7 +76,7 @@ export async function openHost(
       return route.fulfill({
         contentType: 'text/html; charset=utf-8',
         headers: { 'content-security-policy': csp },
-        body: html(aLaCarta, reto),
+        body: html(aLaCarta, reto, objetivo),
       })
     }
     if (pathname === BUNDLE_PATH) {

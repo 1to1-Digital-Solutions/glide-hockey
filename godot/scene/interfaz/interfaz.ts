@@ -1,7 +1,7 @@
 /**
  * La interfaz de Glide Hockey en Godot, entera: el menú, el final y el aviso de salir en la columna;
- * el marcador al fondo de la mesa; la cuenta atrás sobre el saque; el botón de parar; el tutorial;
- * y la puntería que los hace pulsables.
+ * el marcador al fondo de la mesa y, encima de él, el cartel del objetivo; la cuenta atrás sobre el
+ * saque; el botón de parar; el tutorial; y la puntería que los hace pulsables.
  *
  * **Dónde va cada cosa es lo de la web** (`reparto.ts`): con el visor, la columna a metro y medio y
  * 55° a la izquierda, agrandada y mirando a los ojos, fuera de la mesa; el marcador sobre la
@@ -26,10 +26,12 @@ import type { GrabMode, Lang, Scenery } from '@/lib/ajustes'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '@/lib/gameConfig'
 import { getDuelTally } from '@/lib/duelTally'
 import { isEndless } from '@/lib/gameMode'
+import type { Medalla } from '@/lib/objetivo'
 
 import { alCambiarElIdioma, idioma } from '@kit/runtime/ajustes'
 import { confort, elegirConfort } from './confort'
 import { AvisoDeSalir, BotonesDeParar } from './aviso'
+import { Cartel } from './cartel'
 import { FinalDeLaPartida } from './final'
 import { CuentaAtras, Marcador } from './marcador'
 import { MenuDelJuego, type EstadoDelMenu } from './menu'
@@ -38,7 +40,10 @@ import {
   ESCALA_DEL_BOTON,
   ESCALA_DE_LA_COLUMNA,
   INCLINACION_DEL_MARCADOR,
+  SITIO_DEL_CARTEL,
+  filaDeLosGoles,
   XR_QUIT,
+  TUTORIAL_EN_PLANO,
   XR_UI,
   XR_UI_ROTATION,
   type Triple,
@@ -105,6 +110,13 @@ export class InterfazDelJuego {
   readonly aviso: AvisoDeSalir
   readonly parar: BotonesDeParar
   readonly marcador: Marcador
+  /** El cartel del objetivo, encima del marcador. */
+  readonly cartel: Cartel
+  /**
+   * El listón de medalla que se ha cruzado en el último fotograma, o `null`: la escena lo hace
+   * sonar y sentir, que el color y el pulso ya son del cartel.
+   */
+  liston: Medalla | null = null
   readonly cuenta: CuentaAtras
   readonly tutorial: TutorialDelJuego
   private pintado = ''
@@ -169,13 +181,20 @@ export class InterfazDelJuego {
     colocar(this.marcador.nodo, XR_UI.scoreboard, [INCLINACION_DEL_MARCADOR, 0, 0, 'YXZ'])
     mesa.add_child(this.marcador.nodo)
 
+    // Qué hay que superar, de frente: encima del marcador, que es donde ya se mira. Cuelga de la
+    // misma raíz, así que sube con los ojos igual que él.
+    this.cartel = new Cartel()
+    this.cartel.colocar(SITIO_DEL_CARTEL)
+    mesa.add_child(this.cartel.nodo)
+
     this.cuenta = new CuentaAtras()
     colocar(this.cuenta.nodo, XR_UI.countdown, null)
     mesa.add_child(this.cuenta.nodo)
 
     this.tutorial = new TutorialDelJuego(this.punteria, opciones.manos)
     if (this.tutorialEnPlano) this.tutorial.forzar()
-    colocar(this.tutorial.vista.nodo, XR_UI.tutorial, XR_UI_ROTATION.tutorial)
+    if (this.visor) colocar(this.tutorial.vista.nodo, XR_UI.tutorial, XR_UI_ROTATION.tutorial)
+    else colocar(this.tutorial.vista.nodo, TUTORIAL_EN_PLANO, XR_UI_ROTATION.tutorialEnPlano)
     mesa.add_child(this.tutorial.vista.nodo)
 
     // Si el salón cambia el idioma con el juego abierto, se repinta al siguiente fotograma.
@@ -222,6 +241,7 @@ export class InterfazDelJuego {
       abierto: p.unlockedLevel,
       estrellas: p.levelStars,
       record: p.bestPoints,
+      objetivo: p.objetivo,
       confort: confort(),
       habitacion: this.escenario?.hayHabitacion ?? false,
       escenario: this.escenario?.elegido ?? 'place',
@@ -244,15 +264,19 @@ export class InterfazDelJuego {
       }
     } else this.pintado = ''
     if (fase !== 'menu') {
+      // Sin lo que ya dice el cartel de encima: en el reto, los puntos y —mientras se juega— la ronda.
+      const callado = p.callado
       this.marcador.pintar({
         jugador: p.playerGoals,
         maquina: p.opponentGoals,
-        puntos: p.points,
+        puntos: callado.puntos ? null : p.points,
         // En el duelo, el número de quien tiene el mando: sin letras, es lo que dice de quién es el cian.
-        fila: p.round ?? (p.levels ? p.activeLevel : p.duelView != null ? p.duelView.player + 1 : null),
-        vuelta: p.lap != null && p.lap > 1 ? p.lap : null,
+        fila: callado.ronda ? null : (p.round ?? (p.levels ? p.activeLevel : p.duelView != null ? p.duelView.player + 1 : null)),
+        vuelta: !callado.ronda && p.lap != null && p.lap > 1 ? p.lap : null,
+        goles: filaDeLosGoles(callado),
       })
     }
+    this.liston = this.cartel.actualizar(p.cartel(lang), p.medalla, lang, delta)
     this.cuenta.pintar(fase === 'countdown' ? { cuenta: p.cuenta, esperandoElMazo: p.esperandoElMazo, conUnToque: agarre === 'toggle', lang } : null)
     if (fase === 'finished') {
       const nivel = p.levelResult

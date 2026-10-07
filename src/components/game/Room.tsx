@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { Euler, InstancedMesh, Matrix4, Quaternion, Vector3 } from 'three'
+import { NEONES_DEL_FONDO } from '../../lib/cartelDelMarcador'
 import { TABLE_CENTER_Z } from '../../lib/gameConfig'
 import { PALETTE } from '../../lib/palette'
 
@@ -54,6 +55,8 @@ const SCREEN_COLOR = '#0a1424'
 /** Los neones de la pared: rosa y cian, que es lo que hay en estos sitios. */
 const NEON_PINK = '#f43f5e'
 const NEON_CYAN = '#38bdf8'
+/** El color de cada tira de `NEONES_DEL_FONDO`, de arriba abajo. */
+const NEON_COLORS = [NEON_PINK, NEON_CYAN] as const
 
 /** Lo que ocupa la sala. */
 const ROOM_WIDTH = 9
@@ -267,13 +270,10 @@ export function Room() {
 
       {/* Los neones de la pared del fondo: dos rayas de luz, que es lo que se
           ve al levantar la vista en un recreativo. */}
-      {[
-        { y: 2.6, color: NEON_PINK, width: 5 },
-        { y: 2.3, color: NEON_CYAN, width: 3.6 },
-      ].map((neon) => (
+      {NEONES_DEL_FONDO.tiras.map((neon, i) => (
         <mesh key={neon.y} position={[0, neon.y, centre - ROOM_DEPTH / 2 + 0.03]}>
-          <planeGeometry args={[neon.width, 0.06]} />
-          <meshBasicMaterial color={neon.color} toneMapped={false} />
+          <planeGeometry args={[neon.ancho, NEONES_DEL_FONDO.grueso]} />
+          <meshBasicMaterial color={NEON_COLORS[i]} toneMapped={false} />
         </mesh>
       ))}
 

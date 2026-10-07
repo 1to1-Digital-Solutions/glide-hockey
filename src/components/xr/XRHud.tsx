@@ -10,6 +10,7 @@ import { useGrabMode, useLang } from '../../lib/ajustesCliente'
 import { traductor, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
 import { MandoDeVerdad } from './MandoDeVerdad'
+import { MARCADOR_DEL_FONDO } from '../../lib/cartelDelMarcador'
 import { isEndless } from '../../lib/gameMode'
 import { PALETTE } from '../../lib/palette'
 import { materialEncendido, PALETA } from '../../lib/paleta'
@@ -58,18 +59,32 @@ function hitBox(
  * menú de ajustes lo tapaba entero, y eso solo se ve desde los ojos de quien juega
  * (`lib/panelOcclusion.ts`).
  */
-export const SCOREBOARD_SIZE = { width: 0.52, height: 0.34 } as const
+export const SCOREBOARD_SIZE = { width: MARCADOR_DEL_FONDO.ancho, height: MARCADOR_DEL_FONDO.alto } as const
 
-/** El marcador de la partida en curso, con los puntos debajo. */
+/**
+ * A qué altura van los goles: en su fila de arriba, o **en medio** cuando el cartel de encima ya
+ * dice los puntos y la ronda y debajo no queda nada (`loQueCallaElMarcador`).
+ */
+export function filaDeLosGoles(callado: { puntos: boolean; ronda: boolean }): number {
+  return callado.puntos && callado.ronda ? 0 : ROW.goals
+}
+
+/**
+ * El marcador de la partida en curso, con los puntos debajo.
+ *
+ * **Menos lo que ya dice el cartel que tiene encima** (`callado`): en el reto, los puntos y la
+ * ronda se leen ahí, con letras, y aquí quedan los goles.
+ */
 export function XRScoreboard() {
-  const { gameState, playerGoals, opponentGoals, points, round, lap, gameMode, activeLevel, duel } =
+  const { gameState, playerGoals, opponentGoals, points, round, lap, gameMode, activeLevel, duel, callado } =
     useGame()
   // La ronda del reto, el nivel en Niveles o, en el duelo, qué jugador tiene el mando: la misma
   // fila. Sin letras, el número del jugador es lo que dice de quién es el marcador cian.
-  const fila = round ?? (gameMode === 'levels' ? activeLevel : duel != null ? duel.player + 1 : null)
+  const fila = callado.ronda ? null : (round ?? (gameMode === 'levels' ? activeLevel : duel != null ? duel.player + 1 : null))
   // La vuelta a la escalera del reto, solo cuando ya hay más de una: en la
   // primera no dice nada que la ronda no diga ya (ver `lib/challenge.ts`).
-  const vuelta = lap != null && lap > 1 ? lap : null
+  const vuelta = !callado.ronda && lap != null && lap > 1 ? lap : null
+  const goles = filaDeLosGoles(callado)
   if (gameState === 'menu') return null
 
   return (
@@ -84,11 +99,11 @@ export function XRScoreboard() {
         value={playerGoals}
         size={0.13}
         color={PALETTE.primary}
-        position={[-0.12, ROW.goals, 0]}
+        position={[-0.12, goles, 0]}
       />
       {/* Separador de marcador: dos puntos, que es lo que se lee como «a». */}
       {[-0.03, 0.03].map((y) => (
-        <mesh key={y} position={[0, ROW.goals + y, 0]}>
+        <mesh key={y} position={[0, goles + y, 0]}>
           <planeGeometry args={[0.016, 0.016]} />
           <meshBasicMaterial color={DIM_COLOR} toneMapped={false} />
         </mesh>
@@ -97,15 +112,17 @@ export function XRScoreboard() {
         value={opponentGoals}
         size={0.13}
         color={PALETTE.rival}
-        position={[0.12, ROW.goals, 0]}
+        position={[0.12, goles, 0]}
       />
 
-      <XRNumber
-        value={points}
-        size={0.055}
-        color={PALETTE.puck}
-        position={[0, ROW.points, 0]}
-      />
+      {callado.puntos ? null : (
+        <XRNumber
+          value={points}
+          size={0.055}
+          color={PALETTE.puck}
+          position={[0, ROW.points, 0]}
+        />
+      )}
 
       {/* En reto, la ronda por la que va; en niveles, el nivel. En prueba no hay
           nada que enseñar aquí. Con más de una vuelta a la escalera, la ronda se

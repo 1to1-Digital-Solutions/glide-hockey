@@ -29,6 +29,22 @@ salón monta dentro de su Canvas (contrato en `docs/xrcade.md`).
 2. **No hay test que monte la escena dentro de un Canvas ajeno**, como hace el salón. El contrato
    lo vigila `scripts/scene-contract.test.ts`, que lee el código.
 
+## 👓 Pendiente de visor — el cartel del objetivo
+
+El menú abre en el reto y el objetivo cuelga **encima del marcador del fondo** (web y Godot).
+Hecho y medido en tests; **con las gafas no se ha visto**. Qué mirar, y dónde se toca:
+
+| Qué mirar | Dónde se ajusta |
+|---|---|
+| ¿Se entiende la misión en los tres primeros segundos (la cuenta atrás)? ¿Se lee sin buscarlo? ¿Molesta al jugar, o tapa el disco al fondo? | `sitioDelCartel`, `AIRE_SOBRE_EL_MARCADOR` (`src/lib/cartelDelMarcador.ts`) |
+| Tamaño: 24° × 4,5° a 2,28 m (0,95 m de ancho), a la altura de la vista | `PANEL_DEL_CARTEL`, `LETRA_DEL_CARTEL` (`CartelDeObjetivo.tsx`, común); en Godot, `CARTEL` (`godot/scene/interfaz/reparto.ts`) |
+| Las dos tiras de neón, 15 cm más arriba: de pie a 1,9 m el cartel pisaba la de abajo; ahora quedan 0,4° | `NEONES_DEL_FONDO` (`cartelDelMarcador.ts`) |
+| «Ronda 2 · a 5 goles · gol +120»: ¿se entiende de dónde salen los miles? Con el oro y seis cifras la frase baja a 0,9° | `LO_QUE_QUEDA`, `loQueQueda` (`cartelDelMarcador.ts`) |
+| El marcador solo con los goles, en medio: ¿se echan de menos los puntos y la ronda debajo? | `loQueCallaElMarcador`; `filaDeLosGoles` (`XRHud.tsx`) |
+| El listón cruzado: color, pulso, dos notas tras el gol y golpe en la mano del mazo; encajar puede bajar de un listón ya celebrado | `medalRecipe` (`audioEngine.ts`), `pulsosDelListon` |
+| El tutorial ya no tapa cartel ni marcador: va a 32° a la derecha, a 1,2 m. ¿Se ve sin buscarlo? | `TUTORIAL_A_UN_LADO` (`cartelDelMarcador.ts`) |
+| Menú: «Cuenta para medalla» junto a «Modo» y el disco dorado del reto | `MENU_MEDAL_WIDTH` (`xrMenuLayout.ts`) |
+
 ## ▶️ Cómo arrancar
 
 ```

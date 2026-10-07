@@ -4,6 +4,7 @@ import { GameProvider } from '../components/GameProvider'
 import { GameWorld } from '../components/game/GameWorld'
 import { setAssetsBase } from '../lib/assets'
 import type { HostAnchor } from '../lib/hostAnchor'
+import type { Objetivo } from '../lib/objetivo'
 import type { Resultado, Reto } from '../lib/semilla'
 import { ExitProvider } from './exit'
 
@@ -50,6 +51,12 @@ export interface GlideHockeySceneProps {
    * alguna, las hazañas (`hazanas`: nombres de API de los logros de Steam).
    */
   onTerminar?: (resultado: Resultado) => void
+  /**
+   * Qué hay que superar: los tres listones de medalla del juego, la marca de quien juega y el
+   * modo en que cuentan. Con él, el cartel de encima del marcador dice qué listón falta y cuánto
+   * queda; sin él, la misión y el récord guardado en este navegador.
+   */
+  objetivo?: Objetivo
 }
 
 /**
@@ -66,7 +73,7 @@ export interface GlideHockeySceneProps {
  *
  * El contrato completo, en `docs/montar-el-juego.md`.
  */
-export function GlideHockeyScene({ assetsBase, anchor, onExit, reto, onTerminar }: GlideHockeySceneProps) {
+export function GlideHockeyScene({ assetsBase, anchor, onExit, reto, onTerminar, objetivo }: GlideHockeySceneProps) {
   // Durante el render y no en un efecto: el store de WebXR resuelve su base de
   // ficheros la primera vez que alguien lo pide, que puede ser antes de que
   // corra ningún efecto. Escribir la misma base dos veces no cambia nada, así
@@ -74,7 +81,7 @@ export function GlideHockeyScene({ assetsBase, anchor, onExit, reto, onTerminar 
   if (assetsBase !== undefined) setAssetsBase(assetsBase)
 
   return (
-    <GameProvider reto={reto} onTerminar={onTerminar}>
+    <GameProvider reto={reto} onTerminar={onTerminar} objetivo={objetivo}>
       <ExitProvider onExit={onExit}>
         <GameWorld anchor={anchor} />
       </ExitProvider>

@@ -12,9 +12,9 @@
  * Todo en metros y en el espacio de la mesa (su centro, a la altura del tablero), que es de donde
  * cuelga la interfaz en la web.
  */
+import { MARCADOR_DEL_FONDO, sitioDelCartel, sitioDelTutorial } from '@/lib/cartelDelMarcador'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '@/lib/gameConfig'
 import { EYE_HEIGHTS, eyesAt, panelRotation, type PanelPose, type Point } from '@/lib/panelReading'
-import { HALF_LENGTH } from '@/lib/puckPhysics'
 import { REFERENCE_EYE_HEIGHT, uiRiseOverWorld, worldRise } from '@/lib/uiHeight'
 
 export type Triple = [number, number, number]
@@ -36,20 +36,23 @@ const AZIMUT = (COLUMNA.azimut * Math.PI) / 180
 /** Cada pieza de la interfaz del visor, en coordenadas de la mesa (`XR_UI`). */
 export const XR_UI = {
   /** El marcador, al fondo, sobre la portería de la máquina. */
-  scoreboard: [0, 0.5, -HALF_LENGTH - 0.05] as Triple,
+  scoreboard: MARCADOR_DEL_FONDO.centro as Triple,
   /** La columna, pasada del espacio de quien juega al de la mesa. */
   panel: [-COLUMNA.distancia * Math.sin(AZIMUT), REFERENCE_EYE_HEIGHT - TABLE_HEIGHT, -COLUMNA.distancia * Math.cos(AZIMUT) - TABLE_CENTER_Z] as Triple,
   /** La cuenta atrás, flotando sobre el punto de saque. */
   countdown: [0, 0.34, 0] as Triple,
-  /** El tutorial, sobre la mesa y a la altura de la vista. */
-  tutorial: [0, 0.72, 0] as Triple,
+  /** El tutorial, a la altura de la vista y a un lado del cartel, que no lo tape (`sitioDelTutorial`). */
+  tutorial: sitioDelTutorial() as Triple,
 }
+
+/** Y en plano, de frente sobre la mesa: no hay cabeza que girar, y a un lado se sale de la ventana. */
+export const TUTORIAL_EN_PLANO = sitioDelTutorial(0) as Triple
 
 /** El botón de parar va donde la columna: mientras se juega, la columna está vacía (`XR_QUIT`). */
 export const XR_QUIT = XR_UI.panel
 
 /** Lo que se inclina el marcador hacia quien juega (`rotation={[-0.18, 0, 0]}` en `GameWorld`). */
-export const INCLINACION_DEL_MARCADOR = -0.18
+export const INCLINACION_DEL_MARCADOR = MARCADOR_DEL_FONDO.inclinacion
 
 /** Del espacio de la mesa al de quien juega: los pies en el origen y el `−Z` delante. */
 export function delEspacioDelJugador(pieza: readonly [number, number, number]): Triple {
@@ -61,6 +64,7 @@ export const XR_UI_ROTATION = {
   panel: panelRotation(delEspacioDelJugador(XR_UI.panel), eyesAt(REFERENCE_EYE_HEIGHT)),
   quit: panelRotation(delEspacioDelJugador(XR_QUIT), eyesAt(REFERENCE_EYE_HEIGHT)),
   tutorial: panelRotation(delEspacioDelJugador(XR_UI.tutorial), eyesAt(REFERENCE_EYE_HEIGHT)),
+  tutorialEnPlano: panelRotation(delEspacioDelJugador(TUTORIAL_EN_PLANO), eyesAt(REFERENCE_EYE_HEIGHT)),
 }
 
 /**
@@ -108,8 +112,43 @@ export const MEDIDAS_DEL_TUTORIAL = {
 } as const
 
 /** El marcador (`SCOREBOARD_SIZE` y `ROW` de `XRHud.tsx`). */
-export const MARCADOR = { width: 0.52, height: 0.34 } as const
+export const MARCADOR = { width: MARCADOR_DEL_FONDO.ancho, height: MARCADOR_DEL_FONDO.alto } as const
 export const FILAS_DEL_MARCADOR = { goals: 0.06, points: -0.065, round: -0.135 } as const
+
+/**
+ * A qué altura van los goles: en su fila de arriba, o en medio cuando el cartel de encima ya dice
+ * los puntos y la ronda y debajo no queda nada (`filaDeLosGoles` de `XRHud.tsx`).
+ */
+export function filaDeLosGoles(callado: { puntos: boolean; ronda: boolean }): number {
+  return callado.puntos && callado.ronda ? 0 : FILAS_DEL_MARCADOR.goals
+}
+
+/** Lo que miden esos grados de ángulo visual a esa distancia (`grados` de `CartelDeObjetivo.tsx`, con el `altoMinimo` de `legibilidad.ts`). */
+function grados(angulo: number, distancia: number): number {
+  return (2 * distancia * Math.tan((0.75 * Math.PI) / 180 / 2) * angulo) / 0.75
+}
+
+/**
+ * El cartel del objetivo (`CartelDeObjetivo.tsx`): pintado para leerse a dos metros
+ * (`DISTANCIA_DE_DIBUJO`), 24° de ancho por 4,5° de alto (`PANEL_DEL_CARTEL`), con la letra del
+ * título a 1,4° y la del detalle a 1,2° (`LETRA_DEL_CARTEL`), y su margen, su aire y su barra.
+ */
+export const CARTEL = {
+  distancia: 2,
+  ancho: grados(24, 2),
+  alto: grados(4.5, 2),
+  titulo: grados(1.4, 2),
+  detalle: grados(1.2, 2),
+  aire: grados(0.35, 2),
+  barra: grados(0.35, 2),
+  anchoUtil: grados(24, 2) - 2 * grados(0.5, 2),
+} as const
+
+/** Lo que mide el cartel por cada metro de distancia de lectura (`proporcionDelCartel`). */
+export const PROPORCION_DEL_CARTEL = { ancho: CARTEL.ancho / CARTEL.distancia, alto: CARTEL.alto / CARTEL.distancia } as const
+
+/** Dónde cuelga: encima del marcador del fondo, de cara a quien juega (`SITIO_DEL_CARTEL` de la web). */
+export const SITIO_DEL_CARTEL = sitioDelCartel(PROPORCION_DEL_CARTEL)
 /** A qué alto van las cifras del marcador: goles, puntos y ronda. */
 export const CIFRAS_DEL_MARCADOR = { goals: 0.13, points: 0.055, round: 0.04 } as const
 

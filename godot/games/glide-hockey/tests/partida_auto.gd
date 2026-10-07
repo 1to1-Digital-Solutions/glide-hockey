@@ -5,7 +5,8 @@
 ## silenciado, que cuenta igual.
 ##
 ## Y el contrato del reto: con un salón que presta una semilla (`challenge_seed`), el juego entra
-## directo en el reto con los tiros de la máquina sacados de ella.
+## directo en el reto con los tiros de la máquina sacados de ella. Si además deja los listones de la
+## cabina (`goal`), el cartel de encima del marcador los dice; sin ellos, solo la misión.
 ##
 ## Y el duelo a dos, entero (`duel.ts`): el jugador automático juega la partida del primero, se queda
 ## en el traspaso, le da a jugar la del segundo y acaba. Las dos contra la misma máquina —la misma
@@ -26,6 +27,8 @@ const MUSIC_VOLUME := 0.22 * 0.6
 const MAX_FRAMES := 72 * 180
 ## Una semilla cualquiera para el reto.
 const SEMILLA := 20260926
+## Lo que el salón deja en el metadato `goal` de su autoload: los listones de la cabina.
+const OBJETIVO := {"medallas": {"bronce": 111, "plata": 222, "oro": 333}, "mejorEs": "mas", "unidad": "points in the challenge", "record": null, "modo": "challenge"}
 ## Las hazañas del juego, en el orden en que se cuentan (`HAZANAS` de `hazanas.ts`).
 const HAZANAS := ["GH_SHUTOUT", "GH_LONG_SHOT", "GH_OWN_GOAL"]
 ## Lo que manda el duelo (`DUEL_SETUP` de `duel.ts`): a cuántos goles.
@@ -66,7 +69,10 @@ func _process(_delta: float) -> void:
 			fallos.append("la partida no ha acabado en %d fotogramas" % MAX_FRAMES)
 			terminar()
 	elif fase == "reto" and frames > 10:
-		comprobar_el_reto()
+		comprobar_el_reto(false)
+		empezar_el_reto(true)
+	elif fase == "listones" and frames > 10:
+		comprobar_el_reto(true)
 		empezar_el_duelo()
 	elif fase == "duelo":
 		if game.has_meta("result"):
@@ -159,17 +165,33 @@ func comprobar(r: Dictionary) -> void:
 	])
 
 
-func empezar_el_reto() -> void:
+func empezar_el_reto(con_listones := false) -> void:
 	game.queue_free()
-	fase = "reto"
+	if salon != null:
+		# Fuera del árbol ya, no al final del fotograma: la escena nueva buscaría el salón viejo.
+		salon.get_parent().remove_child(salon)
+		salon.queue_free()
+	fase = "listones" if con_listones else "reto"
 	salon = SALON.new()
 	salon.name = "XRcade"
 	salon.set_meta("challenge_seed", SEMILLA)
+	if con_listones:
+		salon.set_meta("goal", JSON.stringify(OBJETIVO))
 	get_tree().root.add_child(salon)
 	montar()
 
 
-func comprobar_el_reto() -> void:
+func comprobar_el_reto(con_listones: bool) -> void:
+	# El cartel de encima del marcador: con los listones del salón los dice; sin ellos, solo la misión.
+	var cartel: String = game.cartel_dice()
+	var dice_los_listones := cartel.contains("111") and cartel.contains("222") and cartel.contains("333")
+	if cartel == "":
+		fallos.append("en el reto del salón no hay cartel del objetivo (listones: %s)" % con_listones)
+	elif con_listones and not dice_los_listones:
+		fallos.append("con el `goal` del salón el cartel no dice los listones: «%s»" % cartel)
+	elif not con_listones and dice_los_listones:
+		fallos.append("sin el `goal` del salón el cartel dice listones: «%s»" % cartel)
+	print("PARTIDA-AUTO reto %s: «%s»" % ["con listones" if con_listones else "sin listones", cartel])
 	if game.modo_de_la_partida() != "challenge":
 		fallos.append("con la semilla del salón se juega %s y no el reto" % game.modo_de_la_partida())
 	if not game.en_reto():

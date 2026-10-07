@@ -34,9 +34,19 @@ function esperarAlSaque(hook: { result: { current: { gameState: string } } }): v
   }
 }
 
+/**
+ * Monta el store y deja elegida **la práctica**, que es lo que juegan casi todos estos tests: el
+ * menú abre en el reto (lo comprueba «el menú abre en el reto», más abajo).
+ */
+function enPractica(opciones: Parameters<typeof useGameStoreValue>[0] = {}) {
+  const hook = renderHook(() => useGameStoreValue(opciones))
+  act(() => hook.result.current.setGameMode('practice'))
+  return hook
+}
+
 /** Monta el store, elige la partida sin fin y saca. */
 function sinFin() {
-  const hook = renderHook(() => useGameStoreValue())
+  const hook = enPractica()
   act(() => hook.result.current.setEndless(true))
   act(() => hook.result.current.startGame())
   esperarAlSaque(hook)
@@ -104,7 +114,7 @@ describe('cuántos goles dura una partida', () => {
 describe('el reto', () => {
   it('ganar una ronda no acaba nada: encadena la siguiente', () => {
     // Es lo que hace que el reto no tenga final: solo lo cierra perder.
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.setGameMode('challenge'))
     act(() => hook.result.current.startGame())
     esperarAlSaque(hook)
@@ -120,7 +130,7 @@ describe('el reto', () => {
   })
 
   it('la dificultad la manda la ronda, no lo elegido en el menú', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.setDifficulty('impossible'))
     act(() => hook.result.current.setGameMode('challenge'))
     act(() => hook.result.current.startGame())
@@ -134,7 +144,7 @@ describe('el reto', () => {
 
 describe('los niveles', () => {
   it('solo se puede elegir entre los abiertos', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.setGameMode('levels'))
 
     act(() => hook.result.current.setLevel(LEVEL_COUNT))
@@ -143,7 +153,7 @@ describe('los niveles', () => {
   })
 
   it('ganar el primero lo apunta con estrellas y abre el siguiente', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.setGameMode('levels'))
     act(() => hook.result.current.startGame())
     esperarAlSaque(hook)
@@ -159,7 +169,7 @@ describe('los niveles', () => {
   })
 
   it('el nivel que se juega no cambia aunque se toque el menú a media partida', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.setGameMode('levels'))
     act(() => hook.result.current.startGame())
     const jugando = hook.result.current.activeLevel
@@ -174,7 +184,7 @@ describe('lo que se guarda al terminar', () => {
   it('la puntuación de una partida de prueba se guarda como récord', () => {
     // Se guarda al final y no gol a gol: durante la partida el récord tiene que
     // seguir siendo la marca a batir.
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.startGame())
     esperarAlSaque(hook)
 
@@ -191,7 +201,7 @@ describe('lo que se guarda al terminar', () => {
   it('repetir un nivel ya pasado no vuelve a abrir el siguiente', () => {
     // Abrir se abre una vez: sin esto, el resumen prometería un nivel nuevo
     // cada vez que se repite el primero.
-    const primera = renderHook(() => useGameStoreValue())
+    const primera = enPractica()
     act(() => primera.result.current.setGameMode('levels'))
     act(() => primera.result.current.startGame())
     esperarAlSaque(primera)
@@ -201,7 +211,7 @@ describe('lo que se guarda al terminar', () => {
     }
     expect(primera.result.current.levelResult?.unlocked).toBe(2)
 
-    const otra = renderHook(() => useGameStoreValue())
+    const otra = enPractica()
     act(() => otra.result.current.setGameMode('levels'))
     act(() => otra.result.current.setLevel(1))
     act(() => otra.result.current.startGame())
@@ -216,7 +226,7 @@ describe('lo que se guarda al terminar', () => {
   })
 
   it('en niveles no hay récord de puntos: lo que cuenta son las estrellas', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.setGameMode('levels'))
     act(() => hook.result.current.startGame())
     esperarAlSaque(hook)
@@ -250,7 +260,7 @@ describe('cambiar de modo', () => {
   it('no se puede a media partida', () => {
     // Los puntos y el modo en el que se consiguieron son un par: con el resumen
     // en pantalla, cambiar de modo copiaría esa puntuación al récord del otro.
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.startGame())
 
     act(() => hook.result.current.setGameMode('challenge'))
@@ -259,7 +269,7 @@ describe('cambiar de modo', () => {
   })
 
   it('desde el menú sí', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
 
     act(() => hook.result.current.setGameMode('challenge'))
 
@@ -270,7 +280,7 @@ describe('cambiar de modo', () => {
 describe('los goles y el sin fin con la partida terminada', () => {
   /** Una partida de prueba ganada a los goles por defecto, con el resumen en pantalla. */
   function ganada() {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.startGame())
     esperarAlSaque(hook)
     for (let i = 0; i < 30 && hook.result.current.gameState !== 'finished'; i += 1) {
@@ -314,7 +324,7 @@ describe('los goles y el sin fin con la partida terminada', () => {
 
 describe('volver al menú', () => {
   it('deja la mesa lista para otra partida', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.startGame())
     esperarAlSaque(hook)
     act(() => hook.result.current.scorePlayer())
@@ -326,7 +336,7 @@ describe('volver al menú', () => {
   })
 
   it('los goles del menú se recortan al rango', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
 
     act(() => hook.result.current.setGoalTarget(999))
 
@@ -352,7 +362,7 @@ describe('usar el store sin haberlo montado', () => {
  */
 describe('el saque con el visor puesto', () => {
   it('no pasa del último segundo sin el mazo en la mano', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.setImmersive(true))
     act(() => hook.result.current.startGame())
 
@@ -367,7 +377,7 @@ describe('el saque con el visor puesto', () => {
     // El 1 clavado sin explicación es lo que se reportó del visor: «el countdown se queda
     // parado en el 1 sin ninguna explicación». La cuenta atrás escribe qué falta y el mazo se
     // enciende, y las dos cosas cuelgan de esta señal.
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.setImmersive(true))
     act(() => hook.result.current.startGame())
     for (let i = 0; i < 8; i += 1) act(() => void vi.advanceTimersByTime(1000))
@@ -379,7 +389,7 @@ describe('el saque con el visor puesto', () => {
   })
 
   it('fuera del visor no espera a nadie: ahí el mazo va con el ratón', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.startGame())
     for (let i = 0; i < 8; i += 1) act(() => void vi.advanceTimersByTime(1000))
 
@@ -387,7 +397,7 @@ describe('el saque con el visor puesto', () => {
   })
 
   it('en cuanto se coge, saca', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.setImmersive(true))
     act(() => hook.result.current.startGame())
     for (let i = 0; i < 8; i += 1) act(() => void vi.advanceTimersByTime(1000))
@@ -400,7 +410,7 @@ describe('el saque con el visor puesto', () => {
 
   it('en escritorio no espera a nada', () => {
     // El ratón lleva el mazo desde el primer fotograma: esperar sería no empezar nunca.
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.startGame())
 
     for (let i = 0; i < 8; i += 1) act(() => void vi.advanceTimersByTime(1000))
@@ -418,7 +428,7 @@ describe('el saque con el visor puesto', () => {
  */
 describe('dejar la partida', () => {
   it('pregunta en vez de salir', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.startGame())
 
     act(() => hook.result.current.askToQuit())
@@ -428,7 +438,7 @@ describe('dejar la partida', () => {
   })
 
   it('seguir jugando la devuelve donde estaba', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.startGame())
     act(() => hook.result.current.askToQuit())
 
@@ -438,7 +448,7 @@ describe('dejar la partida', () => {
   })
 
   it('y confirmar sí sale', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.startGame())
     act(() => hook.result.current.askToQuit())
 
@@ -449,7 +459,7 @@ describe('dejar la partida', () => {
   })
 
   it('empezar otra se lleva la pregunta por delante', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.startGame())
     act(() => hook.result.current.askToQuit())
 
@@ -467,7 +477,7 @@ describe('dejar la partida', () => {
  */
 describe('esperar a la demostración', () => {
   it('mientras corre, la cuenta atrás no baja', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.setTutorialRunning(true))
     act(() => hook.result.current.startGame())
     const desde = hook.result.current.countdown
@@ -479,7 +489,7 @@ describe('esperar a la demostración', () => {
   })
 
   it('y en cuanto termina, echa a andar', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.setTutorialRunning(true))
     act(() => hook.result.current.startGame())
     act(() => void vi.advanceTimersByTime(5000))
@@ -498,7 +508,7 @@ describe('el escenario, que es del arcade', () => {
     // Es lo que llaman los dos menús —el de la web y el del visor—: una sola preferencia, la
     // misma que enseña el panel del salón, y no una del juego que la contradiga.
     window.localStorage.removeItem(SCENERY_KEY)
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
 
     act(() => hook.result.current.setScenery('room'))
 
@@ -513,7 +523,7 @@ describe('el escenario, que es del arcade', () => {
 
   it('lo que se elige en el salón llega a la partida sin recargar', () => {
     window.localStorage.removeItem(SCENERY_KEY)
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
 
     act(() => {
       window.localStorage.setItem(SCENERY_KEY, 'room')
@@ -530,7 +540,7 @@ describe('el escenario, que es del arcade', () => {
     window.localStorage.removeItem(SCENERY_KEY)
     window.localStorage.setItem(OWN_SCENERY_KEY, 'room')
 
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
 
     expect(hook.result.current.scenery).toBe('place')
     expect(window.localStorage.getItem(OWN_SCENERY_KEY)).toBeNull()
@@ -630,7 +640,7 @@ describe('el reto que pasa el salón', () => {
 
   it('sin reto, cualquier partida se cuenta al acabar, en su modo', () => {
     const onTerminar = vi.fn<(resultado: Resultado) => void>()
-    const hook = renderHook(() => useGameStoreValue({ onTerminar }))
+    const hook = enPractica({ onTerminar })
     expect(hook.result.current.gameState).toBe('menu')
     expect(hook.result.current.enReto).toBe(false)
     act(() => hook.result.current.startGame())
@@ -651,17 +661,189 @@ describe('el reto que pasa el salón', () => {
   })
 
   it('sin nada, la mesa juega con el número de partida, como siempre', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.startGame())
     expect(hook.result.current.seed).toBe(hook.result.current.runId)
     expect(hook.result.current.gameMode).toBe('practice')
   })
 })
 
+describe('el menú abre en el reto', () => {
+  it('sin tocar nada el modo elegido es el reto, y Jugar empieza la partida que da medalla', () => {
+    const { result } = renderHook(() => useGameStoreValue())
+
+    expect(result.current.gameState).toBe('menu')
+    expect(result.current.gameMode).toBe('challenge')
+    expect(result.current.enReto).toBe(false)
+
+    act(() => result.current.startGame())
+
+    expect(result.current.gameState).toBe('countdown')
+    expect(result.current.gameMode).toBe('challenge')
+    expect(result.current.round).toBe(1)
+    expect(result.current.cartel?.titulo).toBe('Win games until you lose one')
+  })
+
+  it('siempre: no recuerda el modo de la última partida', () => {
+    const primera = enPractica()
+    act(() => primera.result.current.startGame())
+    primera.unmount()
+
+    const segunda = renderHook(() => useGameStoreValue())
+
+    expect(segunda.result.current.gameMode).toBe('challenge')
+    expect(localStorage.length).toBe(0)
+  })
+
+  it('la práctica sigue a un toque', () => {
+    const { result } = renderHook(() => useGameStoreValue())
+
+    act(() => result.current.setGameMode('practice'))
+    act(() => result.current.startGame())
+
+    expect(result.current.gameMode).toBe('practice')
+    expect(result.current.round).toBeNull()
+  })
+})
+
+describe('el cartel del objetivo', () => {
+  const OBJETIVO = {
+    medallas: { bronce: 150, plata: 8000, oro: 20000 },
+    mejorEs: 'mas',
+    unidad: 'points in the challenge',
+    record: null,
+    modo: 'challenge',
+  } as const
+
+  /** Pierde la ronda en curso: la máquina mete los goles que hagan falta. */
+  function perder(hook: { result: { current: ReturnType<typeof useGameStoreValue> } }): void {
+    for (let i = 0; i < MAX_GOALS && hook.result.current.gameState === 'playing'; i += 1) {
+      act(() => hook.result.current.scoreOpponent())
+    }
+  }
+
+  it('en el menú no hay cartel que valga: se cuelga al jugar', () => {
+    const { result } = renderHook(() => useGameStoreValue({ objetivo: OBJETIVO }))
+
+    expect(result.current.gameState).toBe('menu')
+    expect(result.current.objetivo).toBe(OBJETIVO)
+    expect(result.current.cartel).toBeNull()
+    expect(result.current.medalla).toBeNull()
+    expect(result.current.callado).toEqual({ puntos: false, ronda: false })
+  })
+
+  it('con el objetivo del salón: la misión y los listones en la cuenta atrás, y después el que falta', () => {
+    const hook = renderHook(() => useGameStoreValue({ objetivo: OBJETIVO }))
+    act(() => hook.result.current.startGame())
+
+    expect(hook.result.current.cartel).toMatchObject({
+      titulo: 'Win games until you lose one',
+      detalle: 'Bronze 150 · Silver 8,000 · Gold 20,000',
+    })
+    // El marcador de debajo ya calla lo que el cartel va a decir.
+    expect(hook.result.current.callado).toEqual({ puntos: true, ronda: true })
+
+    esperarAlSaque(hook)
+    expect(hook.result.current.cartel).toMatchObject({
+      titulo: 'Bronze at 150 · you have 0',
+      detalle: 'Round 1 · to 3 goals · goal +100',
+    })
+    expect(hook.result.current.medalla).toBeNull()
+
+    act(() => hook.result.current.scorePlayer())
+    // Lo que queda dice lo que vale el próximo gol, que con la racha ya es más.
+    expect(hook.result.current.cartel).toMatchObject({
+      titulo: 'Bronze at 150 · you have 100',
+      detalle: 'Round 1 · to 3 goals · goal +120',
+    })
+  })
+
+  it('al cruzar un listón la medalla sube, encajando se puede perder, y al acabar el cartel dice lo que faltó', () => {
+    const hook = renderHook(() => useGameStoreValue({ objetivo: OBJETIVO }))
+    act(() => hook.result.current.startGame())
+    esperarAlSaque(hook)
+
+    act(() => hook.result.current.scorePlayer())
+    expect(hook.result.current.medalla).toBeNull()
+    act(() => hook.result.current.scorePlayer())
+    expect(hook.result.current.points).toBe(220)
+    expect(hook.result.current.medalla).toBe('bronce')
+    expect(hook.result.current.cartel?.titulo).toBe('Silver at 8,000 · you have 220')
+
+    // Un gol encajado resta, pero el bronce aguanta: la medalla es la de los puntos que se llevan.
+    act(() => hook.result.current.scoreOpponent())
+    expect(hook.result.current.points).toBe(160)
+    expect(hook.result.current.medalla).toBe('bronce')
+
+    // Y perdiendo la ronda se baja del listón ya cruzado: al acabar, el cartel dice lo que faltó.
+    perder(hook)
+    const puntos = hook.result.current.points
+    expect(hook.result.current.gameState).toBe('finished')
+    expect(puntos).toBe(40)
+    expect(hook.result.current.medalla).toBeNull()
+    expect(hook.result.current.cartel).toMatchObject({
+      titulo: 'No medal · 40 points in the challenge',
+      detalle: '110 short of bronze',
+    })
+    // La ronda en que se quedó vuelve al marcador; los puntos siguen en el cartel.
+    expect(hook.result.current.callado).toEqual({ puntos: true, ronda: false })
+
+    // Repetir —el botón resaltado al acabar— vuelve a la misión, sin pasar por el menú.
+    act(() => hook.result.current.startGame())
+    expect(hook.result.current.gameMode).toBe('challenge')
+    expect(hook.result.current.cartel?.titulo).toBe('Win games until you lose one')
+    expect(hook.result.current.medalla).toBeNull()
+  })
+
+  it('la cuenta atrás de la segunda ronda ya no es la misión: sigue el listón, con su ronda', () => {
+    const hook = renderHook(() => useGameStoreValue({ objetivo: OBJETIVO }))
+    act(() => hook.result.current.startGame())
+    esperarAlSaque(hook)
+    for (let i = 0; i < 3; i += 1) act(() => hook.result.current.scorePlayer())
+
+    expect(hook.result.current.round).toBe(2)
+    expect(hook.result.current.gameState).toBe('countdown')
+    expect(hook.result.current.cartel?.detalle).toMatch(/^Round 2 · to 5 goals · goal \+\d+$/)
+  })
+
+  it('en la práctica, dentro del salón, dice bajito que no cuenta', () => {
+    const hook = renderHook(() => useGameStoreValue({ objetivo: OBJETIVO }))
+    act(() => hook.result.current.setGameMode('practice'))
+    act(() => hook.result.current.startGame())
+
+    expect(hook.result.current.cartel).toMatchObject({ titulo: 'Practice · does not count for a medal', discreto: true })
+    expect(hook.result.current.callado).toEqual({ puntos: false, ronda: false })
+    esperarAlSaque(hook)
+    for (let i = 0; i < 3; i += 1) act(() => hook.result.current.scorePlayer())
+    expect(hook.result.current.medalla).toBeNull()
+  })
+
+  it('con el juego abierto suelto: en el reto, la misión y el récord guardado; en la práctica, nada', () => {
+    localStorage.setItem('glide-hockey:best-points:challenge', '3100')
+    const hook = renderHook(() => useGameStoreValue())
+    act(() => hook.result.current.startGame())
+
+    expect(hook.result.current.objetivo).toBeNull()
+    expect(hook.result.current.cartel).toMatchObject({ titulo: 'Win games until you lose one', detalle: 'Your record 3,100' })
+
+    act(() => hook.result.current.resetGame())
+    act(() => hook.result.current.setGameMode('practice'))
+    act(() => hook.result.current.startGame())
+    expect(hook.result.current.cartel).toBeNull()
+  })
+
+  it('con el reto del salón, que entra jugando, el cartel está desde el primer fotograma', () => {
+    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 }, objetivo: OBJETIVO }))
+
+    expect(hook.result.current.gameState).toBe('countdown')
+    expect(hook.result.current.cartel?.detalle).toBe('Bronze 150 · Silver 8,000 · Gold 20,000')
+  })
+})
+
 describe('un gol con la partida ya decidida', () => {
   // El disco sigue rodando cuando la partida se decide: si entra, no es de ninguna partida.
   it('no cambia ni los puntos ni el marcador ni el récord', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.startGame())
     esperarAlSaque(hook)
     for (let i = 0; i < 30 && hook.result.current.gameState !== 'finished'; i += 1) {
@@ -684,7 +866,7 @@ describe('un gol con la partida ya decidida', () => {
   })
 
   it('ni fuera de partida, en el menú', () => {
-    const hook = renderHook(() => useGameStoreValue())
+    const hook = enPractica()
     act(() => hook.result.current.scorePlayer())
     act(() => hook.result.current.scoreOpponent())
 
@@ -706,7 +888,7 @@ describe('el duelo', () => {
 
   /** Monta el store, elige el duelo y empieza la partida del primero. */
   function duelo(onTerminar?: (resultado: Resultado) => void): Hook {
-    const hook = renderHook(() => useGameStoreValue({ onTerminar }))
+    const hook = enPractica({ onTerminar })
     act(() => hook.result.current.setGameMode('duel'))
     act(() => hook.result.current.startGame())
     return hook
@@ -811,7 +993,7 @@ describe('el duelo', () => {
   })
 
   it('fuera del duelo no hay duelo', () => {
-    const { result } = renderHook(() => useGameStoreValue())
+    const { result } = enPractica()
     expect(result.current.duel).toBeNull()
   })
 })
@@ -819,7 +1001,7 @@ describe('el duelo', () => {
 describe('las hazañas de la partida', () => {
   /** Una práctica a 3 goles, sacada. */
   function practica(onTerminar: (resultado: Resultado) => void) {
-    const hook = renderHook(() => useGameStoreValue({ onTerminar }))
+    const hook = enPractica({ onTerminar })
     act(() => hook.result.current.setGoalTarget(3))
     act(() => hook.result.current.startGame())
     esperarAlSaque(hook)

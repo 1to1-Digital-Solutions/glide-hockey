@@ -70,7 +70,13 @@ export const MENU_HINT_Y = -0.37 - MENU_COMFORT_BAND / 2
  * El nombre del confort, un poco más: va en la fila de arriba del todo, la más lejana y la más
  * escorzada para quien juega con los ojos bajos, y a 34 mm se quedaba en 1,38°.
  */
-export const MENU_TEXT = { label: 0.034, scenery: 0.034, hint: 0.034, comfort: 0.038 } as const
+export const MENU_TEXT = { label: 0.034, scenery: 0.034, hint: 0.034, comfort: 0.038, medal: 0.034 } as const
+
+/**
+ * Lo ancho que puede ocupar la frase de si el modo cuenta para medalla, que va en la línea del
+ * rótulo «Modo», pegada al borde derecho: el panel menos sus márgenes y lo que ocupa el rótulo.
+ */
+export const MENU_MEDAL_WIDTH = 0.55
 
 /** Lo que mide cada clase de botón del menú. */
 export const MENU_BUTTON = {

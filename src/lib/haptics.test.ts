@@ -11,6 +11,7 @@ import {
   type HapticSession,
   type HapticSource,
 } from './haptics'
+import { pulsosDelListon } from './cartelDelMarcador'
 import { OPPONENT_SKILLS } from './gameConfig'
 import { advanceTable, startTable, type TableState } from './matchLoop'
 import { HALF_LENGTH, HALF_WIDTH, type Vec2 } from './puckPhysics'
@@ -58,8 +59,13 @@ describe('qué se siente de la mesa', () => {
     ])
   })
 
+  it('el listón de medalla cruzado, el del cartel del objetivo, en la mano del mazo', () => {
+    expect(pulsosDelSuceso({ tipo: 'liston', medalla: 'plata' }, 'left')).toEqual(pulsosDelListon('plata', 'left'))
+    expect(pulsosDelSuceso({ tipo: 'liston', medalla: 'oro' }, 'right')[0].mano).toBe('right')
+  })
+
   it('sin mano en el mazo no vibra nada: nunca las dos «por si acaso»', () => {
-    for (const suceso of [{ tipo: 'golpe', fuerza: 1 }, { tipo: 'gol' }, { tipo: 'final' }] as const) {
+    for (const suceso of [{ tipo: 'golpe', fuerza: 1 }, { tipo: 'gol' }, { tipo: 'final' }, { tipo: 'liston', medalla: 'oro' }] as const) {
       expect(pulsosDelSuceso(suceso, null), suceso.tipo).toEqual([])
     }
   })

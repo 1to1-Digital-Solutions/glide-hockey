@@ -57,12 +57,15 @@ export async function exitXR(page: Page) {
 }
 
 /**
- * Arranca la partida con el menú de escritorio, que sigue montado detrás de la
+ * Arranca una partida de práctica con el menú de escritorio, que sigue montado detrás de la
  * sesión. Dentro del visor se arrancaría con el rayo, pero el emulador no
  * propaga las poses de los punteros hasta la escena.
  */
 export async function startGameInsideSession(page: Page, attempts = 8) {
   const play = page.getByRole('button', { name: 'Play', exact: true })
+  // El menú abre en el reto, y estos tests juegan una partida de práctica.
+  await page.getByRole('button', { name: 'Practice', exact: true }).focus()
+  await page.keyboard.press('Enter')
   for (let attempt = 0; attempt < attempts; attempt++) {
     await play.focus()
     await page.keyboard.press('Enter')

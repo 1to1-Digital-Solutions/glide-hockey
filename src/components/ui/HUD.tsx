@@ -64,6 +64,7 @@ function Scoreboard() {
     activeLevel,
     gameMode,
     duel,
+    cartel,
   } = useGame()
   const endless = isEndless(activeGoalTarget)
   const t = traductor(useLang())
@@ -71,7 +72,7 @@ function Scoreboard() {
   // delante, «Tú» no dice a cuál de las dos.
   const quien = duel ? t(PLAYER_LABELS[duel.player]) : null
   return (
-    <header className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-4">
+    <header className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-2 p-4">
       <div className="flex items-center gap-5 rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_82%,transparent)] px-5 py-3 backdrop-blur-sm">
         {/* El marcador se anuncia al cambiar: quien no ve la mesa se entera
             igual de que ha habido gol. */}
@@ -118,6 +119,20 @@ function Scoreboard() {
           </span>
         </div>
       </div>
+      {/* Lo que dice el cartel del objetivo del visor (`CartelDelMarcador`), aquí con letras de
+          verdad: la misión y los listones, el que falta y lo que queda, o lo que faltó. Sin
+          región viva propia: los goles ya se anuncian arriba, y dos avisos por gol estorban. */}
+      {cartel != null ? (
+        <p
+          data-objetivo
+          className={`rounded-xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_82%,transparent)] px-4 py-1.5 text-center text-sm backdrop-blur-sm ${
+            cartel.discreto ? 'text-white/45' : 'font-semibold text-white'
+          }`}
+        >
+          {cartel.titulo}
+          {cartel.detalle != null ? <span className="font-normal text-white/60"> — {cartel.detalle}</span> : null}
+        </p>
+      ) : null}
     </header>
   )
 }

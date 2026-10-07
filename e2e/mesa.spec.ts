@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
-import { abrirJuego } from './helpers'
+import { abrirJuego, observarLaMesa } from './helpers'
+import { openHost } from './support/host'
 import { drawCallBudget } from './support/presupuesto'
 
 /**
@@ -50,8 +51,8 @@ async function countDrawCalls(page: Page) {
 }
 
 /** La mediana de llamadas por fotograma, con la escena ya asentada. */
-async function medianaDeLlamadas(page: Page, count = 30): Promise<number> {
-  await page.waitForTimeout(1500)
+async function medianaDeLlamadas(page: Page, count = 30, asiento = 1500): Promise<number> {
+  await page.waitForTimeout(asiento)
   await page.evaluate(() => {
     window.__drawFrames!.length = 0
   })
@@ -79,4 +80,52 @@ test('la mesa cabe en su presupuesto de llamadas de dibujo', async ({ page }) =>
   console.log(`[mesa] llamadas de dibujo por fotograma: ${llamadas}`)
   expect(llamadas).toBeGreaterThan(0)
   expect(llamadas).toBeLessThanOrEqual(TECHO_MESA)
+})
+
+/**
+ * El cartel del objetivo, que cuelga encima del marcador del fondo: **una llamada de dibujo**, y
+ * dos como mucho —el fondo, las dos líneas y la barra van en el mismo lienzo—.
+ *
+ * Se mide montado como lo monta el salón, que es donde se cuelga (en la web del juego, sin visor,
+ * el objetivo va en el marcador de DOM): con el reto y los listones que pasa el salón, la escena
+ * entra jugando con el cartel puesto. Y se mide contra **la misma escena en el mismo momento**,
+ * escondiendo el cartel desde el anfitrión de prueba: comparar con otro modo no vale aquí, porque
+ * el marcador de cifras pinta un segmento por llamada y cambia con el modo y con cada gol. Por lo
+ * mismo se repite la medida con el cartel a los dos lados de la medida sin él, y solo cuenta si
+ * las dos coinciden: un gol entre medias cambia las cifras del marcador.
+ *
+ * El suelo de una llamada es lo que impide que pase midiendo una escena sin cartel.
+ */
+const CARTEL = drawCallBudget('cartel-del-objetivo')
+
+test('el cartel del objetivo añade como mucho dos llamadas de dibujo', async ({ page }) => {
+  await countDrawCalls(page)
+  await observarLaMesa(page)
+  await openHost(page, {
+    reto: 20261005,
+    objetivo: { medallas: { bronce: 1500, plata: 8000, oro: 20000 }, mejorEs: 'mas', unidad: 'points in the challenge', record: null, modo: 'challenge' },
+  })
+  // Con el disco ya en juego: la cuenta atrás cambia de cifra cada segundo.
+  await expect
+    .poll(() => page.evaluate(() => window.__glideHockeyScene != null), { message: 'el reto no llegó a poner la mesa' })
+    .toBe(true)
+  await page.waitForTimeout(4_000)
+  await expect
+    .poll(() => page.evaluate(() => window.__glideHockeyHost.verElCartel(true)), { message: 'el cartel del objetivo no está colgado' })
+    .toBe(true)
+
+  let medido: { con: number; sin: number } | null = null
+  for (let intento = 0; intento < 6 && medido == null; intento++) {
+    const antes = await medianaDeLlamadas(page, 20, 300)
+    await page.evaluate(() => window.__glideHockeyHost.verElCartel(false))
+    const sin = await medianaDeLlamadas(page, 20, 300)
+    await page.evaluate(() => window.__glideHockeyHost.verElCartel(true))
+    const despues = await medianaDeLlamadas(page, 20, 300)
+    if (antes === despues) medido = { con: antes, sin }
+  }
+
+  expect(medido, 'la escena no se estuvo quieta entre dos medidas').not.toBeNull()
+  console.log(`[mesa] el cartel del objetivo: ${medido!.con - medido!.sin} llamadas (${medido!.sin} sin él, ${medido!.con} con él)`)
+  expect(medido!.con - medido!.sin).toBeGreaterThanOrEqual(CARTEL.min)
+  expect(medido!.con - medido!.sin).toBeLessThanOrEqual(CARTEL.max)
 })

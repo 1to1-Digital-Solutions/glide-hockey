@@ -28,7 +28,17 @@
 import { MAX_PUCK_SPEED } from './gameConfig'
 import { SLIDE_PITCH_MIN, SLIDE_SMOOTHING, slideLevel, slidePitch } from './slideSound'
 
-export type GameSound = 'strike' | 'bounce' | 'goal' | 'win' | 'loss' | 'record'
+export type GameSound =
+  | 'strike'
+  | 'bounce'
+  | 'goal'
+  | 'win'
+  | 'loss'
+  | 'record'
+  /** Se cruza un listón de medalla (`SONIDO_DEL_LISTON` de `cartelDelMarcador.ts`). */
+  | 'medal-bronze'
+  | 'medal-silver'
+  | 'medal-gold'
 
 // El roce del disco: cuánto y a qué tono, según la velocidad. Aparte porque el port a Godot lo
 // usa tal cual para modular su bucle, y este fichero, que abre el audio del navegador, no puede
@@ -163,7 +173,28 @@ interface SoundRecipe {
  * hay que celebrar.
  */
 /** Lo que suena igual de fuerte pase lo que pase: no son impactos. */
-const SIN_FUERZA = new Set<GameSound>(['goal', 'win', 'loss', 'record'])
+const SIN_FUERZA = new Set<GameSound>(['goal', 'win', 'loss', 'record', 'medal-bronze', 'medal-silver', 'medal-gold'])
+
+/** Lo que se espera a que se apague el gol que cruzó el listón, en segundos. */
+const MEDAL_DELAY = 0.5
+
+/**
+ * El listón cruzado: dos notas cortas hacia arriba, una quinta, más agudas cuanto mejor es la
+ * medalla —do, mi y sol, las del acorde con que se gana—. Corto a propósito, que la partida
+ * sigue, y sin siseo: no golpea nada.
+ */
+function medalRecipe(base: number): SoundRecipe {
+  return {
+    tones: [base, base * 1.5].map((hz, index) => ({
+      type: 'sine' as const,
+      from: hz,
+      to: hz,
+      peak: 0.3,
+      delay: MEDAL_DELAY + index * 0.09,
+      seconds: index === 0 ? 0.09 : 0.2,
+    })),
+  }
+}
 
 const RECIPES: Record<GameSound, SoundRecipe> = {
   strike: {
@@ -263,6 +294,9 @@ const RECIPES: Record<GameSound, SoundRecipe> = {
       { type: 'sine', from: 1760, to: 1975.5, peak: 0.28, delay: 0.62, seconds: 0.34 },
     ],
   },
+  'medal-bronze': medalRecipe(523.25),
+  'medal-silver': medalRecipe(659.25),
+  'medal-gold': medalRecipe(784),
 }
 
 /**

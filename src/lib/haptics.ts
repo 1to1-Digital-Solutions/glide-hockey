@@ -14,7 +14,9 @@
  */
 
 import { impactStrength } from './audioEngine'
+import { pulsosDelListon } from './cartelDelMarcador'
 import { type FrameResult } from './matchLoop'
+import type { Medalla } from './objetivo'
 import { pulsosDe, type Mano, type Pulso } from './tactos'
 
 export type Handedness = Mano
@@ -33,6 +35,8 @@ export type SucesoEnLaMano =
   | { readonly tipo: 'gol' }
   /** Se acaba el partido. */
   | { readonly tipo: 'final' }
+  /** Se cruza un listón de medalla: lo celebra el cartel del objetivo. */
+  | { readonly tipo: 'liston'; readonly medalla: Medalla }
 
 /**
  * Lo fuerte que llega el gol, como `llegada` de `tactos.ts`: la más suave de las suyas.
@@ -89,6 +93,8 @@ export function pulsosDelSuceso(suceso: SucesoEnLaMano, mazo: Mano | null): Puls
       return pulsosDe({ tipo: 'llegada', mano: mazo, fuerza: FUERZA_DEL_GOL })
     case 'final':
       return [{ mano: mazo, intensidad: FINAL_PULSE.intensity, ms: FINAL_PULSE.durationMs, retardo: 0 }]
+    case 'liston':
+      return pulsosDelListon(suceso.medalla, mazo)
   }
 }
 

@@ -13,6 +13,8 @@ import { useLang } from '../../lib/ajustesCliente'
 import { traductor, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
 import { GAME_MODE_HINTS, GAME_MODE_ORDER, type GameMode } from '../../lib/gameMode'
+import { daMedalla, fraseDeLaMedalla } from '../../lib/cartelDelMarcador'
+import type { Objetivo } from '../../lib/objetivo'
 import { LEVEL_COUNT } from '../../lib/levels'
 import { DIFFICULTY_COLORS, PALETTE } from '../../lib/palette'
 import { PALETA } from '../../lib/paleta'
@@ -21,6 +23,7 @@ import {
   LEVEL_BUTTON,
   MENU_BUTTON,
   MENU_HINT_Y,
+  MENU_MEDAL_WIDTH,
   MENU_PANEL,
   MENU_ROW,
   MENU_ROW_LABEL_RISE,
@@ -81,6 +84,9 @@ const PLAY_BUTTON = MENU_BUTTON.play
 const ROW = MENU_ROW
 
 const ROW_LABEL_RISE = MENU_ROW_LABEL_RISE
+
+/** El radio de la marca del modo que da medalla, en metros. */
+const MARCA_DE_MEDALLA = 0.011
 
 
 
@@ -194,6 +200,7 @@ export function dibujarLosNombres(
   levels: boolean,
   gameMode: GameMode = 'practice',
   scenery: Scenery = 'place',
+  objetivo: Objetivo | null = null,
 ): void {
   // Solo la práctica pregunta el nivel de la máquina y los goles; en niveles, la fila de los
   // goles pasa a ser la del nivel que se juega, y en el reto no queda ninguna de las dos.
@@ -232,6 +239,15 @@ export function dibujarLosNombres(
     maxWidth: MENU_RECORD_X - 0.07 - desde,
   })
 
+  // Si el modo elegido cuenta para medalla, en la línea del rótulo «Modo» y a su derecha: junto a
+  // los botones de los que habla. En dorado el que cuenta, que además lleva su marca en el botón.
+  drawText(ctx, t(fraseDeLaMedalla(objetivo, gameMode)), PANEL.width / 2 - 0.05, ROW.mode + ROW_LABEL_RISE, {
+    size: MENU_TEXT.medal,
+    color: daMedalla(objetivo, gameMode) ? PALETA.oro : DIM_COLOR,
+    align: 'right',
+    maxWidth: MENU_MEDAL_WIDTH,
+  })
+
   // Y qué es el modo elegido. Los tres se llamaban «Práctica», «Niveles» y «Reto» y
   // nada más: lo que los distingue solo lo contaba la pantalla de la web, que con el
   // visor puesto no se ve.
@@ -262,6 +278,7 @@ export function XRMenu() {
     bestPoints,
     startGame,
     gameState,
+    objetivo,
   } = useGame()
   const exit = useExit()
   const [confort, setConfort] = useConfort()
@@ -280,8 +297,8 @@ export function XRMenu() {
   // cabe una letra. La tercera fila cambia de pregunta con el modo, así que cambia de
   // nombre con ella.
   const nombrarFilas = useCallback(
-    (ctx: CanvasRenderingContext2D) => dibujarLosNombres(ctx, t, levels, gameMode, scenery),
-    [levels, t, gameMode, scenery],
+    (ctx: CanvasRenderingContext2D) => dibujarLosNombres(ctx, t, levels, gameMode, scenery, objetivo),
+    [levels, t, gameMode, scenery, objetivo],
   )
 
   if (gameState !== 'menu') return null
@@ -332,6 +349,14 @@ export function XRMenu() {
               opacity={selected ? 0.95 : 0.7}
             />
             <ModeIcon mode={mode} lit={selected} />
+            {/* El modo que da medalla lleva su marca en la esquina: un disco dorado, que se
+                distingue por estar o no estar, además de decirlo la frase de abajo. */}
+            {daMedalla(objetivo, mode) ? (
+              <mesh position={[MODE_BUTTON[0] / 2 - MARCA_DE_MEDALLA * 1.6, MODE_BUTTON[1] / 2 - MARCA_DE_MEDALLA * 1.6, 0.002]}>
+                <circleGeometry args={[MARCA_DE_MEDALLA, 20]} />
+                <meshBasicMaterial color={PALETA.oro} toneMapped={false} />
+              </mesh>
+            ) : null}
           </XRPressable>
         )
       })}

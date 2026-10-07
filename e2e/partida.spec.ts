@@ -52,11 +52,31 @@ test('dejar la partida devuelve al menú sin esperar al final', async ({
   await expect(page.getByRole('heading', { name: 'Glide Hockey' })).toBeVisible()
 })
 
-test('el reto no pregunta nivel ni goles: se le da a jugar', async ({ page }) => {
+test('el menú abre en el reto: no pregunta nivel ni goles, y Jugar sin tocar nada lo empieza', async ({ page }) => {
   await abrirJuego(page)
-  await page.getByRole('button', { name: 'Challenge' }).click()
 
+  await expect(page.getByRole('button', { name: 'Challenge' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('Counts for a medal.', { exact: false })).toBeVisible()
   await expect(page.getByLabel(/^Goals/)).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Impossible' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+
+  await expect(page.getByText(/Challenge · round 1/)).toBeVisible()
+  // El objetivo, dicho de frente desde el primer segundo: la misión, y después lo que se lleva
+  // y lo que queda. Sin salón no hay listones: la marca a batir es el récord de aquí.
+  const objetivo = page.locator('[data-objetivo]')
+  await expect(objetivo).toHaveText(/^Win games until you lose one/)
+  await expect(objetivo).toHaveText(/Round 1 · to 3 goals · goal \+100/, { timeout: 30_000 })
+})
+
+test('la práctica sigue a un toque, y ahí no hay objetivo que colgar', async ({ page }) => {
+  await abrirJuego(page)
+  await page.getByRole('button', { name: 'Practice', exact: true }).click()
+
+  await expect(page.getByText('Does not count for a medal.', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+
+  await expect(page.getByText('Machine')).toBeVisible()
+  await expect(page.locator('[data-objetivo]')).toHaveCount(0)
 })

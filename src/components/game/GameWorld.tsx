@@ -1,16 +1,17 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { GolpeRecibido, type GolpeRecibidoHandle } from '../xr/GolpeRecibido'
 import { useConfort } from '../../lib/confort'
 import { XRUiHeight } from '../xr/XRUiHeight'
 import { useXR } from '@react-three/xr'
+import { MARCADOR_DEL_FONDO, SONIDO_DEL_LISTON, sitioDelTutorial } from '../../lib/cartelDelMarcador'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
 import { contarMontaje } from '../../lib/montajes'
 import { finalSuenaAGanar } from '../../lib/duel'
 import { useGame } from '../../lib/gameStore'
+import { listonCruzado, type Medalla } from '../../lib/objetivo'
 import { showsPlace } from '../../lib/ajustes'
-import { HALF_LENGTH } from '../../lib/puckPhysics'
 import {
   EYE_HEIGHTS,
   distanceFromEyes,
@@ -35,6 +36,7 @@ import { XRMenu } from '../xr/XRMenu'
 import { XRTutorial } from '../xr/XRTutorial'
 import { XRSessionController } from '../xr/XRSessionController'
 import { Ayudas } from './Ayudas'
+import { CartelDelMarcador } from './CartelDelMarcador'
 import { Calentar } from './Calentar'
 import { Rink } from './Rink'
 import { Backdrop } from './Backdrop'
@@ -93,7 +95,7 @@ const AZIMUT_DE_LA_COLUMNA = (COLUMNA.azimut * Math.PI) / 180
 /** Dónde va cada pieza de la interfaz inmersiva, en coordenadas de la mesa. */
 export const XR_UI = {
   /** Marcador: al fondo, sobre la portería de la máquina. */
-  scoreboard: [0, 0.5, -HALF_LENGTH - 0.05] as [number, number, number],
+  scoreboard: MARCADOR_DEL_FONDO.centro,
   /**
    * Menú, final de partida y aviso de salir: la columna (`COLUMNA`). Las cotas son las del
    * espacio de quien juega pasadas a las de la mesa, que es de donde cuelga.
@@ -106,14 +108,13 @@ export const XR_UI = {
   /** Cuenta atrás: flotando sobre el punto de saque. */
   countdown: [0, 0.34, 0] as [number, number, number],
   /**
-   * La demostración de cómo se coge el mazo: sobre el sitio del menú y algo más arriba,
-   * que es donde se está mirando al empezar, y por encima del pasillo por el que va el
-   * disco.
+   * La demostración de cómo se coge el mazo: a la altura de la vista y a un lado, a la derecha
+   * del cartel del objetivo, para no tapar ni el cartel ni el marcador (`sitioDelTutorial`).
    *
-   * A 1,2 m y a la altura de la vista: a metro y medio su contador se quedaba en 1°. Su borde de
-   * abajo sigue por encima de la vista del fondo de la mesa (`tutorial.legible.test.ts`).
+   * A 1,2 m: a metro y medio su contador se quedaba en 1°. No tapa la mesa, ni el marcador, ni
+   * el cartel (`tutorial.legible.test.ts`).
    */
-  tutorial: [0, 0.72, 0] as [number, number, number],
+  tutorial: sitioDelTutorial(),
 }
 
 /**
@@ -227,6 +228,7 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
     totalPlayerGoals,
     totalOpponentGoals,
     duel,
+    medalla,
   } = useGame()
   const duelAcabado = duel?.over ?? false
   const mode = useXR((state) => state.mode)
@@ -264,6 +266,18 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
     haptics.sentir({ tipo: 'final' })
     if (isRecord) play('record')
   }, [gameState, play, haptics, isRecord, totalPlayerGoals, totalOpponentGoals, duelAcabado])
+
+  // El listón de medalla que se acaba de cruzar: el sonido corto de la celebración del cartel.
+  // Sale de la misma medalla que el cartel mira, así que suena cuando él cambia de color, y aquí
+  // y no en el cartel porque también lo oye quien juega sin visor, que no lo tiene colgado.
+  const medallaDeAntes = useRef(medalla)
+  useEffect(() => {
+    const cruzado = listonCruzado(medallaDeAntes.current, medalla)
+    medallaDeAntes.current = medalla
+    if (cruzado != null) play(SONIDO_DEL_LISTON[cruzado])
+  }, [medalla, play])
+  // Y en la mano del mazo, cuando el cartel lo celebra.
+  const sentirElListon = useCallback((cruzado: Medalla) => haptics.sentir({ tipo: 'liston', medalla: cruzado }), [haptics])
 
   // Los reflejos de la mesa y del disco, calculados una vez (ver el hook).
   const environment = useRoomEnvironment()
@@ -364,9 +378,11 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
               persona delante y esa persona se quedó dentro del código (ver `XRUiHeight`). */}
           {showPanels ? (
             <XRUiHeight>
-              <group position={XR_UI.scoreboard} rotation={[-0.18, 0, 0]}>
+              <group position={XR_UI.scoreboard} rotation={[MARCADOR_DEL_FONDO.inclinacion, 0, 0]}>
                 <XRScoreboard />
               </group>
+              {/* Qué hay que superar, de frente: encima del marcador, que es donde ya se mira. */}
+              <CartelDelMarcador alCelebrar={sentirElListon} />
               <group position={XR_UI.panel} rotation={XR_UI_ROTATION.panel} scale={ESCALA_DE_LA_COLUMNA}>
                 <XRMenu />
                 <XRGameOver />

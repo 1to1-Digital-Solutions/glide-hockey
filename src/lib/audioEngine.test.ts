@@ -279,6 +279,36 @@ describe('createGlideHockeyAudio', () => {
     expect(Math.min(...record)).toBeGreaterThan(Math.max(...ganar))
   })
 
+  it('el listón de medalla: dos notas hacia arriba, más agudas cuanto mejor es la medalla, y sin siseo', () => {
+    const fake = fakeAudioContext()
+    const audio = createGlideHockeyAudio(() => fake.context)
+    // El gol que cruza el listón suena antes, y con él se abre el contexto con su filtro del bus.
+    audio.play('goal')
+    const notas = (['medal-bronze', 'medal-silver', 'medal-gold'] as const).map((sonido) => {
+      const antes = { osciladores: fake.oscillators.length, filtros: fake.filters.length }
+      audio.play(sonido)
+      // No golpea nada: sin siseo, como los cierres.
+      expect(fake.filters.length - antes.filtros, sonido).toBe(0)
+      return fake.oscillators.slice(antes.osciladores).map((o) => o.frequency)
+    })
+
+    for (const [primera, segunda] of notas) expect(segunda).toBeGreaterThan(primera)
+    expect(notas.map((par) => par.length)).toEqual([2, 2, 2])
+    expect(notas[1][0]).toBeGreaterThan(notas[0][0])
+    expect(notas[2][0]).toBeGreaterThan(notas[1][0])
+  })
+
+  it('y no mira la fuerza: es una celebración, como el gol', () => {
+    const fake = fakeAudioContext()
+    const audio = createGlideHockeyAudio(() => fake.context)
+
+    audio.play('medal-gold', 0)
+    audio.play('medal-gold', 1)
+
+    const [flojo, , fuerte] = fake.oscillators.map((o) => o.frequency)
+    expect(flojo).toBe(fuerte)
+  })
+
   it('sin Web Audio se juega en silencio y no se reintenta a cada golpe', () => {
     const createContext = vi.fn(() => null)
     const audio = createGlideHockeyAudio(createContext)

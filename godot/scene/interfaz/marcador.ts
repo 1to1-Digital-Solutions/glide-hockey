@@ -5,7 +5,8 @@
  * **El marcador va al fondo, sobre la portería de la máquina**: es donde se mira jugando, así que
  * se lee sin apartar la vista del disco. Tres filas: los goles de cada uno en su color (el cian del
  * jugador, el rojo de la máquina), los puntos en el naranja del disco y, en el reto, la ronda —en
- * los niveles, el nivel—. Pasada la primera vuelta a la escalera del reto sale además un aspa y el
+ * los niveles, el nivel—. **Menos lo que ya dice el cartel que tiene encima** (`cartel.ts`): en el
+ * reto los puntos y la ronda se leen ahí, con letras, y aquí quedan los goles, en medio. Pasada la primera vuelta a la escalera del reto sale además un aspa y el
  * número de vuelta, en el color de los puntos: lo que dice es que **lo que se meta ahora vale más**.
  *
  * **La cuenta atrás flota sobre el punto de saque**, y en su último segundo, si el mazo no está en
@@ -30,11 +31,14 @@ import { AVISO_DEL_MAZO, CIFRAS_DEL_MARCADOR, CIFRA_DE_LA_CUENTA, FILAS_DEL_MARC
 export interface EstadoDelMarcador {
   jugador: number
   maquina: number
-  puntos: number
+  /** Los puntos, o `null` si ya los dice el cartel de encima. */
+  puntos: number | null
   /** La ronda del reto, el nivel o el jugador del duelo que tiene el mando; `null` en la práctica. */
   fila: number | null
   /** La vuelta a la escalera del reto, solo pasada la primera. */
   vuelta: number | null
+  /** A qué altura van los goles (`filaDeLosGoles`): en su fila, o en medio si debajo no queda nada. */
+  goles: number
 }
 
 /** Un cuadrado de `lado` metros centrado en `(x, y)`. */
@@ -66,6 +70,7 @@ export class Marcador {
   readonly fila = new Cifras(CIFRAS_DEL_MARCADOR.round, DIM)
   readonly vuelta = new Cifras(CIFRAS_DEL_MARCADOR.round, PALETTE.puck)
   private readonly nodoDeLaVuelta = new Node3D()
+  private readonly dosPuntos = figura([...cuadrado(0, -0.03, 0.016), ...cuadrado(0, 0.03, 0.016)], DIM)
   private pintado = ''
 
   constructor() {
@@ -78,7 +83,7 @@ export class Marcador {
     colgar(this.jugador.nodo, -0.12, FILAS_DEL_MARCADOR.goals)
     colgar(this.maquina.nodo, 0.12, FILAS_DEL_MARCADOR.goals)
     // Los dos puntos entre los goles: es lo que se lee como «a».
-    colgar(figura([...cuadrado(0, -0.03, 0.016), ...cuadrado(0, 0.03, 0.016)], DIM), 0, FILAS_DEL_MARCADOR.goals)
+    colgar(this.dosPuntos, 0, FILAS_DEL_MARCADOR.goals)
     colgar(this.puntos.nodo, 0, FILAS_DEL_MARCADOR.points)
     colgar(this.fila.nodo, 0, FILAS_DEL_MARCADOR.round)
     colgar(this.nodoDeLaVuelta, 0.05, FILAS_DEL_MARCADOR.round)
@@ -92,7 +97,11 @@ export class Marcador {
     this.pintado = clave
     this.jugador.pintar(estado.jugador)
     this.maquina.pintar(estado.maquina)
-    this.puntos.pintar(estado.puntos)
+    for (const [nodo, x] of [[this.jugador.nodo, -0.12], [this.maquina.nodo, 0.12], [this.dosPuntos, 0]] as const) {
+      nodo.position = new Vector3(x, estado.goles, 0.004)
+    }
+    this.puntos.nodo.visible = estado.puntos != null
+    if (estado.puntos != null) this.puntos.pintar(estado.puntos)
     this.fila.nodo.visible = estado.fila != null
     if (estado.fila != null) this.fila.pintar(estado.fila)
     // Con vuelta, la ronda se corre a la izquierda para dejarle sitio.

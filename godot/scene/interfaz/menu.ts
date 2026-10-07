@@ -4,7 +4,7 @@
  *
  * **Primero el modo, y solo pregunta lo que el modo necesita**, como en la web: en la práctica, el
  * nivel de la máquina y a cuántos goles (o sin fin); en los niveles, qué nivel, con sus estrellas;
- * en el desafío, nada más que jugar. Lo que no toca no se pinta; lo que toca pero no se puede
+ * en el reto, nada más que jugar. Lo que no toca no se pinta; lo que toca pero no se puede
  * (bajar del nivel 1, tu habitación sin realidad aumentada) se apaga en vez de esconderse. Arriba
  * del todo, el confort del golpe recibido; abajo, jugar en medio y **salir en la esquina de abajo a
  * la derecha**, la de todas las cabinas (`exitCorner.ts`).
@@ -15,9 +15,10 @@
  * habitación.
  *
  * **Los modos, con el icono de la web** (`ModeIcon`): un disco la práctica, tres estrellas los
- * niveles, una escalera el desafío y dos discos el duelo. Llevaron su nombre escrito mientras
+ * niveles, una escalera el reto y dos discos el duelo. Llevaron su nombre escrito mientras
  * fueron tres; con el duelo son cuatro en la fila, y «Challenge» no cabe en 15 cm a la letra que
- * se lee. Lo que es cada uno lo dice la línea de abajo. Las cifras —goles, nivel, récord— son de
+ * se lee. Lo que es cada uno lo dice la línea de abajo, y **si cuenta para medalla**, la frase de
+ * la línea del rótulo «Modo»; el que la da —el reto— lleva además un disco dorado en la esquina. Las cifras —goles, nivel, récord— son de
  * siete segmentos, como en la web.
  */
 import { Node3D, Vector3 } from 'godot'
@@ -31,10 +32,12 @@ import { Panel } from '@kit/runtime/ui/panel'
 import type { Punteria } from '@kit/runtime/ui/punteria'
 
 import type { Lang, Scenery } from '@/lib/ajustes'
+import { daMedalla, fraseDeLaMedalla } from '@/lib/cartelDelMarcador'
 import { DIFFICULTY_ORDER, MAX_GOALS, MIN_GOALS, type Difficulty } from '@/lib/gameConfig'
 import { GAME_MODE_HINTS, GAME_MODE_ORDER, type GameMode } from '@/lib/gameMode'
 import { CONFORTS, type Confort } from '@/lib/golpeRecibido'
 import { LEVEL_COUNT, type Stars } from '@/lib/levels'
+import type { Objetivo } from '@/lib/objetivo'
 import { PALETA } from '@/lib/paleta'
 import { DIFFICULTY_COLORS, PALETTE } from '@/lib/palette'
 import { SCENERY_LABELS } from '@/lib/scenery'
@@ -44,6 +47,7 @@ import {
   MENU_BOXES,
   MENU_BUTTON,
   MENU_HINT_Y,
+  MENU_MEDAL_WIDTH,
   MENU_PANEL,
   MENU_RECORD_X,
   MENU_ROW,
@@ -62,6 +66,9 @@ export const DIM = PALETA.textoSuave
 
 /** El nombre de la fila del confort (`CONFORT_LEGEND` de `lib/confort.ts`, que es de React). */
 export const LEYENDA_DEL_CONFORT: TextKey = 'When hit'
+
+/** El radio de la marca del modo que da medalla (`MARCA_DE_MEDALLA` de `XRMenu.tsx`). */
+export const MARCA_DE_MEDALLA = 0.011
 
 /** Las cifras del panel, a su alto de la web: goles, nivel y su total, y el récord. */
 export const CIFRAS_DEL_MENU = { goles: 0.11, nivel: 0.1, total: 0.04, record: 0.04 } as const
@@ -111,7 +118,7 @@ function circulo(radio: number, x = 0, y = 0, lados = 24): Punto2[] {
 
 /**
  * La silueta de cada modo (`ModeIcon` de la web, con sus medidas): un disco la práctica, tres
- * estrellas los niveles, una escalera el desafío y dos discos el duelo —el dibujo del duelo de
+ * estrellas los niveles, una escalera el reto y dos discos el duelo —el dibujo del duelo de
  * table-tennis—.
  */
 export function triangulosDelModo(modo: GameMode): Punto2[] {
@@ -151,6 +158,8 @@ export interface EstadoDelMenu {
   habitacion: boolean
   /** El escenario que tiene elegido el salón: la sala o tu habitación. */
   escenario: Scenery
+  /** Lo que pasó el salón, o `null`: de él sale qué modo da medalla. */
+  objetivo: Objetivo | null
 }
 
 export interface AccionesDelMenu {
@@ -173,6 +182,8 @@ export class MenuDelJuego {
   private readonly barras = new Map<Difficulty, ReturnType<typeof barra>>()
   private readonly iconosDelConfort = new Map<Confort, ReturnType<typeof figura>>()
   private readonly iconosDelModo = new Map<GameMode, ReturnType<typeof figura>>()
+  /** La marca del modo que da medalla: un disco dorado en la esquina de su botón. */
+  private readonly marcasDeMedalla = new Map<GameMode, ReturnType<typeof figura>>()
   private readonly aroDelSinFin: ReturnType<typeof figura>
   private readonly aroDeLosGoles: ReturnType<typeof figura>
   private readonly estrellas: ReturnType<typeof figura>[] = []
@@ -194,6 +205,8 @@ export class MenuDelJuego {
     for (const modo of GAME_MODE_ORDER) {
       const b = this.anadir(`modo ${modo}`, PALETTE.rail, 0.7, () => acciones.elegirModo(modo))
       this.iconosDelModo.set(modo, b.dibujo(figura(triangulosDelModo(modo), DIM), DIM))
+      const esquina = [MENU_BUTTON.mode[0] / 2 - MARCA_DE_MEDALLA * 1.6, MENU_BUTTON.mode[1] / 2 - MARCA_DE_MEDALLA * 1.6] as const
+      this.marcasDeMedalla.set(modo, b.dibujo(figura(circulo(MARCA_DE_MEDALLA, esquina[0], esquina[1], 20), PALETA.oro), PALETA.oro))
     }
     DIFFICULTY_ORDER.forEach((nivel, i) => {
       const b = this.anadir(`nivel ${nivel}`, PALETTE.rail, 0.85, () => acciones.elegirDificultad(nivel))
@@ -273,6 +286,7 @@ export class MenuDelJuego {
       const elegido = modo === estado.modo
       this.boton(`modo ${modo}`).colorear(elegido ? PALETTE.primaryDeep : PALETTE.rail, elegido ? 0.95 : 0.7)
       this.boton(`modo ${modo}`).colorDelDibujo(this.iconosDelModo.get(modo)!, elegido ? PALETTE.primary : DIM)
+      this.marcasDeMedalla.get(modo)!.visible = daMedalla(estado.objetivo, modo)
     }
     // La escalera de nivel: la barra crece y el color va del verde al rojo, así que se lee por
     // forma y por color, no solo por color.
@@ -340,6 +354,13 @@ export class MenuDelJuego {
         anchoMax: MENU_PANEL.width / 2,
       })
     }
+    // Si el modo elegido cuenta para medalla, en la línea del rótulo «Modo» y a su derecha.
+    panel.escribir(t(fraseDeLaMedalla(estado.objetivo, estado.modo)), MENU_PANEL.width / 2 - 0.05, MENU_ROW.mode + MENU_ROW_LABEL_RISE, {
+      alto: MENU_TEXT.medal,
+      color: daMedalla(estado.objetivo, estado.modo) ? PALETA.oro : DIM,
+      alinear: 'right',
+      anchoMax: MENU_MEDAL_WIDTH,
+    })
     const desde = MENU_BOXES.escenario.position[0] + MENU_BUTTON.small[0] / 2 + 0.02
     panel.escribir(t(SCENERY_LABELS[estado.escenario]), desde, MENU_ROW.record, {
       alto: MENU_TEXT.scenery,

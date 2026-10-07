@@ -13,6 +13,7 @@ import {
   GAME_MODE_ORDER,
 } from '../../lib/gameMode'
 import { useGame } from '../../lib/gameStore'
+import { daMedalla, fraseDeLaMedalla } from '../../lib/cartelDelMarcador'
 import { useDuelTally } from '../../lib/useDuelTally'
 import { useLang } from '../../lib/ajustesCliente'
 import { traductor } from '../../lib/textos'
@@ -104,6 +105,7 @@ export function StartScreen() {
     bestPoints,
     startGame,
     immersive: inSession,
+    objetivo,
   } = useGame()
   const exit = useExit()
   const immersive = useImmersiveSupport()
@@ -137,7 +139,7 @@ export function StartScreen() {
           <fieldset className="flex flex-col gap-2">
             <legend className="sr-only">{t('Game mode')}</legend>
             <FieldLabel>{t('Mode')}</FieldLabel>
-            {/* Cuatro en fila no caben en un móvil con «Desafío» dentro: dos filas de dos. */}
+            {/* Cuatro en fila no caben en un móvil con «Práctica» dentro: dos filas de dos. */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {GAME_MODE_ORDER.map((mode) => (
                 <OptionButton
@@ -146,10 +148,18 @@ export function StartScreen() {
                   onClick={() => setGameMode(mode)}
                 >
                   {t(GAME_MODE_LABELS[mode])}
+                  {/* El modo que da medalla lleva su marca, además de decirlo abajo con letras. */}
+                  {daMedalla(objetivo, mode) ? (
+                    <span aria-hidden className="ml-1.5" style={{ color: PALETA.oro }}>
+                      ●
+                    </span>
+                  ) : null}
                 </OptionButton>
               ))}
             </div>
-            <p className="text-xs text-white/45">{t(GAME_MODE_HINTS[gameMode])}</p>
+            <p className="text-xs text-white/45">
+              {t(GAME_MODE_HINTS[gameMode])} {t(fraseDeLaMedalla(objetivo, gameMode))}.
+            </p>
           </fieldset>
 
           {/* Las opciones de la práctica: el nivel de la máquina y a cuántos goles. */}

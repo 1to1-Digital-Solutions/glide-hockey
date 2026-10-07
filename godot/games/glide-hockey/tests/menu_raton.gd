@@ -1,4 +1,5 @@
-## El menú con el ratón, en la escena de verdad: que se empieza en el menú, que elegir el modo y
+## El menú con el ratón, en la escena de verdad: que se empieza en el menú **con el reto elegido** y
+## jugar sin tocar nada lo empieza con el cartel del objetivo a la vista, que elegir otro modo y
 ## darle a jugar empieza la partida de ese modo, que Escape pregunta antes de dejarla, que volver al
 ## menú desde el aviso vuelve al menú y que la flecha de la esquina sale del juego.
 ##
@@ -76,34 +77,66 @@ func _process(_delta: float) -> void:
 	espera = 2
 	match paso:
 		0:
+			# El menú abre en el reto: jugar sin tocar nada empieza la partida que da medalla.
 			esperar("menu", "al abrir")
-			apretado_en = mover("modo levels")
+			if game.modo_de_la_partida() != "challenge":
+				failures.append("el menú abre en %s y no en el reto" % game.modo_de_la_partida())
+			if game.cartel_visible():
+				failures.append("el cartel del objetivo se ve en el menú")
+			apretado_en = mover("jugar")
 			boton(apretado_en, true)
 		1:
 			boton(apretado_en, false)
 		2:
-			apretado_en = mover("jugar")
-			boton(apretado_en, true)
-		3:
-			boton(apretado_en, false)
-		4:
-			esperar("countdown", "tras darle a jugar")
-			if game.modo_de_la_partida() != "levels":
-				failures.append("se juega %s y se eligió levels" % game.modo_de_la_partida())
+			esperar("countdown", "tras darle a jugar sin tocar nada")
+			if game.modo_de_la_partida() != "challenge":
+				failures.append("sin tocar nada se juega %s y no el reto" % game.modo_de_la_partida())
+			# Y el objetivo, de frente desde la cuenta atrás: la misión del reto.
+			if not game.cartel_visible():
+				failures.append("en el reto no se ve el cartel del objetivo")
+			if not game.cartel_dice().begins_with("Win games until you lose one"):
+				failures.append("el cartel dice «%s» y no la misión" % game.cartel_dice())
 			escape()
-		5:
-			esperar("aviso", "tras Escape en la partida")
+		3:
+			esperar("aviso", "tras Escape en el reto")
 			apretado_en = mover("confirm:menu")
+			boton(apretado_en, true)
+		4:
+			boton(apretado_en, false)
+		5:
+			esperar("menu", "tras dejar el reto")
+			apretado_en = mover("modo levels")
 			boton(apretado_en, true)
 		6:
 			boton(apretado_en, false)
+			# El mismo botón dos veces: un segundo roce en menos de 300 ms no cuenta (`Punteria`).
+			OS.delay_msec(320)
 		7:
-			esperar("menu", "tras volver al menú desde el aviso")
-			apretado_en = mover("salir")
+			apretado_en = mover("jugar")
 			boton(apretado_en, true)
 		8:
 			boton(apretado_en, false)
 		9:
+			esperar("countdown", "tras darle a jugar")
+			if game.modo_de_la_partida() != "levels":
+				failures.append("se juega %s y se eligió levels" % game.modo_de_la_partida())
+			# Fuera del reto y sin salón no hay medalla de la que hablar: no se cuelga nada.
+			if game.cartel_visible():
+				failures.append("en los niveles, sin salón, se ve el cartel del objetivo")
+			escape()
+		10:
+			esperar("aviso", "tras Escape en la partida")
+			apretado_en = mover("confirm:menu")
+			boton(apretado_en, true)
+		11:
+			boton(apretado_en, false)
+		12:
+			esperar("menu", "tras volver al menú desde el aviso")
+			apretado_en = mover("salir")
+			boton(apretado_en, true)
+		13:
+			boton(apretado_en, false)
+		14:
 			if not game.has_meta("salida"):
 				failures.append("la flecha de salir no ha salido")
 			terminar()

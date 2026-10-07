@@ -42,8 +42,37 @@ describe('el menú de la web', () => {
     expect(filas()[0]).toBe('Mode')
   })
 
+  it('abre con el reto elegido: Jugar sin tocar nada, y la práctica a un toque', async () => {
+    await abrir()
+
+    expect(screen.getByRole('button', { name: GAME_MODE_LABELS.challenge }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByText(/The first game you lose ends it/)).toBeDefined()
+    expect(screen.queryByLabelText(/^Goals/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Play' })).toBeDefined()
+
+    fireEvent.click(screen.getByRole('button', { name: GAME_MODE_LABELS.practice }))
+
+    expect(screen.getByRole('button', { name: GAME_MODE_LABELS.practice }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByLabelText(/^Goals/)).toBeDefined()
+  })
+
+  it('dice de cada modo si cuenta para medalla: solo el reto', async () => {
+    await abrir()
+
+    expect(screen.getByText(/The first game you lose ends it\. Counts for a medal\./)).toBeDefined()
+    for (const modo of ['practice', 'levels', 'duel'] as const) {
+      fireEvent.click(screen.getByRole('button', { name: GAME_MODE_LABELS[modo] }))
+      expect(screen.getByText(/Does not count for a medal\./), modo).toBeDefined()
+      expect(screen.queryByText(/Counts for a medal\./), modo).toBeNull()
+    }
+    // Y el botón del reto lleva su marca, sin cambiarle el nombre a quien lo oye.
+    expect(document.querySelectorAll('fieldset button span[aria-hidden]')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: GAME_MODE_LABELS.challenge }).textContent).toContain('●')
+  })
+
   it('en la práctica pregunta el nivel de la máquina y los goles', async () => {
     await abrir()
+    fireEvent.click(screen.getByRole('button', { name: GAME_MODE_LABELS.practice }))
 
     expect(screen.getByRole('button', { name: 'Impossible' })).toBeDefined()
     expect(screen.getByLabelText(/^Goals/)).toBeDefined()

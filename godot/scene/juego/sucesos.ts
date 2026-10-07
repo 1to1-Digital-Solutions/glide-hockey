@@ -18,8 +18,10 @@
  *   jugador** al disco, en la mano que lo lleva y con la fuerza del choque; el gol, suave; y el
  *   final del partido, largo. El roce y el rebote no los toca la mano, así que no vibran.
  */
+import { pulsosDelListon } from '@/lib/cartelDelMarcador'
 import { MAX_PUCK_SPEED } from '@/lib/gameConfig'
 import type { FrameResult } from '@/lib/matchLoop'
+import type { Medalla } from '@/lib/objetivo'
 import { slideLevel, slidePitch } from '@/lib/slideSound'
 import { pulsosDe, type Mano, type Pulso } from '@/lib/tactos'
 
@@ -65,7 +67,12 @@ export const FUERZA_DEL_GOL = 0
 export const PULSO_DEL_FINAL = { intensidad: 0.6, ms: 220 } as const
 
 /** Lo que se siente de un suceso de la mesa (`SucesoEnLaMano`). */
-export type SucesoEnLaMano = { readonly tipo: 'golpe'; readonly fuerza: number } | { readonly tipo: 'gol' } | { readonly tipo: 'final' }
+export type SucesoEnLaMano =
+  | { readonly tipo: 'golpe'; readonly fuerza: number }
+  | { readonly tipo: 'gol' }
+  | { readonly tipo: 'final' }
+  /** Se cruza un listón de medalla: lo celebra el cartel del objetivo. */
+  | { readonly tipo: 'liston'; readonly medalla: Medalla }
 
 /** Lo que de un fotograma de la mesa llega a la mano (`sucesosDelFotograma`). */
 export function sucesosDelFotograma(golpesAntes: number, { table, goals, impact }: Pick<FrameResult, 'table' | 'goals' | 'impact'>): SucesoEnLaMano[] {
@@ -85,5 +92,7 @@ export function pulsosDelSuceso(suceso: SucesoEnLaMano, mazo: Mano | null): Puls
       return pulsosDe({ tipo: 'llegada', mano: mazo, fuerza: FUERZA_DEL_GOL })
     case 'final':
       return [{ mano: mazo, intensidad: PULSO_DEL_FINAL.intensidad, ms: PULSO_DEL_FINAL.ms, retardo: 0 }]
+    case 'liston':
+      return pulsosDelListon(suceso.medalla, mazo)
   }
 }

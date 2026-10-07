@@ -54,7 +54,7 @@ test('y entrar en el visor no lo vuelve a montar', async ({ page }) => {
 test('y no deja shaders sin compilar para el primer fotograma de la sesión', async ({ page }) => {
   // La otra mitad del parpadeo, y la que sí dio algo: al abrir la sesión se compilaban tres
   // programas nuevos —los materiales que solo existen dentro del visor—, y compilar bloquea
-  // el hilo. `Calentar` los compila con `compileAsync` en cuanto la sesión arranca; lo que se
+  // el hilo. `Calentar` los compila con `compile` en cuanto la sesión arranca; lo que se
   // vigila aquí es que **al cabo de un momento ya no queden nuevos**, es decir, que no se
   // sigan compilando a medida que se pinta.
   await page.addInitScript(() => {

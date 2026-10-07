@@ -13,10 +13,15 @@ import { apuntarProgramas } from '../../lib/montajes'
  * por segundo y por ojo, es un fogonazo — y no uno: **uno por material**, repartidos por los
  * primeros fotogramas según va apareciendo cada cosa. Es el tirón que se reporta al empezar.
  *
- * `compileAsync` no bloquea: con `KHR_parallel_shader_compile` el driver compila en paralelo
- * y la promesa resuelve cuando está. Se llama de una vez para la escena entera, así que en
- * lugar de ocho compilaciones sueltas —cada una en su fotograma— hay una tanda fuera del
- * camino del dibujo.
+ * `compile` no bloquea: con `KHR_parallel_shader_compile` el driver compila en paralelo. Se
+ * llama de una vez para la escena entera, así que en lugar de ocho compilaciones sueltas —cada
+ * una en su fotograma— hay una tanda fuera del camino del dibujo.
+ *
+ * **Con `compile` y no con `compileAsync`.** `compileAsync` es `compile` más una promesa que
+ * three resuelve sondeando cada diez milisegundos el programa de cada material. Si entretanto
+ * se desmonta uno (los botones del menú al pulsar Jugar), el sondeo lee un programa que ya no
+ * existe y revienta en un temporizador: «Cannot read properties of undefined (reading
+ * 'isReady')». Aquí nadie espera esa promesa, así que el sondeo sobra.
  *
  * **Va montado en el mundo, no en el Canvas de la web del juego.** Ahí estuvo, y por eso no
  * calentaba nada justo donde se juega de verdad: el salón monta `<GameWorld>` dentro de su
@@ -46,7 +51,7 @@ export function Calentar() {
   // materiales que solo existen dentro —los paneles, el mando dibujado— y son justo los que
   // no ha compilado nadie. Repetirlo no cuesta: three devuelve el programa que ya tiene.
   useLayoutEffect(() => {
-    void gl.compileAsync(scene, camera)
+    gl.compile(scene, camera)
   }, [mode, gl, scene, camera])
 
   // Cuántos programas lleva compilados, para que un test pueda decir si al entrar en la

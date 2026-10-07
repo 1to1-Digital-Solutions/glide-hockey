@@ -37,9 +37,20 @@ el visor y las ayudas visuales) al diseñar o cambiar interacción, menús, tuto
   y se recuerdan. El sonido se sintetiza con WebAudio en UN solo `AudioContext` que se abre
   con el primer sonido; los hápticos salen de las mismas cuentas que el sonido y no obedecen
   al silencio. El resumen se puede compartir (`navigator.share` con copia al portapapeles).
-- **Prueba, Reto y récord por modo.** Prueba: se elige la dificultad y fallar no cuesta;
-  Reto: escalera automática con tres vidas y sin final. Récord separado por modo. Al volver
-  al menú, el título recoge el foco para que el lector de pantalla lo anuncie.
+- **La misión se entiende en tres segundos.** El menú abre en el modo que da medalla, que se
+  llama «Reto» («Challenge»), y dice de cada modo si cuenta. El objetivo se lee de frente con
+  `CartelDeObjetivo`, sin tapar blanco ni trayectoria; la frase de misión cabe en una línea a
+  ≥1° (una larga encoge por debajo de lo legible) y lo que dice el cartel se quita del
+  marcador. Récord separado por modo; al volver al menú, el título recoge el foco.
+- **Se nace donde se juega.** Lo que se coge, al alcance sin dar un paso; ninguna línea de
+  falta bajo los pies; si el juego desplaza al jugador, se ve en el suelo dónde ponerse. El
+  salón planta el juego bajo la cabeza del instante de entrar y con el rumbo del arco de
+  cabinas, no el de la mirada.
+- **Un objeto a dos manos lo manda el puño de la mano buena** y la segunda corrige, con
+  puertas (separación y ángulo) y rampa, como `batting-cage/src/lib/agarreDelBate.ts`: cerrar
+  la segunda mano nunca mueve la punta de golpe.
+- **Nada que ocupe buena parte del campo de visión cambia de brillo en un fotograma**, y el
+  instante del golpe no compila programas ni sube más de un lienzo: se precalienta antes.
 - **Accesible aunque sea 3D.** El marcador se anuncia entero en una región `status` como una
   sola frase; lo dibujado sale del árbol de accesibilidad; los estados se distinguen por
   forma además de color; `prefers-reduced-motion` apaga los balanceos.
@@ -60,18 +71,13 @@ el visor y las ayudas visuales) al diseñar o cambiar interacción, menús, tuto
 
 ## El texto del visor se mide, no se mira
 
-**La queja que más se ha repetido en cuatro tandas de pruebas con gafas es la misma**: «el texto
-se superpone», «las letras están muy pegadas», «no se entiende nada». Ha pasado en el aviso de
-salir, en los menús de ajustes, en el marcador y en los tutoriales. Y siempre se ha descubierto
-igual: con el visor puesto, nunca antes.
-
-No es descuido de quien lo escribió. Un panel del visor se pinta en un lienzo que **nadie mira al
-tamaño al que se lee**: en el navegador se ve una textura de 1024 píxeles por metro dentro de una
-escena 3D, y que dos renglones se pisen o que una etiqueta se salga de su botón no se nota hasta
-que se tiene delante de la cara.
+**La queja más repetida con las gafas puestas** es «el texto se superpone», «no se entiende
+nada»: en el aviso de salir, los ajustes, el marcador y los tutoriales. Un panel se pinta en un
+lienzo que **nadie mira al tamaño al que se lee**, y que dos renglones se pisen no se nota hasta
+tenerlo delante de la cara.
 
 Así que no hay regla de estilo, hay un instrumento: `components/xr/legibilidad.ts`, el mismo
-fichero en los trece juegos.
+fichero en todos los juegos.
 
 - `lienzoQueApunta()` es un lienzo de mentira que **mide como uno de verdad y apunta lo que se
   escribe**: qué texto, dónde y qué caja ocupa, ya en coordenadas del panel.
@@ -90,12 +96,10 @@ fichero en los trece juegos.
    dos cifras y con tres, el nombre más largo de la lista.
 4. El ancho de letra que usa la regla va **tirando a ancho** a propósito. Quedándose corta daría
    por bueno lo que en el visor se pisa, que es exactamente lo que ha estado pasando.
-5. **La fuente se pide en píxeles de verdad.** Pedirla en metros (`0.03px`) sobre un lienzo
-   escalado a 1024 da unas métricas de letra en las que el navegador del visor no se puede fiar,
-   y amontona las letras aunque las cajas no se pisen: fue la causa de la séptima tanda en los
-   trece juegos a la vez. `panelFont(peso, metros)` en `canvasPanel.tsx` escala el lienzo y
-   pide la fuente a su tamaño en píxeles; el lienzo que apunta rechaza cualquier texto pedido
-   por debajo de `MIN_FUENTE_PX`.
+5. **La fuente se pide en píxeles de verdad.** Pedida en metros (`0.03px`) sobre un lienzo
+   escalado, el navegador del visor amontona las letras aunque las cajas no se pisen.
+   `panelFont(peso, metros)` en `canvasPanel.tsx` escala el lienzo y pide la fuente en píxeles;
+   el lienzo que apunta rechaza cualquier texto pedido por debajo de `MIN_FUENTE_PX`.
 
 Lo que la regla **no** cubre y sigue pidiendo gafas: si el panel está a una distancia cómoda, si
 lo tapa el decorado y si el contraste aguanta la luz de la escena. Eso va a

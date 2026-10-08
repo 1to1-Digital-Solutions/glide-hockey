@@ -89,7 +89,8 @@ export interface Partida {
   causa?: string | null
   /**
    * Lo que vale una cifra del récord en lo que se cuenta, ya traducido: `1900` → «≈ 13 palos».
-   * Para cuando la unidad del récord no es la de la misión; se dice antes de la primera partida.
+   * Para cuando la unidad del récord no es la de la misión; se dice antes de la primera partida,
+   * en lugar de la cifra del bronce (y sin la plata, para que la línea quepa entera).
    */
   contable?: ((puntos: number) => string) | null
   /** El juego ya dice el récord en su propio marcador: el cartel no lo repite. */
@@ -153,9 +154,8 @@ export const OBJETIVO_ES = {
   'Bronze!': '¡Bronce!',
   'Silver!': '¡Plata!',
   'Gold!': '¡Oro!',
-  'Bronze {bronce} {contable} · Silver {plata} · Gold {oro}': 'Bronce {bronce} {contable} · Plata {plata} · Oro {oro}',
-  'Gold {oro} or less · Silver {plata} · Bronze {bronce} {contable}':
-    'Oro {oro} o menos · Plata {plata} · Bronce {bronce} {contable}',
+  'Bronze {contable} · Gold {oro}': 'Bronce {contable} · Oro {oro}',
+  'Gold {oro} or less · Bronze {contable}': 'Oro {oro} o menos · Bronce {contable}',
   '{mode} · does not count for a medal': '{mode} · no cuenta para medalla',
 } as const
 
@@ -330,8 +330,10 @@ function sinObjetivo(partida: Partida, t: Traducir): VistaDelCartel {
 }
 
 /**
- * Antes de empezar: la misión y los tres listones. La primera vez, con el bronce dicho en lo que
- * se cuenta si el juego sabe traducirlo.
+ * Antes de empezar: la misión y los tres listones. La primera vez, si el juego sabe traducirlo, el
+ * bronce dicho en lo que se cuenta **en lugar de** su cifra, y el oro, sin la plata: «Bronce ≈ 7
+ * palos · Oro 7000». Es lo que persigue quien empieza y hasta dónde llega el juego; con la cifra y
+ * la plata, la línea encogía por debajo de la letra mínima con los ojos a 1,9 m (stick-rush).
  */
 function antes(objetivo: Objetivo, mision: string, t: Traducir, contable: Partida['contable']): VistaDelCartel {
   const traducido = objetivo.record == null && contable != null ? contable(objetivo.medallas.bronce) : null
@@ -343,8 +345,8 @@ function antes(objetivo: Objetivo, mision: string, t: Traducir, contable: Partid
         ? t(mas ? 'Bronze {bronce} · Silver {plata} · Gold {oro}' : 'Gold {oro} or less · Silver {plata} · Bronze {bronce}', objetivo.medallas)
         : t(
             mas
-              ? 'Bronze {bronce} {contable} · Silver {plata} · Gold {oro}'
-              : 'Gold {oro} or less · Silver {plata} · Bronze {bronce} {contable}',
+              ? 'Bronze {contable} · Gold {oro}'
+              : 'Gold {oro} or less · Bronze {contable}',
             { ...objetivo.medallas, contable: traducido },
           ),
     barra: null,

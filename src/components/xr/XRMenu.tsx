@@ -12,10 +12,11 @@ import { useGame } from '../../lib/gameStore'
 import { useLang } from '../../lib/ajustesCliente'
 import { traductor, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
-import { GAME_MODE_HINTS, GAME_MODE_LABELS, GAME_MODE_ORDER, type GameMode } from '../../lib/gameMode'
+import { GAME_MODE_HINTS, GAME_MODE_LABELS, MODOS_DEL_MENU, type GameMode } from '../../lib/gameMode'
 import { daMedalla, fraseDeLaMedalla } from '../../lib/cartelDelMarcador'
 import type { Objetivo } from '../../lib/objetivo'
 import { LEVEL_COUNT } from '../../lib/levels'
+import { MENU_EN } from '../../lib/palabras'
 import { DIFFICULTY_COLORS, PALETTE } from '../../lib/palette'
 import { PALETA } from '../../lib/paleta'
 import {
@@ -208,7 +209,7 @@ export function dibujarLosNombres(
   // goles pasa a ser la del nivel que se juega, y en el reto no queda ninguna de las dos.
   const practice = gameMode === 'practice'
   const filas: (readonly [number, string])[] = [
-    [ROW.mode, t('Mode')],
+    [ROW.mode, t(MENU_EN.modo)],
     ...(practice ? [[ROW.level, t('Level')] as const] : []),
     ...(practice || levels ? [[ROW.goals, levels ? t('Stage') : t('Goals')] as const] : []),
   ]
@@ -252,7 +253,7 @@ export function dibujarLosNombres(
 
   // El nombre de cada modo, en la franja de abajo de su botón (`MENU_MODE_LABEL_DROP`): los iconos
   // solos no dicen qué modo es cada uno. El elegido, en claro, como su icono.
-  for (const modo of GAME_MODE_ORDER) {
+  for (const modo of MODOS_DEL_MENU) {
     const [x, y] = MENU_BOXES[`modo ${modo}`].position
     drawText(ctx, t(GAME_MODE_LABELS[modo]), x, y + MENU_MODE_LABEL_DROP, {
       size: MENU_TEXT.mode,
@@ -348,7 +349,7 @@ export function XRMenu() {
         )
       })}
 
-      {GAME_MODE_ORDER.map((mode) => {
+      {MODOS_DEL_MENU.map((mode) => {
         const selected = mode === gameMode
         return (
           <XRPressable

@@ -35,7 +35,8 @@ import { cartelDeObjetivo, type Objetivo, type VistaDelCartel } from '@/lib/obje
 import { traductor, traductorSuave } from '@/lib/textos'
 import { TUTORIAL_STEPS } from '@/lib/tutorial'
 import { REFERENCE_EYE_HEIGHT } from '@/lib/uiHeight'
-import { MENU_PANEL, MENU_TEXT } from '@/lib/xrMenuLayout'
+import { GRADOS_DEL_MENU, gradosDelFrente } from '@/lib/plantillaDelMenu'
+import { MENU_PANEL, MENU_TEXT, sitioDelMenu } from '@/lib/xrMenuLayout'
 
 import { CLAVE_DEL_IDIOMA, idioma, niveles } from '@kit/runtime/ajustes'
 import { CLAVE_DEL_CONFORT, confort } from './confort'
@@ -88,6 +89,8 @@ function medir(
 }
 
 const COLUMNA = vistasDelPanel(XR_UI.panel, XR_UI_ROTATION.panel)
+/** Donde nace el menú con el visor: casi de frente (`XR_UI.menu`), como en la web. */
+const SITIO_DEL_MENU = vistasDelPanel(XR_UI.menu, XR_UI_ROTATION.menu)
 
 const cajas = (botones: Iterable<{ caja: { x: number; y: number; width: number; height: number }; nodo: Node3D }>) =>
   [...botones].filter((b) => b.nodo.visible).map((b) => b.caja)
@@ -171,8 +174,13 @@ describe('el menú mide lo que la web', () => {
   it('se lee: nada se pisa ni se sale, y cada letra llega desde donde se juega', () => {
     for (const { donde, estado } of momentosDelMenu()) {
       menu.pintar(estado)
-      expect(medir(menu.panel.escritos, MENU_PANEL, COLUMNA, ESCALA_DE_LA_COLUMNA), donde).toEqual([])
+      expect(medir(menu.panel.escritos, MENU_PANEL, SITIO_DEL_MENU, ESCALA_DE_LA_COLUMNA), donde).toEqual([])
     }
+  })
+
+  it(`nace a ${GRADOS_DEL_MENU}° o menos del frente, en el sitio de la web`, () => {
+    expect(gradosDelFrente(delEspacioDelJugador(XR_UI.menu))).toBeLessThanOrEqual(GRADOS_DEL_MENU)
+    expect(XR_UI.menu).toEqual(sitioDelMenu())
   })
 
   it('y la medida se entera cuando no cabe: estrechado a un tercio, canta', () => {

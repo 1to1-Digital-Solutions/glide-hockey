@@ -101,7 +101,7 @@ const CARTEL = drawCallBudget('cartel-del-objetivo')
 test('el cartel del objetivo añade como mucho dos llamadas de dibujo', async ({ page }) => {
   await countDrawCalls(page)
   await observarLaMesa(page)
-  await openHost(page, {
+  await openHost(page, undefined, {
     reto: 20261005,
     objetivo: { medallas: { bronce: 1500, plata: 8000, oro: 20000 }, mejorEs: 'mas', unidad: 'points in the challenge', record: null, modo: 'challenge' },
   })

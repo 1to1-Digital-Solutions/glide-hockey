@@ -16,6 +16,7 @@ import { MARCADOR_DEL_FONDO, sitioDelCartel, sitioDelTutorial } from '@/lib/cart
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '@/lib/gameConfig'
 import { EYE_HEIGHTS, eyesAt, panelRotation, type PanelPose, type Point } from '@/lib/panelReading'
 import { REFERENCE_EYE_HEIGHT, uiRiseOverWorld, worldRise } from '@/lib/uiHeight'
+import { sitioDelMenu } from '@/lib/xrMenuLayout'
 
 export type Triple = [number, number, number]
 
@@ -39,6 +40,8 @@ export const XR_UI = {
   scoreboard: MARCADOR_DEL_FONDO.centro as Triple,
   /** La columna, pasada del espacio de quien juega al de la mesa. */
   panel: [-COLUMNA.distancia * Math.sin(AZIMUT), REFERENCE_EYE_HEIGHT - TABLE_HEIGHT, -COLUMNA.distancia * Math.cos(AZIMUT) - TABLE_CENTER_Z] as Triple,
+  /** El menú, casi de frente: lo calcula `lib/xrMenuLayout.ts` para la web y para aquí. */
+  menu: sitioDelMenu() as Triple,
   /** La cuenta atrás, flotando sobre el punto de saque. */
   countdown: [0, 0.34, 0] as Triple,
   /** El tutorial, a la altura de la vista y a un lado del cartel, que no lo tape (`sitioDelTutorial`). */
@@ -62,6 +65,7 @@ export function delEspacioDelJugador(pieza: readonly [number, number, number]): 
 /** Cómo se gira cada pieza para mirar a los ojos de referencia (`XR_UI_ROTATION`). */
 export const XR_UI_ROTATION = {
   panel: panelRotation(delEspacioDelJugador(XR_UI.panel), eyesAt(REFERENCE_EYE_HEIGHT)),
+  menu: panelRotation(delEspacioDelJugador(XR_UI.menu), eyesAt(REFERENCE_EYE_HEIGHT)),
   quit: panelRotation(delEspacioDelJugador(XR_QUIT), eyesAt(REFERENCE_EYE_HEIGHT)),
   tutorial: panelRotation(delEspacioDelJugador(XR_UI.tutorial), eyesAt(REFERENCE_EYE_HEIGHT)),
   tutorialEnPlano: panelRotation(delEspacioDelJugador(TUTORIAL_EN_PLANO), eyesAt(REFERENCE_EYE_HEIGHT)),

@@ -5,6 +5,7 @@ import { GameWorld } from '../components/game/GameWorld'
 import { setAssetsBase } from '../lib/assets'
 import type { HostAnchor } from '../lib/hostAnchor'
 import type { Objetivo } from '../lib/objetivo'
+import { fijarNombreDelJuego } from '../lib/plantillaDelMenu'
 import type { Resultado, Reto } from '../lib/semilla'
 import { ExitProvider } from './exit'
 
@@ -57,6 +58,12 @@ export interface GlideHockeySceneProps {
    * queda; sin él, la misión y el récord guardado en este navegador.
    */
   objetivo?: Objetivo
+  /**
+   * Cómo se llama la cabina en el salón (el `name` de su manifiesto): es lo que dicen el menú y la
+   * portada (`nombreDelJuego` de `plantillaDelMenu.ts`). Sin él, el del `package.json` con
+   * mayúsculas, que coincide con el del catálogo.
+   */
+  nombre?: string
 }
 
 /**
@@ -73,7 +80,10 @@ export interface GlideHockeySceneProps {
  *
  * El contrato completo, en `docs/montar-el-juego.md`.
  */
-export function GlideHockeyScene({ assetsBase, anchor, onExit, reto, onTerminar, objetivo }: GlideHockeySceneProps) {
+export function GlideHockeyScene({ assetsBase, anchor, onExit, reto, onTerminar, objetivo, nombre }: GlideHockeySceneProps) {
+  // Antes que los hijos, por lo mismo que la base de ficheros: el menú lo lee desde el primer
+  // fotograma, y fijarlo dos veces con el mismo nombre no cambia nada.
+  fijarNombreDelJuego(nombre)
   // Durante el render y no en un efecto: el store de WebXR resuelve su base de
   // ficheros la primera vez que alguien lo pide, que puede ser antes de que
   // corra ningún efecto. Escribir la misma base dos veces no cambia nada, así

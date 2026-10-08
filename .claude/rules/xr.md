@@ -40,10 +40,16 @@ el visor y las ayudas visuales) al diseñar o cambiar interacción, menús, tuto
   (`xrcade/src/lib/salon/compartir.ts`).
 - **La misión se entiende en tres segundos.** El menú abre en «Reto» («Challenge»), el modo
   que da medalla: una partida fija, sin opciones; el que las tenga dice que no cuenta
-  (`xrcade/docs/medallas.md`). En el visor el menú nace a ≤30° del frente y se aparta al
-  empezar. Botones y estados, del diccionario común (`lib/palabras.ts`). El objetivo se lee
-  de frente con `CartelDeObjetivo`, sin tapar blanco ni trayectoria; la misión cabe en una
-  línea a ≥1° y lo que dice el cartel se quita del marcador. Récord separado por modo.
+  (`xrcade/docs/medallas.md`). El menú sigue la plantilla común (`lib/plantillaDelMenu.ts`):
+  se llama como la cabina (`nombreDelJuego()`, de la prop `nombre` o del `package.json`),
+  «Modo» con el reto primero, «Jugadores» y lo demás en «Más opciones», plegado. En el visor
+  nace a ≤30° del frente —el guardián lo mide con `gradosDelFrente`— y se aparta al empezar.
+  Botones y estados, del diccionario común (`lib/palabras.ts`). El objetivo se lee de frente
+  con `CartelDeObjetivo`, sin tapar blanco ni trayectoria; la misión cabe en una línea a ≥1° y
+  lo que dice el cartel se quita del marcador. Récord separado por modo.
+- **Los puntos no bajan en la primera ronda del reto.** Lo que resta (encajar, dejar caer,
+  perder el punto) no resta en la ronda 1: quien empieza no ve su número bajar ni acabar en 0
+  con algo conseguido (`concededPenalty` de glide-hockey, `lostPenalty` de table-tennis).
 - **La primera partida con el visor es un calentamiento.** Con el tutorial pendiente nada
   cuenta (vidas, tiros, bolas); si hace falta el objeto en la mano, se espera a cogerlo. Al
   cerrarlo, «Ahora cuenta para medalla» y reto desde cero. Nunca en el reto del día ni a
@@ -64,7 +70,10 @@ el visor y las ayudas visuales) al diseñar o cambiar interacción, menús, tuto
   empaquetado con esbuild): entrar en sesión, jugar una tanda, salir. El emulador no pulsa
   botones del menú 3D: eso se valida con el visor y se deja como `test.fixme`, no se borra.
   El puerto llega en `PORT` y el e2e lo lee de `E2E_PORT`. Un e2e «anfitrión» monta la
-  escena en un Canvas ajeno con `assetsBase` con prefijo.
+  escena en un Canvas ajeno con `assetsBase` con prefijo y, si se le pide, con `objetivo`. Lo
+  común de la UX va en `e2e/support/comun.ts`: la mirada en grados (`mirar`, a la izquierda y
+  arriba en positivo), el gancho `__partida<Juego>` con `start`, `score`, `end` y `cartel`, y
+  `e2e/capturas.spec.ts`, que saca las mismas capturas en los diecisiete.
 - **Vitest con una sola copia de three**: `resolve.dedupe: ['three']`,
   `mainFields` con `module` primero y `server.deps.inline: true`; si no, `instanceof` falla
   entre la escena y el test.

@@ -22,6 +22,7 @@ import { panelPoints, tablePoints, whatThePanelHides } from '../../lib/panelOccl
 import { REFERENCE_EYE_HEIGHT, uiRiseOverWorld, worldRise } from '../../lib/uiHeight'
 import { HALF_WIDTH } from '../../lib/puckPhysics'
 import { traductor } from '../../lib/textos'
+import { GRADOS_DEL_MENU, gradosDelFrente } from '../../lib/plantillaDelMenu'
 import { SCOREBOARD_SIZE } from './XRHud'
 import { PANEL_HEIGHT, PANEL_WIDTH } from './XRTutorial'
 import {
@@ -46,7 +47,8 @@ import {
  */
 
 const IDIOMAS = ['en', 'es'] as const
-const VISTAS = vistasDelPanel(XR_UI.panel, XR_UI_ROTATION.panel)
+// Donde nace el menú, casi de frente (`XR_UI.menu`): es donde se lee.
+const VISTAS = vistasDelPanel(XR_UI.menu, XR_UI_ROTATION.menu)
 
 /** Todo lo que puede escribir el panel: cada modo y decorado, en los dos idiomas. */
 function todosLosMomentos(): { donde: string; escritos: Escrito[] }[] {
@@ -208,7 +210,55 @@ describe('cada letra del menú se lee de un vistazo', () => {
   })
 })
 
-describe('dónde se planta el menú', () => {
+describe('dónde nace el menú', () => {
+  it(`a ${GRADOS_DEL_MENU}° o menos del frente de quien juega`, () => {
+    expect(gradosDelFrente(delEspacioDelJugador(XR_UI.menu))).toBeLessThanOrEqual(GRADOS_DEL_MENU)
+  })
+
+  it('a la distancia de la columna y a la altura de los ojos: la letra ocupa en el ojo lo mismo', () => {
+    expect(distanciaDelJugador(XR_UI.menu)).toBeCloseTo(distanciaDelJugador(XR_UI.panel), 9)
+    expect(delEspacioDelJugador(XR_UI.menu)[1]).toBeCloseTo(eyesAt(REFERENCE_EYE_HEIGHT).y, 9)
+  })
+
+  it('de cara a quien juega', () => {
+    expect(XR_UI_ROTATION.menu).toEqual(panelRotation(delEspacioDelJugador(XR_UI.menu), eyesAt(REFERENCE_EYE_HEIGHT)))
+  })
+
+  it('sin tapar el marcador ni la demostración; de la mesa, como mucho la esquina del fondo', () => {
+    // En la fase de menú no se juega: que asome sobre el canto izquierdo del fondo no estorba a
+    // nadie, y al empezar se aparta. El cartel del objetivo no sale en el menú.
+    const medidas = { width: MENU_PANEL.width * ESCALA_DE_LA_COLUMNA, height: MENU_PANEL.height * ESCALA_DE_LA_COLUMNA }
+    const [x, y, z] = delEspacioDelJugador(XR_UI.menu)
+    for (const ojos of EYE_HEIGHTS) {
+      for (const aLaAltura of [false, true]) {
+        const mundo = worldRise(ojos, aLaAltura)
+        const pose = { position: [x, y + mundo + uiRiseOverWorld(ojos, aLaAltura), z] as const, rotation: XR_UI_ROTATION.menu }
+        const subir = (puntos: ReturnType<typeof tablePoints>) => puntos.map((p) => ({ ...p, y: p.y + mundo }))
+        const donde = `ojos a ${ojos} m${aLaAltura ? ', mundo a su altura' : ''}`
+        expect(
+          whatThePanelHides(pose, medidas, eyesAt(ojos), [
+            { que: 'el marcador', puntos: subir(panelPoints(delEspacioDelJugador(XR_UI.scoreboard), SCOREBOARD_SIZE, 6)) },
+            {
+              que: 'la demostración',
+              puntos: subir(panelPoints(delEspacioDelJugador(XR_UI.tutorial), { width: PANEL_WIDTH, height: PANEL_HEIGHT }, 6)),
+            },
+          ]),
+          donde,
+        ).toEqual([])
+        const mesa = subir(tablePoints(13))
+        const tapados = whatThePanelHides(pose, medidas, eyesAt(ojos), [{ que: 'la mesa', puntos: mesa }])
+        const cuantos = tapados.length === 0 ? 0 : Number(/en (\d+) de/.exec(tapados[0])![1])
+        expect(cuantos / mesa.length, donde).toBeLessThan(0.15)
+      }
+    }
+  })
+
+  it('el control: en la columna, a 55°, nacía fuera de la mirada', () => {
+    expect(gradosDelFrente(delEspacioDelJugador(XR_UI.panel))).toBeGreaterThan(GRADOS_DEL_MENU)
+  })
+})
+
+describe('dónde se planta la columna: el final y el aviso de salir', () => {
   it('entera fuera de la mesa y lejos de donde anda el mazo, ni una esquina encima', () => {
     // Estaba a un metro y colgando sobre el tablero; ahora queda al lado de la mesa, y su borde
     // de abajo puede bajar de la altura del tablero sin tocarlo.

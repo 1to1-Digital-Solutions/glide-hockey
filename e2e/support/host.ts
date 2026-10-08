@@ -1,7 +1,15 @@
 import path from 'node:path'
 import { expect, type Page } from '@playwright/test'
+import type { HostAnchor } from '../../src/lib/hostAnchor'
 import type { Objetivo } from '../../src/lib/objetivo'
+import type { Ensayo } from './comun'
 import { HOST_BUNDLE } from './globalSetup'
+
+/**
+ * El récord de este juego para las capturas comunes (`capturas.spec.ts`): el reto, como lo dice
+ * `onTerminar`, y más es mejor.
+ */
+export const ENSAYO: Ensayo = { modo: 'challenge', mejorEs: 'mas' }
 
 /** Donde el salón sirve los estáticos de este juego. */
 export const ASSETS_BASE = '/juegos/glide-hockey/'
@@ -12,7 +20,8 @@ const BUNDLE_PATH = '/anfitrion-de-prueba.js'
 const PUBLIC_DIR = path.join(process.cwd(), 'public')
 
 /** El HTML del anfitrión. */
-function html(aLaCarta: boolean, reto?: number, objetivo?: Objetivo): string {
+function html(anchor: HostAnchor | undefined, aLaCarta: boolean, reto?: number, objetivo?: Objetivo): string {
+  const anclaje = anchor === undefined ? '' : ` data-anchor='${JSON.stringify(anchor)}'`
   const cabina = aLaCarta ? ` data-cabina="a-la-carta"` : ''
   const conReto = reto === undefined ? '' : ` data-reto="${reto}"`
   const conObjetivo = objetivo === undefined ? '' : ` data-objetivo='${JSON.stringify(objetivo)}'`
@@ -26,7 +35,7 @@ function html(aLaCarta: boolean, reto?: number, objetivo?: Objetivo): string {
     </style>
   </head>
   <body>
-    <div id="juego" data-assets-base="${ASSETS_BASE}"${cabina}${conReto}${conObjetivo}></div>
+    <div id="juego" data-assets-base="${ASSETS_BASE}"${anclaje}${cabina}${conReto}${conObjetivo}></div>
     <script src="${BUNDLE_PATH}"></script>
   </body>
 </html>
@@ -61,8 +70,13 @@ export interface HostOptions {
  * prefijo, con la misma política de seguridad que la web del juego, y con la
  * raíz de estáticos respondiendo 404.
  */
+/**
+ * @param anchor Dónde y con qué rumbo quiere el anfitrión que se plante el mundo. Sin él, el juego
+ *   se ancla a la mirada, que es lo que hace en su propia web.
+ */
 export async function openHost(
   page: Page,
+  anchor?: HostAnchor,
   { aLaCarta = false, reto, objetivo }: HostOptions = {},
 ): Promise<TestHost> {
   const csp = (await page.request.get('/')).headers()['content-security-policy']
@@ -76,7 +90,7 @@ export async function openHost(
       return route.fulfill({
         contentType: 'text/html; charset=utf-8',
         headers: { 'content-security-policy': csp },
-        body: html(aLaCarta, reto, objetivo),
+        body: html(anchor, aLaCarta, reto, objetivo),
       })
     }
     if (pathname === BUNDLE_PATH) {
@@ -99,6 +113,26 @@ export async function openHost(
     })
     .toBeGreaterThan(0)
   return { requested }
+}
+
+/**
+ * Entra al visor desde el anfitrión y enciende los mandos. Se reintenta porque el store no acepta
+ * la sesión hasta que el Canvas lo ha conectado con three, un poco después del primer fotograma.
+ */
+export async function enterHostVR(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() =>
+          window.__glideHockeyHost.enterVR().then(
+            () => true,
+            () => false,
+          ),
+        ),
+      { message: 'el anfitrión no pudo abrir la sesión inmersiva' },
+    )
+    .toBe(true)
+  await page.evaluate(() => window.__xrTest.connectControllers())
 }
 
 /** Entra en la cabina: monta la escena. Solo hace algo con `aLaCarta`. */

@@ -69,7 +69,7 @@ import {
 import { triangulosDeArco } from '@kit/lib/ui/iconos'
 import { PERFIL_POR_DEFECTO } from '@kit/lib/ui/mando'
 import type { Punto2 } from '@kit/lib/ui/salida'
-import { objetivoDe } from '@kit/lib/juegoBase'
+import { nombreDe, objetivoDe } from '@kit/lib/juegoBase'
 import type { Mano } from '@kit/lib/xr/manos'
 import { IDENTIDAD } from '@kit/lib/xr/pose'
 import { gameStorage } from '@kit/motor/almacen-godot'
@@ -109,6 +109,7 @@ import { advanceTable, startTable, type TableState } from '@/lib/matchLoop'
 import { MUSIC_VOLUME } from '@/lib/music'
 import { MUSIC_FADE_MS, fadeVolume } from '@/lib/musicFade'
 import type { Objetivo } from '@/lib/objetivo'
+import { fijarNombreDelJuego } from '@/lib/plantillaDelMenu'
 import { playerStart } from '@/lib/opponent'
 import { PALETTE } from '@/lib/palette'
 import * as pellizco from '@/lib/pellizco'
@@ -248,6 +249,15 @@ export function objetivoDelSalon(nodo: Node): Objetivo | null {
 }
 
 /**
+ * El nombre de la cabina en el salón: el metadato `game_name` de su autoload `XRcade` (el `name` del
+ * manifiesto), o `null` con el juego suelto, que entonces se llama como su `package.json`.
+ */
+export function nombreDelSalon(nodo: Node): string | null {
+  const xrcade = nodo.get_node_or_null('/root/XRcade')
+  return nombreDe(xrcade != null && xrcade.has_meta('game_name') ? xrcade.get_meta('game_name') : null)
+}
+
+/**
  * Le cuenta al salón cómo ha acabado una partida con puntuación (`Resultado` de `semilla.ts`, con las hazañas estrenadas): si el
  * autoload tiene `report_result`, se le llama con el resultado en JSON; y siempre queda en el log.
  * Como `retoDelSalon`, es el enganche para cuando el hub nativo los recoja.
@@ -381,6 +391,9 @@ export default class GlideHockey extends Node3D {
     this.buildSound()
     this.buildAyudas()
 
+    // El nombre de la cabina, antes de pintar el menú (`plantillaDelMenu.ts`): el que pasa el salón
+    // en `game_name`, o el del `package.json`.
+    fijarNombreDelJuego(nombreDelSalon(this))
     this.partida = new Partida({ reto: retoDelSalon(this), objetivo: objetivoDelSalon(this), alTerminar: (r) => this.alTerminar(r) })
     this.partida.immersive = this.driver === 'xr'
     this.interfaz = new InterfazDelJuego(

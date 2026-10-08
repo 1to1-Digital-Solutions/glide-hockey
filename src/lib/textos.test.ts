@@ -6,7 +6,8 @@ import { GAME_MODE_HINTS, GAME_MODE_LABELS } from './gameMode'
 import { PLAYER_LABELS } from './duel'
 import { SCENERY_HINTS, SCENERY_LABELS } from './scenery'
 import { CONFORT_LABELS, CONFORT_LEGEND } from './confort'
-import { TEXT_KEYS, formatea, formatoDeCifra, texto, traductor, traductorSuave } from './textos'
+import { plural } from './palabras'
+import { TEXT_KEYS, formatea, formatoDeCifra, texto, traductor, traductorSuave, type TextKey } from './textos'
 
 /**
  * El diccionario del juego.
@@ -83,6 +84,14 @@ describe('el diccionario', () => {
     const huerfanas = TEXT_KEYS.filter((clave) => !fuente.includes(clave))
 
     expect(huerfanas).toEqual([])
+  })
+})
+
+describe('las cuentas, con su plural', () => {
+  it('la racha sin fin de la portada: un gol, dos goles, en los dos idiomas', () => {
+    const racha = (lang: 'en' | 'es', n: number) => traductor(lang)(plural(n, '{n} goal', '{n} goals') as TextKey, { n })
+    expect([racha('en', 1), racha('en', 2)]).toEqual(['1 goal', '2 goals'])
+    expect([racha('es', 1), racha('es', 2)]).toEqual(['1 gol', '2 goles'])
   })
 })
 

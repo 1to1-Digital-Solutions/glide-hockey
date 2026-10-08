@@ -25,6 +25,7 @@ import { useGameAudio } from '../../lib/useGameAudio'
 import { useGameMusic } from '../../lib/useGameMusic'
 import { useGameHaptics } from '../../lib/useGameHaptics'
 import { useRoomEnvironment } from '../../lib/useRoomEnvironment'
+import { sitioDelMenu } from '../../lib/xrMenuLayout'
 import {
   XRCountdown,
   XRGameOver,
@@ -105,6 +106,12 @@ export const XR_UI = {
     REFERENCE_EYE_HEIGHT - TABLE_HEIGHT,
     -COLUMNA.distancia * Math.cos(AZIMUT_DE_LA_COLUMNA) - TABLE_CENTER_Z,
   ] as [number, number, number],
+  /**
+   * El menú, **casi de frente** y a la distancia de la columna (`sitioDelMenu`, la plantilla común
+   * del salón: nace a 30° o menos de la mirada). Al empezar se aparta: el final y el aviso de
+   * salir salen en la columna.
+   */
+  menu: sitioDelMenu(),
   /** Cuenta atrás: flotando sobre el punto de saque. */
   countdown: [0, 0.34, 0] as [number, number, number],
   /**
@@ -154,6 +161,7 @@ export function distanciaDelJugador(pieza: readonly [number, number, number]): n
  */
 export const XR_UI_ROTATION = {
   panel: panelRotation(delEspacioDelJugador(XR_UI.panel), eyesAt(REFERENCE_EYE_HEIGHT)),
+  menu: panelRotation(delEspacioDelJugador(XR_UI.menu), eyesAt(REFERENCE_EYE_HEIGHT)),
   quit: panelRotation(delEspacioDelJugador(XR_QUIT), eyesAt(REFERENCE_EYE_HEIGHT)),
   tutorial: panelRotation(delEspacioDelJugador(XR_UI.tutorial), eyesAt(REFERENCE_EYE_HEIGHT)),
 }
@@ -383,8 +391,11 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
               </group>
               {/* Qué hay que superar, de frente: encima del marcador, que es donde ya se mira. */}
               <CartelDelMarcador alCelebrar={sentirElListon} />
-              <group position={XR_UI.panel} rotation={XR_UI_ROTATION.panel} scale={ESCALA_DE_LA_COLUMNA}>
+              {/* El menú nace casi de frente, a la escala de la columna; lo demás, en la columna. */}
+              <group position={XR_UI.menu} rotation={XR_UI_ROTATION.menu} scale={ESCALA_DE_LA_COLUMNA}>
                 <XRMenu />
+              </group>
+              <group position={XR_UI.panel} rotation={XR_UI_ROTATION.panel} scale={ESCALA_DE_LA_COLUMNA}>
                 <XRGameOver />
                 <XRQuitConfirm />
               </group>

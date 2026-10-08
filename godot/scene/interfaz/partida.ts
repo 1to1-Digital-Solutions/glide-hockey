@@ -16,6 +16,8 @@
  * No toca el motor (ni `godot` ni nodos), así que se prueba entera en `partida.motor.test.ts` sin
  * montar la escena.
  */
+import { objetivoConLoJugado } from '@kit/lib/juegoBase'
+
 import type { Lang } from '@/lib/ajustes'
 import { AVISO_DE_QUE_CUENTA_MS, conElAvisoDeQueCuenta, loQueCallaElMarcador, partidaDelCartel } from '@/lib/cartelDelMarcador'
 import { challengeRound } from '@/lib/challenge'
@@ -130,8 +132,17 @@ export class Partida {
   private unlockedAtStart = 1
   private levelAtStart = 1
   private readonly semillaDelReto: number | null
-  /** Lo que pasó el salón, o `null` con el juego abierto suelto. */
-  readonly objetivo: Objetivo | null
+  /**
+   * El objetivo de la partida en curso, o `null` con el juego abierto suelto: el que pasó el salón
+   * con el récord subido por lo que ya se le ha contado (`objetivoConLoJugado`). Se relee al
+   * empezar cada partida —el metadato `goal` no cambia hasta volver al salón— y no durante ella:
+   * el final compara con la marca que había al empezar, como la web (`salonAlEmpezar`).
+   */
+  objetivo: Objetivo | null
+  /** Lo que pasó el salón al montar el juego. */
+  private readonly objetivoDelSalon: Objetivo | null
+  /** Lo que se le ha contado al salón desde que se montó: de ahí sube el récord del objetivo. */
+  private readonly contadas: Resultado[] = []
   private readonly alTerminar: ((resultado: Resultado) => void) | undefined
   /** Las hazañas de esta partida (en el reto, de todas sus rondas): se estrenan al cerrarla. */
   private hazanas = new Set<Hazana>()
@@ -142,6 +153,7 @@ export class Partida {
   private _levelResult: ResultadoDelNivel | null = null
 
   constructor({ reto = null, alTerminar, objetivo = null }: OpcionesDeLaPartida = {}) {
+    this.objetivoDelSalon = objetivo
     this.objetivo = objetivo
     this.semillaDelReto = reto?.semilla ?? null
     this.alTerminar = alTerminar
@@ -386,6 +398,7 @@ export class Partida {
     }
     this.clearRun()
     this.endedByPlayer = false
+    this.objetivo = objetivoConLoJugado(this.objetivoDelSalon, this.contadas)
     this.recordToBeat = this.gameMode === 'practice' && this.endless ? getBestEndlessStreak() : getBestPoints(this.gameMode)
     this.unlockedAtStart = getUnlockedLevel()
     this.levelAtStart = this.selectedLevel
@@ -532,6 +545,8 @@ export class Partida {
     for (const hazana of hazanasDelPartido({ ganado: this.outcome === 'won', encajados: this.opponentGoals, sinFin: endlessRun })) {
       this.hazanas.add(hazana)
     }
-    this.alTerminar?.(conHazanas({ modo: this.gameMode, puntos: this.points, reto: this.enReto }, estrenarHazanas(this.hazanas)))
+    const resultado = conHazanas({ modo: this.gameMode, puntos: this.points, reto: this.enReto }, estrenarHazanas(this.hazanas))
+    this.contadas.push(resultado)
+    this.alTerminar?.(resultado)
   }
 }

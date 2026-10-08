@@ -70,7 +70,7 @@ test.describe('Montado dentro de otro anfitrión', () => {
     test.setTimeout(120_000)
     await observarLaMesa(page)
     await installXREmulator(page)
-    await openHost(page, { aLaCarta: true, reto: 20260925 })
+    await openHost(page, undefined, { aLaCarta: true, reto: 20260925 })
     await expect
       .poll(
         () =>

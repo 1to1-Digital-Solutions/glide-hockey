@@ -321,17 +321,17 @@ describe('al cruzar un listón el cartel dice la medalla', () => {
 describe('el bronce en lo que se cuenta', () => {
   const contable = (puntos: number) => `≈ ${Math.round(puntos / 150)} sticks`
 
-  it('la primera vez, antes de empezar, el bronce dice a cuánto equivale', () => {
+  it('la primera vez, antes de empezar, el bronce se dice en lo que se cuenta, y con el oro sin la plata', () => {
     const objetivo: Objetivo = { ...PUNTOS, medallas: { bronce: 1900, plata: 4000, oro: 7000 } }
 
     expect(cartelDeObjetivo(partida({ objetivo, fase: 'antes', contable })).detalle).toBe(
-      'Bronze 1,900 ≈ 13 sticks · Silver 4,000 · Gold 7,000',
+      'Bronze ≈ 13 sticks · Gold 7,000',
     )
     expect(cartelDeObjetivo(partida({ objetivo, fase: 'antes', contable }), es).detalle).toBe(
-      'Bronce 1900 ≈ 13 sticks · Plata 4000 · Oro 7000',
+      'Bronce ≈ 13 sticks · Oro 7000',
     )
     expect(cartelDeObjetivo(partida({ objetivo: GOLPES, fase: 'antes', contable: () => '≈ 4 holes' })).detalle).toBe(
-      'Gold 23 or less · Silver 27 · Bronze 35 ≈ 4 holes',
+      'Gold 23 or less · Bronze ≈ 4 holes',
     )
   })
 

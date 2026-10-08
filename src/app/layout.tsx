@@ -3,6 +3,7 @@ import { Orbitron, Inter } from 'next/font/google'
 import { PALETTE } from '@/lib/palette'
 import './globals.css'
 import { idiomaDeLaPeticion } from '../lib/idioma-servidor'
+import { nombreDelJuego } from '../lib/plantillaDelMenu'
 import { traductor } from '../lib/textos'
 
 const orbitron = Orbitron({
@@ -27,10 +28,13 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = traductor(await idiomaDeLaPeticion())
 
   return {
-    // El nombre no se traduce —es el del producto, el mismo en el salón y en la tienda—;
-    // lo que le sigue sí, que es lo que dice de qué va.
-    title: t('Glide Hockey — you against the machine'),
-    description: t('Glide Hockey against the machine: choose the level and the goals to play to, and put the puck in its net. Play in the browser or in mixed reality (VR/AR).'),
+    // El nombre no se traduce —es el de la cabina (`nombreDelJuego`), el mismo en el salón y en
+    // la tienda—; lo que le sigue sí, que es lo que dice de qué va.
+    title: t('{name} — you against the machine', { name: nombreDelJuego() }),
+    description: t(
+      '{name} against the machine: choose the level and the goals to play to, and put the puck in its net. Play in the browser or in mixed reality (VR/AR).',
+      { name: nombreDelJuego() },
+    ),
   }
 }
 

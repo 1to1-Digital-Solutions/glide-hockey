@@ -38,15 +38,14 @@ const ES = {
   // Lo que dice la pestaña y lo que se lee al compartir el enlace. El nombre se queda en
   // inglés a propósito: es el del producto, el mismo que rotula la cabina del salón y el
   // que irá en la ficha de la tienda. Lo que se traduce es lo que va detrás.
-  'Glide Hockey — you against the machine': 'Glide Hockey — tú contra la máquina',
-  'Glide Hockey against the machine: choose the level and the goals to play to, and put the puck in its net. Play in the browser or in mixed reality (VR/AR).':
-    'Glide Hockey contra la máquina: elige el nivel y los goles a los que jugar, y mete el disco en su portería. Juega en el navegador o en realidad mixta (VR/AR).',
+  '{name} — you against the machine': '{name} — tú contra la máquina',
+  '{name} against the machine: choose the level and the goals to play to, and put the puck in its net. Play in the browser or in mixed reality (VR/AR).':
+    '{name} contra la máquina: elige el nivel y los goles a los que jugar, y mete el disco en su portería. Juega en el navegador o en realidad mixta (VR/AR).',
 
   // Portada
   'You against the machine. Move the mallet with the mouse and put the puck in its goal. In the headset, take it with the grip button and the mallet follows your hand.':
     'Tú contra la máquina. Mueve el mazo con el ratón y mete el disco en su portería. Con el visor, cógelo con el botón de agarre y el mazo sigue a tu mano.',
   'Game mode': 'Modo de juego',
-  Mode: 'Modo',
   'Machine level': 'Nivel de la máquina',
   Goals: 'Goles',
   'Fixed goals': 'Goles fijos',
@@ -142,7 +141,9 @@ const ES = {
   'Levels cleared:': 'Niveles superados:',
   'of {total}': 'de {total}',
   'Your best endless streak:': 'Tu mejor racha sin fin:',
-  goals: 'goles',
+  // La racha, con su plural (`plural` de `palabras.ts`): «1 gol», «2 goles».
+  '{n} goal': '{n} gol',
+  '{n} goals': '{n} goles',
   'Your record on {mode}:': 'Tu récord en {mode}:',
 
   // Mientras se juega

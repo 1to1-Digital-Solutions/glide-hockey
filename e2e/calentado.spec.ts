@@ -61,7 +61,7 @@ test.describe('Los shaders están calientes donde se juega', () => {
     // En «tu habitación», que es el escenario con menos cosas a la vista: así la sala queda
     // montada y oculta, y lo que se calienta de ella no lo ha pintado nadie.
     await guardarAntesDeAbrir(page, SCENERY_KEY, 'room')
-    await openHost(page, { aLaCarta: true })
+    await openHost(page, undefined, { aLaCarta: true })
     await entrarComoElSalon(page)
     // Lo del anfitrión —sus rayos, su puntero— se compila al entrar y no es del juego: se le
     // deja asentarse para que no cuente como shader de la escena.
@@ -96,7 +96,7 @@ test.describe('Los shaders están calientes donde se juega', () => {
     await vigilarProgramas(page)
     await installXREmulator(page)
     await guardarAntesDeAbrir(page, SCENERY_KEY, 'room')
-    await openHost(page, { aLaCarta: true })
+    await openHost(page, undefined, { aLaCarta: true })
     await entrarComoElSalon(page)
     await dejarAsentar(page)
     await enterHostBooth(page)

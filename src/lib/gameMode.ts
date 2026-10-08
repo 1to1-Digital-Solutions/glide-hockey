@@ -22,6 +22,8 @@
  * interfaz solo lo pinta, igual que con la puntuación.
  */
 
+import { conElRetoPrimero } from './plantillaDelMenu'
+
 export type GameMode = 'practice' | 'levels' | 'challenge' | 'duel'
 
 /**
@@ -29,6 +31,12 @@ export type GameMode = 'practice' | 'levels' | 'challenge' | 'duel'
  * final el de dos, que es otra forma de jugar y no un escalón más.
  */
 export const GAME_MODE_ORDER: GameMode[] = ['practice', 'levels', 'challenge', 'duel']
+
+/**
+ * Los modos en la fila «Modo» de los dos menús, con el reto —el que da medalla— el primero, como
+ * pide la plantilla común (`conElRetoPrimero` de `plantillaDelMenu.ts`); los demás, en su orden.
+ */
+export const MODOS_DEL_MENU: readonly GameMode[] = conElRetoPrimero(GAME_MODE_ORDER, (modo) => modo === 'challenge')
 
 /** Etiqueta visible, en inglés: es la clave con la que se traduce (ver `textos.ts`). */
 export const GAME_MODE_LABELS = {

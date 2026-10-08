@@ -10,13 +10,13 @@ import {
 import {
   GAME_MODE_HINTS,
   GAME_MODE_LABELS,
-  GAME_MODE_ORDER,
+  MODOS_DEL_MENU,
 } from '../../lib/gameMode'
 import { useGame } from '../../lib/gameStore'
 import { daMedalla, fraseDeLaMedalla } from '../../lib/cartelDelMarcador'
 import { useDuelTally } from '../../lib/useDuelTally'
 import { useLang } from '../../lib/ajustesCliente'
-import { formatoDeCifra, traductor } from '../../lib/textos'
+import { formatoDeCifra, traductor, type TextKey } from '../../lib/textos'
 import { SCENERIES } from '../../lib/ajustes'
 import { SCENERY_HINTS, SCENERY_LABELS } from '../../lib/scenery'
 import { CONFORTS } from '../../lib/golpeRecibido'
@@ -24,6 +24,8 @@ import { CONFORT_LABELS, CONFORT_LEGEND, useConfort } from '../../lib/confort'
 import { LEVEL_COUNT, levelSpec } from '../../lib/levels'
 import { DIFFICULTY_COLORS } from '../../lib/palette'
 import { PALETA } from '../../lib/paleta'
+import { MENU_EN, plural } from '../../lib/palabras'
+import { nombreDelJuego } from '../../lib/plantillaDelMenu'
 import { useImmersiveSupport } from '../xr/useImmersiveSupport'
 import { getXrStore } from '../xr/xrStore'
 
@@ -125,9 +127,9 @@ export function StartScreen() {
     <main className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-y-auto p-4">
       <div className="pointer-events-auto animate-fade-slide-up w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_88%,transparent)] p-6 shadow-2xl backdrop-blur-sm sm:p-8">
         <header className="mb-6">
-          {/* Nombre del producto: no pasa por el traductor, se lee igual en los dos idiomas. */}
+          {/* El nombre de la cabina (`plantillaDelMenu.ts`): no pasa por el traductor, se lee igual en los dos idiomas. */}
           <h1 className="text-glow-primary text-3xl font-bold tracking-tight sm:text-4xl">
-            Glide Hockey
+            {nombreDelJuego()}
           </h1>
           <p className="mt-1.5 text-sm text-white/60">
             {t(
@@ -139,10 +141,10 @@ export function StartScreen() {
         <div className="flex flex-col gap-5">
           <fieldset className="flex flex-col gap-2">
             <legend className="sr-only">{t('Game mode')}</legend>
-            <FieldLabel>{t('Mode')}</FieldLabel>
+            <FieldLabel>{t(MENU_EN.modo)}</FieldLabel>
             {/* Cuatro en fila no caben en un móvil con «Práctica» dentro: dos filas de dos. */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {GAME_MODE_ORDER.map((mode) => (
+              {MODOS_DEL_MENU.map((mode) => (
                 <OptionButton
                   key={mode}
                   selected={gameMode === mode}
@@ -355,8 +357,9 @@ export function StartScreen() {
             {endless ? (
               <>
                 {t('Your best endless streak:')}{' '}
-                <strong className="font-semibold text-white">{bestPoints}</strong>{' '}
-                {t('goals')}
+                <strong className="font-semibold text-white">
+                  {t(plural(bestPoints, '{n} goal', '{n} goals') as TextKey, { n: bestPoints })}
+                </strong>
               </>
             ) : (
               <>

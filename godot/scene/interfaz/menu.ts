@@ -34,10 +34,11 @@ import type { Punteria } from '@kit/runtime/ui/punteria'
 import type { Lang, Scenery } from '@/lib/ajustes'
 import { daMedalla, fraseDeLaMedalla } from '@/lib/cartelDelMarcador'
 import { DIFFICULTY_ORDER, MAX_GOALS, MIN_GOALS, type Difficulty } from '@/lib/gameConfig'
-import { GAME_MODE_HINTS, GAME_MODE_LABELS, GAME_MODE_ORDER, type GameMode } from '@/lib/gameMode'
+import { GAME_MODE_HINTS, GAME_MODE_LABELS, MODOS_DEL_MENU, type GameMode } from '@/lib/gameMode'
 import { CONFORTS, type Confort } from '@/lib/golpeRecibido'
 import { LEVEL_COUNT, type Stars } from '@/lib/levels'
 import type { Objetivo } from '@/lib/objetivo'
+import { MENU_EN } from '@/lib/palabras'
 import { PALETA } from '@/lib/paleta'
 import { DIFFICULTY_COLORS, PALETTE } from '@/lib/palette'
 import { SCENERY_LABELS } from '@/lib/scenery'
@@ -204,7 +205,7 @@ export class MenuDelJuego {
       const b = this.anadir(`confort ${confort}`, PALETTE.rail, 0.7, () => acciones.elegirConfort(confort))
       this.iconosDelConfort.set(confort, b.dibujo(figura(triangulosDelConfort(confort), DIM), DIM))
     }
-    for (const modo of GAME_MODE_ORDER) {
+    for (const modo of MODOS_DEL_MENU) {
       const b = this.anadir(`modo ${modo}`, PALETTE.rail, 0.7, () => acciones.elegirModo(modo))
       // El icono, subido para dejarle al nombre la franja de abajo del botón (`MENU_MODE_ICON_RISE`).
       this.iconosDelModo.set(modo, b.dibujo(figura(desplazar(triangulosDelModo(modo), 0, MENU_MODE_ICON_RISE), DIM), DIM))
@@ -285,7 +286,7 @@ export class MenuDelJuego {
       this.boton(`confort ${confort}`).colorear(elegido ? PALETTE.primaryDeep : PALETTE.rail, elegido ? 0.95 : 0.7)
       this.boton(`confort ${confort}`).colorDelDibujo(this.iconosDelConfort.get(confort)!, elegido ? PALETTE.foreground : DIM)
     }
-    for (const modo of GAME_MODE_ORDER) {
+    for (const modo of MODOS_DEL_MENU) {
       const elegido = modo === estado.modo
       this.boton(`modo ${modo}`).colorear(elegido ? PALETTE.primaryDeep : PALETTE.rail, elegido ? 0.95 : 0.7)
       this.boton(`modo ${modo}`).colorDelDibujo(this.iconosDelModo.get(modo)!, elegido ? PALETTE.primary : DIM)
@@ -345,7 +346,7 @@ export class MenuDelJuego {
       anchoMax: MENU_BOXES['confort off'].position[0] - MENU_BUTTON.small[0] / 2 - 0.02 - izquierda,
     })
     const filas: (readonly [number, TextKey])[] = [
-      [MENU_ROW.mode, 'Mode'],
+      [MENU_ROW.mode, MENU_EN.modo],
       ...(practica ? [[MENU_ROW.level, 'Level'] as const] : []),
       ...(filaDeGoles ? [[MENU_ROW.goals, niveles ? 'Stage' : 'Goals'] as const] : []),
     ]
@@ -358,7 +359,7 @@ export class MenuDelJuego {
       })
     }
     // El nombre de cada modo, debajo de su icono y dentro de su botón (`MENU_MODE_LABEL_DROP`).
-    for (const modo of GAME_MODE_ORDER) {
+    for (const modo of MODOS_DEL_MENU) {
       const [x, y] = MENU_BOXES[`modo ${modo}`].position
       panel.escribir(t(GAME_MODE_LABELS[modo]), x, y + MENU_MODE_LABEL_DROP, {
         alto: MENU_TEXT.mode,

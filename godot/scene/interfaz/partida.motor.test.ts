@@ -357,6 +357,29 @@ describe('el cartel del objetivo, como en la web', () => {
     expect(p.cartel('en')?.titulo).toBe('Win games until you lose one')
   })
 
+  it('dos partidas seguidas: la segunda compara con el récord que hizo la primera, no con el del montaje', () => {
+    // El metadato `goal` se lee al montar y no cambia hasta volver al salón: el récord sube con lo
+    // que la partida ya le ha contado (`objetivoConLoJugado` del kit), al empezar la siguiente.
+    const p = new Partida({ objetivo: { ...OBJETIVO, record: 100 } })
+    p.startGame()
+    sacar(p)
+    marcar(p, 2, 0)
+    marcar(p, 0, 3)
+    expect([p.gameState, p.points]).toEqual(['finished', 220])
+    // El final de la primera, contra la marca de al empezar.
+    expect(p.objetivo?.record).toBe(100)
+    p.startGame()
+    expect(p.objetivo?.record).toBe(220)
+    sacar(p)
+    marcar(p, 1, 3)
+    expect(p.cartel('en')?.titulo).toBe('No medal · 100 points in the challenge')
+    // Lo de otro modo no sube el récord del reto.
+    p.resetGame()
+    p.setGameMode('practice')
+    p.startGame()
+    expect(p.objetivo?.record).toBe(220)
+  })
+
   it('perder la primera ronda 1–3 con un gol marcado no deja cero; desde la segunda, encajar resta', () => {
     const p = new Partida({ objetivo: OBJETIVO })
     p.startGame()

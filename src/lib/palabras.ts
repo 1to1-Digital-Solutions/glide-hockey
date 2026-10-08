@@ -33,6 +33,13 @@ export const MENU_EN = {
   ahoraCuenta: 'Now it counts for a medal',
   /** La pista de la salida común: sostener un segundo el B o el Y (`holdToExit.ts`). */
   pistaDeSalir: 'Hold B or Y to exit',
+  /** Las filas de la plantilla del menú (`plantillaDelMenu.ts`): el modo, quién juega y lo plegado. */
+  modo: 'Mode',
+  jugadores: 'Players',
+  /** La fila «Jugadores» dice «Solo» y «Duelo»: uno solo o dos que se pasan el mando. */
+  solo: 'Solo',
+  masOpciones: 'More options',
+  menosOpciones: 'Fewer options',
 } as const
 
 /** Una de las frases comunes del menú. */
@@ -54,6 +61,11 @@ export const MENU_ES = {
   'Warm-up · does not count for a medal': 'Calentamiento · no cuenta para medalla',
   'Now it counts for a medal': 'Ahora cuenta para medalla',
   'Hold B or Y to exit': 'Mantén B o Y para salir',
+  Mode: 'Modo',
+  Players: 'Jugadores',
+  Solo: 'Solo',
+  'More options': 'Más opciones',
+  'Fewer options': 'Menos opciones',
 } as const satisfies Record<FraseDelMenu, string>
 
 /**

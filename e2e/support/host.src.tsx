@@ -4,6 +4,7 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { Vector3 } from 'three'
 import { XR, XROrigin, createXRStore } from '@react-three/xr'
 import { GlideHockeyScene, type Objetivo, type Resultado } from '../../src/game'
+import type { HostAnchor } from '../../src/lib/hostAnchor'
 import { XRControllerGrip } from '../../src/components/xr/XRControllerGrip'
 
 /**
@@ -36,6 +37,8 @@ const aLaCarta = mount.dataset.cabina === 'a-la-carta'
  */
 const semillaDelReto = mount.dataset.reto
 const reto = semillaDelReto === undefined ? undefined : { semilla: Number(semillaDelReto) }
+/** El anclaje, si el anfitrión lo presta (`data-anchor`, en JSON); sin él, a la mirada. */
+const anchor = mount.dataset.anchor === undefined ? undefined : (JSON.parse(mount.dataset.anchor) as HostAnchor)
 /** Los listones de medalla, si el salón los está pasando (`data-objetivo`, en JSON). */
 const objetivo = mount.dataset.objetivo === undefined ? undefined : (JSON.parse(mount.dataset.objetivo) as Objetivo)
 window.__terminadas = []
@@ -120,7 +123,7 @@ function Cabina() {
 
   if (!dentro) return null
   // Volver es cosa del anfitrión, y aquí no hay a dónde.
-  return <GlideHockeyScene assetsBase={assetsBase} onExit={() => {}} reto={reto} onTerminar={apuntarTerminada} objetivo={objetivo} />
+  return <GlideHockeyScene assetsBase={assetsBase} anchor={anchor} onExit={() => {}} reto={reto} onTerminar={apuntarTerminada} objetivo={objetivo} />
 }
 
 function Host() {

@@ -1158,3 +1158,50 @@ describe('las hazañas de la partida', () => {
     expect(localStorage.getItem('glide-hockey:hazanas')).toBeNull()
   })
 })
+
+/**
+ * El gancho común de los tests de navegador (`partidaDePrueba.ts`): lo que las capturas comunes
+ * piden a la partida sin jugarla.
+ */
+describe('el gancho de la partida', () => {
+  const OBJETIVO: Objetivo = {
+    medallas: { bronce: 10, plata: 20, oro: 30 },
+    mejorEs: 'mas',
+    unidad: 'points in challenge',
+    record: null,
+    modo: 'challenge',
+  }
+
+  afterEach(() => {
+    delete globalThis.__partidaGlideHockey
+  })
+
+  it('sin pedirlo no deja nada', () => {
+    renderHook(() => useGameStoreValue({ objetivo: OBJETIVO }))
+    expect(globalThis.__partidaGlideHockey).toBeUndefined()
+  })
+
+  it('empieza el reto sin tutorial, fija los puntos, lo acaba contándolo y dice el cartel', () => {
+    globalThis.__partidaGlideHockey = {}
+    const onTerminar = vi.fn<(resultado: Resultado) => void>()
+    const hook = enPractica({ objetivo: OBJETIVO, onTerminar })
+    const partida = globalThis.__partidaGlideHockey
+    expect(partida.cartel!()).toBeNull()
+
+    act(() => partida.start!())
+    expect([hook.result.current.gameMode, hook.result.current.gameState]).toEqual(['challenge', 'countdown'])
+    expect(hook.result.current.hitos).toEqual({ grab: true, hit: true, goal: true })
+    expect(partida.cartel!()?.detalle).toContain('Bronze 10')
+
+    act(() => partida.score!(1))
+    expect(hook.result.current.gameState).toBe('playing')
+    expect(partida.cartel!()?.titulo).toBe('Bronze at 10 · you have 1')
+    act(() => partida.score!(10))
+    expect(partida.cartel!()?.vitor).toBe('Bronze!')
+
+    act(() => partida.end!())
+    expect(hook.result.current.gameState).toBe('finished')
+    expect(onTerminar).toHaveBeenCalledWith(expect.objectContaining({ modo: 'challenge', puntos: 10 }))
+    expect(partida.cartel!()?.titulo).toMatch(/^Bronze · /)
+  })
+})

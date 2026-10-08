@@ -1,10 +1,12 @@
 /**
- * La interfaz de Glide Hockey en Godot, entera: el menú, el final y el aviso de salir en la columna;
+ * La interfaz de Glide Hockey en Godot, entera: el menú casi de frente, el final y el aviso de salir
+ * en la columna;
  * el marcador al fondo de la mesa y, encima de él, el cartel del objetivo; la cuenta atrás sobre el
  * saque; el botón de parar; el tutorial; y la puntería que los hace pulsables.
  *
- * **Dónde va cada cosa es lo de la web** (`reparto.ts`): con el visor, la columna a metro y medio y
- * 55° a la izquierda, agrandada y mirando a los ojos, fuera de la mesa; el marcador sobre la
+ * **Dónde va cada cosa es lo de la web** (`reparto.ts`): con el visor, el menú a metro y medio y
+ * casi de frente (a 30° o menos, la plantilla común), y la columna a la misma distancia y 55° a la
+ * izquierda, agrandada y mirando a los ojos, fuera de la mesa; el marcador sobre la
  * portería de la máquina; el botón de parar donde la columna, que mientras se juega está vacía. **En
  * plano** —donde la web pone su menú en DOM— la columna va a la izquierda de la mesa, de cara a la
  * cámara, y el botón de parar junto al marcador: la cámara de plano no ve lo que hay a 55°.
@@ -105,6 +107,8 @@ export class InterfazDelJuego {
   readonly punteria: Punteria
   readonly raton: PunteroDeRaton | null
   readonly columna = new Node3D()
+  /** Donde nace el menú con el visor: casi de frente, a la distancia de la columna. */
+  readonly sitioDelMenu = new Node3D()
   readonly menu: MenuDelJuego
   readonly final: FinalDeLaPartida
   readonly aviso: AvisoDeSalir
@@ -162,7 +166,14 @@ export class InterfazDelJuego {
       },
       this.punteria,
     )
-    this.columna.add_child(this.menu.nodo)
+    // Con el visor, el menú nace casi de frente (`XR_UI.menu`, la plantilla común) y se aparta al
+    // empezar; en plano va en la columna, que la cámara ya ve de frente.
+    if (this.visor) {
+      this.sitioDelMenu.set_name('Menu')
+      colocar(this.sitioDelMenu, XR_UI.menu, XR_UI_ROTATION.menu, ESCALA_DE_LA_COLUMNA)
+      mesa.add_child(this.sitioDelMenu)
+      this.sitioDelMenu.add_child(this.menu.nodo)
+    } else this.columna.add_child(this.menu.nodo)
 
     this.final = new FinalDeLaPartida({ otraVez: () => partida.startGame(), menu: () => partida.resetGame(), salir: () => escena.salir() }, this.punteria)
     this.columna.add_child(this.final.nodo)

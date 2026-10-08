@@ -1,6 +1,8 @@
-import { DIFFICULTY_ORDER } from './gameConfig'
-import { GAME_MODE_ORDER } from './gameMode'
+import { DIFFICULTY_ORDER, TABLE_CENTER_Z, TABLE_HEIGHT } from './gameConfig'
+import { MODOS_DEL_MENU } from './gameMode'
 import { CONFORTS } from './golpeRecibido'
+import { GRADOS_DEL_MENU } from './plantillaDelMenu'
+import { REFERENCE_EYE_HEIGHT } from './uiHeight'
 
 /**
  * Las medidas del menú inmersivo que se pueden comprobar sin visor.
@@ -178,9 +180,9 @@ export const MENU_BOXES = {
   // Los modos, repartidos alrededor del centro: recorren la lista, así que un modo nuevo tiene su
   // botón sin que nadie se acuerde de añadirlo aquí.
   ...Object.fromEntries(
-    GAME_MODE_ORDER.map((mode, index) => [
+    MODOS_DEL_MENU.map((mode, index) => [
       `modo ${mode}`,
-      caja((index - (GAME_MODE_ORDER.length - 1) / 2) * MODE_STEP, MENU_ROW.mode, MENU_BUTTON.mode),
+      caja((index - (MODOS_DEL_MENU.length - 1) / 2) * MODE_STEP, MENU_ROW.mode, MENU_BUTTON.mode),
     ]),
   ),
   ...Object.fromEntries(
@@ -198,3 +200,28 @@ export const MENU_BOXES = {
     CONFORTS.map((confort, index) => [`confort ${confort}`, caja(MENU_COMFORT_X[index], MENU_ROW.comfort, MENU_BUTTON.small)]),
   ),
 } as Record<string, MenuBox>
+
+/**
+ * Dónde nace el menú del visor: a la distancia de la columna (`COLUMNA` de `GameWorld.tsx`, metro y
+ * medio) pero casi de frente, a `azimut` grados a la izquierda, por debajo de `GRADOS_DEL_MENU`
+ * (la plantilla común): quien entra en la cabina lo encuentra donde mira. A la misma distancia, la
+ * letra ocupa en el ojo lo mismo que en la columna.
+ *
+ * Se aparta al empezar: el final y el aviso de salir siguen en la columna, a 55°, fuera de donde
+ * se juega. A CALIBRAR CON EL VISOR: `azimut`.
+ */
+export const MENU_DEL_VISOR = { distancia: 1.5, azimut: GRADOS_DEL_MENU - 1 } as const
+
+/**
+ * El sitio del menú del visor en la fase de menú, en coordenadas de la mesa (su centro, a la altura
+ * del tablero), que es de donde cuelga la interfaz: el centro, a la altura de los ojos de referencia.
+ * Lo leen la web (`GameWorld.tsx`) y el port de Godot (`reparto.ts`).
+ */
+export function sitioDelMenu(): [number, number, number] {
+  const azimut = (MENU_DEL_VISOR.azimut * Math.PI) / 180
+  return [
+    -MENU_DEL_VISOR.distancia * Math.sin(azimut),
+    REFERENCE_EYE_HEIGHT - TABLE_HEIGHT,
+    -MENU_DEL_VISOR.distancia * Math.cos(azimut) - TABLE_CENTER_Z,
+  ]
+}

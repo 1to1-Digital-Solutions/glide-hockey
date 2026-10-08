@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SCENERIES } from './ajustes'
-import { GAME_MODE_ORDER } from './gameMode'
+import { GAME_MODE_ORDER, MODOS_DEL_MENU } from './gameMode'
 import { MENU_BOXES, MENU_BUTTON, MENU_PANEL } from './xrMenuLayout'
 
 /**
@@ -34,9 +34,13 @@ describe('los modos, en los dos menús', () => {
   })
 
   it('y caben en la fila sin pisarse ni salirse del panel', () => {
-    const xs = GAME_MODE_ORDER.map((mode) => MENU_BOXES[`modo ${mode}`].position[0])
+    const xs = MODOS_DEL_MENU.map((mode) => MENU_BOXES[`modo ${mode}`].position[0])
     const ancho = MENU_BUTTON.mode[0]
     for (let i = 1; i < xs.length; i += 1) expect(xs[i] - xs[i - 1]).toBeGreaterThan(ancho)
     expect(Math.max(...xs.map(Math.abs)) + ancho / 2).toBeLessThan(MENU_PANEL.width / 2)
+  })
+
+  it('con el reto, el que da medalla, el primero de la fila; los demás, en su orden', () => {
+    expect(MODOS_DEL_MENU).toEqual(['challenge', 'practice', 'levels', 'duel'])
   })
 })

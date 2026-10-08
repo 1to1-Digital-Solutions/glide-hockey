@@ -1,6 +1,6 @@
 'use client'
 
-import { SIN_HITOS, apuntarHito, type TutorialHitos, type TutorialStepKey } from './tutorial'
+import { SIN_HITOS, TUTORIAL_STEPS, apuntarHito, type TutorialHitos, type TutorialStepKey } from './tutorial'
 import {
   createContext,
   useCallback,
@@ -59,6 +59,7 @@ import { migrateLegacyKeysOnce } from './legacyKeys'
 import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana } from './hazanas'
 import { cartelDeObjetivo, medallaQueCelebra, type Medalla, type Objetivo, type VistaDelCartel } from './objetivo'
 import { semillaDeLaMesa } from './opponent'
+import { exponerPartida } from './partidaDePrueba'
 import type { Resultado, Reto } from './semilla'
 import { forgetOwnScenery } from './scenery'
 import { gameStorage } from './storage'
@@ -104,6 +105,9 @@ export interface DuelView {
  * dificultad ni goles que fijar.
  */
 const MODO_DEL_RETO: GameMode = 'challenge'
+
+/** Todos los pasos del tutorial, hechos: con ellos no queda nada que enseñar (`tutorialStep`). */
+const TODOS_LOS_HITOS = Object.fromEntries(TUTORIAL_STEPS.map((paso) => [paso, true])) as TutorialHitos
 
 /**
  * Lo que el salón le pasa al store a través de la escena (ver `GlideHockeyScene`).
@@ -772,30 +776,61 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
     setAvisoQueCuenta(false)
   }, [])
 
-  const startGame = useCallback(() => {
-    // Lo que viene es otra partida: ya no es el reto del salón, aunque se juegue
-    // en el mismo modo.
-    setEnReto(false)
-    setPrompt(null)
-    // En el duelo, empezar tras la partida del primero es el turno del segundo: se apunta la que
-    // acaba de terminar y la semilla sigue. Con los dos jugados, o desde el menú, es un duelo
-    // nuevo, con la semilla de esta partida: no repite los tiros del duelo anterior.
-    if (duelMode) {
-      setDuel(gameState === 'finished' && !duelOver(duelNow) ? duelNow : newDuel(runId + 1))
-    }
-    clearRun()
-    advancedRound.current = 0
-    setEndedByPlayer(false)
-    setRecordToBeat(
-      gameMode === 'practice' && endless ? getBestEndlessStreak() : getBestPoints(gameMode),
-    )
-    setSalonAlEmpezar(salonVivo.current)
-    setUnlockedAtStart(getUnlockedLevel())
-    setLevelAtStart(selectedLevel)
-    setRunId((id) => id + 1)
-    setCountdown(COUNTDOWN_SECONDS)
-    setRunning(true)
-  }, [clearRun, gameMode, endless, selectedLevel, duelMode, gameState, duelNow, runId])
+  /** Empieza una partida de ese modo con lo elegido: el botón de jugar, y el gancho de los tests. */
+  const arrancar = useCallback(
+    (modo: GameMode) => {
+      // Lo que viene es otra partida: ya no es el reto del salón, aunque se juegue
+      // en el mismo modo.
+      setEnReto(false)
+      setPrompt(null)
+      // En el duelo, empezar tras la partida del primero es el turno del segundo: se apunta la que
+      // acaba de terminar y la semilla sigue. Con los dos jugados, o desde el menú, es un duelo
+      // nuevo, con la semilla de esta partida: no repite los tiros del duelo anterior.
+      if (modo === 'duel') {
+        setDuel(gameState === 'finished' && !duelOver(duelNow) ? duelNow : newDuel(runId + 1))
+      }
+      clearRun()
+      advancedRound.current = 0
+      setEndedByPlayer(false)
+      setRecordToBeat(modo === 'practice' && endless ? getBestEndlessStreak() : getBestPoints(modo))
+      setSalonAlEmpezar(salonVivo.current)
+      setUnlockedAtStart(getUnlockedLevel())
+      setLevelAtStart(selectedLevel)
+      setRunId((id) => id + 1)
+      setCountdown(COUNTDOWN_SECONDS)
+      setRunning(true)
+    },
+    [clearRun, endless, selectedLevel, gameState, duelNow, runId],
+  )
+  const startGame = useCallback(() => arrancar(gameMode), [arrancar, gameMode])
+
+  // El gancho común de los tests de navegador (`partidaDePrueba.ts`): solo si el test lo ha pedido
+  // antes de cargar la página. Se rehace con lo que usa, así el test siempre llama a lo de ahora.
+  const cartelVivo = useRef(cartel)
+  useEffect(() => {
+    cartelVivo.current = cartel
+  }, [cartel])
+  useEffect(() => {
+    exponerPartida({
+      start: () => {
+        // El reto, sin el tutorial delante: sus pasos, dados por hechos.
+        setGameModeState(MODO_DEL_RETO)
+        setHitos(TODOS_LOS_HITOS)
+        arrancar(MODO_DEL_RETO)
+      },
+      score: (puntos) => {
+        setCountdown(0)
+        setPoints(puntos)
+      },
+      // Que la máquina gane la ronda: en el reto, es lo que lo acaba.
+      end: () => {
+        setCountdown(0)
+        setOpponentGoals(activeGoalTarget)
+      },
+      cartel: () => cartelVivo.current,
+    })
+  }, [arrancar, activeGoalTarget])
+
   // Solo cuenta el gol de una partida viva. El disco sigue rodando cuando la partida ya se ha
   // decidido —la mesa se entera un fotograma tarde—, y un gol así cambiaba los puntos después
   // del final y volvía a guardar el récord con ellos. Tampoco cuenta con la ronda del reto ya

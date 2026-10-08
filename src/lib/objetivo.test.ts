@@ -195,12 +195,14 @@ describe('al acabar', () => {
     cartelDeObjetivo(partida({ objetivo, fase: 'final', puntos }), t)
 
   it('dice lo conseguido y lo que faltó para la siguiente', () => {
-    expect(acabar(9)).toEqual({
+    expect(acabar(9, { ...PUNTOS, record: 9 })).toEqual({
       titulo: 'Bronze · 9 points',
       detalle: '7 short of silver',
       barra: null,
       medalla: 'bronce',
       discreto: false,
+      pie: 'You matched your record',
+      vitor: 'Bronze!',
     })
     expect(acabar(20).titulo).toBe('Silver · 20 points')
     expect(acabar(20).detalle).toBe('20 short of gold')
@@ -225,8 +227,8 @@ describe('al acabar', () => {
     expect(acabar(45, { ...PUNTOS, record: 52 }).detalle).toBe('7 short of your record')
     expect(acabar(52, { ...PUNTOS, record: 52 }).detalle).toBe('You matched your record')
     expect(acabar(60, { ...PUNTOS, record: 52 }).detalle).toBe('New record!')
-    // Sin marca anterior no hay con qué comparar.
-    expect(acabar(45).detalle).toBeNull()
+    // Sin marca anterior, la primera.
+    expect(acabar(45).detalle).toBe('First record!')
     expect(acabar(45).titulo).toBe('Gold · 45 points')
   })
 
@@ -249,6 +251,95 @@ describe('al acabar', () => {
     const t: Traducir = (clave, valores) => (clave === 'points' ? 'puntos' : es(clave, valores))
 
     expect(acabar(9, PUNTOS, t).titulo).toBe('Bronce · 9 puntos')
+  })
+})
+
+describe('el final, frente al récord de antes y con su porqué', () => {
+  const acabar = (cambios: Partial<Partida>) => cartelDeObjetivo(partida({ fase: 'final', ...cambios }))
+
+  it('la primera partida con marca dice «¡Primer récord!» y nunca «igualado»', () => {
+    const vista = acabar({ puntos: 9 })
+
+    expect(vista.pie).toBe('First record!')
+    expect(JSON.stringify(vista)).not.toContain('matched')
+    expect(cartelDeObjetivo(partida({ fase: 'final', puntos: 9 }), es).pie).toBe('¡Primer récord!')
+    // A menos, cualquier vuelta acabada es marca; a más, un cero no lo es.
+    expect(acabar({ objetivo: GOLPES, puntos: 40 }).pie).toBe('First record!')
+    expect(acabar({ puntos: 0 }).pie).toBeUndefined()
+  })
+
+  it('sin llegar al récord dice el récord a secas; batido o igualado, lo dice', () => {
+    expect(acabar({ objetivo: { ...PUNTOS, record: 31 }, puntos: 9 }).pie).toBe('Your best 31')
+    expect(acabar({ objetivo: { ...PUNTOS, record: 8 }, puntos: 9 }).pie).toBe('New record!')
+    expect(acabar({ objetivo: { ...GOLPES, record: 30 }, puntos: 33 }).pie).toBe('Your best 30')
+    expect(cartelDeObjetivo(partida({ objetivo: { ...PUNTOS, record: 31 }, fase: 'final', puntos: 9 }), es).pie).toBe(
+      'Tu mejor 31',
+    )
+  })
+
+  it('la causa que da el juego va delante, también en el juego suelto', () => {
+    expect(acabar({ objetivo: { ...PUNTOS, record: 31 }, puntos: 9, causa: 'Three on the floor' }).pie).toBe(
+      'Three on the floor · Your best 31',
+    )
+    expect(acabar({ objetivo: { ...PUNTOS, record: 30 }, puntos: 45, causa: 'Out of time' })).toMatchObject({
+      detalle: 'New record!',
+      pie: 'Out of time',
+    })
+    expect(acabar({ objetivo: null, puntos: 4, record: 6, causa: 'Out of time' })).toMatchObject({
+      detalle: '2 short of your record',
+      pie: 'Out of time',
+    })
+    // Jugando, la causa todavía no es nada.
+    expect(cartelDeObjetivo(partida({ puntos: 4, causa: 'Out of time' })).pie).toBeUndefined()
+  })
+
+  it('un juego que ya dice el récord en su marcador no lo oye dos veces', () => {
+    expect(acabar({ puntos: 9, recordAparte: true }).pie).toBeUndefined()
+    expect(acabar({ puntos: 45, recordAparte: true }).detalle).toBeNull()
+    expect(acabar({ objetivo: null, puntos: 9, recordAparte: true, causa: 'Out of time' })).toMatchObject({
+      detalle: null,
+      pie: 'Out of time',
+    })
+  })
+})
+
+describe('al cruzar un listón el cartel dice la medalla', () => {
+  it('a más, en cuanto es suya: «¡Bronce!», en su idioma', () => {
+    expect(cartelDeObjetivo(partida({ puntos: 5 })).vitor).toBeUndefined()
+    expect(cartelDeObjetivo(partida({ puntos: 6 })).vitor).toBe('Bronze!')
+    expect(cartelDeObjetivo(partida({ puntos: 20 }), es).vitor).toBe('¡Plata!')
+    expect(cartelDeObjetivo(partida({ puntos: 40 }), es).vitor).toBe('¡Oro!')
+  })
+
+  it('a menos, al acabar; y nunca en lo que no cuenta', () => {
+    expect(cartelDeObjetivo(partida({ objetivo: GOLPES, puntos: 20 })).vitor).toBeUndefined()
+    expect(cartelDeObjetivo(partida({ objetivo: GOLPES, fase: 'final', puntos: 20 })).vitor).toBe('Gold!')
+    expect(cartelDeObjetivo(partida({ puntos: 20, cuenta: false })).vitor).toBeUndefined()
+  })
+})
+
+describe('el bronce en lo que se cuenta', () => {
+  const contable = (puntos: number) => `≈ ${Math.round(puntos / 150)} sticks`
+
+  it('la primera vez, antes de empezar, el bronce dice a cuánto equivale', () => {
+    const objetivo: Objetivo = { ...PUNTOS, medallas: { bronce: 1900, plata: 4000, oro: 7000 } }
+
+    expect(cartelDeObjetivo(partida({ objetivo, fase: 'antes', contable })).detalle).toBe(
+      'Bronze 1,900 ≈ 13 sticks · Silver 4,000 · Gold 7,000',
+    )
+    expect(cartelDeObjetivo(partida({ objetivo, fase: 'antes', contable }), es).detalle).toBe(
+      'Bronce 1900 ≈ 13 sticks · Plata 4000 · Oro 7000',
+    )
+    expect(cartelDeObjetivo(partida({ objetivo: GOLPES, fase: 'antes', contable: () => '≈ 4 holes' })).detalle).toBe(
+      'Gold 23 or less · Silver 27 · Bronze 35 ≈ 4 holes',
+    )
+  })
+
+  it('con récord ya se sabe lo que vale una cifra: los listones a secas', () => {
+    expect(cartelDeObjetivo(partida({ objetivo: { ...PUNTOS, record: 3 }, fase: 'antes', contable })).detalle).toBe(
+      'Bronze 6 · Silver 16 · Gold 40',
+    )
+    expect(cartelDeObjetivo(partida({ fase: 'antes', contable: null })).detalle).toBe('Bronze 6 · Silver 16 · Gold 40')
   })
 })
 
@@ -327,7 +418,8 @@ describe('el juego suelto, sin objetivo del salón', () => {
       detalle: '12 short of your record',
     })
     expect(suelto({ fase: 'final', puntos: 31, record: 30 }).detalle).toBe('New record!')
-    expect(suelto({ fase: 'final', puntos: 18 }).detalle).toBeNull()
+    expect(suelto({ fase: 'final', puntos: 18 }).detalle).toBe('First record!')
+    expect(suelto({ fase: 'final', puntos: 0 }).detalle).toBeNull()
     expect(suelto({ fase: 'final', puntos: 44, record: 40, mejorEs: 'menos' }).detalle).toBe('4 over your record')
     expect(suelto({ fase: 'final', puntos: 38, record: 40, mejorEs: 'menos' }).detalle).toBe('New record!')
   })

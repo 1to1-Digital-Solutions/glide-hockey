@@ -7,6 +7,7 @@ import { DEFAULT_GOALS, MAX_GOALS, MIN_GOALS } from './gameConfig'
 import { clampGoalTarget, useGame, useGameStoreValue } from './gameStore'
 import { getBestEndlessStreak, getBestPoints } from './highScore'
 import { semillaDeLaMesa } from './opponent'
+import type { Objetivo } from './objetivo'
 import type { Resultado } from './semilla'
 import { LEVEL_COUNT } from './levels'
 import { OWN_SCENERY_KEY } from './scenery'
@@ -175,10 +176,10 @@ describe('aprender jugando el reto', () => {
     expect(hook.result.current.points).toBe(0)
     expect(hook.result.current.runId).toBe(mesa + 1)
     expect(hook.result.current.gameState).toBe('countdown')
-    expect(hook.result.current.cartel?.titulo).toBe('Now it counts for your medal')
+    expect(hook.result.current.cartel?.titulo).toBe('Now it counts for a medal')
 
     act(() => void vi.advanceTimersByTime(2600))
-    expect(hook.result.current.cartel?.titulo).not.toBe('Now it counts for your medal')
+    expect(hook.result.current.cartel?.titulo).not.toBe('Now it counts for a medal')
   })
 
   it('fuera del reto, aprender no cambia nada y cerrar el tutorial no vuelve a empezar', () => {
@@ -850,6 +851,23 @@ describe('el cartel del objetivo', () => {
     expect(hook.result.current.gameMode).toBe('challenge')
     expect(hook.result.current.cartel?.titulo).toBe('Win games until you lose one')
     expect(hook.result.current.medalla).toBeNull()
+  })
+
+  it('al acabar, el récord del salón es el de antes de la partida, aunque el salón ya haya subido el suyo', () => {
+    let delSalon: Objetivo = { ...OBJETIVO, record: 100 }
+    const hook = renderHook(() =>
+      useGameStoreValue({ objetivo: delSalon, onTerminar: ({ puntos }) => void (delSalon = { ...delSalon, record: puntos }) }),
+    )
+    act(() => hook.result.current.startGame())
+    esperarAlSaque(hook)
+    act(() => hook.result.current.scorePlayer())
+    act(() => hook.result.current.scorePlayer())
+    perder(hook)
+    // El salón ha apuntado la partida y vuelve a pintar el juego con su récord nuevo.
+    hook.rerender()
+
+    expect(delSalon.record).toBe(220)
+    expect(hook.result.current.cartel).toMatchObject({ titulo: 'Bronze · 220 points in the challenge', pie: 'New record!' })
   })
 
   it('perder la primera ronda 1–3 con un gol marcado no deja cero', () => {

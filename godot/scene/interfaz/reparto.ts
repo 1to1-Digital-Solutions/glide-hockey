@@ -142,6 +142,8 @@ export const CARTEL = {
   aire: grados(0.35, 2),
   barra: grados(0.35, 2),
   anchoUtil: grados(24, 2) - 2 * grados(0.5, 2),
+  /** Con tres líneas (el final con su `pie`), la letra de `LETRA_CON_PIE`. */
+  conPie: { titulo: grados(1.2, 2), detalle: grados(1.0, 2), aire: grados(0.25, 2) },
 } as const
 
 /** Lo que mide el cartel por cada metro de distancia de lectura (`proporcionDelCartel`). */

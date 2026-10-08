@@ -417,6 +417,14 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
   const [recordToBeat, setRecordToBeat] = useState(() =>
     reto != null ? getBestPoints(MODO_DEL_RETO) : 0,
   )
+  // Y el del salón, por lo mismo: al acabar, el salón sube el suyo (`onTerminar`) y el cartel
+  // diría «Has igualado tu récord» de la partida que lo acaba de batir (`objetivo.ts`).
+  const recordDelSalon = objetivo?.record ?? null
+  const salonVivo = useRef(recordDelSalon)
+  useEffect(() => {
+    salonVivo.current = recordDelSalon
+  }, [recordDelSalon])
+  const [salonAlEmpezar, setSalonAlEmpezar] = useState(recordDelSalon)
 
   // El sonido no es estado de este juego: sale de los ajustes del arcade, que
   // se eligen una vez en xrcade y valen para los doce. Aquí solo se traduce a
@@ -662,10 +670,19 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
   const partida = useMemo(
     () =>
       partidaDelCartel(
-        { objetivo, gameMode, gameState, round: challengeRoundNumber, goles, points, streak, record: recordToBeat },
+        {
+          objetivo: objetivo == null ? objetivo : { ...objetivo, record: salonAlEmpezar },
+          gameMode,
+          gameState,
+          round: challengeRoundNumber,
+          goles,
+          points,
+          streak,
+          record: recordToBeat,
+        },
         t,
       ),
-    [objetivo, gameMode, gameState, challengeRoundNumber, goles, points, streak, recordToBeat, t],
+    [objetivo, salonAlEmpezar, gameMode, gameState, challengeRoundNumber, goles, points, streak, recordToBeat, t],
   )
   const cartel = useMemo(
     () => (partida == null ? null : conElAvisoDeQueCuenta(cartelDeObjetivo(partida, t), gameMode, avisoQueCuenta, t)),
@@ -772,6 +789,7 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
     setRecordToBeat(
       gameMode === 'practice' && endless ? getBestEndlessStreak() : getBestPoints(gameMode),
     )
+    setSalonAlEmpezar(salonVivo.current)
     setUnlockedAtStart(getUnlockedLevel())
     setLevelAtStart(selectedLevel)
     setRunId((id) => id + 1)

@@ -65,6 +65,9 @@ const DE_MILES: Objetivo = {
 
 const base = { mision: 'Score until you miss 3 times', queda: 'Lives ♥♥♡ · 0:47' }
 
+/** Una causa como la que da un juego al acabar: corta, que va delante del récord en la misma línea. */
+const CAUSA = { en: 'Three clays on the ground', es: 'Tres platos al suelo' }
+
 /** Cada cosa que el cartel llega a decir: cada fase, cada listón, con récord y sin él. */
 function partidas(): Partida[] {
   const todas: Partida[] = []
@@ -106,26 +109,46 @@ function grados(escrito: Escrito): number {
 describe('el cartel del objetivo se lee', () => {
   it('en cada fase, a más y a menos, con salón y sin él, en los dos idiomas', () => {
     for (const [idioma, t] of Object.entries(IDIOMAS)) {
-      for (const partida of partidas()) {
+      const causa = CAUSA[idioma as keyof typeof CAUSA]
+      const conCausa = partidas().filter((partida) => partida.fase === 'final').map((partida) => ({ ...partida, causa }))
+      for (const partida of [...partidas(), ...conCausa]) {
         const vista = cartelDeObjetivo(partida, t)
         const escritos = medir(vista)
         expect(escritos.length, 'no se ha medido nada').toBeGreaterThan(0)
         expect(
           problemasDeLegibilidad(escritos, { panel: PANEL_DEL_CARTEL, distancia: DISTANCIA_DE_DIBUJO }),
-          `${idioma}: ${vista.titulo} / ${vista.detalle}`,
+          `${idioma}: ${vista.titulo} / ${vista.detalle} / ${vista.pie}`,
         ).toEqual([])
       }
     }
   })
 
-  it('y mientras celebra un listón, que solo cambia el color', () => {
+  it('y mientras celebra un listón, que dice la medalla en el título', () => {
     const vista = cartelDeObjetivo({ ...base, objetivo: A_MAS, fase: 'jugando', puntos: 260 }, es)
+    const [titulo, detalle] = medir(vista, 'plata')
 
-    expect(medir(vista, 'plata')).toEqual(medir(vista))
+    expect(titulo.texto).toBe('¡Plata!')
+    expect(detalle).toEqual(medir(vista)[1])
+    expect(problemasDeLegibilidad(medir(vista, 'plata'), { panel: PANEL_DEL_CARTEL, distancia: DISTANCIA_DE_DIBUJO })).toEqual([])
   })
 
-  it('nunca escribe más de dos líneas', () => {
-    for (const partida of partidas()) expect(medir(cartelDeObjetivo(partida, es)).length).toBeLessThanOrEqual(2)
+  it('jugando no escribe más de dos líneas; al acabar, tres como mucho', () => {
+    for (const partida of partidas()) {
+      const lineas = medir(cartelDeObjetivo({ ...partida, causa: CAUSA.es }, es)).length
+      expect(lineas).toBeLessThanOrEqual(partida.fase === 'final' ? 3 : 2)
+    }
+  })
+
+  it('con tres líneas la letra baja sin pasar del mínimo, y todo cabe en el panel', () => {
+    const vista = cartelDeObjetivo({ ...base, objetivo: { ...A_MAS, record: 520 }, fase: 'final', puntos: 130, causa: CAUSA.es }, es)
+    const [titulo, detalle, pie] = medir(vista)
+
+    expect(pie.texto).toBe('Tres platos al suelo · Tu mejor 520')
+    expect(grados(titulo)).toBeCloseTo(1.2, 1)
+    expect(grados(detalle)).toBeCloseTo(1.0, 1)
+    expect(grados(pie)).toBeGreaterThan(MIN_ANGULO)
+    expect(titulo.y + titulo.alto / 2).toBeLessThan(PANEL_DEL_CARTEL.height / 2)
+    expect(pie.y - pie.alto / 2).toBeGreaterThan(-PANEL_DEL_CARTEL.height / 2)
   })
 
   it('la frase de jugar se lee de un vistazo: casi el doble del mínimo, sin encoger', () => {

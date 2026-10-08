@@ -305,7 +305,8 @@ describe('el cartel del objetivo se lee, con la letra de Godot', () => {
         cartel.actualizar(vista, null, lang, 0.016)
         const escritos = cartel.panel.escritos
         const donde = `${lang}: ${vista.titulo} / ${vista.detalle}`
-        expect(escritos.map((e) => e.texto), donde).toEqual([vista.titulo, ...(vista.detalle == null ? [] : [vista.detalle])])
+        // Dos líneas jugando; al acabar, la tercera con el pie.
+        expect(escritos.map((e) => e.texto), donde).toEqual([vista.titulo, ...[vista.detalle, vista.pie].filter((linea) => linea != null)])
         expect(problemasDeLegibilidad(escritos, { panel: PANEL, distancia: CARTEL.distancia }), donde).toEqual([])
         for (const { pose, ojos, donde: desde } of VISTAS) {
           expect(unreadableTexts(aLaEscala(escritos, ESCALA), pose, ojos, ALTO_DE_LINEA, MIN_ANGULO), `${donde}, ${desde}`).toEqual([])
@@ -314,6 +315,24 @@ describe('el cartel del objetivo se lee, con la letra de Godot', () => {
       }
     }
     expect(medidas).toBeGreaterThan(20)
+    // Alguna vista del final lleva el pie, o la tercera línea no se estaría midiendo.
+    expect(LANGS.some((lang) => vistas(lang).some((vista) => vista.pie != null))).toBe(true)
+    cartel.nodo.free()
+  })
+
+  it('al cruzar un listón el título dice la medalla, y se sigue leyendo', () => {
+    const cartel = new Cartel()
+    cartel.colocar(SITIO_DEL_CARTEL)
+    const t = traductorSuave('es')
+    const vista = cartelDeObjetivo(
+      partidaDelCartel({ objetivo: OBJETIVO, gameMode: 'challenge', gameState: 'playing', round: 12, goles: 70, points: 19850, streak: 11, record: 0 }, t)!,
+      t,
+    )
+    expect(vista.vitor).toBeTruthy()
+    cartel.actualizar(vista, null, 'es', 0.016)
+    cartel.actualizar(vista, vista.medalla ?? 'plata', 'es', 0.016)
+    expect(cartel.panel.escritos[0]!.texto).toBe(vista.vitor)
+    expect(problemasDeLegibilidad(cartel.panel.escritos, { panel: PANEL, distancia: CARTEL.distancia })).toEqual([])
     cartel.nodo.free()
   })
 
@@ -494,6 +513,7 @@ describe('los ajustes', () => {
   beforeEach(() => gameStorage()?.clear())
 
   it('el idioma es el guardado del salón, y el de la línea de órdenes manda', () => {
+    gameStorage()!.setItem(CLAVE_DEL_IDIOMA, 'en')
     expect(idioma()).toBe('en')
     gameStorage()!.setItem(CLAVE_DEL_IDIOMA, 'es')
     expect(idioma()).toBe('es')
@@ -532,6 +552,8 @@ describe('con el ratón: el menú lleva a jugar, parar pregunta y el final vuelv
 
   beforeEach(() => {
     gameStorage()?.clear()
+    // Lo que se lee, en inglés: sin idioma guardado, el juego hablaría el del sistema.
+    gameStorage()?.setItem(CLAVE_DEL_IDIOMA, 'en')
     const tree = Engine.get_main_loop() as SceneTree
     raiz = new Node3D()
     ;(tree.current_scene ?? (tree.root as Node)).add_child(raiz)

@@ -8,8 +8,8 @@
  * `lib/cartelDelMarcador.ts`. Está pintado para leerse a `DISTANCIA_DE_DIBUJO` y se agranda con la
  * distancia de verdad, así que ocupa en el ojo los mismos grados que el de la web.
  *
- * La celebración de un listón es suya: el título y la barra se ponen del color de la medalla y el
- * cartel crece y vuelve (`pulsoDelFestejo`). El sonido corto y el pulso en la mano los pone la
+ * La celebración de un listón es suya: el título dice la medalla («¡Bronce!»), se pone de su color
+ * con la barra y el cartel crece y vuelve (`pulsoDelFestejo`). El sonido corto y el pulso en la mano los pone la
  * escena, con la medalla que devuelve `actualizar`.
  */
 import { Node3D, Vector3, type MeshInstance3D } from 'godot'
@@ -91,24 +91,30 @@ export class Cartel {
       hijo.queue_free()
     }
 
-    // Lo que hay se reparte centrado: una línea sola queda en medio, no colgada de arriba.
+    // Lo que hay se reparte centrado: una línea sola queda en medio, no colgada de arriba. Con el
+    // pie del final son tres líneas, con la letra un poco más baja (`LETRA_CON_PIE` en la web).
+    const pie = vista.pie ?? null
+    const letra = pie == null ? CARTEL : CARTEL.conPie
     const filas = [
-      CARTEL.titulo,
-      ...(vista.detalle == null ? [] : [CARTEL.detalle]),
+      letra.titulo,
+      ...(vista.detalle == null ? [] : [letra.detalle]),
+      ...(pie == null ? [] : [letra.detalle]),
       ...(vista.barra == null ? [] : [CARTEL.barra]),
     ]
-    let y = (filas.reduce((suma, fila) => suma + fila, 0) + CARTEL.aire * (filas.length - 1)) / 2
+    let y = (filas.reduce((suma, fila) => suma + fila, 0) + letra.aire * (filas.length - 1)) / 2
 
-    panel.escribir(vista.titulo, 0, y - CARTEL.titulo / 2, {
-      alto: CARTEL.titulo,
+    // Mientras se celebra, el título dice la medalla: el color solo no se entiende.
+    panel.escribir(festejo != null && vista.vitor != null ? vista.vitor : vista.titulo, 0, y - letra.titulo / 2, {
+      alto: letra.titulo,
       color: festejo != null ? PALETA[festejo] : vista.discreto ? PALETA.textoSuave : PALETA.texto,
       anchoMax: CARTEL.anchoUtil,
     })
-    y -= CARTEL.titulo + CARTEL.aire
+    y -= letra.titulo + letra.aire
 
-    if (vista.detalle != null) {
-      panel.escribir(vista.detalle, 0, y - CARTEL.detalle / 2, { alto: CARTEL.detalle, color: PALETA.textoSuave, anchoMax: CARTEL.anchoUtil })
-      y -= CARTEL.detalle + CARTEL.aire
+    for (const linea of [vista.detalle, pie]) {
+      if (linea == null) continue
+      panel.escribir(linea, 0, y - letra.detalle / 2, { alto: letra.detalle, color: PALETA.textoSuave, anchoMax: CARTEL.anchoUtil })
+      y -= letra.detalle + letra.aire
     }
 
     if (vista.barra != null) {

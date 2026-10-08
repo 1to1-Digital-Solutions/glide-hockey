@@ -213,12 +213,65 @@ export function parseVolume(raw: string | null, fallback: number): number {
  * esa misma forma.
  */
 export function langFromCookies(cookieHeader: string | null | undefined): Lang {
-  if (!cookieHeader) return DEFAULT_LANG
+  return chosenLang(cookieHeader) ?? DEFAULT_LANG
+}
+
+/**
+ * El idioma **elegido** en esa cabecera `Cookie`, o `null` si no se ha elegido ninguno (o lo
+ * escrito no es un idioma del arcade): entonces manda el del sistema (`langFromSystem`).
+ */
+export function chosenLang(cookieHeader: string | null | undefined): Lang | null {
+  if (!cookieHeader) return null
   for (const trozo of cookieHeader.split(';')) {
     const [nombre, ...resto] = trozo.trim().split('=')
-    if (nombre === LANG_COOKIE) return parseLang(decodeURIComponent(resto.join('=')))
+    if (nombre === LANG_COOKIE) return asLang(decodeURIComponent(resto.join('=')))
   }
-  return DEFAULT_LANG
+  return null
+}
+
+/** Lo escrito, si es un idioma del arcade; si no, `null`. */
+export function asLang(raw: string | null | undefined): Lang | null {
+  return (LANGS as readonly string[]).includes(raw ?? '') ? (raw as Lang) : null
+}
+
+/**
+ * El idioma del sistema, para quien todavía no ha elegido ninguno: el primero de los que pide
+ * que el arcade tenga. Es la misma cuenta que el salón (`xrcade/src/lib/ajustes.ts`): un juego
+ * abierto suelto, o montado en un salón donde nadie ha elegido idioma, arranca en el del visor.
+ *
+ * Acepta la cabecera `Accept-Language` del servidor («es-ES,es;q=0.9,en;q=0.8», que se ordena
+ * por su `q`) o la lista del navegador (`navigator.languages`, ya ordenada). Se mira solo la
+ * lengua, no la región: «es-MX» es español. `null` si no pide ninguno de los del arcade.
+ */
+export function langFromSystem(preferred: string | readonly string[] | null | undefined): Lang | null {
+  if (preferred == null) return null
+  const tags =
+    typeof preferred === 'string'
+      ? preferred
+          .split(',')
+          .map((trozo, index) => {
+            const [tag = '', ...params] = trozo.trim().split(';')
+            const q = params.map((p) => p.trim()).find((p) => p.startsWith('q='))
+            const weight = q === undefined ? 1 : Number(q.slice(2))
+            return { tag, weight: Number.isFinite(weight) ? weight : 0, index }
+          })
+          .filter((entry) => entry.weight > 0)
+          .sort((a, b) => b.weight - a.weight || a.index - b.index)
+          .map((entry) => entry.tag)
+      : preferred
+  for (const tag of tags) {
+    const primary = tag.trim().toLowerCase().split(/[-_]/, 1).join('')
+    if ((LANGS as readonly string[]).includes(primary)) return primary as Lang
+  }
+  return null
+}
+
+/** El idioma con que se pinta: el elegido en la cookie, si no el del sistema, si no el de partida. */
+export function langFor(
+  cookieHeader: string | null | undefined,
+  preferred: string | readonly string[] | null | undefined,
+): Lang {
+  return chosenLang(cookieHeader) ?? langFromSystem(preferred) ?? DEFAULT_LANG
 }
 
 /** Los volúmenes, leídos de un almacenamiento que puede no estar. */

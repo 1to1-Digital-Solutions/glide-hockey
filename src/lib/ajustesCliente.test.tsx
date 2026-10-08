@@ -185,6 +185,15 @@ describe('el idioma', () => {
     expect(result.current).toBe(DEFAULT_LANG)
   })
 
+  it('sin elegir, el del sistema: un visor en español arranca en español', () => {
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['es-ES', 'en'])
+
+    expect(currentLang()).toBe('es')
+
+    setLang('en')
+    expect(currentLang()).toBe('en')
+  })
+
   it('viaja en una cookie, para que el servidor pinte ya traducido', () => {
     setLang('es')
 

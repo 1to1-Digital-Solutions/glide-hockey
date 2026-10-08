@@ -26,7 +26,11 @@ import {
   TURN_MODES,
   TURN_MODE_KEY,
   VOLUME_KEYS,
+  asLang,
+  chosenLang,
+  langFor,
   langFromCookies,
+  langFromSystem,
   parseGrabMode,
   parseHand,
   parseLang,
@@ -151,6 +155,40 @@ describe('el idioma escrito en una cabecera de cookies', () => {
     expect(langFromCookies('')).toBe(DEFAULT_LANG)
     expect(langFromCookies(null)).toBe(DEFAULT_LANG)
     expect(langFromCookies(undefined)).toBe(DEFAULT_LANG)
+  })
+})
+
+describe('el idioma sin elegir: el del sistema', () => {
+  it('distingue lo elegido de lo que no lo está', () => {
+    expect(chosenLang(`${LANG_COOKIE}=es`)).toBe('es')
+    expect(chosenLang(`${LANG_COOKIE}=klingon`)).toBeNull()
+    expect(chosenLang('otra=1')).toBeNull()
+    expect(chosenLang(null)).toBeNull()
+    expect(asLang('en')).toBe('en')
+    expect(asLang(undefined)).toBeNull()
+  })
+
+  it('lee la cabecera del servidor por su peso, y solo la lengua', () => {
+    expect(langFromSystem('es-ES,es;q=0.9,en;q=0.8')).toBe('es')
+    expect(langFromSystem('fr;q=0.9,en-GB;q=0.8,es;q=0.95')).toBe('es')
+    expect(langFromSystem('es-MX')).toBe('es')
+    expect(langFromSystem('es;q=0,en')).toBe('en')
+    expect(langFromSystem('es;q=nada,en')).toBe('en')
+    expect(langFromSystem('fr-FR,de')).toBeNull()
+    expect(langFromSystem('')).toBeNull()
+  })
+
+  it('y la lista del navegador, ya ordenada', () => {
+    expect(langFromSystem(['de-DE', 'es-ES', 'en'])).toBe('es')
+    expect(langFromSystem(['EN_us'])).toBe('en')
+    expect(langFromSystem([])).toBeNull()
+    expect(langFromSystem(null)).toBeNull()
+  })
+
+  it('manda lo elegido; sin elegir, el sistema; sin nada del arcade, el de partida', () => {
+    expect(langFor(`${LANG_COOKIE}=en`, ['es-ES'])).toBe('en')
+    expect(langFor('', ['es-ES'])).toBe('es')
+    expect(langFor(undefined, 'fr')).toBe(DEFAULT_LANG)
   })
 })
 

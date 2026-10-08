@@ -355,6 +355,8 @@ export default class GlideHockey extends Node3D {
     // Una escena de test o una captura guarda aparte y empieza de cero: si no, la marca del jugador
     // automático acabaría como récord de quien tenga el juego, y cada pasada dependería de la anterior.
     aislarElGuardado(this.harness)
+    // Y en ese guardado de cero, los ajustes del salón que pida la escena de test (el idioma, la mano).
+    if (this.harness) this.applyTestSettings()
     const autoplay = hayBandera('autoplay') || (this.harness && !this.harnessMenu)
     this.duelo = hayBandera('duelo') || (this.harness && this.has_meta('duelo'))
     this.shotPath = argumento('shot')
@@ -687,7 +689,6 @@ export default class GlideHockey extends Node3D {
   private buildXrPlayer(simulado: boolean): void {
     if (simulado) {
       this.sim = simularMandos()
-      this.applyTestSettings()
     }
     this.player = new XRPlayer(this, { comunes: { uiHeight, hostAnchor, agarre, pellizco } })
     this.escena = this.player.mundo
@@ -1052,10 +1053,10 @@ export default class GlideHockey extends Node3D {
     return this.partida.gameMode
   }
 
-  /** Lo que dice el cartel del objetivo ahora mismo, sus dos líneas en una; vacío si no está colgado. */
+  /** Lo que dice el cartel del objetivo ahora mismo, sus líneas en una; vacío si no está colgado. */
   cartel_dice(): string {
     const vista = this.partida.cartel(this.interfaz.lang)
-    return vista == null ? '' : [vista.titulo, vista.detalle ?? ''].join(' | ')
+    return vista == null ? '' : [vista.titulo, vista.detalle ?? '', ...(vista.pie == null ? [] : [vista.pie])].join(' | ')
   }
 
   /** Si el cartel del objetivo se ve. */

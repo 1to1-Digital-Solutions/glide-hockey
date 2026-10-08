@@ -38,6 +38,12 @@ function grados(angulo: number): number {
  */
 export const LETRA_DEL_CARTEL = { titulo: grados(1.4), detalle: grados(1.2) }
 
+/**
+ * Con tres líneas (el final con su `pie`) la letra baja un poco para caber en el mismo cartel: se
+ * lee parado, sin nada que hacer más que leer, y sigue por encima del mínimo.
+ */
+export const LETRA_CON_PIE = { titulo: grados(1.2), detalle: grados(1.0), aire: grados(0.25) }
+
 /** El cartel a la distancia de dibujo: 24° de ancho por 4,5° de alto. */
 export const PANEL_DEL_CARTEL = { width: grados(24), height: grados(4.5) }
 
@@ -69,6 +75,8 @@ export function dibujarElCartel(
 ): void {
   const { width, height } = PANEL_DEL_CARTEL
   const acento = festejo ?? vista.medalla
+  const pie = vista.pie ?? null
+  const letra = pie == null ? { ...LETRA_DEL_CARTEL, aire: AIRE } : LETRA_CON_PIE
 
   roundedRect(ctx, 0, 0, width - grados(0.1), height - grados(0.1), grados(0.5))
   // Translúcido: lo que pase por detrás se sigue adivinando. Lo que no cuenta, más todavía.
@@ -80,28 +88,31 @@ export function dibujarElCartel(
 
   // Lo que hay se reparte centrado: una línea sola queda en medio, no colgada de arriba.
   const filas = [
-    LETRA_DEL_CARTEL.titulo,
-    ...(vista.detalle == null ? [] : [LETRA_DEL_CARTEL.detalle]),
+    letra.titulo,
+    ...(vista.detalle == null ? [] : [letra.detalle]),
+    ...(pie == null ? [] : [letra.detalle]),
     ...(vista.barra == null ? [] : [ALTO_DE_LA_BARRA]),
   ]
-  const alto = filas.reduce((suma, fila) => suma + fila, 0) + AIRE * (filas.length - 1)
+  const alto = filas.reduce((suma, fila) => suma + fila, 0) + letra.aire * (filas.length - 1)
   let y = alto / 2
 
-  drawText(ctx, vista.titulo, 0, y - LETRA_DEL_CARTEL.titulo / 2, {
-    size: LETRA_DEL_CARTEL.titulo,
+  // Mientras se celebra, el título dice la medalla: el color solo no se entiende.
+  drawText(ctx, festejo != null && vista.vitor != null ? vista.vitor : vista.titulo, 0, y - letra.titulo / 2, {
+    size: letra.titulo,
     color: festejo != null ? PALETA[festejo] : vista.discreto ? PALETA.textoSuave : PALETA.texto,
     weight: '700',
     maxWidth: ANCHO_UTIL,
   })
-  y -= LETRA_DEL_CARTEL.titulo + AIRE
+  y -= letra.titulo + letra.aire
 
-  if (vista.detalle != null) {
-    drawText(ctx, vista.detalle, 0, y - LETRA_DEL_CARTEL.detalle / 2, {
-      size: LETRA_DEL_CARTEL.detalle,
+  for (const linea of [vista.detalle, pie]) {
+    if (linea == null) continue
+    drawText(ctx, linea, 0, y - letra.detalle / 2, {
+      size: letra.detalle,
       color: PALETA.textoSuave,
       maxWidth: ANCHO_UTIL,
     })
-    y -= LETRA_DEL_CARTEL.detalle + AIRE
+    y -= letra.detalle + letra.aire
   }
 
   if (vista.barra != null) {

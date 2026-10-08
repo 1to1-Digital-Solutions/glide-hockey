@@ -7,6 +7,7 @@ import { GAME_MODE_LABELS, isEndless } from '../../lib/gameMode'
 import { useGame } from '../../lib/gameStore'
 import { useLang } from '../../lib/ajustesCliente'
 import { PALETA } from '../../lib/paleta'
+import { MENU_EN } from '../../lib/palabras'
 import { formatoDeCifra, traductor } from '../../lib/textos'
 import { useDuelTally } from '../../lib/useDuelTally'
 
@@ -169,11 +170,14 @@ function GameOver() {
     activeGoalTarget,
     activeLevel,
     levelResult,
+    gameMode,
     startGame,
     resetGame,
   } = useGame()
 
   const won = outcome === 'won'
+  // El reto acaba y se repite con las palabras comunes del salón (`palabras.ts`).
+  const reto = gameMode === 'challenge'
   const endless = isEndless(activeGoalTarget)
   const lang = useLang()
   const t = traductor(lang)
@@ -188,13 +192,15 @@ function GameOver() {
         >
           {endless
             ? t('Game over')
-            : levelResult
-              ? levelResult.passed
-                ? t('Level {level} cleared', { level: activeLevel })
-                : t('Level {level} not cleared', { level: activeLevel })
-              : won
-                ? t('Game won')
-                : t('Game lost')}
+            : reto
+              ? t(MENU_EN.retoTerminado)
+              : levelResult
+                ? levelResult.passed
+                  ? t('Level {level} cleared', { level: activeLevel })
+                  : t('Level {level} not cleared', { level: activeLevel })
+                : won
+                  ? t('Game won')
+                  : t('Game lost')}
         </h2>
         {levelResult ? (
           <p className="mt-2 text-2xl tracking-[0.3em]" style={{ color: PALETA.oro }} aria-hidden>
@@ -273,7 +279,7 @@ function GameOver() {
             onClick={startGame}
             className="cta-gradient min-h-12 w-full rounded-xl px-6 py-3 text-base font-bold transition"
           >
-            {t('Again')}
+            {t(reto ? MENU_EN.otroReto : 'Again')}
           </button>
           <button
             type="button"

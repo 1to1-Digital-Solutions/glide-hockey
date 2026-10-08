@@ -26,6 +26,17 @@
  * 5. Lo que el cartel ya dice se quita del marcador de al lado, y el panel se mide en un test
  *    con la misión del juego en los dos idiomas (`cartel.legible.test.ts` enseña cómo).
  *
+ * **El récord es el de antes de la partida**, el del salón y el local: el que había al pulsar
+ * «Jugar». Uno leído después de guardar la marca nueva haría decir a la vez «¡Nuevo récord!» y
+ * «Has igualado tu récord». Sin récord (`null`), la primera marca es «¡Primer récord!»; un juego
+ * que ya lo celebra en su propio marcador pasa `recordAparte` para no decirlo dos veces.
+ *
+ * **Al acabar, una tercera línea** (`pie`) dice por qué se acabó (`causa`, que da cada juego: «tres
+ * al suelo», «ibas tarde») y cómo quedó frente al récord («Tu mejor 31»). Al cruzar un listón el
+ * cartel no solo cambia de color: el título dice la medalla (`vitor`, «¡Bronce!») mientras dura la
+ * celebración. Y si los puntos del récord no se cuentan como la misión («13 palos» frente a
+ * «Bronce 1900»), `contable` traduce el bronce a lo que se cuenta la primera vez.
+ *
  * **Las cifras se le dan como números** y el cartel las escribe como se leen en cada idioma,
  * igual que la chapa de la cabina del salón (`formatRecordValue`, en xrcade): el inglés separa
  * los miles con coma desde las cuatro cifras («7,000») y el español con punto y **desde las
@@ -71,6 +82,18 @@ export interface Partida {
   record?: number | null
   /** Qué es mejor, para cuando no hay `objetivo`. Por defecto, más. */
   mejorEs?: 'mas' | 'menos'
+  /**
+   * Por qué se acabó, ya traducido: «Tres al suelo». Solo se dice al acabar, y corta: comparte
+   * línea con el récord, y el test del cartel de cada juego la mide.
+   */
+  causa?: string | null
+  /**
+   * Lo que vale una cifra del récord en lo que se cuenta, ya traducido: `1900` → «≈ 13 palos».
+   * Para cuando la unidad del récord no es la de la misión; se dice antes de la primera partida.
+   */
+  contable?: ((puntos: number) => string) | null
+  /** El juego ya dice el récord en su propio marcador: el cartel no lo repite. */
+  recordAparte?: boolean
 }
 
 /** Lo que pinta el cartel: dos líneas como mucho y una barra. */
@@ -83,6 +106,10 @@ export interface VistaDelCartel {
   medalla: Medalla | null
   /** Se dice bajito: la partida no cuenta para medalla. */
   discreto: boolean
+  /** Al acabar, la tercera línea: por qué se acabó y cómo quedó frente al récord. */
+  pie?: string
+  /** La medalla que ya es de quien juega, dicha («¡Bronce!»): el título mientras se celebra. */
+  vitor?: string
 }
 
 /**
@@ -121,10 +148,19 @@ export const OBJETIVO_ES = {
   '{extra} over your record': 'Te han sobrado {extra} para tu récord',
   'You matched your record': 'Has igualado tu récord',
   'New record!': '¡Nuevo récord!',
+  'First record!': '¡Primer récord!',
+  'Your best {record}': 'Tu mejor {record}',
+  'Bronze!': '¡Bronce!',
+  'Silver!': '¡Plata!',
+  'Gold!': '¡Oro!',
+  'Bronze {bronce} {contable} · Silver {plata} · Gold {oro}': 'Bronce {bronce} {contable} · Plata {plata} · Oro {oro}',
+  'Gold {oro} or less · Silver {plata} · Bronze {bronce} {contable}':
+    'Oro {oro} o menos · Plata {plata} · Bronce {bronce} {contable}',
   '{mode} · does not count for a medal': '{mode} · no cuenta para medalla',
 } as const
 
 const NOMBRE: Record<Medalla, string> = { bronce: 'Bronze', plata: 'Silver', oro: 'Gold' }
+const VITOR: Record<Medalla, string> = { bronce: 'Bronze!', plata: 'Silver!', oro: 'Gold!' }
 const FALTO: Record<Medalla, string> = {
   bronce: '{missing} short of bronze',
   plata: '{missing} short of silver',
@@ -246,13 +282,23 @@ export function pulsoDelFestejo(segundos: number): number {
   return 1 + CRECE * Math.sin((Math.PI * segundos) / SEGUNDOS_DE_PULSO)
 }
 
-/** Cómo quedó la partida frente al récord: lo que faltó, lo que sobró o que se ha batido. */
-function frenteAlRecord(record: number, puntos: number, mejorEs: 'mas' | 'menos', t: Traducir): string {
+/**
+ * Cómo quedó la partida frente al récord de antes: lo que faltó, lo que sobró o que se ha batido.
+ * Sin récord, la primera marca; un cero a más no es marca, y no se dice nada.
+ */
+function frenteAlRecord(record: number | null, puntos: number, mejorEs: 'mas' | 'menos', t: Traducir): string | null {
+  if (record == null) return mejorEs === 'menos' || puntos > 0 ? t('First record!') : null
   if (puntos === record) return t('You matched your record')
   if (mejor(puntos, record, mejorEs)) return t('New record!')
   return mejorEs === 'mas'
     ? t('{missing} short of your record', { missing: record - puntos })
     : t('{extra} over your record', { extra: puntos - record })
+}
+
+/** La tercera línea del final, si hay algo que decir en ella. */
+function conPie(vista: VistaDelCartel, ...partes: (string | null | undefined)[]): VistaDelCartel {
+  const pie = partes.filter((parte): parte is string => parte != null && parte !== '').join(' · ')
+  return pie === '' ? vista : { ...vista, pie }
 }
 
 /** El juego suelto, sin salón: la misión y el récord local. */
@@ -265,11 +311,12 @@ function sinObjetivo(partida: Partida, t: Traducir): VistaDelCartel {
     return { ...base, titulo: mision, detalle: record == null ? null : t('Your record {record}', { record }) }
   }
   if (fase === 'final') {
-    return {
+    const vista = {
       ...base,
       titulo: t('You scored {score}', { score: puntos }),
-      detalle: record == null ? null : frenteAlRecord(record, puntos, mejorEs, t),
+      detalle: partida.recordAparte === true ? null : frenteAlRecord(record, puntos, mejorEs, t),
     }
+    return conPie(vista, partida.causa)
   }
   return {
     ...base,
@@ -282,16 +329,24 @@ function sinObjetivo(partida: Partida, t: Traducir): VistaDelCartel {
   }
 }
 
-/** Antes de empezar: la misión y los tres listones. */
-function antes(objetivo: Objetivo, mision: string, t: Traducir): VistaDelCartel {
+/**
+ * Antes de empezar: la misión y los tres listones. La primera vez, con el bronce dicho en lo que
+ * se cuenta si el juego sabe traducirlo.
+ */
+function antes(objetivo: Objetivo, mision: string, t: Traducir, contable: Partida['contable']): VistaDelCartel {
+  const traducido = objetivo.record == null && contable != null ? contable(objetivo.medallas.bronce) : null
+  const mas = objetivo.mejorEs === 'mas'
   return {
     titulo: mision,
-    detalle: t(
-      objetivo.mejorEs === 'mas'
-        ? 'Bronze {bronce} · Silver {plata} · Gold {oro}'
-        : 'Gold {oro} or less · Silver {plata} · Bronze {bronce}',
-      objetivo.medallas,
-    ),
+    detalle:
+      traducido == null
+        ? t(mas ? 'Bronze {bronce} · Silver {plata} · Gold {oro}' : 'Gold {oro} or less · Silver {plata} · Bronze {bronce}', objetivo.medallas)
+        : t(
+            mas
+              ? 'Bronze {bronce} {contable} · Silver {plata} · Gold {oro}'
+              : 'Gold {oro} or less · Silver {plata} · Bronze {bronce} {contable}',
+            { ...objetivo.medallas, contable: traducido },
+          ),
     barra: null,
     medalla: null,
     discreto: false,
@@ -361,8 +416,12 @@ function jugandoAMenos(objetivo: Objetivo, puntos: number, queda: string | null,
   }
 }
 
-/** Al acabar: lo conseguido y lo que faltó, que es la frase que hace repetir. */
-function final(objetivo: Objetivo, puntos: number, t: Traducir): VistaDelCartel {
+/**
+ * Al acabar: lo conseguido y lo que faltó, que es la frase que hace repetir; y debajo, por qué se
+ * acabó y cómo quedó frente al récord de antes.
+ */
+function final(objetivo: Objetivo, partida: Partida, t: Traducir): VistaDelCartel {
+  const { puntos } = partida
   const { medallas, mejorEs, record } = objetivo
   const conseguida = medallaConseguida(objetivo, puntos)
   const unit = t(objetivo.unidad)
@@ -371,15 +430,18 @@ function final(objetivo: Objetivo, puntos: number, t: Traducir): VistaDelCartel 
       ? t('No medal · {score} {unit}', { score: puntos, unit })
       : t('{medal} · {score} {unit}', { medal: t(NOMBRE[conseguida]), score: puntos, unit })
   const siguiente = conseguida == null ? 'bronce' : MEDALLAS[MEDALLAS.indexOf(conseguida) + 1]
+  const marca = partida.recordAparte === true ? null : frenteAlRecord(record, puntos, mejorEs, t)
+  if (siguiente == null) {
+    return conPie({ titulo, detalle: marca, barra: null, medalla: conseguida, discreto: false }, partida.causa)
+  }
   const detalle =
-    siguiente != null
-      ? mejorEs === 'mas'
-        ? t(FALTO[siguiente], { missing: medallas[siguiente] - puntos })
-        : t(SOBRO[siguiente], { extra: puntos - medallas[siguiente] })
-      : record == null
-        ? null
-        : frenteAlRecord(record, puntos, mejorEs, t)
-  return { titulo, detalle, barra: null, medalla: conseguida, discreto: false }
+    mejorEs === 'mas'
+      ? t(FALTO[siguiente], { missing: medallas[siguiente] - puntos })
+      : t(SOBRO[siguiente], { extra: puntos - medallas[siguiente] })
+  // Sin llegar al récord, el récord a secas: «Tu mejor 31». Lo que faltó ya lo dice el detalle.
+  const frente =
+    record == null || marca == null || !mejor(record, puntos, mejorEs) ? marca : t('Your best {record}', { record })
+  return conPie({ titulo, detalle, barra: null, medalla: conseguida, discreto: false }, partida.causa, frente)
 }
 
 /**
@@ -403,10 +465,13 @@ export function cartelDeObjetivo(partida: Partida, traducir: Traducir = EN): Vis
     }
   }
   if (objetivo == null) return sinObjetivo(partida, t)
-  if (fase === 'antes') return antes(objetivo, mision, t)
-  if (fase === 'final') return final(objetivo, puntos, t)
-  const queda = partida.queda ?? null
-  return objetivo.mejorEs === 'mas'
-    ? jugandoAMas(objetivo, puntos, queda, t)
-    : jugandoAMenos(objetivo, puntos, queda, t)
+  if (fase === 'antes') return antes(objetivo, mision, t, partida.contable)
+  const vista =
+    fase === 'final'
+      ? final(objetivo, partida, t)
+      : objetivo.mejorEs === 'mas'
+        ? jugandoAMas(objetivo, puntos, partida.queda ?? null, t)
+        : jugandoAMenos(objetivo, puntos, partida.queda ?? null, t)
+  const celebra = medallaQueCelebra(partida)
+  return celebra == null ? vista : { ...vista, vitor: t(VITOR[celebra]) }
 }

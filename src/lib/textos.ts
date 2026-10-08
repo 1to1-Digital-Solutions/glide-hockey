@@ -21,16 +21,18 @@
 
 import type { Lang } from './ajustes'
 import { OBJETIVO_ES } from './objetivo'
+import { MENU_ES } from './palabras'
 
 const ES = {
   // El cartel del objetivo, común a todos los juegos del salón. Lo primero, para que lo que el
   // juego ya decía por su cuenta no choque.
   ...OBJETIVO_ES,
+  // Los botones y estados comunes del salón (`palabras.ts`), dichos igual en todos los juegos.
+  ...MENU_ES,
   // Y lo que este juego le da: la misión del reto y lo que queda (`cartelDelMarcador.ts`).
   'Win games until you lose one': 'Gana partidos hasta perder uno',
   'Round {round} · to {goals} goals · goal +{points}': 'Ronda {round} · a {goals} goles · gol +{points}',
-  // Lo que el menú dice de cada modo.
-  'Counts for a medal': 'Cuenta para medalla',
+  // Lo que el menú dice de cada modo («Cuenta para medalla» es la común de `MENU_ES`).
   'Does not count for a medal': 'No cuenta para medalla',
 
   // Lo que dice la pestaña y lo que se lee al compartir el enlace. El nombre se queda en
@@ -57,15 +59,11 @@ const ES = {
   Off: 'Apagado',
   Gentle: 'Suave',
   Full: 'Normal',
-  Play: 'Jugar',
   'Play in the headset': 'Jugar con el visor',
-  Exit: 'Salir',
 
   // Modos, dificultades y escenario
   Practice: 'Práctica',
   Levels: 'Niveles',
-  Challenge: 'Reto',
-  Duel: 'Duelo',
   'You choose the level and the goals. Losing costs nothing.':
     'Eliges el nivel y los goles. Perder no cuesta nada.',
   'One game at a time. The level you win stays unlocked for next time.':
@@ -127,7 +125,6 @@ const ES = {
   Conceded: 'Encajados',
   'Best streak': 'Mejor racha',
   Again: 'Otra vez',
-  'Back to the menu': 'Volver al menú',
 
   // El duelo
   'Player 1': 'Jugador 1',
@@ -163,8 +160,6 @@ const ES = {
     'Cierra la mano sobre el mazo para cogerlo',
   'Push the puck with it':
     'Empuja el disco con él',
-  // Al cerrar el tutorial en el reto, en el cartel: lo de antes no contaba, lo que viene ya sí.
-  'Now it counts for your medal': 'Ahora cuenta para medalla',
   'Score a goal':
     'Marca un gol',
   'Press the grip button on the mallet to pick it up':

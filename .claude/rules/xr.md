@@ -33,15 +33,21 @@ el visor y las ayudas visuales) al diseñar o cambiar interacción, menús, tuto
   través de un módulo que aguanta almacenamiento capado (fallback en memoria) y con lectura
   de servidor para no romper la hidratación. El récord se guarda como entero en texto: el
   salón lo lee por el `record` del manifiesto y lo enseña en la cabina.
-- **Mano, silencio y compartir.** La mano dominante y el silencio se eligen en los dos menús
+- **Mano y silencio.** La mano dominante y el silencio se eligen en los dos menús
   y se recuerdan. El sonido se sintetiza con WebAudio en UN solo `AudioContext` que se abre
   con el primer sonido; los hápticos salen de las mismas cuentas que el sonido y no obedecen
-  al silencio. El resumen se puede compartir (`navigator.share` con copia al portapapeles).
-- **La misión se entiende en tres segundos.** El menú abre en el modo que da medalla, que se
-  llama «Reto» («Challenge»), y dice de cada modo si cuenta. El objetivo se lee de frente con
-  `CartelDeObjetivo`, sin tapar blanco ni trayectoria; la frase de misión cabe en una línea a
-  ≥1° (una larga encoge por debajo de lo legible) y lo que dice el cartel se quita del
-  marcador. Récord separado por modo; al volver al menú, el título recoge el foco.
+  al silencio. **Compartir el resultado no es del juego**: lo ofrece el salón al volver
+  (`xrcade/src/lib/salon/compartir.ts`).
+- **La misión se entiende en tres segundos.** El menú abre en «Reto» («Challenge»), el modo
+  que da medalla: una partida fija, sin opciones; el que las tenga dice que no cuenta
+  (`xrcade/docs/medallas.md`). En el visor el menú nace a ≤30° del frente y se aparta al
+  empezar. Botones y estados, del diccionario común (`lib/palabras.ts`). El objetivo se lee
+  de frente con `CartelDeObjetivo`, sin tapar blanco ni trayectoria; la misión cabe en una
+  línea a ≥1° y lo que dice el cartel se quita del marcador. Récord separado por modo.
+- **La primera partida con el visor es un calentamiento.** Con el tutorial pendiente nada
+  cuenta (vidas, tiros, bolas); si hace falta el objeto en la mano, se espera a cogerlo. Al
+  cerrarlo, «Ahora cuenta para medalla» y reto desde cero. Nunca en el reto del día ni a
+  dos. Su panel se recoge al acabar y nunca va en el centro (`lib/calentamiento.ts`).
 - **Se nace donde se juega.** Lo que se coge, al alcance sin dar un paso; ninguna línea de
   falta bajo los pies; si el juego desplaza al jugador, se ve en el suelo dónde ponerse. El
   salón planta el juego bajo la cabeza del instante de entrar y con el rumbo del arco de
@@ -71,10 +77,8 @@ el visor y las ayudas visuales) al diseñar o cambiar interacción, menús, tuto
 
 ## El texto del visor se mide, no se mira
 
-**La queja más repetida con las gafas puestas** es «el texto se superpone», «no se entiende
-nada»: en el aviso de salir, los ajustes, el marcador y los tutoriales. Un panel se pinta en un
-lienzo que **nadie mira al tamaño al que se lee**, y que dos renglones se pisen no se nota hasta
-tenerlo delante de la cara.
+**La queja más repetida con las gafas puestas** es «el texto se superpone»: un panel se pinta
+en un lienzo que **nadie mira al tamaño al que se lee**.
 
 Así que no hay regla de estilo, hay un instrumento: `components/xr/legibilidad.ts`, el mismo
 fichero en todos los juegos.
@@ -82,8 +86,7 @@ fichero en todos los juegos.
 - `lienzoQueApunta()` es un lienzo de mentira que **mide como uno de verdad y apunta lo que se
   escribe**: qué texto, dónde y qué caja ocupa, ya en coordenadas del panel.
 - `problemasDeLegibilidad(escritos, { panel })` devuelve **frases**, no un `false`: qué palabra se
-  pisa con cuál, qué se sale del panel y qué sale por debajo del tamaño mínimo. Un test que solo
-  dijera «no se lee» no serviría de nada.
+  pisa con cuál, qué se sale del panel y qué sale por debajo del tamaño mínimo.
 
 **La regla, entonces:**
 
@@ -94,8 +97,8 @@ fichero en todos los juegos.
    etiqueta que cabe en «Mode» no cabe en «Modo de juego».
 3. Se miden también las **variantes**: la fila que cambia de nombre con el modo, el marcador con
    dos cifras y con tres, el nombre más largo de la lista.
-4. El ancho de letra que usa la regla va **tirando a ancho** a propósito. Quedándose corta daría
-   por bueno lo que en el visor se pisa, que es exactamente lo que ha estado pasando.
+4. El ancho de letra que usa la regla va **tirando a ancho** a propósito: quedándose corta daría
+   por bueno lo que en el visor se pisa.
 5. **La fuente se pide en píxeles de verdad.** Pedida en metros (`0.03px`) sobre un lienzo
    escalado, el navegador del visor amontona las letras aunque las cajas no se pisen.
    `panelFont(peso, metros)` en `canvasPanel.tsx` escala el lienzo y pide la fuente en píxeles;

@@ -13,6 +13,7 @@
 import { challengeRound } from './challenge'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from './gameConfig'
 import { GAME_MODE_LABELS, type GameMode } from './gameMode'
+import { MENU_EN } from './palabras'
 import { MEDALLAS, cuentaParaMedalla, type Medalla, type Objetivo, type Partida, type Traducir, type VistaDelCartel } from './objetivo'
 import { distanceFromEyes, eyesAt, panelRotation, pointOnPanel, type PanelPose, type Triple } from './panelReading'
 import { HALF_LENGTH } from './puckPhysics'
@@ -267,8 +268,8 @@ export function pulsosDelListon(medalla: Medalla, mano: Mano | null): Pulso[] {
  */
 export const AVISO_DE_QUE_CUENTA_MS = 2500
 
-/** La frase del aviso; el inglés es la clave. */
-export const AVISO_DE_QUE_CUENTA = 'Now it counts for your medal'
+/** La frase del aviso: la común del salón (`palabras.ts`). */
+export const AVISO_DE_QUE_CUENTA = MENU_EN.ahoraCuenta
 
 /**
  * El cartel justo al cerrar el tutorial en el reto: su línea grande dice que **ahora cuenta para

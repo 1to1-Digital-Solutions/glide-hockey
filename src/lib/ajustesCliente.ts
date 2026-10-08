@@ -17,7 +17,7 @@ import {
   DEFAULT_SCENERY,
   DEFAULT_VOLUME_SETTINGS,
   LANG_COOKIE,
-  langFromCookies,
+  langFor,
   readGrabMode,
   readHand,
   playHeightOffsetMeters,
@@ -128,16 +128,17 @@ export function setVolume(channel: SoundChannel, value: number): void {
 }
 
 /**
- * El idioma elegido, leído en el navegador.
+ * El idioma elegido, leído en el navegador; sin elegir, el del sistema (`navigator.languages`),
+ * que es el mismo que el servidor lee en `Accept-Language`.
  *
  * No pasa por `useSyncExternalStore`: cambiar de idioma recarga la página —el
  * servidor tiene que volver a pintar los textos—, así que no hay nada a lo que
- * suscribirse. Quien pinta en el servidor usa `langFromCookies` con la cabecera.
+ * suscribirse. Quien pinta en el servidor usa `langFor` con las cabeceras.
  */
 export function currentLang(): Lang {
   /* v8 ignore next -- en el servidor pinta `idiomaDeLaPeticion`, que sí ve la cabecera. */
   if (typeof document === 'undefined') return DEFAULT_LANG
-  return langFromCookies(document.cookie)
+  return langFor(document.cookie, navigator.languages)
 }
 
 /**

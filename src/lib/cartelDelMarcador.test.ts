@@ -303,7 +303,7 @@ describe('al cerrar el tutorial, el cartel avisa de que ya cuenta', () => {
 
   it('en el reto, la línea grande lo dice en el idioma de quien juega', () => {
     expect(conElAvisoDeQueCuenta(vista, 'challenge', true, es)).toEqual({ ...vista, titulo: 'Ahora cuenta para medalla' })
-    expect(conElAvisoDeQueCuenta(vista, 'challenge', true, traductorSuave('en'))?.titulo).toBe('Now it counts for your medal')
+    expect(conElAvisoDeQueCuenta(vista, 'challenge', true, traductorSuave('en'))?.titulo).toBe('Now it counts for a medal')
   })
 
   it('pasado el aviso, fuera del reto, con el cartel discreto o sin cartel, lo de siempre', () => {

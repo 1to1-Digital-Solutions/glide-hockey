@@ -382,18 +382,22 @@ export function StartScreen() {
           </button>
 
           {immersive?.ar || immersive?.vr ? (
-            <button
-              type="button"
-              onClick={() =>
-                // Se entra en realidad mixta cuando el visor la ofrece: así la
-                // mesa se planta en la habitación del jugador, que es donde
-                // mejor se entiende su tamaño.
-                immersive.ar ? getXrStore().enterAR() : getXrStore().enterVR()
-              }
-              className="min-h-11 w-full rounded-xl border border-white/15 px-6 py-2.5 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
-            >
-              {t('Play in the headset')}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() =>
+                  // Se entra en realidad mixta cuando el visor la ofrece: así la
+                  // mesa se planta en la habitación del jugador, que es donde
+                  // mejor se entiende su tamaño.
+                  immersive.ar ? getXrStore().enterAR() : getXrStore().enterVR()
+                }
+                className="min-h-11 w-full rounded-xl border border-white/15 px-6 py-2.5 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
+              >
+                {t('Play in the headset')}
+              </button>
+              {/* La salida común de todos los juegos, que en la web propia pone `AroDeSalir`. */}
+              <p className="text-center text-xs text-white/50">{t('Hold B or Y to exit')}</p>
+            </>
           ) : null}
 
           {/* Salir solo cuando hay de dónde salir. En este menú —que es DOM, o

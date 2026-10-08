@@ -32,6 +32,9 @@ func _ready() -> void:
 	game = (load(MAIN) as PackedScene).instantiate()
 	game.set_meta("harness_menu", true)
 	game.set_meta("sfx_bus", "Mudo")
+	# Lo que se comprueba del menú y del cartel está en inglés: sin idioma guardado, el juego
+	# hablaría el del sistema.
+	game.set_meta("ajustes", JSON.stringify({"xrcade:lang": "en"}))
 	add_child(game)
 
 

@@ -90,6 +90,8 @@ export const MENU_TEXT = {
   comfort: 0.038,
   medal: 0.034,
   mode: 0.029,
+  /** El nombre de la cabina, arriba a la izquierda, a la letra del de table-tennis. */
+  title: 0.042,
   /**
    * «Más opciones» / «Menos opciones», en la banda de arriba: como el confort, algo mayor que los
    * rótulos, porque es la línea más lejana y la más escorzada; a 36 mm, con los ojos a 1,2 m, se
@@ -125,7 +127,7 @@ export const MENU_BUTTON = {
  */
 const BAJADA = MENU_HINT_BAND / 2 - MENU_COMFORT_BAND / 2 - MENU_TITLE_BAND / 4
 export const MENU_ROW = {
-  /** «Más opciones», en la banda de arriba (`MENU_TITLE_BAND`). */
+  /** El nombre de la cabina y «Más opciones», en la banda de arriba (`MENU_TITLE_BAND`). */
   title: MENU_PANEL.height / 2 - MENU_TITLE_BAND / 2,
   comfort: 0.58 + BAJADA,
   record: 0.44 + BAJADA,

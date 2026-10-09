@@ -40,6 +40,7 @@ import { CONFORTS, type Confort } from '@/lib/golpeRecibido'
 import { LEVEL_COUNT, type Stars } from '@/lib/levels'
 import type { Objetivo } from '@/lib/objetivo'
 import { MENU_EN } from '@/lib/palabras'
+import { nombreDelJuego } from '@/lib/plantillaDelMenu'
 import { PALETA } from '@/lib/paleta'
 import { DIFFICULTY_COLORS, PALETTE } from '@/lib/palette'
 import { SCENERY_LABELS } from '@/lib/scenery'
@@ -354,9 +355,18 @@ export class MenuDelJuego {
     const { panel } = this
     panel.borrarTextos()
     const izquierda = -MENU_PANEL.width / 2 + 0.05
+    // El nombre de la cabina, arriba a la izquierda, hasta el botón de «Más opciones»: un nombre
+    // propio, sin traducir (`XRMenu.tsx`).
+    const cajaDeMas = MENU_BOXES['mas opciones']
+    panel.escribir(nombreDelJuego(), izquierda, MENU_ROW.title, {
+      alto: MENU_TEXT.title,
+      color: PALETTE.foreground,
+      alinear: 'left',
+      anchoMax: cajaDeMas.position[0] - cajaDeMas.size[0] / 2 - 0.02 - izquierda,
+    })
     // «Más opciones» —o «Menos», desplegado— sobre su botón, si hay algo plegado en este modo.
     if (plegable) {
-      const { position, size } = MENU_BOXES['mas opciones']
+      const { position, size } = cajaDeMas
       panel.escribir(t(estado.masOpciones ? MENU_EN.menosOpciones : MENU_EN.masOpciones), position[0], MENU_ROW.title, {
         alto: MENU_TEXT.toggle,
         color: PALETTE.foreground,

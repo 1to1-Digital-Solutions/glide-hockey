@@ -17,6 +17,7 @@ import { daMedalla, fraseDeLaMedalla } from '../../lib/cartelDelMarcador'
 import type { Objetivo } from '../../lib/objetivo'
 import { LEVEL_COUNT } from '../../lib/levels'
 import { MENU_EN } from '../../lib/palabras'
+import { nombreDelJuego } from '../../lib/plantillaDelMenu'
 import { DIFFICULTY_COLORS, PALETTE } from '../../lib/palette'
 import { PALETA } from '../../lib/paleta'
 import {
@@ -218,9 +219,19 @@ export function dibujarLosNombres(
     ...(hay.has('maquina') ? [[ROW.level, t('Level')] as const] : []),
     ...(hay.has('goles') ? [[ROW.goals, levels ? t('Stage') : t('Goals')] as const] : []),
   ]
+  // El nombre de la cabina, arriba a la izquierda, hasta el botón de «Más opciones»: es un nombre
+  // propio y no se traduce. Con él se reconoce el menú como el de las otras cabinas.
+  const izquierda = -PANEL.width / 2 + 0.05
+  const mas = MENU_BOXES['mas opciones']
+  drawText(ctx, nombreDelJuego(), izquierda, ROW.title, {
+    size: MENU_TEXT.title,
+    color: PALETTE.foreground,
+    align: 'left',
+    maxWidth: mas.position[0] - mas.size[0] / 2 - 0.02 - izquierda,
+  })
   // «Más opciones» —o «Menos», desplegado— sobre su botón, si hay algo plegado en este modo.
   if (plegable) {
-    const { position, size } = MENU_BOXES['mas opciones']
+    const { position, size } = mas
     drawText(ctx, t(masOpciones ? MENU_EN.menosOpciones : MENU_EN.masOpciones), position[0], ROW.title, {
       size: MENU_TEXT.toggle,
       color: PALETTE.foreground,

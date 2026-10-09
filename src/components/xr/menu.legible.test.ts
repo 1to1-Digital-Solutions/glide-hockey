@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { dibujarLosNombres } from './XRMenu'
 import { ALTO_DE_LINEA } from './canvasPanel'
 import { lienzoQueApunta, problemasDeLegibilidad, type Escrito } from './legibilidad'
@@ -23,7 +23,7 @@ import { REFERENCE_EYE_HEIGHT, uiRiseOverWorld, worldRise } from '../../lib/uiHe
 import { HALF_WIDTH } from '../../lib/puckPhysics'
 import { traductor } from '../../lib/textos'
 import { MENU_EN } from '../../lib/palabras'
-import { GRADOS_DEL_MENU, gradosDelFrente } from '../../lib/plantillaDelMenu'
+import { GRADOS_DEL_MENU, fijarNombreDelJuego, gradosDelFrente, nombreDelJuego } from '../../lib/plantillaDelMenu'
 import { SCOREBOARD_SIZE } from './XRHud'
 import { PANEL_HEIGHT, PANEL_WIDTH } from './XRTutorial'
 import {
@@ -105,6 +105,38 @@ describe('los nombres de las filas del menú se leen', () => {
         expect(escritos.map((e) => e.texto), `${lang} ${scenery}`).toContain(t(SCENERY_LABELS[scenery]))
       }
     }
+  })
+})
+
+describe('el menú se llama como la cabina', () => {
+  afterEach(() => fijarNombreDelJuego(null))
+
+  it('arriba a la izquierda, sin traducir, sin pisar «Más opciones» ni salirse, en los dos idiomas', () => {
+    // El del paquete y el que pasa el salón (el `name` del catálogo, hoy el mismo).
+    for (const nombre of [null, 'Glide Hockey']) {
+      fijarNombreDelJuego(nombre)
+      for (const { donde, escritos } of todosLosMomentos()) {
+        const titulo = escritos.find((e) => e.texto === nombreDelJuego())
+        expect(titulo, `${donde} ${nombre}`).toBeDefined()
+        expect(titulo!.alto / ALTO_DE_LINEA, `${donde} ${nombre}`).toBeCloseTo(MENU_TEXT.title, 9)
+        expect(titulo!.y).toBeCloseTo(MENU_ROW.title, 9)
+        const mas = MENU_BOXES['mas opciones']
+        expect(titulo!.x + titulo!.ancho / 2, `${donde} ${nombre}`).toBeLessThan(mas.position[0] - mas.size[0] / 2)
+        const escalados = aLaEscalaDeLaColumna(escritos)
+        const panel = { width: MENU_PANEL.width * ESCALA_DE_LA_COLUMNA, height: MENU_PANEL.height * ESCALA_DE_LA_COLUMNA }
+        expect(problemasDeLegibilidad(escalados, { panel }), `${donde} ${nombre}`).toEqual([])
+        for (const vista of VISTAS) {
+          expect(unreadableTexts(escalados, vista.pose, vista.ojos, ALTO_DE_LINEA), `${donde} ${nombre}, ${vista.donde}`).toEqual([])
+        }
+      }
+    }
+  })
+
+  it('el que pasa el salón manda sobre el del paquete', () => {
+    fijarNombreDelJuego('Air Hockey')
+    const { ctx, escritos } = lienzoQueApunta()
+    dibujarLosNombres(ctx, traductor('es'), false, 'challenge')
+    expect(escritos.map((e) => e.texto)).toContain('Air Hockey')
   })
 })
 

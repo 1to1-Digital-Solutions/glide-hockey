@@ -35,8 +35,8 @@ import { cartelDeObjetivo, type Objetivo, type VistaDelCartel } from '@/lib/obje
 import { traductor, traductorSuave } from '@/lib/textos'
 import { TUTORIAL_STEPS } from '@/lib/tutorial'
 import { REFERENCE_EYE_HEIGHT } from '@/lib/uiHeight'
-import { GRADOS_DEL_MENU, gradosDelFrente } from '@/lib/plantillaDelMenu'
-import { MENU_PANEL, MENU_TEXT, sitioDelMenu } from '@/lib/xrMenuLayout'
+import { GRADOS_DEL_MENU, gradosDelFrente, nombreDelJuego } from '@/lib/plantillaDelMenu'
+import { MENU_PANEL, MENU_ROW, MENU_TEXT, sitioDelMenu } from '@/lib/xrMenuLayout'
 
 import { CLAVE_DEL_IDIOMA, idioma, niveles } from '@kit/runtime/ajustes'
 import { CLAVE_DEL_CONFORT, confort } from './confort'
@@ -165,6 +165,16 @@ describe('el menú mide lo que la web', () => {
     expect(filas('challenge', true)).toEqual(['Mode'])
     expect(menu.boton('mas opciones').nodo.visible).toBe(false)
     expect(menu.boton('confort off').nodo.visible).toBe(false)
+  })
+
+  it('se llama como la cabina, arriba a la izquierda y sin traducir, como en la web', () => {
+    for (const { donde, estado } of momentosDelMenu()) {
+      menu.pintar(estado)
+      const titulo = menu.panel.escritos.find((e) => e.texto === nombreDelJuego())
+      expect(titulo, donde).toBeDefined()
+      expect(titulo!.alto / ALTO_DE_LINEA).toBeCloseTo(MENU_TEXT.title, 9)
+      expect(titulo!.y).toBeCloseTo(MENU_ROW.title, 9)
+    }
   })
 
   it('cada modo lleva su icono y su nombre debajo, como en la web, y el elegido se enciende', () => {

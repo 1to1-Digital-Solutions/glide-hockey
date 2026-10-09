@@ -4,7 +4,8 @@
  *
  * **Primero el modo, y solo pregunta lo que el modo necesita**, como en la web: en la práctica, el
  * nivel de la máquina y a cuántos goles (o sin fin); en los niveles, qué nivel, con sus estrellas;
- * en el reto, nada más que jugar. Lo que no toca no se pinta; lo que toca pero no se puede
+ * en el reto, nada más que jugar. Lo que no es del modo —las opciones de la práctica, el decorado y
+ * el confort— va detrás de «Más opciones», en la banda de arriba, plegado (`filasDelModo`). Lo que no toca no se pinta; lo que toca pero no se puede
  * (bajar del nivel 1, tu habitación sin realidad aumentada) se apaga en vez de esconderse. Arriba
  * del todo, el confort del golpe recibido; abajo, jugar en medio y **salir en la esquina de abajo a
  * la derecha**, la de todas las cabinas (`exitCorner.ts`).
@@ -34,7 +35,7 @@ import type { Punteria } from '@kit/runtime/ui/punteria'
 import type { Lang, Scenery } from '@/lib/ajustes'
 import { daMedalla, fraseDeLaMedalla } from '@/lib/cartelDelMarcador'
 import { DIFFICULTY_ORDER, MAX_GOALS, MIN_GOALS, type Difficulty } from '@/lib/gameConfig'
-import { GAME_MODE_HINTS, GAME_MODE_LABELS, MODOS_DEL_MENU, type GameMode } from '@/lib/gameMode'
+import { GAME_MODE_HINTS, GAME_MODE_LABELS, MODOS_DEL_MENU, filasDelModo, type GameMode } from '@/lib/gameMode'
 import { CONFORTS, type Confort } from '@/lib/golpeRecibido'
 import { LEVEL_COUNT, type Stars } from '@/lib/levels'
 import type { Objetivo } from '@/lib/objetivo'
@@ -163,6 +164,8 @@ export interface EstadoDelMenu {
   escenario: Scenery
   /** Lo que pasó el salón, o `null`: de él sale qué modo da medalla. */
   objetivo: Objetivo | null
+  /** Si «Más opciones» está desplegado: es de la interfaz, y se pliega al volver al menú. */
+  masOpciones: boolean
 }
 
 export interface AccionesDelMenu {
@@ -174,6 +177,8 @@ export interface AccionesDelMenu {
   sinFin(): void
   /** La sala o tu habitación: cambia el escenario del salón. */
   alternarEscenario(): void
+  /** Despliega o pliega lo de «Más opciones». */
+  masOpciones(): void
   jugar(): void
   salir(): void
 }
@@ -231,6 +236,8 @@ export class MenuDelJuego {
       room: escenario.dibujo(figura(triangulosDeLaVentana(true).dentro, DIM), DIM),
     }
     escenario.apagado = true
+    // «Más opciones»: lo escrito va en el panel, como los rótulos.
+    this.anadir('mas opciones', PALETTE.rail, 0.8, () => acciones.masOpciones())
     this.anadir('jugar', PALETTE.primary, 1, () => acciones.jugar()).dibujo(iconoDeJugar(0.045, PALETTE.primaryInk), PALETTE.primaryInk)
     const salir = botonDeSalir({
       caja: cajaDe(MENU_BOXES.salir),
@@ -278,10 +285,17 @@ export class MenuDelJuego {
   /** Pinta un estado: qué filas, qué está elegido, qué se apaga y qué se escribe. */
   pintar(estado: EstadoDelMenu): void {
     const t = traductor(estado.lang)
-    const practica = estado.modo === 'practice'
+    const { filas: hay, plegable } = filasDelModo(estado.modo, estado.masOpciones)
+    const practica = hay.has('maquina')
     const niveles = estado.modo === 'levels'
+    const ajustes = hay.has('ajustes')
+
+    const masOpciones = this.boton('mas opciones')
+    masOpciones.nodo.visible = plegable
+    masOpciones.colorear(estado.masOpciones ? PALETTE.primaryDeep : PALETTE.rail, estado.masOpciones ? 0.95 : 0.8)
 
     for (const confort of CONFORTS) {
+      this.boton(`confort ${confort}`).nodo.visible = ajustes
       const elegido = confort === estado.confort
       this.boton(`confort ${confort}`).colorear(elegido ? PALETTE.primaryDeep : PALETTE.rail, elegido ? 0.95 : 0.7)
       this.boton(`confort ${confort}`).colorDelDibujo(this.iconosDelConfort.get(confort)!, elegido ? PALETTE.foreground : DIM)
@@ -301,7 +315,7 @@ export class MenuDelJuego {
       b.colorear(elegido ? DIFFICULTY_COLORS[nivel] : PALETTE.rail, 0.85)
       b.colorDelDibujo(this.barras.get(nivel)!, elegido ? PALETTE.foreground : DIM)
     }
-    const filaDeGoles = practica || niveles
+    const filaDeGoles = hay.has('goles')
     const menos = this.boton('menos')
     const mas = this.boton('mas')
     menos.nodo.visible = filaDeGoles
@@ -329,6 +343,7 @@ export class MenuDelJuego {
     this.record.pintar(estado.record)
 
     const escenario = this.boton('escenario')
+    escenario.nodo.visible = ajustes
     escenario.apagado = !estado.habitacion
     const tinta = estado.habitacion ? PALETTE.foreground : DIM
     for (const pieza of [this.ventana.marco, this.ventana.place, this.ventana.room]) escenario.colorDelDibujo(pieza, tinta)
@@ -339,12 +354,23 @@ export class MenuDelJuego {
     const { panel } = this
     panel.borrarTextos()
     const izquierda = -MENU_PANEL.width / 2 + 0.05
-    panel.escribir(t(LEYENDA_DEL_CONFORT), izquierda, MENU_ROW.comfort, {
-      alto: MENU_TEXT.comfort,
-      color: DIM,
-      alinear: 'left',
-      anchoMax: MENU_BOXES['confort off'].position[0] - MENU_BUTTON.small[0] / 2 - 0.02 - izquierda,
-    })
+    // «Más opciones» —o «Menos», desplegado— sobre su botón, si hay algo plegado en este modo.
+    if (plegable) {
+      const { position, size } = MENU_BOXES['mas opciones']
+      panel.escribir(t(estado.masOpciones ? MENU_EN.menosOpciones : MENU_EN.masOpciones), position[0], MENU_ROW.title, {
+        alto: MENU_TEXT.toggle,
+        color: PALETTE.foreground,
+        anchoMax: size[0] - 0.01,
+      })
+    }
+    if (ajustes) {
+      panel.escribir(t(LEYENDA_DEL_CONFORT), izquierda, MENU_ROW.comfort, {
+        alto: MENU_TEXT.comfort,
+        color: DIM,
+        alinear: 'left',
+        anchoMax: MENU_BOXES['confort off'].position[0] - MENU_BUTTON.small[0] / 2 - 0.02 - izquierda,
+      })
+    }
     const filas: (readonly [number, TextKey])[] = [
       [MENU_ROW.mode, MENU_EN.modo],
       ...(practica ? [[MENU_ROW.level, 'Level'] as const] : []),
@@ -374,13 +400,15 @@ export class MenuDelJuego {
       alinear: 'right',
       anchoMax: MENU_MEDAL_WIDTH,
     })
-    const desde = MENU_BOXES.escenario.position[0] + MENU_BUTTON.small[0] / 2 + 0.02
-    panel.escribir(t(SCENERY_LABELS[estado.escenario]), desde, MENU_ROW.record, {
-      alto: MENU_TEXT.scenery,
-      color: DIM,
-      alinear: 'left',
-      anchoMax: MENU_RECORD_X - 0.07 - desde,
-    })
+    if (ajustes) {
+      const desde = MENU_BOXES.escenario.position[0] + MENU_BUTTON.small[0] / 2 + 0.02
+      panel.escribir(t(SCENERY_LABELS[estado.escenario]), desde, MENU_ROW.record, {
+        alto: MENU_TEXT.scenery,
+        color: DIM,
+        alinear: 'left',
+        anchoMax: MENU_RECORD_X - 0.07 - desde,
+      })
+    }
     panel.parrafo(t(GAME_MODE_HINTS[estado.modo]), 0, MENU_HINT_Y, {
       alto: MENU_TEXT.hint,
       color: DIM,

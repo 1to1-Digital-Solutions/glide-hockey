@@ -53,6 +53,7 @@ describe('el menú de la web', () => {
     fireEvent.click(screen.getByRole('button', { name: GAME_MODE_LABELS.practice }))
 
     expect(screen.getByRole('button', { name: GAME_MODE_LABELS.practice }).getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     expect(screen.getByLabelText(/^Goals/)).toBeDefined()
   })
 
@@ -73,9 +74,32 @@ describe('el menú de la web', () => {
   it('en la práctica pregunta el nivel de la máquina y los goles', async () => {
     await abrir()
     fireEvent.click(screen.getByRole('button', { name: GAME_MODE_LABELS.practice }))
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
 
     expect(screen.getByRole('button', { name: 'Impossible' })).toBeDefined()
     expect(screen.getByLabelText(/^Goals/)).toBeDefined()
+  })
+
+  it('lo que no es del modo, plegado tras «Más opciones», como en los demás juegos', async () => {
+    await abrir()
+    // En el reto no hay nada que elegir que cuente: ni botón, ni decorado, ni confort.
+    expect(screen.queryByRole('button', { name: 'More options' })).toBeNull()
+    expect(screen.queryByText('Around you')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: GAME_MODE_LABELS.practice }))
+    const boton = screen.getByRole('button', { name: 'More options' })
+    expect(boton.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('button', { name: 'Impossible' })).toBeNull()
+    expect(screen.queryByText('Around you')).toBeNull()
+    expect(screen.queryByText('When hit')).toBeNull()
+
+    fireEvent.click(boton)
+    expect(screen.getByRole('button', { name: 'Fewer options' }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByText('Around you')).toBeDefined()
+    expect(screen.getAllByText('When hit').length).toBeGreaterThan(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fewer options' }))
+    expect(screen.queryByRole('button', { name: 'Impossible' })).toBeNull()
   })
 
   it('en el reto no pregunta nada de la partida: se le da a jugar', async () => {

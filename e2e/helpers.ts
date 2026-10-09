@@ -32,6 +32,10 @@ export async function jugarPartida(
   { goles, nivel, sinFin = false }: { goles: number; nivel: string; sinFin?: boolean },
 ): Promise<void> {
   await page.getByRole('button', { name: 'Practice', exact: true }).click()
+  // El nivel y los goles van plegados detrás de «Más opciones» (la plantilla común del menú), si
+  // no se ha desplegado ya.
+  const masOpciones = page.getByRole('button', { name: 'More options', exact: true })
+  if ((await masOpciones.count()) > 0) await masOpciones.click()
   await page.getByRole('button', { name: nivel }).click()
   await page.locator('#goal-target').fill(String(goles))
   // Después de los goles: sin fin apaga el deslizador.

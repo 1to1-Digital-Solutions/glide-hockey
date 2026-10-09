@@ -124,6 +124,9 @@ export class InterfazDelJuego {
   readonly cuenta: CuentaAtras
   readonly tutorial: TutorialDelJuego
   private pintado = ''
+  /** «Más opciones», desplegado o no: de la interfaz, se pliega cada vez que se vuelve al menú. */
+  private masOpciones = false
+  private faseAnterior: string | null = null
   private readonly langForzado: string | null
   private readonly tutorialEnPlano: boolean
   private readonly visor: boolean
@@ -161,6 +164,7 @@ export class InterfazDelJuego {
         mover: (signo) => (partida.levels ? partida.setLevel(partida.activeLevel + signo) : partida.setGoalTarget(partida.goalTarget + signo)),
         sinFin: () => partida.setEndless(!partida.endless),
         alternarEscenario: () => this.escenario?.alternar(),
+        masOpciones: () => (this.masOpciones = !this.masOpciones),
         jugar: () => partida.startGame(),
         salir: () => escena.salir(),
       },
@@ -256,6 +260,7 @@ export class InterfazDelJuego {
       confort: confort(),
       habitacion: this.escenario?.hayHabitacion ?? false,
       escenario: this.escenario?.elegido ?? 'place',
+      masOpciones: this.masOpciones,
     }
   }
 
@@ -314,6 +319,9 @@ export class InterfazDelJuego {
     const p = this.partida
     const fase = p.gameState
     const enPartida = fase === 'countdown' || fase === 'playing'
+    // Lo desplegado no se guarda: al volver al menú, «Más opciones» vuelve a estar plegado.
+    if (fase === 'menu' && this.faseAnterior !== 'menu') this.masOpciones = false
+    this.faseAnterior = fase
     this.menu.nodo.visible = fase === 'menu'
     this.final.nodo.visible = fase === 'finished'
     this.aviso.nodo.visible = enPartida && p.prompt != null

@@ -22,6 +22,7 @@ import { panelPoints, tablePoints, whatThePanelHides } from '../../lib/panelOccl
 import { REFERENCE_EYE_HEIGHT, uiRiseOverWorld, worldRise } from '../../lib/uiHeight'
 import { HALF_WIDTH } from '../../lib/puckPhysics'
 import { traductor } from '../../lib/textos'
+import { MENU_EN } from '../../lib/palabras'
 import { GRADOS_DEL_MENU, gradosDelFrente } from '../../lib/plantillaDelMenu'
 import { SCOREBOARD_SIZE } from './XRHud'
 import { PANEL_HEIGHT, PANEL_WIDTH } from './XRTutorial'
@@ -50,16 +51,22 @@ const IDIOMAS = ['en', 'es'] as const
 // Donde nace el menú, casi de frente (`XR_UI.menu`): es donde se lee.
 const VISTAS = vistasDelPanel(XR_UI.menu, XR_UI_ROTATION.menu)
 
-/** Todo lo que puede escribir el panel: cada modo y decorado, en los dos idiomas. */
+/**
+ * Todo lo que puede escribir el panel: cada modo y decorado, con «Más opciones» plegado y
+ * desplegado, en los dos idiomas.
+ */
 function todosLosMomentos(): { donde: string; escritos: Escrito[] }[] {
   const momentos: { donde: string; escritos: Escrito[] }[] = []
   for (const lang of IDIOMAS) {
-    for (const levels of [false, true]) {
-      for (const gameMode of GAME_MODE_ORDER) {
-        for (const scenery of SCENERIES) {
-          const { ctx, escritos } = lienzoQueApunta()
-          dibujarLosNombres(ctx, traductor(lang), levels, gameMode, scenery)
-          momentos.push({ donde: `${lang} ${levels ? 'niveles' : 'práctica'} ${gameMode} ${scenery}`, escritos })
+    for (const masOpciones of [true, false]) {
+      for (const levels of [false, true]) {
+        for (const gameMode of GAME_MODE_ORDER) {
+          for (const scenery of SCENERIES) {
+            const { ctx, escritos } = lienzoQueApunta()
+            dibujarLosNombres(ctx, traductor(lang), levels, gameMode, scenery, null, masOpciones)
+            const plegado = masOpciones ? '' : ' plegado'
+            momentos.push({ donde: `${lang} ${levels ? 'niveles' : 'práctica'} ${gameMode} ${scenery}${plegado}`, escritos })
+          }
         }
       }
     }
@@ -94,7 +101,7 @@ describe('los nombres de las filas del menú se leen', () => {
       }
       for (const scenery of SCENERIES) {
         const { ctx, escritos } = lienzoQueApunta()
-        dibujarLosNombres(ctx, t, false, 'practice', scenery)
+        dibujarLosNombres(ctx, t, false, 'practice', scenery, null, true)
         expect(escritos.map((e) => e.texto), `${lang} ${scenery}`).toContain(t(SCENERY_LABELS[scenery]))
       }
     }
@@ -146,22 +153,47 @@ describe('el menú dice de cada modo si cuenta para medalla', () => {
 
 describe('el menú empieza por el modo, y solo la práctica pregunta', () => {
   /** Los nombres de las filas que se pintan con ese modo. */
-  function filas(gameMode: (typeof GAME_MODE_ORDER)[number]): string[] {
+  function filas(gameMode: (typeof GAME_MODE_ORDER)[number], masOpciones = true): string[] {
     const { ctx, escritos } = lienzoQueApunta()
-    dibujarLosNombres(ctx, traductor('en'), gameMode === 'levels', gameMode, 'place')
-    return escritos.map((e) => e.texto).filter((texto) => ['Mode', 'Level', 'Goals', 'Stage'].includes(texto))
+    dibujarLosNombres(ctx, traductor('en'), gameMode === 'levels', gameMode, 'place', null, masOpciones)
+    return escritos
+      .map((e) => e.texto)
+      .filter((texto) => ['Mode', 'Level', 'Goals', 'Stage', 'When hit', 'More options', 'Fewer options'].includes(texto))
   }
 
   it('la práctica: el modo, el nivel de la máquina y los goles', () => {
-    expect(filas('practice')).toEqual(['Mode', 'Level', 'Goals'])
+    expect(filas('practice')).toEqual(['Fewer options', 'When hit', 'Mode', 'Level', 'Goals'])
   })
 
   it('niveles: el modo y qué nivel se juega; el resto lo pone la escalera', () => {
-    expect(filas('levels')).toEqual(['Mode', 'Stage'])
+    expect(filas('levels')).toEqual(['Fewer options', 'When hit', 'Mode', 'Stage'])
   })
 
-  it('el reto: solo el modo, y a jugar', () => {
+  it('el reto: solo el modo, y a jugar; sin nada plegado ni botón, aunque se pida', () => {
     expect(filas('challenge')).toEqual(['Mode'])
+    expect(filas('challenge', false)).toEqual(['Mode'])
+  })
+
+  it('plegado, como en los demás: el modo, y lo que el modo concreta; lo demás, tras «Más opciones»', () => {
+    expect(filas('practice', false)).toEqual(['More options', 'Mode'])
+    expect(filas('levels', false)).toEqual(['More options', 'Mode', 'Stage'])
+    expect(filas('duel', false)).toEqual(['More options', 'Mode'])
+  })
+
+  it('«Más opciones» y «Menos opciones» caben en su botón, en los dos idiomas', () => {
+    for (const lang of IDIOMAS) {
+      for (const masOpciones of [false, true]) {
+        const { ctx, escritos } = lienzoQueApunta()
+        const t = traductor(lang)
+        dibujarLosNombres(ctx, t, false, 'practice', 'place', null, masOpciones)
+        const texto = t(masOpciones ? MENU_EN.menosOpciones : MENU_EN.masOpciones)
+        const escrito = escritos.find((e) => e.texto === texto)
+        expect(escrito, `${lang} ${texto}`).toBeDefined()
+        const { position, size } = MENU_BOXES['mas opciones']
+        expect(Math.abs(escrito!.x - position[0]) * 2 + escrito!.ancho, `${lang} ${texto}`).toBeLessThanOrEqual(size[0])
+        expect(escrito!.alto / ALTO_DE_LINEA).toBeCloseTo(MENU_TEXT.toggle, 9)
+      }
+    }
   })
 })
 
@@ -192,10 +224,14 @@ describe('cada letra del menú se lee de un vistazo', () => {
       // Hasta cuatro cifras de 4 cm.
       { x: MENU_RECORD_X, y: MENU_ROW.record, width: 0.1, height: 0.05 },
     ]
-    // Lo único escrito dentro de un botón es el nombre de cada modo, en el suyo.
+    // Lo único escrito dentro de un botón es el nombre de cada modo, en el suyo, y «Más opciones»
+    // (o «Menos»), en el suyo.
     const nombresDeLosModos = new Set(IDIOMAS.flatMap((lang) => GAME_MODE_ORDER.map((modo) => traductor(lang)(GAME_MODE_LABELS[modo]))))
+    const delPliegue = new Set(IDIOMAS.flatMap((lang) => [MENU_EN.masOpciones, MENU_EN.menosOpciones].map((frase) => traductor(lang)(frase))))
     const suyo = (texto: Escrito, boton: { x: number; y: number; width: number; height: number }) =>
-      nombresDeLosModos.has(texto.texto) && centreInside(texto, boton) && Math.abs(boton.y - MENU_ROW.mode) < 1e-9
+      centreInside(texto, boton) &&
+      ((nombresDeLosModos.has(texto.texto) && Math.abs(boton.y - MENU_ROW.mode) < 1e-9) ||
+        (delPliegue.has(texto.texto) && Math.abs(boton.y - MENU_ROW.title) < 1e-9))
     for (const { donde, escritos } of todosLosMomentos()) {
       expect(textsOnButtons(escritos, botones, suyo), donde).toEqual([])
     }

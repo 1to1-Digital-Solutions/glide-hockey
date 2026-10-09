@@ -22,7 +22,7 @@
  * interfaz solo lo pinta, igual que con la puntuación.
  */
 
-import { conElRetoPrimero } from './plantillaDelMenu'
+import { conElRetoPrimero, filasDelMenu, type PapelDeLaFila } from './plantillaDelMenu'
 
 export type GameMode = 'practice' | 'levels' | 'challenge' | 'duel'
 
@@ -37,6 +37,41 @@ export const GAME_MODE_ORDER: GameMode[] = ['practice', 'levels', 'challenge', '
  * pide la plantilla común (`conElRetoPrimero` de `plantillaDelMenu.ts`); los demás, en su orden.
  */
 export const MODOS_DEL_MENU: readonly GameMode[] = conElRetoPrimero(GAME_MODE_ORDER, (modo) => modo === 'challenge')
+
+/**
+ * Las filas del menú que dependen del modo, en los tres menús (el del visor, la portada y Godot):
+ * el nivel de la máquina, la de los goles (a cuántos se juega en la práctica, o qué nivel en los
+ * niveles) y los ajustes de quien juega (el decorado y el confort del golpe recibido).
+ */
+export type FilaDelMenu = 'modo' | 'maquina' | 'goles' | 'ajustes'
+
+/** Lo que enseña el menú en un modo: qué filas y si lleva el botón de «Más opciones». */
+export interface FilasDelModo {
+  filas: ReadonlySet<FilaDelMenu>
+  /** Hay algo detrás de «Más opciones»: el botón está, diga «Más» o «Menos». */
+  plegable: boolean
+}
+
+/**
+ * Qué filas enseña el menú en `mode`, con lo de «Más opciones» desplegado o no (`filasDelMenu` de
+ * la plantilla común). Cuentan como del modo la fila del modo y, en los niveles, la de qué nivel se
+ * juega, que es lo que concreta el modo elegido; el nivel de la máquina y los goles de la práctica
+ * (con el sin fin), el decorado y el confort van plegados. Con el reto elegido no hay nada plegado:
+ * es una partida fija.
+ */
+export function filasDelModo(mode: GameMode, masOpciones: boolean): FilasDelModo {
+  const practica = mode === 'practice'
+  const filas: FilaDelMenu[] = ['modo']
+  if (practica) filas.push('maquina')
+  if (practica || mode === 'levels') filas.push('goles')
+  filas.push('ajustes')
+  const papel = (fila: FilaDelMenu): PapelDeLaFila => (fila === 'modo' || (fila === 'goles' && mode === 'levels') ? 'modo' : 'otra')
+  const enReto = mode === 'challenge'
+  return {
+    filas: new Set(filasDelMenu(filas, papel, { masOpciones, enReto }).filas),
+    plegable: filasDelMenu(filas, papel, { masOpciones: false, enReto }).plegadas > 0,
+  }
+}
 
 /** Etiqueta visible, en inglés: es la clave con la que se traduce (ver `textos.ts`). */
 export const GAME_MODE_LABELS = {

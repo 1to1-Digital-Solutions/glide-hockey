@@ -100,7 +100,10 @@ test('el gol en contra dispara el golpe, flojo', async ({ page }) => {
 
 test('con el confort apagado, el golpe no hace nada', async ({ page }) => {
   await abrirJuego(page)
-  // Se elige como lo elegiría cualquiera: en la fila del menú.
+  // Se elige como lo elegiría cualquiera: en la fila del menú, detrás de «Más opciones», que en el
+  // reto no se ofrece (es una partida fija).
+  await page.getByRole('button', { name: 'Practice', exact: true }).click()
+  await page.getByRole('button', { name: 'More options', exact: true }).click()
   await page.getByRole('button', { name: 'Off', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Off', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await jugarPartida(page, { goles: 5, nivel: 'Easy' })

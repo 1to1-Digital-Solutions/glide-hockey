@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useExit } from '../../game/exit'
 import {
   DIFFICULTY_LABELS,
@@ -11,6 +12,7 @@ import {
   GAME_MODE_HINTS,
   GAME_MODE_LABELS,
   MODOS_DEL_MENU,
+  filasDelModo,
 } from '../../lib/gameMode'
 import { useGame } from '../../lib/gameStore'
 import { daMedalla, fraseDeLaMedalla } from '../../lib/cartelDelMarcador'
@@ -39,7 +41,10 @@ import { getXrStore } from '../xr/xrStore'
  * antes de darle a empezar.
  *
  * Su equivalente dentro del visor es `<XRMenu>`, que es geometría. Los dos
- * tocan el mismo estado, así que elegir el nivel aquí se ve allí.
+ * tocan el mismo estado, así que elegir el nivel aquí se ve allí. Y siguen la
+ * misma plantilla (`lib/plantillaDelMenu.ts`): el nombre de la cabina, el modo
+ * con el reto primero y lo demás —las opciones de la práctica, el decorado y el
+ * confort— detrás de «Más opciones», plegado cada vez que se abre.
  */
 
 /** Botón de opción de un grupo: el elegido se marca por forma, no solo color. */
@@ -117,7 +122,10 @@ export function StartScreen() {
   // enseñan ni apagadas, que eran dos filas de opciones que no se podían tocar.
   const lang = useLang()
   const t = traductor(lang)
-  const practice = gameMode === 'practice'
+  // Lo plegado es de la interfaz y no se guarda: la portada se monta de nuevo al volver al menú.
+  const [masOpciones, setMasOpciones] = useState(false)
+  const { filas, plegable } = filasDelModo(gameMode, masOpciones)
+  const practice = filas.has('maquina')
   const levels = gameMode === 'levels'
   // Lo que lleva la pareja que está delante, en el duelo; con ninguno jugado no se dice nada.
   const tally = useDuelTally()
@@ -300,38 +308,56 @@ export function StartScreen() {
 
           {/* Lo que se pinta alrededor: tampoco es de la partida y se recuerda
               entre visitas. Aquí se deja elegido; donde de verdad se usa es
-              dentro del visor, cambiándolo sin salir de la sesión. */}
-          <fieldset className="flex flex-col gap-2">
-            <legend className="sr-only">{t('What you see around you')}</legend>
-            <FieldLabel>{t('Around you')}</FieldLabel>
-            <div className="grid grid-cols-2 gap-2">
-              {SCENERIES.map((option) => (
-                <OptionButton
-                  key={option}
-                  selected={scenery === option}
-                  onClick={() => setScenery(option)}
-                >
-                  {t(SCENERY_LABELS[option])}
-                </OptionButton>
-              ))}
-            </div>
-            <p className="text-xs text-white/50">{t(SCENERY_HINTS[scenery])}</p>
-          </fieldset>
+              dentro del visor, cambiándolo sin salir de la sesión. Con el
+              confort, detrás de «Más opciones». */}
+          {filas.has('ajustes') ? (
+            <>
+              <fieldset className="flex flex-col gap-2">
+                <legend className="sr-only">{t('What you see around you')}</legend>
+                <FieldLabel>{t('Around you')}</FieldLabel>
+                <div className="grid grid-cols-2 gap-2">
+                  {SCENERIES.map((option) => (
+                    <OptionButton
+                      key={option}
+                      selected={scenery === option}
+                      onClick={() => setScenery(option)}
+                    >
+                      {t(SCENERY_LABELS[option])}
+                    </OptionButton>
+                  ))}
+                </div>
+                <p className="text-xs text-white/50">{t(SCENERY_HINTS[scenery])}</p>
+              </fieldset>
 
-          {/* Cuánto se nota un gol en contra: la viñeta, la sacudida de la sala, la
-              cámara lenta, el oído tapado y la vibración (`lib/golpeRecibido.ts`).
-              Es un ajuste de confort, y se recuerda entre visitas. */}
-          <fieldset className="flex flex-col gap-2">
-            <legend className="sr-only">{t(CONFORT_LEGEND)}</legend>
-            <FieldLabel>{t(CONFORT_LEGEND)}</FieldLabel>
-            <div className="grid grid-cols-3 gap-2">
-              {CONFORTS.map((option) => (
-                <OptionButton key={option} selected={confort === option} onClick={() => setConfort(option)}>
-                  {t(CONFORT_LABELS[option])}
-                </OptionButton>
-              ))}
-            </div>
-          </fieldset>
+              {/* Cuánto se nota un gol en contra: la viñeta, la sacudida de la sala, la
+                  cámara lenta, el oído tapado y la vibración (`lib/golpeRecibido.ts`).
+                  Es un ajuste de confort, y se recuerda entre visitas. */}
+              <fieldset className="flex flex-col gap-2">
+                <legend className="sr-only">{t(CONFORT_LEGEND)}</legend>
+                <FieldLabel>{t(CONFORT_LEGEND)}</FieldLabel>
+                <div className="grid grid-cols-3 gap-2">
+                  {CONFORTS.map((option) => (
+                    <OptionButton key={option} selected={confort === option} onClick={() => setConfort(option)}>
+                      {t(CONFORT_LABELS[option])}
+                    </OptionButton>
+                  ))}
+                </div>
+              </fieldset>
+            </>
+          ) : null}
+
+          {/* Lo que no es del modo, plegado: las opciones de la práctica, el decorado y el confort.
+              Con el reto elegido no hay botón, que es una partida fija. */}
+          {plegable ? (
+            <button
+              type="button"
+              aria-expanded={masOpciones}
+              onClick={() => setMasOpciones(!masOpciones)}
+              className="min-h-11 self-start rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white/75 transition hover:border-white/40 hover:text-white"
+            >
+              {t(masOpciones ? MENU_EN.menosOpciones : MENU_EN.masOpciones)}
+            </button>
+          ) : null}
         </div>
 
         {gameMode === 'duel' ? (

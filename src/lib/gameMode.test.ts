@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ENDLESS, isEndless, runOutcome } from './gameMode'
+import { ENDLESS, filasDelModo, isEndless, runOutcome } from './gameMode'
 
 describe('cómo acaba una partida', () => {
   it('sigue viva mientras nadie llegue a los goles pactados', () => {
@@ -27,5 +27,27 @@ describe('cómo acaba una partida', () => {
     expect(
       runOutcome({ playerGoals: 0, opponentGoals: 9, goalTarget: 3 }),
     ).toBe('lost')
+  })
+})
+
+describe('las filas del menú en cada modo (la plantilla común)', () => {
+  const filas = (modo: Parameters<typeof filasDelModo>[0], masOpciones: boolean) => [...filasDelModo(modo, masOpciones).filas]
+
+  it('plegado: el modo y, en los niveles, cuál; lo demás, detrás de «Más opciones»', () => {
+    expect(filas('practice', false)).toEqual(['modo'])
+    expect(filas('levels', false)).toEqual(['modo', 'goles'])
+    expect(filas('duel', false)).toEqual(['modo'])
+    for (const modo of ['practice', 'levels', 'duel'] as const) expect(filasDelModo(modo, false).plegable, modo).toBe(true)
+  })
+
+  it('desplegado: lo de la práctica, el decorado y el confort', () => {
+    expect(filas('practice', true)).toEqual(['modo', 'maquina', 'goles', 'ajustes'])
+    expect(filas('levels', true)).toEqual(['modo', 'goles', 'ajustes'])
+    expect(filas('duel', true)).toEqual(['modo', 'ajustes'])
+  })
+
+  it('el reto es una partida fija: nada plegado y sin botón, aunque se pida', () => {
+    expect(filas('challenge', true)).toEqual(['modo'])
+    expect(filasDelModo('challenge', false).plegable).toBe(false)
   })
 })

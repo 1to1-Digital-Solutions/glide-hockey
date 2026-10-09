@@ -25,10 +25,10 @@ function bandas(): Banda[] {
   for (const [nombre, y] of Object.entries(MENU_ROW)) {
     const alto = MENU_ROW_HEIGHT[nombre as keyof typeof MENU_ROW]
     lista.push({ nombre, abajo: y - alto / 2, arriba: y + alto / 2 })
-    // La banda del récord no lleva nombre: no hay nada que explicar. Y la del confort lo lleva
-    // en su misma línea, a la izquierda de sus botones: ese lo mide `menu.legible.test.ts`
-    // contra las cajas, que es donde se podría pisar.
-    if (nombre === 'record' || nombre === 'comfort') continue
+    // La banda del récord no lleva nombre: no hay nada que explicar. Y la del confort y la de
+    // arriba («Más opciones») lo llevan en su misma línea: esos los mide `menu.legible.test.ts`
+    // contra las cajas, que es donde se podrían pisar.
+    if (nombre === 'record' || nombre === 'comfort' || nombre === 'title') continue
     const centro = y + MENU_ROW_LABEL_RISE
     lista.push({
       nombre: `nombre de ${nombre}`,

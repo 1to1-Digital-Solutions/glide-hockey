@@ -53,11 +53,22 @@ export const MENU_HINT_BAND = 0.18
  */
 export const MENU_COMFORT_BAND = 0.17
 
+/**
+ * Lo que ocupa la banda de «Más opciones», arriba del todo, encima del confort.
+ *
+ * La plantilla común pliega lo que no es del modo detrás de ese botón, y en este panel no había
+ * dónde ponerlo: las filas no dejan ni un centímetro entre ellas y el confort ocupa su línea de
+ * punta a punta. El panel crece lo que mide la banda (como table-tennis), y las filas bajan solo
+ * un cuarto de banda: bajando media, la explicación del modo, abajo del todo, se quedaba en 1,37°
+ * para quien juega con los ojos a 1,2 m. Abajo quedan 2,5 cm más de margen.
+ */
+export const MENU_TITLE_BAND = 0.1
+
 /** El panel del menú, en metros. */
-export const MENU_PANEL = { width: 0.78, height: 1.0 + MENU_HINT_BAND + MENU_COMFORT_BAND }
+export const MENU_PANEL = { width: 0.78, height: 1.0 + MENU_HINT_BAND + MENU_COMFORT_BAND + MENU_TITLE_BAND }
 
 /** Dónde empieza la línea del modo, por su borde de arriba. */
-export const MENU_HINT_Y = -0.37 - MENU_COMFORT_BAND / 2
+export const MENU_HINT_Y = -0.37 - MENU_COMFORT_BAND / 2 - MENU_TITLE_BAND / 4
 
 /**
  * A qué tamaño se escribe cada cosa del panel del menú, en metros de alto de letra.
@@ -72,7 +83,20 @@ export const MENU_HINT_Y = -0.37 - MENU_COMFORT_BAND / 2
  * El nombre del confort, un poco más: va en la fila de arriba del todo, la más lejana y la más
  * escorzada para quien juega con los ojos bajos, y a 34 mm se quedaba en 1,38°.
  */
-export const MENU_TEXT = { label: 0.034, scenery: 0.034, hint: 0.034, comfort: 0.038, medal: 0.034, mode: 0.029 } as const
+export const MENU_TEXT = {
+  label: 0.034,
+  scenery: 0.034,
+  hint: 0.034,
+  comfort: 0.038,
+  medal: 0.034,
+  mode: 0.029,
+  /**
+   * «Más opciones» / «Menos opciones», en la banda de arriba: como el confort, algo mayor que los
+   * rótulos, porque es la línea más lejana y la más escorzada; a 36 mm, con los ojos a 1,2 m, se
+   * quedaba en 1,37°.
+   */
+  toggle: 0.038,
+} as const
 
 /**
  * Lo ancho que puede ocupar la frase de si el modo cuenta para medalla, que va en la línea del
@@ -84,6 +108,8 @@ export const MENU_MEDAL_WIDTH = 0.55
 export const MENU_BUTTON = {
   /** Cuatro en la fila desde que hay duelo: a 22 cm no cabían en los 78 del panel. */
   mode: [0.17, 0.13] as [number, number],
+  /** «Más opciones» / «Menos opciones»: lo bastante ancho para la más larga, a su letra. */
+  toggle: [0.36, 0.08] as [number, number],
   level: LEVEL_BUTTON,
   small: [0.11, 0.11] as [number, number],
   play: [0.28, 0.12] as [number, number],
@@ -97,8 +123,10 @@ export const MENU_BUTTON = {
  * se pintaba encima del botón del decorado. Con el visor puesto eso se ve como lo que es,
  * letras solapadas, y deja el menú sin poder leerse.
  */
-const BAJADA = MENU_HINT_BAND / 2 - MENU_COMFORT_BAND / 2
+const BAJADA = MENU_HINT_BAND / 2 - MENU_COMFORT_BAND / 2 - MENU_TITLE_BAND / 4
 export const MENU_ROW = {
+  /** «Más opciones», en la banda de arriba (`MENU_TITLE_BAND`). */
+  title: MENU_PANEL.height / 2 - MENU_TITLE_BAND / 2,
   comfort: 0.58 + BAJADA,
   record: 0.44 + BAJADA,
   mode: 0.245 + BAJADA,
@@ -120,6 +148,7 @@ export const MENU_ROW_LABEL_SIZE = MENU_TEXT.label
 
 /** El alto de los botones de cada fila, para poder medir si algo se pisa. */
 export const MENU_ROW_HEIGHT: Record<keyof typeof MENU_ROW, number> = {
+  title: MENU_BUTTON.toggle[1],
   comfort: MENU_BUTTON.small[1],
   record: MENU_BUTTON.small[1],
   mode: MENU_BUTTON.mode[1],
@@ -193,6 +222,8 @@ export const MENU_BOXES = {
   'sin fin': caja(0.32, MENU_ROW.goals, MENU_BUTTON.small),
   escenario: caja(-0.28, MENU_ROW.record, MENU_BUTTON.small),
   jugar: caja(0, MENU_ROW.actions, MENU_BUTTON.play),
+  // Pegado al borde derecho de la banda de arriba: a su izquierda queda sitio para el nombre.
+  'mas opciones': caja(MENU_PANEL.width / 2 - 0.02 - MENU_BUTTON.toggle[0] / 2, MENU_ROW.title, MENU_BUTTON.toggle),
   salir: caja(0.28, MENU_ROW.actions, MENU_BUTTON.small),
   // Las tres opciones del confort, a la derecha de su nombre, que va en la misma línea: encima
   // no hay sitio, que es el borde del panel.

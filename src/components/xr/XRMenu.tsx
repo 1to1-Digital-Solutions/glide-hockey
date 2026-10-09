@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useXR } from '@react-three/xr'
 
 import {
@@ -12,7 +12,7 @@ import { useGame } from '../../lib/gameStore'
 import { useLang } from '../../lib/ajustesCliente'
 import { traductor, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
-import { GAME_MODE_HINTS, GAME_MODE_LABELS, MODOS_DEL_MENU, type GameMode } from '../../lib/gameMode'
+import { GAME_MODE_HINTS, GAME_MODE_LABELS, MODOS_DEL_MENU, filasDelModo, type GameMode } from '../../lib/gameMode'
 import { daMedalla, fraseDeLaMedalla } from '../../lib/cartelDelMarcador'
 import type { Objetivo } from '../../lib/objetivo'
 import { LEVEL_COUNT } from '../../lib/levels'
@@ -65,8 +65,11 @@ import {
  * dos siluetas distintas, el nivel con una escalera de barras que además va del
  * verde al rojo, y los goles con cifras de siete segmentos.
  *
- * En modo reto el nivel y los goles se enseñan **apagados**: siguen ahí para
- * que se vea qué toca en la ronda, pero los manda la escalera y no el jugador.
+ * Sigue la plantilla común (`lib/plantillaDelMenu.ts`): el modo con el reto
+ * primero, y lo que no es del modo —el nivel de la máquina y los goles de la
+ * práctica, el decorado y el confort— detrás de «Más opciones», en la banda de
+ * arriba, plegado cada vez que se abre el menú (`filasDelModo`). Con el reto
+ * elegido no hay nada plegado ni botón: es una partida fija.
  */
 
 /** Medidas del panel y de sus filas, en metros. */
@@ -204,23 +207,36 @@ export function dibujarLosNombres(
   gameMode: GameMode = 'practice',
   scenery: Scenery = 'place',
   objetivo: Objetivo | null = null,
+  masOpciones = false,
 ): void {
   // Solo la práctica pregunta el nivel de la máquina y los goles; en niveles, la fila de los
-  // goles pasa a ser la del nivel que se juega, y en el reto no queda ninguna de las dos.
-  const practice = gameMode === 'practice'
+  // goles pasa a ser la del nivel que se juega, y en el reto no queda ninguna de las dos. Lo que
+  // no es del modo, solo con «Más opciones» desplegado.
+  const { filas: hay, plegable } = filasDelModo(gameMode, masOpciones)
   const filas: (readonly [number, string])[] = [
     [ROW.mode, t(MENU_EN.modo)],
-    ...(practice ? [[ROW.level, t('Level')] as const] : []),
-    ...(practice || levels ? [[ROW.goals, levels ? t('Stage') : t('Goals')] as const] : []),
+    ...(hay.has('maquina') ? [[ROW.level, t('Level')] as const] : []),
+    ...(hay.has('goles') ? [[ROW.goals, levels ? t('Stage') : t('Goals')] as const] : []),
   ]
+  // «Más opciones» —o «Menos», desplegado— sobre su botón, si hay algo plegado en este modo.
+  if (plegable) {
+    const { position, size } = MENU_BOXES['mas opciones']
+    drawText(ctx, t(masOpciones ? MENU_EN.menosOpciones : MENU_EN.masOpciones), position[0], ROW.title, {
+      size: MENU_TEXT.toggle,
+      color: PALETTE.foreground,
+      maxWidth: size[0] - 0.01,
+    })
+  }
   // El confort lleva el nombre en su misma línea y a la izquierda de sus botones: encima está
-  // el borde del panel.
-  drawText(ctx, t(CONFORT_LEGEND), -PANEL.width / 2 + 0.05, ROW.comfort, {
-    size: MENU_TEXT.comfort,
-    color: DIM_COLOR,
-    align: 'left',
-    maxWidth: MENU_BOXES['confort off'].position[0] - MENU_BUTTON.small[0] / 2 - 0.02 - (-PANEL.width / 2 + 0.05),
-  })
+  // la banda de «Más opciones».
+  if (hay.has('ajustes')) {
+    drawText(ctx, t(CONFORT_LEGEND), -PANEL.width / 2 + 0.05, ROW.comfort, {
+      size: MENU_TEXT.comfort,
+      color: DIM_COLOR,
+      align: 'left',
+      maxWidth: MENU_BOXES['confort off'].position[0] - MENU_BUTTON.small[0] / 2 - 0.02 - (-PANEL.width / 2 + 0.05),
+    })
+  }
   for (const [y, nombre] of filas) {
     drawText(ctx, nombre, -PANEL.width / 2 + 0.05, y + ROW_LABEL_RISE, {
       size: MENU_ROW_LABEL_SIZE,
@@ -233,14 +249,16 @@ export function dibujarLosNombres(
   // El interruptor del decorado era **un icono y nada más**: con las gafas puestas no
   // hay forma de saber qué hace hasta pulsarlo. Al lado va lo que está puesto ahora —a la
   // derecha y no debajo: debajo caía justo encima del rótulo «Modo»—.
-  const desde = MENU_BOXES.escenario.position[0] + MENU_BUTTON.small[0] / 2 + 0.02
-  drawText(ctx, t(SCENERY_LABELS[scenery]), desde, ROW.record, {
-    size: MENU_TEXT.scenery,
-    color: DIM_COLOR,
-    align: 'left',
-    // Hasta las cifras del récord, que van a su derecha (`MENU_RECORD_X`).
-    maxWidth: MENU_RECORD_X - 0.07 - desde,
-  })
+  if (hay.has('ajustes')) {
+    const desde = MENU_BOXES.escenario.position[0] + MENU_BUTTON.small[0] / 2 + 0.02
+    drawText(ctx, t(SCENERY_LABELS[scenery]), desde, ROW.record, {
+      size: MENU_TEXT.scenery,
+      color: DIM_COLOR,
+      align: 'left',
+      // Hasta las cifras del récord, que van a su derecha (`MENU_RECORD_X`).
+      maxWidth: MENU_RECORD_X - 0.07 - desde,
+    })
+  }
 
   // Si el modo elegido cuenta para medalla, en la línea del rótulo «Modo» y a su derecha: junto a
   // los botones de los que habla. En dorado el que cuenta, que además lleva su marca en el botón.
@@ -274,7 +292,16 @@ export function dibujarLosNombres(
   })
 }
 
+/**
+ * El menú, solo en su fase. Se monta de nuevo cada vez que se vuelve a él, y así abre siempre con
+ * «Más opciones» plegado: lo desplegado es de la interfaz y no se guarda.
+ */
 export function XRMenu() {
+  const gameState = useGame().gameState
+  return gameState === 'menu' ? <MenuAbierto /> : null
+}
+
+function MenuAbierto() {
   const {
     gameMode,
     setGameMode,
@@ -292,9 +319,9 @@ export function XRMenu() {
     setScenery,
     bestPoints,
     startGame,
-    gameState,
     objetivo,
   } = useGame()
+  const [masOpciones, setMasOpciones] = useState(false)
   const exit = useExit()
   const [confort, setConfort] = useConfort()
   // Fuera de una sesión de realidad aumentada no hay habitación que enseñar: el
@@ -304,19 +331,20 @@ export function XRMenu() {
 
   // **Solo la práctica pregunta**: nivel y goles los manda la escalera en reto y en niveles, así
   // que ahí la partida ya está hecha y sus filas no se pintan —ni apagadas—. Niveles conserva la
-  // suya, que es qué nivel desbloqueado se juega.
-  const practice = gameMode === 'practice'
+  // suya, que es qué nivel desbloqueado se juega. Y lo que no es del modo, solo con «Más
+  // opciones» desplegado.
+  const { filas: hay, plegable } = filasDelModo(gameMode, masOpciones)
+  const practice = hay.has('maquina')
   const levels = gameMode === 'levels'
 
   // Los nombres de las filas, en un lienzo aparte: el resto del panel es geometría y ahí no
   // cabe una letra. La tercera fila cambia de pregunta con el modo, así que cambia de
   // nombre con ella.
   const nombrarFilas = useCallback(
-    (ctx: CanvasRenderingContext2D) => dibujarLosNombres(ctx, t, levels, gameMode, scenery, objetivo),
-    [levels, t, gameMode, scenery, objetivo],
+    (ctx: CanvasRenderingContext2D) => dibujarLosNombres(ctx, t, levels, gameMode, scenery, objetivo, masOpciones),
+    [levels, t, gameMode, scenery, objetivo, masOpciones],
   )
 
-  if (gameState !== 'menu') return null
   return (
     <group>
       <XRPanel width={PANEL.width} height={PANEL.height} />
@@ -332,9 +360,21 @@ export function XRMenu() {
         />
       </group>
 
+      {/* «Más opciones» o «Menos opciones»: lo escrito va en el lienzo de los rótulos. */}
+      {plegable ? (
+        <XRPressable box={MENU_BOXES['mas opciones']} onSelect={() => setMasOpciones(!masOpciones)}>
+          <XRPlate
+            width={MENU_BUTTON.toggle[0]}
+            height={MENU_BUTTON.toggle[1]}
+            color={masOpciones ? PALETTE.primaryDeep : PALETTE.rail}
+            opacity={masOpciones ? 0.95 : 0.8}
+          />
+        </XRPressable>
+      ) : null}
+
       {/* Cuánto se nota un gol en contra (`lib/golpeRecibido.ts`). Aquí y no solo en la web
-          porque es con el visor puesto cuando se sabe si marea. */}
-      {CONFORTS.map((opcion) => {
+          porque es con el visor puesto cuando se sabe si marea. Detrás de «Más opciones». */}
+      {hay.has('ajustes') && CONFORTS.map((opcion) => {
         const selected = opcion === confort
         return (
           <XRPressable key={opcion} box={MENU_BOXES[`confort ${opcion}`]} onSelect={() => setConfort(opcion)}>
@@ -409,7 +449,7 @@ export function XRMenu() {
       {/* La fila de goles: a cuántos se juega en prueba, o el nivel en Niveles
           (con sus estrellas debajo). Los mismos dos botones, otra pregunta. En el
           reto no hay pregunta y no se pinta. */}
-      {practice || levels ? (
+      {hay.has('goles') ? (
         <>
           <XRPressable
             box={MENU_BOXES.menos}
@@ -513,19 +553,21 @@ export function XRMenu() {
           Fuera de una sesión de realidad aumentada no hay habitación que
           enseñar, así que el botón se apaga en vez de prometerla. Escribe el
           escenario del arcade: el panel del salón y este botón enseñan lo mismo. */}
-      <XRPressable
-        box={MENU_BOXES.escenario}
-        onSelect={() => setScenery(scenery === 'room' ? 'place' : 'room')}
-        disabled={!passthroughAvailable}
-      >
-        <XRPlate
-          width={SMALL_BUTTON[0]}
-          height={SMALL_BUTTON[1]}
-          color={PALETTE.rail}
-          opacity={passthroughAvailable ? 0.8 : 0.4}
-        />
-        <XRSceneryIcon room={scenery === 'room'} lit={passthroughAvailable} />
-      </XRPressable>
+      {hay.has('ajustes') ? (
+        <XRPressable
+          box={MENU_BOXES.escenario}
+          onSelect={() => setScenery(scenery === 'room' ? 'place' : 'room')}
+          disabled={!passthroughAvailable}
+        >
+          <XRPlate
+            width={SMALL_BUTTON[0]}
+            height={SMALL_BUTTON[1]}
+            color={PALETTE.rail}
+            opacity={passthroughAvailable ? 0.8 : 0.4}
+          />
+          <XRSceneryIcon room={scenery === 'room'} lit={passthroughAvailable} />
+        </XRPressable>
+      ) : null}
 
       <XRPressable
         box={MENU_BOXES.jugar}

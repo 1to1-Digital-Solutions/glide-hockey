@@ -110,6 +110,7 @@ function estadoDelMenu(cambios: Partial<EstadoDelMenu> = {}): EstadoDelMenu {
     habitacion: false,
     escenario: 'place',
     objetivo: null,
+    masOpciones: true,
     ...cambios,
   }
 }
@@ -121,6 +122,7 @@ function momentosDelMenu(): { donde: string; estado: EstadoDelMenu }[] {
     for (const modo of GAME_MODE_ORDER) {
       momentos.push({ donde: `${lang} ${modo}`, estado: estadoDelMenu({ lang, modo }) })
       momentos.push({ donde: `${lang} ${modo} con récord`, estado: estadoDelMenu({ lang, modo, record: 98765, nivel: 12, abierto: 15, confort: 'off' }) })
+      momentos.push({ donde: `${lang} ${modo} plegado`, estado: estadoDelMenu({ lang, modo, masOpciones: false, record: 98765 }) })
     }
     momentos.push({ donde: `${lang} sin fin`, estado: estadoDelMenu({ lang, sinFin: true }) })
     momentos.push({ donde: `${lang} en tu habitación`, estado: estadoDelMenu({ lang, habitacion: true, escenario: 'room', record: 98765 }) })
@@ -131,7 +133,7 @@ function momentosDelMenu(): { donde: string; estado: EstadoDelMenu }[] {
 describe('el menú mide lo que la web', () => {
   const punteria = new Punteria()
   const menu = new MenuDelJuego(
-    { elegirModo() {}, elegirDificultad() {}, elegirConfort() {}, mover() {}, sinFin() {}, alternarEscenario() {}, jugar() {}, salir() {} },
+    { elegirModo() {}, elegirDificultad() {}, elegirConfort() {}, mover() {}, sinFin() {}, alternarEscenario() {}, masOpciones() {}, jugar() {}, salir() {} },
     punteria,
   )
 
@@ -144,6 +146,25 @@ describe('el menú mide lo que la web', () => {
     expect(filas('levels')).toEqual(['Mode', 'Stage'])
     expect(filas('challenge')).toEqual(['Mode'])
     expect(filas('duel')).toEqual(['Mode'])
+  })
+
+  it('lo que no es del modo, plegado tras «Más opciones» como en la web; en el reto, sin botón', () => {
+    const filas = (modo: GameMode, masOpciones: boolean) => {
+      menu.pintar(estadoDelMenu({ modo, masOpciones }))
+      return menu.panel.escritos
+        .map((e) => e.texto)
+        .filter((t) => ['Mode', 'Level', 'Goals', 'Stage', 'When hit', 'More options', 'Fewer options'].includes(t))
+    }
+    expect(filas('practice', false)).toEqual(['More options', 'Mode'])
+    expect(filas('levels', false)).toEqual(['More options', 'Mode', 'Stage'])
+    expect(filas('duel', false)).toEqual(['More options', 'Mode'])
+    expect(filas('practice', true)).toEqual(['Fewer options', 'When hit', 'Mode', 'Level', 'Goals'])
+    menu.pintar(estadoDelMenu({ modo: 'practice', masOpciones: false }))
+    expect(menu.boton('mas opciones').nodo.visible).toBe(true)
+    for (const id of ['confort off', 'escenario', `nivel ${DIFFICULTY_ORDER[0]}`, 'menos', 'sin fin']) expect(menu.boton(id).nodo.visible, id).toBe(false)
+    expect(filas('challenge', true)).toEqual(['Mode'])
+    expect(menu.boton('mas opciones').nodo.visible).toBe(false)
+    expect(menu.boton('confort off').nodo.visible).toBe(false)
   })
 
   it('cada modo lleva su icono y su nombre debajo, como en la web, y el elegido se enciende', () => {
@@ -238,7 +259,7 @@ describe('el menú mide lo que la web', () => {
 
 describe('el menú dice de cada modo si cuenta para medalla', () => {
   const menu = new MenuDelJuego(
-    { elegirModo() {}, elegirDificultad() {}, elegirConfort() {}, mover() {}, sinFin() {}, alternarEscenario() {}, jugar() {}, salir() {} },
+    { elegirModo() {}, elegirDificultad() {}, elegirConfort() {}, mover() {}, sinFin() {}, alternarEscenario() {}, masOpciones() {}, jugar() {}, salir() {} },
     new Punteria(),
   )
 
@@ -614,6 +635,7 @@ describe('con el ratón: el menú lleva a jugar, parar pregunta y el final vuelv
   }
 
   it('elegir el nivel de la máquina, subir los goles y jugar empieza con lo elegido', () => {
+    clic('mas opciones')
     clic(`nivel ${DIFFICULTY_ORDER[2]}`)
     clic('mas')
     clic('jugar')
@@ -661,7 +683,23 @@ describe('con el ratón: el menú lleva a jugar, parar pregunta y el final vuelv
     expect(interfaz.marcador.jugador.nodo.position.y).toBeCloseTo(FILAS_DEL_MARCADOR.goals)
   })
 
+  it('«Más opciones» despliega lo de la práctica; plegado al volver al menú, sin guardarse', () => {
+    interfaz.actualizar(0.016)
+    expect(interfaz.punteria.boton('confort off')?.nodo.is_visible_in_tree()).toBe(false)
+    clic('mas opciones')
+    expect(interfaz.punteria.boton('confort off')?.nodo.is_visible_in_tree()).toBe(true)
+    expect(interfaz.menu.panel.escritos.map((e) => e.texto)).toContain('Fewer options')
+    clic('jugar')
+    interfaz.escape()
+    clic('confirm:menu')
+    interfaz.actualizar(0.016)
+    expect(partida.gameState).toBe('menu')
+    expect(interfaz.punteria.boton('confort off')?.nodo.is_visible_in_tree()).toBe(false)
+    expect(interfaz.menu.panel.escritos.map((e) => e.texto)).toContain('More options')
+  })
+
   it('elegir el confort lo guarda, y el modo cambia lo que pregunta', () => {
+    clic('mas opciones')
     clic('confort off')
     expect(confort()).toBe('off')
     clic('modo challenge')
@@ -670,6 +708,7 @@ describe('con el ratón: el menú lleva a jugar, parar pregunta y el final vuelv
   })
 
   it('el botón del decorado alterna la sala y tu habitación, y el menú lo dice', () => {
+    clic('mas opciones')
     clic('escenario')
     expect(escenario.elegido).toBe('room')
     interfaz.actualizar(0.016)

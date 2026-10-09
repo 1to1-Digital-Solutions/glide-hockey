@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from 'react'
 import { useThree } from '@react-three/fiber'
-import { PMREMGenerator, type Texture } from 'three'
+import { InstancedMesh, PMREMGenerator, type Texture } from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
 /**
@@ -28,6 +28,12 @@ export function useRoomEnvironment(): Texture {
     const environment = pmrem.fromScene(room, 0.04)
     pmrem.dispose()
     room.dispose()
+    // `room.dispose()` suelta geometrías y materiales, pero no las cajas de la sala, que son un
+    // `InstancedMesh`: su `instanceMatrix` es un búfer de WebGL que solo se va soltando la malla.
+    // Sin esto quedaba un búfer por visita (medido en tower-tumble).
+    room.traverse((parte) => {
+      if (parte instanceof InstancedMesh) parte.dispose()
+    })
     return environment
   }, [gl])
 

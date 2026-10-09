@@ -7,7 +7,7 @@ import {
   useXRInputSourceState,
   type XRControllerState,
 } from '@react-three/xr'
-import { Box3, Group, Matrix4, Mesh, Object3D, Vector3 } from 'three'
+import { Box3, Group, Matrix4, Mesh, Object3D, Vector3, type Material, type Texture } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 import { COMPONENTE_DEL_BOTON, type BotonDelMando } from '../../lib/tutorial'
@@ -101,6 +101,30 @@ export function sitioDelNodo(raiz: Object3D, nombre: string): SitioDelBoton | nu
   return { centro, radio: Math.max(medidas.x, medidas.y, medidas.z) * 0.6 }
 }
 
+/**
+ * Suelta de la GPU lo que trajo el `.glb`: cada geometría, cada material y sus texturas.
+ *
+ * **Hace falta porque nadie más lo hace.** El modelo se pinta con `<primitive>`, que R3F no
+ * libera al quitarlo, y cada montaje carga el `.glb` entero, nuevo —el cargador no guarda
+ * nada—. Medido en el anfitrión de hole-patrol (`e2e/memoria.spec.ts`): sin soltarlo, cada
+ * visita a la cabina dejaba seis geometrías, una textura y veintitrés búferes de WebGL más, sin
+ * techo. Soltar dos veces algo ya soltado no hace nada.
+ */
+export function soltarElModelo(raiz: Object3D): void {
+  raiz.traverse((parte) => {
+    const malla = parte as Mesh
+    if (malla.isMesh !== true) return
+    malla.geometry.dispose()
+    const materiales: Material[] = Array.isArray(malla.material) ? malla.material : [malla.material]
+    for (const material of materiales) {
+      for (const valor of Object.values(material)) {
+        if ((valor as Texture | null)?.isTexture === true) (valor as Texture).dispose()
+      }
+      material.dispose()
+    }
+  })
+}
+
 /** Lo último que se cargó, y para qué mando y qué botón se pidió. */
 interface LoCargado {
   ruta: string
@@ -118,6 +142,10 @@ interface LoCargado {
  * Lo cargado se guarda **con la petición que lo trajo**, y se devuelve solo si sigue siendo la
  * que se pide. Así cambiar de mano o de paso no enseña un fotograma del modelo anterior y no
  * hace falta borrarlo a mano al empezar.
+ *
+ * **Y se suelta al irse** (`soltarElModelo`): al cambiar de mando o de botón, o al desmontar. Para
+ * entonces ya no se pinta —la petición ya no es la suya y aquí se devuelve `null`—. Lo que llegue
+ * cuando ya no se quiere se suelta nada más llegar.
  */
 function useModeloDelMando(ruta: string | null, nodo: string | null): ModeloDelMando | null {
   const [cargado, setCargado] = useState<LoCargado | null>(null)
@@ -125,11 +153,16 @@ function useModeloDelMando(ruta: string | null, nodo: string | null): ModeloDelM
   useEffect(() => {
     if (ruta == null) return
     let vivo = true
+    let cargada: Object3D | null = null
     cargador
       .loadAsync(ruta)
       .then((gltf) => {
-        if (!vivo) return
         const raiz = gltf.scene
+        if (!vivo) {
+          soltarElModelo(raiz)
+          return
+        }
+        cargada = raiz
         // **Invisible al rayo, entero.** El puntero nace en esta misma mano: una malla que
         // conteste al rayo aquí se lo come en el primer centímetro y deja sin poder apuntar
         // a nada. `raycast` se pone pieza a pieza porque ponerlo en la raíz no baja.
@@ -144,6 +177,7 @@ function useModeloDelMando(ruta: string | null, nodo: string | null): ModeloDelM
       .catch(() => {})
     return () => {
       vivo = false
+      if (cargada != null) soltarElModelo(cargada)
     }
   }, [ruta, nodo])
 

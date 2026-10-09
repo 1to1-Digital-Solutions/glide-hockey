@@ -2,10 +2,18 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { BoxGeometry, Group, Mesh, Object3D } from 'three'
+import {
+  BoxGeometry,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  Object3D,
+  Texture,
+} from 'three'
 
 import { COMPONENTE_DEL_BOTON, TUTORIAL_BUTTONS } from '../../lib/tutorial'
-import { nodoDelBoton, sitioDelNodo } from './MandoDeVerdad'
+import { nodoDelBoton, sitioDelNodo, soltarElModelo } from './MandoDeVerdad'
 
 /**
  * Que el mando que enseña el tutorial se pueda enseñar de verdad.
@@ -110,5 +118,35 @@ describe('dónde se pone la marca dentro del modelo', () => {
     vacio.name = 'boton_pressed_value'
     raiz.add(vacio)
     expect(sitioDelNodo(raiz, 'boton_pressed_value')).toBeNull()
+  })
+})
+
+describe('al irse, el modelo suelta lo suyo', () => {
+  it('cada geometría, cada material y sus texturas, también con varios materiales y anidado', () => {
+    const soltado: string[] = []
+    const apuntar = (nombre: string) => () => soltado.push(nombre)
+    const textura = new Texture()
+    textura.addEventListener('dispose', apuntar('textura'))
+    const cuerpo = new Mesh(new BoxGeometry(), new MeshStandardMaterial({ map: textura }))
+    cuerpo.geometry.addEventListener('dispose', apuntar('cuerpo'))
+    cuerpo.material.addEventListener('dispose', apuntar('material del cuerpo'))
+    const tapa = new Mesh(new BoxGeometry(), [new MeshBasicMaterial(), new MeshBasicMaterial()])
+    tapa.geometry.addEventListener('dispose', apuntar('tapa'))
+    for (const material of tapa.material) material.addEventListener('dispose', apuntar('material de la tapa'))
+    const raiz = new Group()
+    const pieza = new Object3D()
+    pieza.add(tapa)
+    raiz.add(cuerpo, pieza)
+
+    soltarElModelo(raiz)
+
+    expect(soltado.sort()).toEqual([
+      'cuerpo',
+      'material de la tapa',
+      'material de la tapa',
+      'material del cuerpo',
+      'tapa',
+      'textura',
+    ])
   })
 })

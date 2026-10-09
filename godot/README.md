@@ -93,7 +93,7 @@ Por qué existe y qué se midió: `xrcade/docs/salir-en-steam.md`, sección 4.
 | `scene/interfaz/partida.ts` | La sesión: el `gameStore.ts` de la web sin React (qué se elige, la fase, el marcador, el reto, lo que se guarda) |
 | `scene/interfaz/` | El menú, el marcador y la cuenta atrás, el final, el aviso de salir y el tutorial, con las cotas de la web (`reparto.ts` copia las que en la web viven en componentes de React) |
 | `scene/**/*.motor.test.ts` | La sesión contra las reglas del store de la web; los paneles medidos con el instrumento de la web (`legibilidad.ts`, `panelReading.ts`, `exitCorner.ts`) en los dos idiomas —también con «Tu habitación» escrito— y pulsados con el ratón; el salón, la sala y tu habitación, y las ayudas contra el guion y las cotas de la web: corren con los tests de dominio |
-| `godot-kit.json` | Para el kit: el id, el repo (`..`) y qué sonidos se renderizan del `audioEngine.ts` |
+| `godot-kit.json` | Para el kit: el id, el repo (`..`), **la versión del kit** (`kit`, un tag de xrcade) y qué sonidos se renderizan del `audioEngine.ts` |
 | `games/glide-hockey/mandos/`, `CREDITS.md` | Los mandos de Quest (`npm run godot:mandos`, de `public/webxr-profiles/`) con su licencia MIT, y los créditos del paquete. Se versionan; el preset «pack» incluye los `.json`, la licencia y los créditos |
 | `games/glide-hockey/` | Lo que va en el `.pck`; `tests/` se queda fuera al exportar |
 | `games/glide-hockey/sfx/`, `music/` | Los efectos renderizados (`npm run godot:sfx`) y la música de `public/audio/`. Se versionan |
@@ -153,6 +153,13 @@ $GODOT --xr-mode off --fixed-fps 60 --resolution 1280x720 --path . -- --visor-si
 # El .pck para el hub (ejecuta antes el build)
 GODOT=$GODOT ../../xrcade/scripts/pack-game.sh "$PWD" glide-hockey
 ```
+
+**La versión del kit está fijada** en `godot-kit.json` (`"kit": "v0.20.0"`). El día a día no la
+mira: `npm run godot:build`, `godot:test` y `pack-game.sh --local` usan el checkout de al lado
+(`../xrcade/godot-kit`). El `.pck` que va al salón sí: `npm run game:pack` de xrcade saca el kit de
+ese tag y no del checkout, y `hub:build` y `godot:quest` no lo llevan si salió con otro. Para usar
+algo nuevo del kit, se sube `kit` a un tag de xrcade que lo traiga antes de publicar el juego
+(`xrcade/docs/anadir-un-juego.md`, «La versión del kit»).
 
 Glide Hockey está en el catálogo del hub de visor (`targets.godot` en
 `xrcade/registry/games/glide-hockey.json`): `npm run godot:test` de xrcade lo empaqueta desde aquí

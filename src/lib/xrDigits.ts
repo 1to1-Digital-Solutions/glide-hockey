@@ -1,22 +1,22 @@
 /**
- * Números para el visor, dibujados con segmentos.
+ * Numbers for the headset, drawn with segments.
  *
- * **Por qué no `<Text>`.** El componente de drei descarga las fuentes de un CDN
- * y el juego tiene que funcionar en un visor sin salida a internet — además, la
- * política de seguridad del salón de xrcade lo bloquea (ver `docs/xrcade.md`).
- * Auto-hospedar una fuente serían decenas de kilobytes y un fichero más que
- * copiar para pintar diez símbolos.
+ * **Why not `<Text>`.** The drei component downloads its fonts from a CDN
+ * and the game has to work on a headset with no way out to the internet —
+ * besides, the security policy of xrcade's hall blocks it (see `docs/xrcade.md`).
+ * Self-hosting a font would be tens of kilobytes and one more file to copy in
+ * order to paint ten symbols.
  *
- * Un display de siete segmentos, en cambio, son siete rectángulos: cabe en una
- * tabla, no pesa nada y se lee de lejos, que es lo que hace falta para un
- * marcador colgado al otro extremo de la mesa.
+ * A seven-segment display, on the other hand, is seven rectangles: it fits in
+ * a table, weighs nothing and reads from afar, which is what a scoreboard
+ * hanging at the other end of the table needs.
  *
- * La tabla es lógica pura y por eso vive aquí: `XRNumber` solo pinta los
- * rectángulos que esta función le diga.
+ * The table is pure logic and that is why it lives here: `XRNumber` only paints
+ * the rectangles this function tells it to.
  */
 
 /**
- * Los siete segmentos, por su nombre de siempre:
+ * The seven segments, by their usual names:
  *
  * ```
  *  --a--
@@ -32,7 +32,7 @@
  */
 export type Segment = 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g'
 
-/** Qué segmentos se encienden en cada cifra. */
+/** Which segments light up in each digit. */
 export const DIGIT_SEGMENTS: readonly Segment[][] = [
   ['a', 'b', 'c', 'd', 'e', 'f'], // 0
   ['b', 'c'], // 1
@@ -47,12 +47,12 @@ export const DIGIT_SEGMENTS: readonly Segment[][] = [
 ]
 
 /**
- * Las cifras de un número, de la más significativa a la menos.
+ * The digits of a number, from the most significant to the least.
  *
- * Solo enteros no negativos: en el visor no se enseña nada más —goles, puntos,
- * rondas— y un display de siete segmentos no tiene con qué dibujar un signo ni
- * una coma. Lo que llegue raro se cuenta como cero, que es preferible a dejar
- * el marcador en blanco sin explicación.
+ * Only non-negative integers: nothing else is shown in the headset —goals,
+ * points, rounds— and a seven-segment display has nothing to draw a sign or a
+ * decimal point with. Whatever arrives odd counts as zero, which is better than
+ * leaving the scoreboard blank with no explanation.
  */
 export function digitsOf(value: number): number[] {
   if (!Number.isFinite(value) || value <= 0) return [0]
@@ -60,15 +60,15 @@ export function digitsOf(value: number): number[] {
 }
 
 /**
- * Dónde va cada segmento dentro de su cifra y cuánto mide, en fracciones de la
- * altura del dígito.
+ * Where each segment goes inside its digit and how much it measures, in
+ * fractions of the digit's height.
  *
- * En fracciones y no en metros para que un solo número —el tamaño que le pase
- * quien lo pinta— escale el conjunto entero sin descuadrarlo.
+ * In fractions and not in metres so that a single number —the size passed by
+ * whoever paints it— scales the whole set without throwing it out of square.
  */
 export const SEGMENT_THICKNESS = 0.14
 
-/** Posición (x, y) y si el segmento va tumbado, en fracciones de la altura. */
+/** Position (x, y) and whether the segment lies flat, in fractions of the height. */
 export const SEGMENT_LAYOUT: Record<
   Segment,
   { x: number; y: number; horizontal: boolean }
@@ -82,5 +82,5 @@ export const SEGMENT_LAYOUT: Record<
   g: { x: 0, y: 0, horizontal: true },
 }
 
-/** Ancho de una cifra respecto a su altura, ya contando la separación. */
+/** Width of a digit relative to its height, already counting the spacing. */
 export const DIGIT_ADVANCE = 0.68

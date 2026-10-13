@@ -6,19 +6,20 @@ import { InstancedMesh, PMREMGenerator, type Texture } from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
 /**
- * Un mapa de entorno para los reflejos de la mesa y del disco, **sin fichero**.
+ * An environment map for the reflections of the table and of the puck, **with no file**.
  *
- * La tarea pedía un cubemap o un HDRI pequeño servido desde `assetsBase`; esto
- * es lo mismo sin pedir nada por HTTP —un juego de xrcade puede arrancar en un
- * visor en red local— y sin nada que copiar al anfitrión: `RoomEnvironment`
- * es una sala de luces que three trae hecha, y `PMREMGenerator` la convierte
- * una vez, al montar, en el mapa prefiltrado que los materiales estándar saben
- * leer. Barato: se calcula una vez y los reflejos son una lectura de textura
- * por píxel del material que lo lleve. Nada de reflejos planares.
+ * The task asked for a cubemap or a small HDRI served from `assetsBase`; this
+ * is the same without asking for anything over HTTP —an xrcade game can start
+ * on a headset on a local network— and with nothing to copy to the host:
+ * `RoomEnvironment` is a room of lights that three ships ready-made, and
+ * `PMREMGenerator` converts it once, on mount, into the prefiltered map that
+ * standard materials know how to read. Cheap: it is computed once and the
+ * reflections are one texture read per pixel of the material that wears it.
+ * No planar reflections.
  *
- * Se aplica a mano a los materiales que lo quieren (`envMap`), no a
- * `scene.environment`: dentro del salón de xrcade la escena es del anfitrión, y
- * un entorno global le cambiaría el aspecto a las cabinas.
+ * It is applied by hand to the materials that want it (`envMap`), not to
+ * `scene.environment`: inside xrcade's hall the scene belongs to the host, and
+ * a global environment would change the look of the cabinets.
  */
 export function useRoomEnvironment(): Texture {
   const gl = useThree((state) => state.gl)
@@ -28,18 +29,19 @@ export function useRoomEnvironment(): Texture {
     const environment = pmrem.fromScene(room, 0.04)
     pmrem.dispose()
     room.dispose()
-    // `room.dispose()` suelta geometrías y materiales, pero no las cajas de la sala, que son un
-    // `InstancedMesh`: su `instanceMatrix` es un búfer de WebGL que solo se va soltando la malla.
-    // Sin esto quedaba un búfer por visita (medido en tower-tumble).
+    // `room.dispose()` releases geometries and materials, but not the room's boxes, which are an
+    // `InstancedMesh`: its `instanceMatrix` is a WebGL buffer that only goes away by releasing the mesh.
+    // Without this one buffer was left per visit (measured in tower-tumble).
     room.traverse((part) => {
       if (part instanceof InstancedMesh) part.dispose()
     })
     return environment
   }, [gl])
 
-  // El mapa vive en la tarjeta gráfica dentro de su render target, y es el target lo que se
-  // suelta al desmontar: soltar solo su textura deja el búfer vivo en cada visita. La sala de
-  // luces se suelta nada más convertirla (sus geometrías y materiales): ya no hace falta.
+  // The map lives on the graphics card inside its render target, and it is the target that is
+  // released on unmount: releasing only its texture leaves the buffer alive on every visit. The
+  // room of lights is released as soon as it is converted (its geometries and materials): it is
+  // no longer needed.
   useEffect(() => () => target.dispose(), [target])
 
   return target.texture

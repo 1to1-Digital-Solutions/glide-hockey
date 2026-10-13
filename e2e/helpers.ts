@@ -11,7 +11,7 @@ import { type SceneProbe } from '@/lib/sceneProbe'
  */
 
 /** Abre el juego y espera a que la mesa esté montada. */
-export async function abrirJuego(page: Page): Promise<void> {
+export async function openGame(page: Page): Promise<void> {
   await page.goto('/')
   // El Canvas se carga aparte y solo en cliente: hasta que aparece, lo que hay
   // es la pantalla de carga.
@@ -27,7 +27,7 @@ export async function abrirJuego(page: Page): Promise<void> {
  * jugador parado, la máquina marca cada pocos segundos en Imposible y cada
  * quince en Fácil.
  */
-export async function jugarPartida(
+export async function playMatch(
   page: Page,
   { goles, nivel, sinFin = false }: { goles: number; nivel: string; sinFin?: boolean },
 ): Promise<void> {
@@ -52,7 +52,7 @@ export async function jugarPartida(
  * Hay que llamarlo **antes** de `abrirJuego`: la escena solo escribe la ranura
  * si ya existe cuando pinta el primer fotograma (ver `src/lib/sceneProbe.ts`).
  */
-export async function observarLaMesa(page: Page): Promise<void> {
+export async function watchTable(page: Page): Promise<void> {
   await page.addInitScript(() => {
     window.__glideHockeyScene = null
   })
@@ -64,18 +64,18 @@ export async function observarLaMesa(page: Page): Promise<void> {
  * La escena solo publica mientras hay partida: en el menú no hay ni disco ni
  * mazos que mirar (ver `GameWorld`).
  */
-export async function esperarALaMesa(page: Page): Promise<SceneProbe> {
+export async function waitForTable(page: Page): Promise<SceneProbe> {
   await expect
     .poll(() => page.evaluate(() => window.__glideHockeyScene != null), {
       message: 'la escena no llegó a publicar lo que pasa en la mesa',
     })
     .toBe(true)
 
-  return leerLaMesa(page)
+  return readTable(page)
 }
 
 /** Lo que la escena está publicando ahora mismo. */
-export async function leerLaMesa(page: Page): Promise<SceneProbe> {
+export async function readTable(page: Page): Promise<SceneProbe> {
   const mesa = await page.evaluate(() => window.__glideHockeyScene)
   if (mesa == null) {
     throw new Error(
@@ -93,8 +93,8 @@ export async function leerLaMesa(page: Page): Promise<SceneProbe> {
  * mueve el mazo detrás de él hasta que lo alcanza, sin depender de cuándo lo
  * devuelva la máquina ni de a qué velocidad vaya la partida en esta máquina.
  */
-export async function perseguirElDisco(page: Page): Promise<number> {
-  const mesa = await leerLaMesa(page)
+export async function chasePuck(page: Page): Promise<number> {
+  const mesa = await readTable(page)
   await page.mouse.move(mesa.puckScreen.x, mesa.puckScreen.y)
   return mesa.playerHits
 }

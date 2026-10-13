@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { abrirJuego } from './helpers'
+import { openGame } from './helpers'
 
 /**
  * La consola limpia y ninguna petición fuera de casa.
@@ -51,7 +51,7 @@ test('el juego arranca sin ensuciar la consola ni salir a la red', async ({
     if (url.hostname !== '127.0.0.1') fuera.push(request.url())
   })
 
-  await abrirJuego(page)
+  await openGame(page)
   // Un poco de partida: es cuando entran en juego la física y la escena, que
   // es donde aparecerían los avisos de three.
   await page.getByRole('button', { name: 'Play' }).click()
@@ -63,7 +63,7 @@ test('el juego arranca sin ensuciar la consola ni salir a la red', async ({
 })
 
 test('las fuentes se sirven desde el propio sitio', async ({ page }) => {
-  await abrirJuego(page)
+  await openGame(page)
 
   // `next/font` se las descarga al construir y las auto-hospeda. Si alguna vez
   // se cuela una `<link>` a Google Fonts, la política de seguridad la bloquea

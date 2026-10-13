@@ -26,8 +26,8 @@ export interface PanelSize {
 
 /** Un punto de la escena con su nombre, para poder decir qué se ha tapado. */
 export interface Landmark {
-  readonly que: string
-  readonly puntos: readonly Point[]
+  readonly what: string
+  readonly points: readonly Point[]
 }
 
 const vector = (x: number, y: number, z: number): Point => ({ x, y, z })
@@ -74,13 +74,13 @@ export function whatThePanelHides(
   landmarks: readonly Landmark[],
 ): string[] {
   return landmarks
-    .map(({ que, puntos }) => ({
-      que,
-      tapados: puntos.filter((punto) => hiddenByPanel(pose, size, eyes, punto)).length,
+    .map(({ what: what, points: puntos }) => ({
+      que: what,
+      hidden: puntos.filter((punto) => hiddenByPanel(pose, size, eyes, punto)).length,
       total: puntos.length,
     }))
-    .filter(({ tapados }) => tapados > 0)
-    .map(({ que, tapados, total }) => `el panel tapa ${que} en ${tapados} de ${total} puntos`)
+    .filter(({ hidden: tapados }) => tapados > 0)
+    .map(({ que, hidden: tapados, total }) => `el panel tapa ${que} en ${tapados} de ${total} puntos`)
 }
 
 /**

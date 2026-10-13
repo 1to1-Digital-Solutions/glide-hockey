@@ -91,7 +91,7 @@ export function GlideHockeyScene({ assetsBase, anchor, onExit, challenge: reto, 
   if (assetsBase !== undefined) setAssetsBase(assetsBase)
 
   return (
-    <GameProvider reto={reto} onFinish={onFinish} objetivo={objetivo}>
+    <GameProvider challenge={reto} onFinish={onFinish} goal={objetivo}>
       <ExitProvider onExit={onExit}>
         <GameWorld anchor={anchor} />
       </ExitProvider>

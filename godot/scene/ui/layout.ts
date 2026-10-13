@@ -12,11 +12,11 @@
  * Todo en metros y en el espacio de la mesa (su centro, a la altura del tablero), que es de donde
  * cuelga la interfaz en la web.
  */
-import { MARCADOR_DEL_FONDO, sitioDelCartel, sitioDelTutorial } from '@/lib/scoreboardSign'
+import { BACK_SCOREBOARD, signPlacement, tutorialPlacement } from '@/lib/scoreboardSign'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '@/lib/gameConfig'
 import { EYE_HEIGHTS, eyesAt, panelRotation, type PanelPose, type Point } from '@/lib/panelReading'
 import { REFERENCE_EYE_HEIGHT, uiRiseOverWorld, worldRise } from '@/lib/uiHeight'
-import { sitioDelMenu } from '@/lib/xrMenuLayout'
+import { menuPlacement } from '@/lib/xrMenuLayout'
 
 export type Triple = [number, number, number]
 
@@ -37,25 +37,25 @@ const AZIMUT = (COLUMNA.azimut * Math.PI) / 180
 /** Cada pieza de la interfaz del visor, en coordenadas de la mesa (`XR_UI`). */
 export const XR_UI = {
   /** El marcador, al fondo, sobre la portería de la máquina. */
-  scoreboard: MARCADOR_DEL_FONDO.centro as Triple,
+  scoreboard: BACK_SCOREBOARD.center as Triple,
   /** La columna, pasada del espacio de quien juega al de la mesa. */
   panel: [-COLUMNA.distancia * Math.sin(AZIMUT), REFERENCE_EYE_HEIGHT - TABLE_HEIGHT, -COLUMNA.distancia * Math.cos(AZIMUT) - TABLE_CENTER_Z] as Triple,
   /** El menú, casi de frente: lo calcula `lib/xrMenuLayout.ts` para la web y para aquí. */
-  menu: sitioDelMenu() as Triple,
+  menu: menuPlacement() as Triple,
   /** La cuenta atrás, flotando sobre el punto de saque. */
   countdown: [0, 0.34, 0] as Triple,
   /** El tutorial, a la altura de la vista y a un lado del cartel, que no lo tape (`sitioDelTutorial`). */
-  tutorial: sitioDelTutorial() as Triple,
+  tutorial: tutorialPlacement() as Triple,
 }
 
 /** Y en plano, de frente sobre la mesa: no hay cabeza que girar, y a un lado se sale de la ventana. */
-export const TUTORIAL_EN_PLANO = sitioDelTutorial(0) as Triple
+export const TUTORIAL_EN_PLANO = tutorialPlacement(0) as Triple
 
 /** El botón de parar va donde la columna: mientras se juega, la columna está vacía (`XR_QUIT`). */
 export const XR_QUIT = XR_UI.panel
 
 /** Lo que se inclina el marcador hacia quien juega (`rotation={[-0.18, 0, 0]}` en `GameWorld`). */
-export const INCLINACION_DEL_MARCADOR = MARCADOR_DEL_FONDO.inclinacion
+export const INCLINACION_DEL_MARCADOR = BACK_SCOREBOARD.tilt
 
 /** Del espacio de la mesa al de quien juega: los pies en el origen y el `−Z` delante. */
 export function delEspacioDelJugador(pieza: readonly [number, number, number]): Triple {
@@ -116,15 +116,15 @@ export const MEDIDAS_DEL_TUTORIAL = {
 } as const
 
 /** El marcador (`SCOREBOARD_SIZE` y `ROW` de `XRHud.tsx`). */
-export const MARCADOR = { width: MARCADOR_DEL_FONDO.ancho, height: MARCADOR_DEL_FONDO.alto } as const
+export const MARCADOR = { width: BACK_SCOREBOARD.width, height: BACK_SCOREBOARD.height } as const
 export const FILAS_DEL_MARCADOR = { goals: 0.06, points: -0.065, round: -0.135 } as const
 
 /**
  * A qué altura van los goles: en su fila de arriba, o en medio cuando el cartel de encima ya dice
  * los puntos y la ronda y debajo no queda nada (`filaDeLosGoles` de `XRHud.tsx`).
  */
-export function filaDeLosGoles(callado: { puntos: boolean; ronda: boolean }): number {
-  return callado.puntos && callado.ronda ? 0 : FILAS_DEL_MARCADOR.goals
+export function filaDeLosGoles(callado: { points: boolean; round: boolean }): number {
+  return callado.points && callado.round ? 0 : FILAS_DEL_MARCADOR.goals
 }
 
 /** Lo que miden esos grados de ángulo visual a esa distancia (`grados` de `CartelDeObjetivo.tsx`, con el `altoMinimo` de `legibilidad.ts`). */
@@ -154,7 +154,7 @@ export const CARTEL = {
 export const PROPORCION_DEL_CARTEL = { width: CARTEL.ancho / CARTEL.distancia, height: CARTEL.alto / CARTEL.distancia } as const
 
 /** Dónde cuelga: encima del marcador del fondo, de cara a quien juega (`SITIO_DEL_CARTEL` de la web). */
-export const SITIO_DEL_CARTEL = sitioDelCartel(PROPORCION_DEL_CARTEL)
+export const SITIO_DEL_CARTEL = signPlacement(PROPORCION_DEL_CARTEL)
 /** A qué alto van las cifras del marcador: goles, puntos y ronda. */
 export const CIFRAS_DEL_MARCADOR = { goals: 0.13, points: 0.055, round: 0.04 } as const
 

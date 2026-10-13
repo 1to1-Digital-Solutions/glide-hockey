@@ -10,7 +10,7 @@ import { HALF_LENGTH } from './puckPhysics'
  * **poca fuerza**, porque nadie te ha tocado: es un aviso de que la jugada se ha perdido, no un
  * empujón. A CALIBRAR CON EL VISOR.
  */
-export const FUERZA_DEL_GOL_EN_CONTRA = 0.3
+export const GOAL_AGAINST_STRENGTH = 0.3
 
 /**
  * Hacia dónde viene el golpe, desde la cabeza: hacia la portería propia, donde ha entrado el
@@ -20,6 +20,6 @@ export const FUERZA_DEL_GOL_EN_CONTRA = 0.3
  *
  * @param cabeza dónde están los ojos, en coordenadas de la mesa.
  */
-export function direccionDelGolEnContra(cabeza: Point3): Point3 {
+export function goalAgainstDirection(cabeza: Point3): Point3 {
   return { x: -cabeza.x, y: -cabeza.y, z: HALF_LENGTH - cabeza.z }
 }

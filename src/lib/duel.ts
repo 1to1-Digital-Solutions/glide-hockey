@@ -130,6 +130,6 @@ export function duelWinner(duel: Duel): Player | null {
  * y lo gana uno de los dos que están delante —o empatan, que tampoco es perder—. Con el marcador
  * de la segunda partida, un duelo ganado por quien jugó primero sonaba a derrota.
  */
-export function finalSuenaAGanar(duelAcabado: boolean, marcador: MatchScore): boolean {
+export function endSoundsLikeWin(duelAcabado: boolean, marcador: MatchScore): boolean {
   return duelAcabado || marcador.scored > marcador.conceded
 }

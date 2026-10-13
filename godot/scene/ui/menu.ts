@@ -33,9 +33,9 @@ import { Panel } from '@kit/runtime/ui/panel'
 import type { PointerAim } from '@kit/runtime/ui/pointerAim'
 
 import type { Lang, Scenery } from '@/lib/settings'
-import { daMedalla, fraseDeLaMedalla } from '@/lib/scoreboardSign'
+import { givesMedal, medalPhrase } from '@/lib/scoreboardSign'
 import { DIFFICULTY_ORDER, MAX_GOALS, MIN_GOALS, type Difficulty } from '@/lib/gameConfig'
-import { GAME_MODE_HINTS, GAME_MODE_LABELS, MODOS_DEL_MENU, filasDelModo, type GameMode } from '@/lib/gameMode'
+import { GAME_MODE_HINTS, GAME_MODE_LABELS, MENU_MODE_ORDER, modeRows, type GameMode } from '@/lib/gameMode'
 import { COMFORT_LEVELS, type Comfort } from '@/lib/hitFeedback'
 import { LEVEL_COUNT, type Stars } from '@/lib/levels'
 import type { Goal } from '@/lib/goal'
@@ -44,7 +44,7 @@ import { gameName } from '@/lib/menuTemplate'
 import { COMMON_PALETTE } from '@/lib/commonPalette'
 import { DIFFICULTY_COLORS, PALETTE } from '@/lib/palette'
 import { SCENERY_LABELS } from '@/lib/scenery'
-import { traductor, type TextKey } from '@/lib/textos'
+import { translator, type TextKey } from '@/lib/textos'
 import {
   LEVEL_BAR_BOTTOM,
   MENU_BOXES,
@@ -208,28 +208,28 @@ export class MenuDelJuego {
     this.nodo = this.panel.nodo
 
     for (const confort of COMFORT_LEVELS) {
-      const b = this.anadir(`confort ${confort}`, PALETTE.rail, 0.7, () => acciones.elegirConfort(confort))
+      const b = this.anadir(`comfort ${confort}`, PALETTE.rail, 0.7, () => acciones.elegirConfort(confort))
       this.iconosDelConfort.set(confort, b.dibujo(shape(triangulosDelConfort(confort), DIM), DIM))
     }
-    for (const modo of MODOS_DEL_MENU) {
-      const b = this.anadir(`modo ${modo}`, PALETTE.rail, 0.7, () => acciones.elegirModo(modo))
+    for (const modo of MENU_MODE_ORDER) {
+      const b = this.anadir(`mode ${modo}`, PALETTE.rail, 0.7, () => acciones.elegirModo(modo))
       // El icono, subido para dejarle al nombre la franja de abajo del botón (`MENU_MODE_ICON_RISE`).
       this.iconosDelModo.set(modo, b.dibujo(shape(offset(triangulosDelModo(modo), 0, MENU_MODE_ICON_RISE), DIM), DIM))
       const esquina = [MENU_BUTTON.mode[0] / 2 - MARCA_DE_MEDALLA * 1.6, MENU_BUTTON.mode[1] / 2 - MARCA_DE_MEDALLA * 1.6] as const
       this.marcasDeMedalla.set(modo, b.dibujo(shape(circulo(MARCA_DE_MEDALLA, esquina[0], esquina[1], 20), COMMON_PALETTE.gold), COMMON_PALETTE.gold))
     }
     DIFFICULTY_ORDER.forEach((nivel, i) => {
-      const b = this.anadir(`nivel ${nivel}`, PALETTE.rail, 0.85, () => acciones.elegirDificultad(nivel))
+      const b = this.anadir(`level ${nivel}`, PALETTE.rail, 0.85, () => acciones.elegirDificultad(nivel))
       const alto = levelBarHeight(i, DIFFICULTY_ORDER.length)
       this.barras.set(nivel, b.dibujo(barra(0.05, alto, LEVEL_BAR_BOTTOM, DIM), DIM))
     })
-    this.anadir('menos', PALETTE.rail, 0.8, () => acciones.mover(-1)).dibujo(plusMinusIcon('menos', 0.04, PALETTE.foreground), PALETTE.foreground)
-    this.anadir('mas', PALETTE.rail, 0.8, () => acciones.mover(1)).dibujo(plusMinusIcon('mas', 0.04, PALETTE.foreground), PALETTE.foreground)
-    const sinFin = this.anadir('sin fin', PALETTE.rail, 0.8, () => acciones.sinFin())
+    this.anadir('minus', PALETTE.rail, 0.8, () => acciones.mover(-1)).dibujo(plusMinusIcon('menos', 0.04, PALETTE.foreground), PALETTE.foreground)
+    this.anadir('plus', PALETTE.rail, 0.8, () => acciones.mover(1)).dibujo(plusMinusIcon('mas', 0.04, PALETTE.foreground), PALETTE.foreground)
+    const sinFin = this.anadir('endless', PALETTE.rail, 0.8, () => acciones.sinFin())
     this.aroDelSinFin = sinFin.dibujo(shape(arcTriangles(0.018, 0.028), DIM), DIM)
     // El decorado: la sala o tu habitación. Sin realidad aumentada se ve apagado con lo que está
     // puesto al lado, como en la web.
-    const escenario = this.anadir('escenario', PALETTE.rail, 0.8, () => acciones.alternarEscenario())
+    const escenario = this.anadir('scenery', PALETTE.rail, 0.8, () => acciones.alternarEscenario())
     const cerrada = triangulosDeLaVentana(false)
     this.ventana = {
       marco: escenario.dibujo(shape(cerrada.marco, DIM), DIM),
@@ -238,18 +238,18 @@ export class MenuDelJuego {
     }
     escenario.apagado = true
     // «Más opciones»: lo escrito va en el panel, como los rótulos.
-    this.anadir('mas opciones', PALETTE.rail, 0.8, () => acciones.masOpciones())
-    this.anadir('jugar', PALETTE.primary, 1, () => acciones.jugar()).dibujo(playIcon(0.045, PALETTE.primaryInk), PALETTE.primaryInk)
+    this.anadir('more options', PALETTE.rail, 0.8, () => acciones.masOpciones())
+    this.anadir('play', PALETTE.primary, 1, () => acciones.jugar()).dibujo(playIcon(0.045, PALETTE.primaryInk), PALETTE.primaryInk)
     const salir = exitButton({
-      caja: cajaDe(MENU_BOXES.salir),
+      caja: cajaDe(MENU_BOXES.exit),
       color: PALETTE.rail,
       opacidad: 0.8,
       flecha: PALETTE.foreground,
-      id: 'salir',
+      id: 'exit',
       alPulsar: () => acciones.salir(),
     })
     this.panel.boton(salir)
-    this.botones.set('salir', salir)
+    this.botones.set('exit', salir)
 
     // Lo que no es botón: las cifras, el aro del sin fin en el sitio de los goles y las estrellas.
     const colgar = (nodo: Node3D, x: number, y: number) => {
@@ -285,45 +285,45 @@ export class MenuDelJuego {
 
   /** Pinta un estado: qué filas, qué está elegido, qué se apaga y qué se escribe. */
   pintar(estado: EstadoDelMenu): void {
-    const t = traductor(estado.lang)
-    const { filas: hay, plegable } = filasDelModo(estado.modo, estado.masOpciones)
-    const practica = hay.has('maquina')
+    const t = translator(estado.lang)
+    const { rows: hay, foldable: plegable } = modeRows(estado.modo, estado.masOpciones)
+    const practica = hay.has('machine')
     const niveles = estado.modo === 'levels'
-    const ajustes = hay.has('ajustes')
+    const ajustes = hay.has('settings')
 
-    const masOpciones = this.boton('mas opciones')
+    const masOpciones = this.boton('more options')
     masOpciones.nodo.visible = plegable
     masOpciones.colorear(estado.masOpciones ? PALETTE.primaryDeep : PALETTE.rail, estado.masOpciones ? 0.95 : 0.8)
 
     for (const confort of COMFORT_LEVELS) {
-      this.boton(`confort ${confort}`).nodo.visible = ajustes
+      this.boton(`comfort ${confort}`).nodo.visible = ajustes
       const elegido = confort === estado.confort
-      this.boton(`confort ${confort}`).colorear(elegido ? PALETTE.primaryDeep : PALETTE.rail, elegido ? 0.95 : 0.7)
-      this.boton(`confort ${confort}`).colorDelDibujo(this.iconosDelConfort.get(confort)!, elegido ? PALETTE.foreground : DIM)
+      this.boton(`comfort ${confort}`).colorear(elegido ? PALETTE.primaryDeep : PALETTE.rail, elegido ? 0.95 : 0.7)
+      this.boton(`comfort ${confort}`).colorDelDibujo(this.iconosDelConfort.get(confort)!, elegido ? PALETTE.foreground : DIM)
     }
-    for (const modo of MODOS_DEL_MENU) {
+    for (const modo of MENU_MODE_ORDER) {
       const elegido = modo === estado.modo
-      this.boton(`modo ${modo}`).colorear(elegido ? PALETTE.primaryDeep : PALETTE.rail, elegido ? 0.95 : 0.7)
-      this.boton(`modo ${modo}`).colorDelDibujo(this.iconosDelModo.get(modo)!, elegido ? PALETTE.primary : DIM)
-      this.marcasDeMedalla.get(modo)!.visible = daMedalla(estado.objetivo, modo)
+      this.boton(`mode ${modo}`).colorear(elegido ? PALETTE.primaryDeep : PALETTE.rail, elegido ? 0.95 : 0.7)
+      this.boton(`mode ${modo}`).colorDelDibujo(this.iconosDelModo.get(modo)!, elegido ? PALETTE.primary : DIM)
+      this.marcasDeMedalla.get(modo)!.visible = givesMedal(estado.objetivo, modo)
     }
     // La escalera de nivel: la barra crece y el color va del verde al rojo, así que se lee por
     // forma y por color, no solo por color.
     for (const nivel of DIFFICULTY_ORDER) {
-      const b = this.boton(`nivel ${nivel}`)
+      const b = this.boton(`level ${nivel}`)
       b.nodo.visible = practica
       const elegido = nivel === estado.dificultad
       b.colorear(elegido ? DIFFICULTY_COLORS[nivel] : PALETTE.rail, 0.85)
       b.colorDelDibujo(this.barras.get(nivel)!, elegido ? PALETTE.foreground : DIM)
     }
-    const filaDeGoles = hay.has('goles')
-    const menos = this.boton('menos')
-    const mas = this.boton('mas')
+    const filaDeGoles = hay.has('goals')
+    const menos = this.boton('minus')
+    const mas = this.boton('plus')
     menos.nodo.visible = filaDeGoles
     mas.nodo.visible = filaDeGoles
     menos.apagado = niveles ? estado.nivel <= 1 : estado.sinFin || estado.goles <= MIN_GOALS
     mas.apagado = niveles ? estado.nivel >= estado.abierto : estado.sinFin || estado.goles >= MAX_GOALS
-    const sinFin = this.boton('sin fin')
+    const sinFin = this.boton('endless')
     sinFin.nodo.visible = practica
     sinFin.colorear(estado.sinFin ? PALETTE.primaryDeep : PALETTE.rail, estado.sinFin ? 0.95 : 0.8)
     sinFin.colorDelDibujo(this.aroDelSinFin, estado.sinFin ? PALETTE.foreground : DIM)
@@ -343,7 +343,7 @@ export class MenuDelJuego {
     this.record.nodo.visible = estado.record > 0 && !niveles
     this.record.pintar(estado.record)
 
-    const escenario = this.boton('escenario')
+    const escenario = this.boton('scenery')
     escenario.nodo.visible = ajustes
     escenario.apagado = !estado.habitacion
     const tinta = estado.habitacion ? PALETTE.foreground : DIM
@@ -357,7 +357,7 @@ export class MenuDelJuego {
     const izquierda = -MENU_PANEL.width / 2 + 0.05
     // El nombre de la cabina, arriba a la izquierda, hasta el botón de «Más opciones»: un nombre
     // propio, sin traducir (`XRMenu.tsx`).
-    const cajaDeMas = MENU_BOXES['mas opciones']
+    const cajaDeMas = MENU_BOXES['more options']
     panel.escribir(gameName(), izquierda, MENU_ROW.title, {
       alto: MENU_TEXT.title,
       color: PALETTE.foreground,
@@ -378,7 +378,7 @@ export class MenuDelJuego {
         alto: MENU_TEXT.comfort,
         color: DIM,
         alinear: 'left',
-        anchoMax: MENU_BOXES['confort off'].position[0] - MENU_BUTTON.small[0] / 2 - 0.02 - izquierda,
+        anchoMax: MENU_BOXES['comfort off'].position[0] - MENU_BUTTON.small[0] / 2 - 0.02 - izquierda,
       })
     }
     const filas: (readonly [number, TextKey])[] = [
@@ -395,8 +395,8 @@ export class MenuDelJuego {
       })
     }
     // El nombre de cada modo, debajo de su icono y dentro de su botón (`MENU_MODE_LABEL_DROP`).
-    for (const modo of MODOS_DEL_MENU) {
-      const [x, y] = MENU_BOXES[`modo ${modo}`].position
+    for (const modo of MENU_MODE_ORDER) {
+      const [x, y] = MENU_BOXES[`mode ${modo}`].position
       panel.escribir(t(GAME_MODE_LABELS[modo]), x, y + MENU_MODE_LABEL_DROP, {
         alto: MENU_TEXT.mode,
         color: modo === estado.modo ? PALETTE.foreground : DIM,
@@ -404,14 +404,14 @@ export class MenuDelJuego {
       })
     }
     // Si el modo elegido cuenta para medalla, en la línea del rótulo «Modo» y a su derecha.
-    panel.escribir(t(fraseDeLaMedalla(estado.objetivo, estado.modo)), MENU_PANEL.width / 2 - 0.05, MENU_ROW.mode + MENU_ROW_LABEL_RISE, {
+    panel.escribir(t(medalPhrase(estado.objetivo, estado.modo)), MENU_PANEL.width / 2 - 0.05, MENU_ROW.mode + MENU_ROW_LABEL_RISE, {
       alto: MENU_TEXT.medal,
-      color: daMedalla(estado.objetivo, estado.modo) ? COMMON_PALETTE.gold : DIM,
+      color: givesMedal(estado.objetivo, estado.modo) ? COMMON_PALETTE.gold : DIM,
       alinear: 'right',
       anchoMax: MENU_MEDAL_WIDTH,
     })
     if (ajustes) {
-      const desde = MENU_BOXES.escenario.position[0] + MENU_BUTTON.small[0] / 2 + 0.02
+      const desde = MENU_BOXES.scenery.position[0] + MENU_BUTTON.small[0] / 2 + 0.02
       panel.escribir(t(SCENERY_LABELS[estado.escenario]), desde, MENU_ROW.record, {
         alto: MENU_TEXT.scenery,
         color: DIM,

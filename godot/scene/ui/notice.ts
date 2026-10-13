@@ -20,7 +20,7 @@ import type { PointerAim } from '@kit/runtime/ui/pointerAim'
 
 import type { Lang } from '@/lib/settings'
 import { PALETTE } from '@/lib/palette'
-import { traductor } from '@/lib/textos'
+import { translator } from '@/lib/textos'
 
 import { DIM } from './menu'
 import { triangulosDelMenu } from './gameOver'
@@ -71,7 +71,7 @@ export class AvisoDeSalir {
   escribir(lang: Lang): void {
     if (this.pintado === lang) return
     this.pintado = lang
-    const t = traductor(lang)
+    const t = translator(lang)
     const { panel } = this
     const ancho = AVISO[0] - 0.08
     panel.borrarTextos()

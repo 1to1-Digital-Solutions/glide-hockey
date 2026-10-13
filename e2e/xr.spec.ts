@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { abrirJuego } from './helpers'
+import { openGame } from './helpers'
 import { enterButton, enterVR, exitButton, exitXR, installXREmulator, startGameInsideSession } from './support/xr'
 
 /**
@@ -21,7 +21,7 @@ import { enterButton, enterVR, exitButton, exitXR, installXREmulator, startGameI
 test.describe('Sesión inmersiva', () => {
   test.beforeEach(async ({ page }) => {
     await installXREmulator(page)
-    await abrirJuego(page)
+    await openGame(page)
   })
 
   test('con WebXR disponible aparece la entrada al visor', async ({ page }) => {

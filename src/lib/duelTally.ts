@@ -63,20 +63,20 @@ const guardado = createStoredPreference<string>({
  * El marcador tal y como está guardado, para quien se suscribe a él (`useDuelTally.ts`): el texto
  * y no el objeto, por lo que se cuenta arriba.
  */
-export const serieGuardada = {
+export const storedTally = {
   subscribe: guardado.subscribe,
   get: guardado.get,
   getServer: guardado.getServer,
 }
 
 /** Interpreta el texto guardado: vacío es que todavía no hay nada apuntado. */
-export function tallyDelTexto(texto: string): DuelTally {
+export function tallyFromText(texto: string): DuelTally {
   return parseDuelTally(texto === '' ? null : texto)
 }
 
 /** Lo que llevan ahora mismo, sin suscribirse a nada. */
 export function getDuelTally(): DuelTally {
-  return tallyDelTexto(guardado.get())
+  return tallyFromText(guardado.get())
 }
 
 /**

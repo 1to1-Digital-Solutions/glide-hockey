@@ -29,7 +29,7 @@ import type { RunOutcome } from '@/lib/gameMode'
 import type { Stars } from '@/lib/levels'
 import { COMMON_PALETTE } from '@/lib/commonPalette'
 import { PALETTE } from '@/lib/palette'
-import { traductor } from '@/lib/textos'
+import { translator } from '@/lib/textos'
 
 import { PLAYER_LABELS, formatMargin, margin, type Player } from '@/lib/duel'
 import type { DuelTally } from '@/lib/duelTally'
@@ -110,7 +110,7 @@ export class FinalDeLaPartida {
     const clave = JSON.stringify(estado)
     if (clave === this.pintado) return
     this.pintado = clave
-    const t = traductor(estado.lang)
+    const t = translator(estado.lang)
     const duelo = estado.duelo
     this.franja.visible = duelo == null
     this.puntos.nodo.visible = duelo == null
@@ -139,7 +139,7 @@ export class FinalDeLaPartida {
 
   /** Lo que se escribe al acabar una partida del duelo (`dibujarElDuelo` de la web). */
   private escribirElDuelo(lang: Lang, { vista, marcador, pareja }: NonNullable<EstadoDelFinal['duelo']>): void {
-    const t = traductor(lang)
+    const t = translator(lang)
     const { panel } = this
     const nombre = (jugador: Player) => t(PLAYER_LABELS[jugador])
     const ancho = FINAL.width - 0.08

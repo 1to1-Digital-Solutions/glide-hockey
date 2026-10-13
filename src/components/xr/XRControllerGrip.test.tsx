@@ -58,7 +58,7 @@ describe('el mando de la web propia', () => {
   })
 
   it('un juego sin puntero de agarre sigue sin él, y con su rayo', () => {
-    render(<XRControllerGrip agarre={false} rayo={{ maxLength: 3, opacity: 0.9 }} />)
+    render(<XRControllerGrip grab={false} ray={{ maxLength: 3, opacity: 0.9 }} />)
     expect(agarres).toEqual([])
     expect(rayos.at(-1)?.rayModel).toEqual({ maxLength: 3, opacity: 0.9 })
     act(() => markHandBusy('right', true))

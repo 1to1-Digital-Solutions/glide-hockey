@@ -150,11 +150,11 @@ describe('useGameAudio', () => {
 
   it('el filtro del golpe llega al bus abierto, y sin audio abierto no abre nada', () => {
     const { result } = renderAudio()
-    result.current.filtrar(500)
+    result.current.filter(500)
     expect(audio.create).not.toHaveBeenCalled()
 
     result.current.play('strike')
-    result.current.filtrar(700)
+    result.current.filter(700)
     expect(audio.setLowpass).toHaveBeenCalledWith(700)
   })
 })

@@ -285,10 +285,10 @@ export class InterfazDelJuego {
       this.marcador.pintar({
         jugador: p.playerGoals,
         maquina: p.opponentGoals,
-        puntos: callado.puntos ? null : p.points,
+        puntos: callado.points ? null : p.points,
         // En el duelo, el número de quien tiene el mando: sin letras, es lo que dice de quién es el cian.
-        fila: callado.ronda ? null : (p.round ?? (p.levels ? p.activeLevel : p.duelView != null ? p.duelView.player + 1 : null)),
-        vuelta: !callado.ronda && p.lap != null && p.lap > 1 ? p.lap : null,
+        fila: callado.round ? null : (p.round ?? (p.levels ? p.activeLevel : p.duelView != null ? p.duelView.player + 1 : null)),
+        vuelta: !callado.round && p.lap != null && p.lap > 1 ? p.lap : null,
         goles: filaDeLosGoles(callado),
       })
     }

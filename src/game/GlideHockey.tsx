@@ -43,7 +43,7 @@ export function GlideHockey({ assetsBase, challenge: reto, onFinish }: GlideHock
   useEffect(() => () => endXrSession(), [])
 
   return (
-    <GameProvider reto={reto} onFinish={onFinish}>
+    <GameProvider challenge={reto} onFinish={onFinish}>
       {/* Aquí salir es cerrar la sesión: esta web es el juego y no hay ningún
           sitio al que volver. En el salón significa lo contrario. */}
       <ExitProvider onExit={endXrSession}>

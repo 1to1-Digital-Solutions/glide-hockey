@@ -11,18 +11,18 @@ import {
 import {
   GAME_MODE_HINTS,
   GAME_MODE_LABELS,
-  MODOS_DEL_MENU,
-  filasDelModo,
+  MENU_MODE_ORDER,
+  modeRows,
 } from '../../lib/gameMode'
 import { useGame } from '../../lib/gameStore'
-import { daMedalla, fraseDeLaMedalla } from '../../lib/scoreboardSign'
+import { givesMedal, medalPhrase } from '../../lib/scoreboardSign'
 import { useDuelTally } from '../../lib/useDuelTally'
 import { useLang } from '../../lib/settingsClient'
-import { formatoDeCifra, traductor, type TextKey } from '../../lib/textos'
+import { formatFigure, translator, type TextKey } from '../../lib/textos'
 import { SCENERIES } from '../../lib/settings'
 import { SCENERY_HINTS, SCENERY_LABELS } from '../../lib/scenery'
 import { COMFORT_LEVELS } from '../../lib/hitFeedback'
-import { CONFORT_LABELS, CONFORT_LEGEND, useConfort } from '../../lib/comfort'
+import { COMFORT_LABELS, COMFORT_LEGEND, useComfort } from '../../lib/comfort'
 import { LEVEL_COUNT, levelSpec } from '../../lib/levels'
 import { DIFFICULTY_COLORS } from '../../lib/palette'
 import { COMMON_PALETTE } from '../../lib/commonPalette'
@@ -93,7 +93,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 export function StartScreen() {
-  const [confort, setConfort] = useConfort()
+  const [confort, setConfort] = useComfort()
   const {
     gameMode,
     setGameMode,
@@ -112,7 +112,7 @@ export function StartScreen() {
     bestPoints,
     startGame,
     immersive: inSession,
-    objetivo,
+    goal: objetivo,
   } = useGame()
   const exit = useExit()
   const immersive = useImmersiveSupport()
@@ -121,11 +121,11 @@ export function StartScreen() {
   // que la partida ya está hecha: se elige el modo y se le da a Jugar. Sus filas no se
   // enseñan ni apagadas, que eran dos filas de opciones que no se podían tocar.
   const lang = useLang()
-  const t = traductor(lang)
+  const t = translator(lang)
   // Lo plegado es de la interfaz y no se guarda: la portada se monta de nuevo al volver al menú.
   const [masOpciones, setMasOpciones] = useState(false)
-  const { filas, plegable } = filasDelModo(gameMode, masOpciones)
-  const practice = filas.has('maquina')
+  const { rows: filas, foldable: plegable } = modeRows(gameMode, masOpciones)
+  const practice = filas.has('machine')
   const levels = gameMode === 'levels'
   // Lo que lleva la pareja que está delante, en el duelo; con ninguno jugado no se dice nada.
   const tally = useDuelTally()
@@ -152,7 +152,7 @@ export function StartScreen() {
             <FieldLabel>{t(MENU_EN.mode)}</FieldLabel>
             {/* Cuatro en fila no caben en un móvil con «Práctica» dentro: dos filas de dos. */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {MODOS_DEL_MENU.map((mode) => (
+              {MENU_MODE_ORDER.map((mode) => (
                 <OptionButton
                   key={mode}
                   selected={gameMode === mode}
@@ -160,7 +160,7 @@ export function StartScreen() {
                 >
                   {t(GAME_MODE_LABELS[mode])}
                   {/* El modo que da medalla lleva su marca, además de decirlo abajo con letras. */}
-                  {daMedalla(objetivo, mode) ? (
+                  {givesMedal(objetivo, mode) ? (
                     <span aria-hidden className="ml-1.5" style={{ color: COMMON_PALETTE.gold }}>
                       ●
                     </span>
@@ -169,7 +169,7 @@ export function StartScreen() {
               ))}
             </div>
             <p className="text-xs text-white/45">
-              {t(GAME_MODE_HINTS[gameMode])} {t(fraseDeLaMedalla(objetivo, gameMode))}.
+              {t(GAME_MODE_HINTS[gameMode])} {t(medalPhrase(objetivo, gameMode))}.
             </p>
           </fieldset>
 
@@ -310,7 +310,7 @@ export function StartScreen() {
               entre visitas. Aquí se deja elegido; donde de verdad se usa es
               dentro del visor, cambiándolo sin salir de la sesión. Con el
               confort, detrás de «Más opciones». */}
-          {filas.has('ajustes') ? (
+          {filas.has('settings') ? (
             <>
               <fieldset className="flex flex-col gap-2">
                 <legend className="sr-only">{t('What you see around you')}</legend>
@@ -333,12 +333,12 @@ export function StartScreen() {
                   cámara lenta, el oído tapado y la vibración (`lib/golpeRecibido.ts`).
                   Es un ajuste de confort, y se recuerda entre visitas. */}
               <fieldset className="flex flex-col gap-2">
-                <legend className="sr-only">{t(CONFORT_LEGEND)}</legend>
-                <FieldLabel>{t(CONFORT_LEGEND)}</FieldLabel>
+                <legend className="sr-only">{t(COMFORT_LEGEND)}</legend>
+                <FieldLabel>{t(COMFORT_LEGEND)}</FieldLabel>
                 <div className="grid grid-cols-3 gap-2">
                   {COMFORT_LEVELS.map((option) => (
                     <OptionButton key={option} selected={confort === option} onClick={() => setConfort(option)}>
-                      {t(CONFORT_LABELS[option])}
+                      {t(COMFORT_LABELS[option])}
                     </OptionButton>
                   ))}
                 </div>
@@ -393,7 +393,7 @@ export function StartScreen() {
                   mode: t(GAME_MODE_LABELS[gameMode]).toLowerCase(),
                 })}{' '}
                 <strong className="font-semibold text-white">
-                  {formatoDeCifra(bestPoints, lang)}
+                  {formatFigure(bestPoints, lang)}
                 </strong>{' '}
                 {t('points')}
               </>

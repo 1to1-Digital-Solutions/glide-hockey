@@ -90,7 +90,7 @@ export function unitHash(a: number, b: number, c: number): number {
  * mismo reto ven los mismos tiros en cada ronda, y perder goles en la ronda 2 no cambia los de la
  * 3, que no dependen de cuántas partidas se hayan empezado antes.
  */
-export function semillaDeLaMesa(semillaDelReto: number | null, runId: number, ronda: number): number {
+export function tableSeed(semillaDelReto: number | null, runId: number, ronda: number): number {
   return semillaDelReto === null ? runId : deriveSeed(semillaDelReto, ronda)
 }
 

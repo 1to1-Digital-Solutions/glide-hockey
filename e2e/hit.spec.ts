@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { abrirJuego, jugarPartida } from './helpers'
+import { openGame, playMatch } from './helpers'
 
 /**
  * El golpe recibido (`components/xr/GolpeRecibido.tsx`), medido fotograma a fotograma en un
@@ -73,8 +73,8 @@ function comprobarElGolpeEntero(lista: Muestra[]) {
 }
 
 test('un golpe mueve la sala, oscurece los bordes, frena la mesa y tapa el oído, sin tocar la cámara', async ({ page }) => {
-  await abrirJuego(page)
-  await jugarPartida(page, { goles: 5, nivel: 'Easy' })
+  await openGame(page)
+  await playMatch(page, { goles: 5, nivel: 'Easy' })
   await sondaLista(page)
 
   await page.evaluate(() => {
@@ -86,11 +86,11 @@ test('un golpe mueve la sala, oscurece los bordes, frena la mesa y tapa el oído
 })
 
 test('el gol en contra dispara el golpe, flojo', async ({ page }) => {
-  await abrirJuego(page)
+  await openGame(page)
   await sondaLista(page)
   await page.evaluate(() => window.__hitFeedback!.measure())
   // Con el mazo quieto, en Imposible la máquina marca en unos segundos.
-  await jugarPartida(page, { goles: 5, nivel: 'Impossible' })
+  await playMatch(page, { goles: 5, nivel: 'Impossible' })
 
   const lista = await hastaQuePase(page)
   comprobarElGolpeEntero(lista)
@@ -99,14 +99,14 @@ test('el gol en contra dispara el golpe, flojo', async ({ page }) => {
 })
 
 test('con el confort apagado, el golpe no hace nada', async ({ page }) => {
-  await abrirJuego(page)
+  await openGame(page)
   // Se elige como lo elegiría cualquiera: en la fila del menú, detrás de «Más opciones», que en el
   // reto no se ofrece (es una partida fija).
   await page.getByRole('button', { name: 'Practice', exact: true }).click()
   await page.getByRole('button', { name: 'More options', exact: true }).click()
   await page.getByRole('button', { name: 'Off', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Off', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await jugarPartida(page, { goles: 5, nivel: 'Easy' })
+  await playMatch(page, { goles: 5, nivel: 'Easy' })
   await sondaLista(page)
 
   await page.evaluate(() => {
@@ -128,8 +128,8 @@ test('con el confort apagado, el golpe no hace nada', async ({ page }) => {
 test('la captura: la viñeta en su pico, más oscura del lado del golpe', async ({ page }) => {
   const ruta = process.env.GOLPE_CAPTURA
   test.skip(ruta == null, 'solo cuando se pide la captura (GOLPE_CAPTURA=ruta.png)')
-  await abrirJuego(page)
-  await jugarPartida(page, { goles: 5, nivel: 'Easy' })
+  await openGame(page)
+  await playMatch(page, { goles: 5, nivel: 'Easy' })
   await sondaLista(page)
   await page.evaluate(() => {
     window.__hitFeedback!.hit(1, { x: -1, y: 0, z: 0 })

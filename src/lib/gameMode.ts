@@ -36,20 +36,20 @@ export const GAME_MODE_ORDER: GameMode[] = ['practice', 'levels', 'challenge', '
  * Los modos en la fila «Modo» de los dos menús, con el reto —el que da medalla— el primero, como
  * pide la plantilla común (`conElRetoPrimero` de `plantillaDelMenu.ts`); los demás, en su orden.
  */
-export const MODOS_DEL_MENU: readonly GameMode[] = challengeFirst(GAME_MODE_ORDER, (modo) => modo === 'challenge')
+export const MENU_MODE_ORDER: readonly GameMode[] = challengeFirst(GAME_MODE_ORDER, (modo) => modo === 'challenge')
 
 /**
  * Las filas del menú que dependen del modo, en los tres menús (el del visor, la portada y Godot):
  * el nivel de la máquina, la de los goles (a cuántos se juega en la práctica, o qué nivel en los
  * niveles) y los ajustes de quien juega (el decorado y el confort del golpe recibido).
  */
-export type FilaDelMenu = 'modo' | 'maquina' | 'goles' | 'ajustes'
+export type MenuRow = 'mode' | 'machine' | 'goals' | 'settings'
 
 /** Lo que enseña el menú en un modo: qué filas y si lleva el botón de «Más opciones». */
-export interface FilasDelModo {
-  filas: ReadonlySet<FilaDelMenu>
+export interface ModeRows {
+  rows: ReadonlySet<MenuRow>
   /** Hay algo detrás de «Más opciones»: el botón está, diga «Más» o «Menos». */
-  plegable: boolean
+  foldable: boolean
 }
 
 /**
@@ -59,17 +59,17 @@ export interface FilasDelModo {
  * (con el sin fin), el decorado y el confort van plegados. Con el reto elegido no hay nada plegado:
  * es una partida fija.
  */
-export function filasDelModo(mode: GameMode, masOpciones: boolean): FilasDelModo {
+export function modeRows(mode: GameMode, masOpciones: boolean): ModeRows {
   const practica = mode === 'practice'
-  const filas: FilaDelMenu[] = ['modo']
-  if (practica) filas.push('maquina')
-  if (practica || mode === 'levels') filas.push('goles')
-  filas.push('ajustes')
-  const papel = (fila: FilaDelMenu): RowRole => (fila === 'modo' || (fila === 'goles' && mode === 'levels') ? 'mode' : 'other')
+  const rows: MenuRow[] = ['mode']
+  if (practica) rows.push('machine')
+  if (practica || mode === 'levels') rows.push('goals')
+  rows.push('settings')
+  const papel = (fila: MenuRow): RowRole => (fila === 'mode' || (fila === 'goals' && mode === 'levels') ? 'mode' : 'other')
   const enReto = mode === 'challenge'
   return {
-    filas: new Set(foldRows(filas, papel, { moreOptions: masOpciones, inChallenge: enReto }).rows),
-    plegable: foldRows(filas, papel, { moreOptions: false, inChallenge: enReto }).folded > 0,
+    rows: new Set(foldRows(rows, papel, { moreOptions: masOpciones, inChallenge: enReto }).rows),
+    foldable: foldRows(rows, papel, { moreOptions: false, inChallenge: enReto }).folded > 0,
   }
 }
 

@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 import { HitFeedback, type HitFeedbackHandle } from '../xr/HitFeedback'
-import { useConfort } from '../../lib/comfort'
+import { useComfort } from '../../lib/comfort'
 import { XRUiHeight } from '../xr/XRUiHeight'
 import { useXR } from '@react-three/xr'
-import { MARCADOR_DEL_FONDO, SONIDO_DEL_LISTON, sitioDelTutorial } from '../../lib/scoreboardSign'
+import { BACK_SCOREBOARD, THRESHOLD_SOUND, tutorialPlacement } from '../../lib/scoreboardSign'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
 import { countMount } from '../../lib/mountCount'
-import { finalSuenaAGanar } from '../../lib/duel'
+import { endSoundsLikeWin } from '../../lib/duel'
 import { useGame } from '../../lib/gameStore'
 import { thresholdCrossed, type Medal } from '../../lib/goal'
 import { showsPlace } from '../../lib/settings'
@@ -25,7 +25,7 @@ import { useGameAudio } from '../../lib/useGameAudio'
 import { useGameMusic } from '../../lib/useGameMusic'
 import { useGameHaptics } from '../../lib/useGameHaptics'
 import { useRoomEnvironment } from '../../lib/useRoomEnvironment'
-import { sitioDelMenu } from '../../lib/xrMenuLayout'
+import { menuPlacement } from '../../lib/xrMenuLayout'
 import {
   XRCountdown,
   XRGameOver,
@@ -36,8 +36,8 @@ import {
 import { XRMenu } from '../xr/XRMenu'
 import { XRTutorial } from '../xr/XRTutorial'
 import { XRSessionController } from '../xr/XRSessionController'
-import { Ayudas } from './Hints'
-import { CartelDelMarcador } from './ScoreboardSign'
+import { Hints } from './Hints'
+import { ScoreboardSign } from './ScoreboardSign'
 import { PrewarmShaders } from './PrewarmShaders'
 import { Rink } from './Rink'
 import { Backdrop } from './Backdrop'
@@ -78,7 +78,7 @@ import { XRWorldHeight } from '../xr/XRWorldHeight'
  *
  * A CALIBRAR CON EL VISOR: `distancia` y `azimut`.
  */
-export const COLUMNA = { distancia: 1.5, azimut: 55 } as const
+export const COLUMN = { distance: 1.5, azimuth: 55 } as const
 
 /**
  * Lo que crece la columna para que su letra se siga leyendo a la distancia nueva.
@@ -89,29 +89,29 @@ export const COLUMNA = { distancia: 1.5, azimut: 55 } as const
  * de margen. Lo miden `menu.legible.test.ts` y `salida.legible.test.ts` con los textos a esta
  * escala. A CALIBRAR CON EL VISOR.
  */
-export const ESCALA_DE_LA_COLUMNA = 1.4
+export const COLUMN_SCALE = 1.4
 
-const AZIMUT_DE_LA_COLUMNA = (COLUMNA.azimut * Math.PI) / 180
+const AZIMUT_DE_LA_COLUMNA = (COLUMN.azimuth * Math.PI) / 180
 
 /** Dónde va cada pieza de la interfaz inmersiva, en coordenadas de la mesa. */
 export const XR_UI = {
   /** Marcador: al fondo, sobre la portería de la máquina. */
-  scoreboard: MARCADOR_DEL_FONDO.centro,
+  scoreboard: BACK_SCOREBOARD.center,
   /**
    * Menú, final de partida y aviso de salir: la columna (`COLUMNA`). Las cotas son las del
    * espacio de quien juega pasadas a las de la mesa, que es de donde cuelga.
    */
   panel: [
-    -COLUMNA.distancia * Math.sin(AZIMUT_DE_LA_COLUMNA),
+    -COLUMN.distance * Math.sin(AZIMUT_DE_LA_COLUMNA),
     REFERENCE_EYE_HEIGHT - TABLE_HEIGHT,
-    -COLUMNA.distancia * Math.cos(AZIMUT_DE_LA_COLUMNA) - TABLE_CENTER_Z,
+    -COLUMN.distance * Math.cos(AZIMUT_DE_LA_COLUMNA) - TABLE_CENTER_Z,
   ] as [number, number, number],
   /**
    * El menú, **casi de frente** y a la distancia de la columna (`sitioDelMenu`, la plantilla común
    * del salón: nace a 30° o menos de la mirada). Al empezar se aparta: el final y el aviso de
    * salir salen en la columna.
    */
-  menu: sitioDelMenu(),
+  menu: menuPlacement(),
   /** Cuenta atrás: flotando sobre el punto de saque. */
   countdown: [0, 0.34, 0] as [number, number, number],
   /**
@@ -121,7 +121,7 @@ export const XR_UI = {
    * A 1,2 m: a metro y medio su contador se quedaba en 1°. No tapa la mesa, ni el marcador, ni
    * el cartel (`tutorial.legible.test.ts`).
    */
-  tutorial: sitioDelTutorial(),
+  tutorial: tutorialPlacement(),
 }
 
 /**
@@ -138,19 +138,19 @@ export const XR_QUIT = XR_UI.panel
  * tiene que ver de reojo a metro y medio —a la escala de la columna ocupaba 6° y se perdía contra
  * las máquinas de la sala—. Así ocupa unos 11°. A CALIBRAR CON EL VISOR.
  */
-export const ESCALA_DEL_BOTON = 2.6
+export const BUTTON_SCALE = 2.6
 
 /**
  * Dónde queda una pieza de la interfaz en el espacio de quien juega —los pies en el origen y el
  * `−Z` delante—: la mesa se planta a `TABLE_CENTER_Z` de él y a `TABLE_HEIGHT` del suelo.
  */
-export function delEspacioDelJugador(pieza: readonly [number, number, number]): [number, number, number] {
+export function fromPlayerSpace(pieza: readonly [number, number, number]): [number, number, number] {
   return [pieza[0], pieza[1] + TABLE_HEIGHT, pieza[2] + TABLE_CENTER_Z]
 }
 
 /** A cuántos metros de los ojos de quien juega queda el centro de una pieza, contando la altura. */
-export function distanciaDelJugador(pieza: readonly [number, number, number]): number {
-  return distanceFromEyes(delEspacioDelJugador(pieza), eyesAt(REFERENCE_EYE_HEIGHT))
+export function distanceFromPlayer(pieza: readonly [number, number, number]): number {
+  return distanceFromEyes(fromPlayerSpace(pieza), eyesAt(REFERENCE_EYE_HEIGHT))
 }
 
 /**
@@ -160,10 +160,10 @@ export function distanciaDelJugador(pieza: readonly [number, number, number]): n
  * (`XRUiHeight`), así que el giro se calcula una vez para los de referencia.
  */
 export const XR_UI_ROTATION = {
-  panel: panelRotation(delEspacioDelJugador(XR_UI.panel), eyesAt(REFERENCE_EYE_HEIGHT)),
-  menu: panelRotation(delEspacioDelJugador(XR_UI.menu), eyesAt(REFERENCE_EYE_HEIGHT)),
-  quit: panelRotation(delEspacioDelJugador(XR_QUIT), eyesAt(REFERENCE_EYE_HEIGHT)),
-  tutorial: panelRotation(delEspacioDelJugador(XR_UI.tutorial), eyesAt(REFERENCE_EYE_HEIGHT)),
+  panel: panelRotation(fromPlayerSpace(XR_UI.panel), eyesAt(REFERENCE_EYE_HEIGHT)),
+  menu: panelRotation(fromPlayerSpace(XR_UI.menu), eyesAt(REFERENCE_EYE_HEIGHT)),
+  quit: panelRotation(fromPlayerSpace(XR_QUIT), eyesAt(REFERENCE_EYE_HEIGHT)),
+  tutorial: panelRotation(fromPlayerSpace(XR_UI.tutorial), eyesAt(REFERENCE_EYE_HEIGHT)),
 }
 
 /**
@@ -173,19 +173,19 @@ export const XR_UI_ROTATION = {
  * El panel se mide donde queda de verdad: sube lo que baja o sube el mundo (`XRWorldHeight`) más
  * lo que sube la interfaz sobre él (`XRUiHeight`). Es lo que usan los `*.legible.test.ts`.
  */
-export function vistasDelPanel(
+export function panelViews(
   pieza: readonly [number, number, number],
   rotation: PanelPose['rotation'],
-): { donde: string; pose: PanelPose; ojos: Point }[] {
-  const [x, y, z] = delEspacioDelJugador(pieza)
+): { where: string; pose: PanelPose; eyes: Point }[] {
+  const [x, y, z] = fromPlayerSpace(pieza)
   return EYE_HEIGHTS.flatMap((ojos) =>
     [false, true].map((aLaAlturaDeLosOjos) => ({
-      donde: `ojos a ${ojos} m${aLaAlturaDeLosOjos ? ', mundo a su altura' : ''}`,
+      where: `ojos a ${ojos} m${aLaAlturaDeLosOjos ? ', mundo a su altura' : ''}`,
       pose: {
         position: [x, y + worldRise(ojos, aLaAlturaDeLosOjos) + uiRiseOverWorld(ojos, aLaAlturaDeLosOjos), z] as const,
         rotation,
       },
-      ojos: eyesAt(ojos),
+      eyes: eyesAt(ojos),
     })),
   )
 }
@@ -194,10 +194,10 @@ export function vistasDelPanel(
  * Unos textos apuntados en el lienzo de la columna, llevados a la escala a la que se pinta
  * (`ESCALA_DE_LA_COLUMNA`): es lo que miden los `*.legible.test.ts` de lo que va en ella.
  */
-export function aLaEscalaDeLaColumna<T extends { x: number; y: number; width: number; height: number }>(
+export function atColumnScale<T extends { x: number; y: number; width: number; height: number }>(
   escritos: readonly T[],
 ): T[] {
-  const k = ESCALA_DE_LA_COLUMNA
+  const k = COLUMN_SCALE
   return escritos.map((e) => ({ ...e, x: e.x * k, y: e.y * k, width: e.width * k, height: e.height * k }))
 }
 
@@ -236,7 +236,7 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
     totalPlayerGoals,
     totalOpponentGoals,
     duel,
-    medalla,
+    medal: medalla,
   } = useGame()
   const duelAcabado = duel?.over ?? false
   const mode = useXR((state) => state.mode)
@@ -245,12 +245,12 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
   // partida y en cada ronda del reto, y con el audio dentro, la ronda ganada se
   // llevaba por delante el gol que la ganaba —el contexto se cerraba mientras
   // sonaba— y estrenaba otro contexto por ronda (ver `lib/useGameAudio.ts`).
-  const { play, slide, filtrar } = useGameAudio()
+  const { play, slide, filter: filtrar } = useGameAudio()
   useGameMusic()
   const haptics = useGameHaptics()
   // El golpe recibido: la mesa lo dispara con el gol en contra (`Rink`) y lo pinta este.
   const golpeRecibido = useRef<HitFeedbackHandle>(null)
-  const [confort] = useConfort()
+  const [confort] = useComfort()
   // Lo que se oye y lo que se siente van por separado: suena todo lo que pasa en la mesa —el
   // roce, la banda, el golpe de la máquina—, pero en la mano solo lo que toca la mano: el golpe
   // del mazo al disco (y el gol, suave). El roce vibraba cada fotograma y en las dos manos, y con
@@ -269,9 +269,9 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
     if (terminado.current) return
     terminado.current = true
     // El final del duelo suena a ganar: lo gana uno de los dos que están delante (`duel.ts`).
-    const gana = finalSuenaAGanar(duelAcabado, { scored: totalPlayerGoals, conceded: totalOpponentGoals })
+    const gana = endSoundsLikeWin(duelAcabado, { scored: totalPlayerGoals, conceded: totalOpponentGoals })
     play(gana ? 'win' : 'loss')
-    haptics.sentir({ tipo: 'end' })
+    haptics.feel({ type: 'end' })
     if (isRecord) play('record')
   }, [gameState, play, haptics, isRecord, totalPlayerGoals, totalOpponentGoals, duelAcabado])
 
@@ -282,10 +282,10 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
   useEffect(() => {
     const cruzado = thresholdCrossed(medallaDeAntes.current, medalla)
     medallaDeAntes.current = medalla
-    if (cruzado != null) play(SONIDO_DEL_LISTON[cruzado])
+    if (cruzado != null) play(THRESHOLD_SOUND[cruzado])
   }, [medalla, play])
   // Y en la mano del mazo, cuando el cartel lo celebra.
-  const sentirElListon = useCallback((cruzado: Medal) => haptics.sentir({ tipo: 'liston', medalla: cruzado }), [haptics])
+  const sentirElListon = useCallback((cruzado: Medal) => haptics.feel({ type: 'threshold', medal: cruzado }), [haptics])
 
   // Los reflejos de la mesa y del disco, calculados una vez (ver el hook).
   const environment = useRoomEnvironment()
@@ -344,7 +344,7 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
           ref={golpeRecibido}
           comfort={confort}
           applyFilter={filtrar}
-          vibrate={haptics.pulsar}
+          vibrate={haptics.pulse}
         >
           <group visible={!passthrough} pointerEvents={passthrough ? 'none' : undefined}>
             <Room />
@@ -357,7 +357,7 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
             siempre —también en el menú— porque montar una malla a mitad de partida compila su
             material y eso es un tirón con el visor puesto. Lo que se enciende y se apaga es su
             opacidad; el guion decide cuándo (`lib/guionDeAyudas.ts`). */}
-        <Ayudas />
+        <Hints />
 
         <group position={[0, TABLE_HEIGHT, TABLE_CENTER_Z]}>
           <Table environment={environment} />
@@ -369,10 +369,10 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
               key={runId}
               play={play}
               slide={slide}
-              sentir={haptics.sentir}
+              feel={haptics.feel}
               onHand={haptics.noteHand}
               environment={environment}
-              golpeRecibido={golpeRecibido}
+              hitFeedback={golpeRecibido}
             />
           ) : null}
 
@@ -386,16 +386,16 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
               persona delante y esa persona se quedó dentro del código (ver `XRUiHeight`). */}
           {showPanels ? (
             <XRUiHeight>
-              <group position={XR_UI.scoreboard} rotation={[MARCADOR_DEL_FONDO.inclinacion, 0, 0]}>
+              <group position={XR_UI.scoreboard} rotation={[BACK_SCOREBOARD.tilt, 0, 0]}>
                 <XRScoreboard />
               </group>
               {/* Qué hay que superar, de frente: encima del marcador, que es donde ya se mira. */}
-              <CartelDelMarcador alCelebrar={sentirElListon} />
+              <ScoreboardSign alCelebrar={sentirElListon} />
               {/* El menú nace casi de frente, a la escala de la columna; lo demás, en la columna. */}
-              <group position={XR_UI.menu} rotation={XR_UI_ROTATION.menu} scale={ESCALA_DE_LA_COLUMNA}>
+              <group position={XR_UI.menu} rotation={XR_UI_ROTATION.menu} scale={COLUMN_SCALE}>
                 <XRMenu />
               </group>
-              <group position={XR_UI.panel} rotation={XR_UI_ROTATION.panel} scale={ESCALA_DE_LA_COLUMNA}>
+              <group position={XR_UI.panel} rotation={XR_UI_ROTATION.panel} scale={COLUMN_SCALE}>
                 <XRGameOver />
                 <XRQuitConfirm />
               </group>
@@ -407,7 +407,7 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
                   con el que nació es el de darts, y sumado a este grupo la dejaba a tres metros del
                   suelo, girada, metro y medio por encima del menú del que venía—. */}
               <XRTutorial position={XR_UI.tutorial} rotation={XR_UI_ROTATION.tutorial} />
-              <group position={XR_QUIT} rotation={XR_UI_ROTATION.quit} scale={ESCALA_DEL_BOTON}>
+              <group position={XR_QUIT} rotation={XR_UI_ROTATION.quit} scale={BUTTON_SCALE}>
                 <XRQuitButton />
               </group>
             </XRUiHeight>

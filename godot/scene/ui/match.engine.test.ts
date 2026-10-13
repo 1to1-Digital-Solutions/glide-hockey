@@ -14,7 +14,7 @@ import { COUNTDOWN_SECONDS, DEFAULT_GOALS, MAX_GOALS, MIN_GOALS } from '@/lib/ga
 import { getBestEndlessStreak, getBestPoints } from '@/lib/highScore'
 import { getStarsList, getUnlockedLevel } from '@/lib/progress'
 import { goalPoints } from '@/lib/scoring'
-import { semillaDeLaMesa } from '@/lib/opponent'
+import { tableSeed } from '@/lib/opponent'
 import type { GameResult } from '@/lib/seed'
 import { gameStorage } from '@/lib/storage'
 
@@ -198,7 +198,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
     const contados: GameResult[] = []
     const p = new Partida({ reto: { seed: 1234 }, alTerminar: (r) => contados.push(r) })
     expect([p.gameMode, p.gameState, p.enReto]).toEqual(['challenge', 'countdown', true])
-    expect(p.seed).toBe(semillaDeLaMesa(1234, 1, 1))
+    expect(p.seed).toBe(tableSeed(1234, 1, 1))
     expect(p.seed).not.toBe(new Partida().seed)
     sacar(p)
     marcar(p, 0, p.activeGoalTarget)
@@ -323,7 +323,7 @@ describe('el cartel del objetivo, como en la web', () => {
     expect(p.objetivo).toBe(OBJETIVO)
     expect(p.cartel('en')).toBeNull()
     expect(p.medalla).toBeNull()
-    expect(p.callado).toEqual({ puntos: false, ronda: false })
+    expect(p.callado).toEqual({ points: false, round: false })
   })
 
   it('con el objetivo: la misión y los listones en la cuenta atrás, y después el que falta y lo que queda', () => {
@@ -331,7 +331,7 @@ describe('el cartel del objetivo, como en la web', () => {
     p.startGame()
     expect(p.cartel('en')).toMatchObject({ title: 'Win games until you lose one', detail: 'Bronze 150 · Silver 8,000 · Gold 20,000' })
     expect(p.cartel('es')?.title).toBe('Gana partidos hasta perder uno')
-    expect(p.callado).toEqual({ puntos: true, ronda: true })
+    expect(p.callado).toEqual({ points: true, round: true })
     sacar(p)
     expect(p.cartel('en')).toMatchObject({ title: 'Bronze at 150 · you have 0', detail: 'Round 1 · to 3 goals · goal +100' })
     marcar(p, 1, 0)
@@ -351,7 +351,7 @@ describe('el cartel del objetivo, como en la web', () => {
     expect(p.gameState).toBe('finished')
     expect(p.medalla).toBe('bronze')
     expect(p.cartel('en')).toMatchObject({ title: 'Bronze · 220 points in the challenge', detail: '7,780 short of silver' })
-    expect(p.callado).toEqual({ puntos: true, ronda: false })
+    expect(p.callado).toEqual({ points: true, round: false })
     // Otra vez —el botón resaltado del final— vuelve a la misión, sin pasar por el menú.
     p.startGame()
     expect(p.cartel('en')?.title).toBe('Win games until you lose one')
@@ -435,7 +435,7 @@ describe('el cartel del objetivo, como en la web', () => {
     const conSalon = enPractica({ objetivo: OBJETIVO })
     conSalon.startGame()
     expect(conSalon.cartel('es')).toMatchObject({ title: 'Práctica · no cuenta para medalla', subdued: true })
-    expect(conSalon.callado).toEqual({ puntos: false, ronda: false })
+    expect(conSalon.callado).toEqual({ points: false, round: false })
     const suelto = enPractica()
     suelto.startGame()
     expect(suelto.cartel('en')).toBeNull()

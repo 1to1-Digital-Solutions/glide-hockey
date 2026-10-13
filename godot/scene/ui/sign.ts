@@ -18,7 +18,7 @@ import { plate } from '@kit/runtime/ui/mesh'
 import { Panel } from '@kit/runtime/ui/panel'
 import { RENDER_ORDER } from '@kit/runtime/ui/text3d'
 
-import type { SitioDelCartel } from '@/lib/scoreboardSign'
+import type { SignPlacement } from '@/lib/scoreboardSign'
 import { CELEBRATION_SECONDS, thresholdCrossed, celebrationPulse, type Medal, type GoalSignView } from '@/lib/goal'
 import { COMMON_PALETTE } from '@/lib/commonPalette'
 
@@ -44,12 +44,12 @@ export class Cartel {
   }
 
   /** Lo cuelga donde dice `sitioDelCartel`, del tamaño que pide su distancia. */
-  colocar(sitio: SitioDelCartel): void {
+  colocar(sitio: SignPlacement): void {
     const [x, y, z] = sitio.position
     this.nodo.position = new Vector3(x, y, z)
     // `Node3D` gira en orden YXZ, el mismo que las rotaciones de la web (`panelRotation`).
     this.nodo.rotation = new Vector3(sitio.rotation[0], sitio.rotation[1], sitio.rotation[2])
-    this.escala = sitio.distancia / CARTEL.distancia
+    this.escala = sitio.distance / CARTEL.distancia
     this.nodo.scale = new Vector3(this.escala, this.escala, this.escala)
   }
 

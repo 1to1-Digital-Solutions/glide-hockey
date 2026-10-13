@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { abrirJuego, jugarPartida } from './helpers'
+import { openGame, playMatch } from './helpers'
 
 /**
  * Los modos nuevos desde fuera del lienzo: la partida sin fin no se acaba por
@@ -8,8 +8,8 @@ import { abrirJuego, jugarPartida } from './helpers'
  * se puede meter un gol sin depender del pulso del ratón.
  */
 test('sin fin: la máquina marca y la partida sigue hasta que se termina', async ({ page }) => {
-  await abrirJuego(page)
-  await jugarPartida(page, { goles: 3, nivel: 'Impossible', sinFin: true })
+  await openGame(page)
+  await playMatch(page, { goles: 3, nivel: 'Impossible', sinFin: true })
 
   await expect(page.getByText('endless')).toBeVisible()
   // La máquina marca tres veces —lo que sería la partida entera— y no pasa nada.
@@ -22,7 +22,7 @@ test('sin fin: la máquina marca y la partida sigue hasta que se termina', async
 })
 
 test('niveles: se empieza por el primero y el resto tiene candado', async ({ page }) => {
-  await abrirJuego(page)
+  await openGame(page)
   await page.getByRole('button', { name: 'Levels' }).click()
 
   await expect(page.getByRole('button', { name: /^Level 1,/ })).toBeEnabled()

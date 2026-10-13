@@ -57,8 +57,8 @@ describe('las frases que devuelve', () => {
     ]
     expect(
       whatThePanelHides(PANEL, MEDIDAS, OJOS, [
-        { que: 'la mesa', puntos: detras },
-        { que: 'el marcador', puntos: [{ x: 3, y: 0, z: -2 }] },
+        { what: 'la mesa', points: detras },
+        { what: 'el marcador', points: [{ x: 3, y: 0, z: -2 }] },
       ]),
     ).toEqual(['el panel tapa la mesa en 2 de 3 puntos'])
   })

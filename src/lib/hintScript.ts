@@ -45,7 +45,7 @@ import { HALF_LENGTH, HALF_WIDTH } from './puckPhysics'
  * a propósito —es lo que hace que empezar se note—, y una ayuda que señala un mazo que no está
  * es peor que ninguna ayuda.
  */
-export type HechoDeLasAyudas = 'tanda' | 'grab' | 'hit' | 'goal'
+export type HintFact = 'round' | 'grab' | 'hit' | 'goal'
 
 /**
  * El guion.
@@ -73,15 +73,15 @@ export type HechoDeLasAyudas = 'tanda' | 'grab' | 'hit' | 'goal'
  * ya no queda ninguna encima. La de la portería se queda, pero va **pintada en el fondo**,
  * donde un calco no puede tapar nada que resbale por encima de él.
  */
-export const GUION_DE_AYUDAS = [
-  { id: 'suelo', until: 'hit', expiresAfter: 15 },
-  { id: 'mando', from: 'tanda', until: 'grab', expiresAfter: 12 },
-  { id: 'gesto', from: 'tanda', until: 'grab', expiresAfter: 12 },
-  { id: 'porteria', from: 'grab', until: 'goal', expiresAfter: 12 },
-] as const satisfies HintScript<HechoDeLasAyudas>
+export const HINT_SCRIPT = [
+  { id: 'floor', until: 'hit', expiresAfter: 15 },
+  { id: 'controller', from: 'round', until: 'grab', expiresAfter: 12 },
+  { id: 'gesture', from: 'round', until: 'grab', expiresAfter: 12 },
+  { id: 'goal', from: 'grab', until: 'goal', expiresAfter: 12 },
+] as const satisfies HintScript<HintFact>
 
 /** Cómo se llama cada una, para que la escena no las pinte por un nombre inventado. */
-export type AyudaDelMazo = (typeof GUION_DE_AYUDAS)[number]['id']
+export type MalletHint = (typeof HINT_SCRIPT)[number]['id']
 
 /**
  * Cuáles de ellas ocupan la mesa, en vez de ir pintadas en ella o en el suelo.
@@ -91,7 +91,7 @@ export type AyudaDelMazo = (typeof GUION_DE_AYUDAS)[number]['id']
  * ella —el mazo fantasma, el modelo del mando— está en la recta que va de los ojos al disco, y
  * entonces solo vale si desaparece antes de que haya disco que seguir.
  */
-export const AYUDAS_QUE_OCUPAN_LA_MESA: readonly AyudaDelMazo[] = ['gesto', 'mando']
+export const HINTS_ON_THE_TABLE: readonly MalletHint[] = ['gesture', 'controller']
 
 /**
  * El hito a partir del cual puede moverse el disco.
@@ -101,7 +101,7 @@ export const AYUDAS_QUE_OCUPAN_LA_MESA: readonly AyudaDelMazo[] = ['gesto', 'man
  * antes que el saque. Lo comprueba el test, porque es el tipo de cosa que se rompe sola el día
  * que alguien haga que la partida arranque sin esperar a nadie.
  */
-export const HITO_ANTES_DE_QUE_SE_MUEVA_EL_DISCO = 'grab' satisfies HechoDeLasAyudas
+export const MILESTONE_BEFORE_PUCK_MOVES = 'grab' satisfies HintFact
 
 /* --- Las cotas de lo que se pinta --- */
 
@@ -116,14 +116,14 @@ export const HITO_ANTES_DE_QUE_SE_MUEVA_EL_DISCO = 'grab' satisfies HechoDeLasAy
  * Van justo detrás del borde cercano de la mesa, que el juego deja a 20 cm del origen
  * (`TABLE_CENTER_Z`), y separadas el ancho de los hombros.
  */
-export const HUELLA = { largo: 0.26, ancho: 0.1 }
-export const HUELLAS: readonly { x: number; z: number }[] = [
+export const FOOTPRINT = { length: 0.26, width: 0.1 }
+export const FOOTPRINTS: readonly { x: number; z: number }[] = [
   { x: -0.11, z: 0.03 },
   { x: 0.11, z: 0.03 },
 ]
 
 /** A qué altura se pintan las huellas sobre el suelo, antes del sesgo del rasterizado. */
-export const HUELLAS_Y = 0.005
+export const FOOTPRINTS_Y = 0.005
 
 /**
  * El empujón que hace el mazo fantasma: por dónde va, cuánto tarda y qué parte es el brazo
@@ -137,17 +137,17 @@ export const HUELLAS_Y = 0.005
  * termine **tocándolo** es la mitad de la lección: un fantasma que se para a medio camino
  * enseña a mover el mazo, no a golpear.
  */
-export const EMPUJE = {
+export const PUSH = {
   /** Lo que se recoge por detrás de donde nace el mazo, en metros. */
-  atras: 0.14,
+  back: 0.14,
   /** Lo que tarda un empujón entero, en segundos. */
-  periodo: 1.6,
+  period: 1.6,
   /** Qué parte de esa vuelta es el brazo recogiéndose. */
-  recogida: 0.62,
+  returnAt: 0.62,
 } as const
 
 /** Dónde está el disco al sacar: en el centro de la mesa. De ahí sale el final del empujón. */
-export const DISCO_AL_SACAR = { x: 0, z: 0 } as const
+export const PUCK_AT_SERVE = { x: 0, z: 0 } as const
 
 /**
  * Por dónde pasa el mazo fantasma: de más retrasado que su sitio a tocando el disco.
@@ -155,26 +155,26 @@ export const DISCO_AL_SACAR = { x: 0, z: 0 } as const
  * Los dos extremos se calculan y no se escriben: así el fantasma sigue enseñando el gesto
  * bueno el día que el mazo nazca en otro sitio o el disco cambie de tamaño.
  */
-export function recorridoDelEmpuje(): { desde: number; hasta: number } {
+export function pushTravel(): { from: number; to: number } {
   const salida = playerStart().z
-  return { desde: salida + EMPUJE.atras, hasta: DISCO_AL_SACAR.z + PUCK_RADIUS + MALLET_RADIUS }
+  return { from: salida + PUSH.back, to: PUCK_AT_SERVE.z + PUCK_RADIUS + MALLET_RADIUS }
 }
 
 /**
  * Cuánto está recogido el mazo en este momento del empujón: de 0 —tocando el disco— a 1
  * —atrás del todo—.
  */
-export function recogidaDelEmpuje(avance: number): number {
+export function pushReturn(avance: number): number {
   const paso = Math.min(1, Math.max(0, avance))
-  if (paso < EMPUJE.recogida) return paso / EMPUJE.recogida
-  return 1 - (paso - EMPUJE.recogida) / (1 - EMPUJE.recogida)
+  if (paso < PUSH.returnAt) return paso / PUSH.returnAt
+  return 1 - (paso - PUSH.returnAt) / (1 - PUSH.returnAt)
 }
 
 /** Dónde está el mazo fantasma en ese momento del empujón, en coordenadas de la mesa. */
-export function mazoFantasmaEn(avance: number): { x: number; z: number } {
-  const { desde, hasta } = recorridoDelEmpuje()
-  const recogido = recogidaDelEmpuje(avance)
-  return { x: DISCO_AL_SACAR.x, z: hasta + (desde - hasta) * recogido }
+export function ghostMalletAt(avance: number): { x: number; z: number } {
+  const { from: desde, to: hasta } = pushTravel()
+  const recogido = pushReturn(avance)
+  return { x: PUCK_AT_SERVE.x, z: hasta + (desde - hasta) * recogido }
 }
 
 /**
@@ -186,9 +186,9 @@ export function mazoFantasmaEn(avance: number): { x: number; z: number } {
  * tirando a lo más fácil de parar—, y se mete hacia dentro lo justo para no confundirse con la
  * banda del fondo.
  */
-export const MARCA_DE_PORTERIA = {
+export const GOAL_MARK = {
   /** Lo ancho de la marca: el hueco entero de la portería. */
-  ancho: GOAL_WIDTH,
+  width: GOAL_WIDTH,
   /**
    * Lo que ocupa hacia dentro de la mesa.
    *
@@ -198,7 +198,7 @@ export const MARCA_DE_PORTERIA = {
    * mesa pintadas, y encima el mazo de la máquina, que defiende justo delante, se comía la
    * mitad.
    */
-  fondo: 0.14,
+  depth: 0.14,
   /** Y a cuánto del fondo se planta su centro, dejándola entera dentro de la mesa. */
   z: -HALF_LENGTH + 0.085,
 } as const
@@ -214,13 +214,13 @@ export const MARCA_DE_PORTERIA = {
  * Se planta junto a **donde nace el mazo** (`playerStart()`), que es donde el fantasma empieza su
  * empujón y donde se va a echar la mano. A CALIBRAR CON EL VISOR: las tres cifras.
  */
-export const MANDO_JUNTO_AL_MAZO = {
+export const CONTROLLER_BESIDE_MALLET = {
   /** Cuánto se aparta del centro del mazo hacia el lado de la mano, en metros: un palmo de aire entre la punta del mando y el aro. */
-  separacion: 0.26,
+  separation: 0.26,
   /** A qué altura sobre el tablero, en metros: donde va la mano al coger el mazo. */
-  alto: 0.1,
+  height: 0.1,
   /** El mando mide unos 12 cm: a casi un metro de los ojos se agradece crecerlo. */
-  escala: 1.5,
+  scale: 1.5,
 } as const
 
 /**
@@ -233,16 +233,16 @@ export const MANDO_JUNTO_AL_MAZO = {
  * origen del espacio de quien juega, y la mesa a `TABLE_CENTER_Z` de él. El izquierdo lleva el
  * agarre en su +X, y el giro que lo pone de cara es el espejo del derecho.
  */
-export function mandoJuntoAlMazo(mano: Hand = 'right'): { posicion: { x: number; y: number; z: number }; giro: number } {
+export function controllerBesideMallet(mano: Hand = 'right'): { position: { x: number; y: number; z: number }; rotation: number } {
   const lado = mano === 'left' ? -1 : 1
   const mazo = playerStart()
-  const posicion = { x: mazo.x + lado * MANDO_JUNTO_AL_MAZO.separacion, y: MANDO_JUNTO_AL_MAZO.alto, z: mazo.z }
-  const delante = -(posicion.z + TABLE_CENTER_Z)
-  return { posicion, giro: Math.atan2(lado * delante, lado * posicion.x) }
+  const position = { x: mazo.x + lado * CONTROLLER_BESIDE_MALLET.separation, y: CONTROLLER_BESIDE_MALLET.height, z: mazo.z }
+  const delante = -(position.z + TABLE_CENTER_Z)
+  return { position: position, rotation: Math.atan2(lado * delante, lado * position.x) }
 }
 
 /** A qué altura se pinta lo que va calcado sobre la superficie de la mesa. */
-export const CALCO_Y = 0.002
+export const DECAL_Y = 0.002
 
 /**
  * Si un punto de la mesa cae dentro de ella, con el margen que se le quiera dar.
@@ -250,11 +250,11 @@ export const CALCO_Y = 0.002
  * Sirve para lo único que se puede medir sin gafas de lo que se pinta encima: que no se salga.
  * Una ayuda medio fuera de la mesa no se lee como una ayuda, se lee como un fallo.
  */
-export function sobreLaMesa(punto: { x: number; z: number }, margen = 0): boolean {
+export function onTheTable(punto: { x: number; z: number }, margen = 0): boolean {
   return Math.abs(punto.x) <= HALF_WIDTH + margen && Math.abs(punto.z) <= HALF_LENGTH + margen
 }
 
 /** Y si cae en la mitad del jugador, que es por donde el mazo puede andar. */
-export function enElCampoDelJugador(punto: { x: number; z: number }): boolean {
-  return sobreLaMesa(punto) && punto.z >= 0
+export function inPlayerHalf(punto: { x: number; z: number }): boolean {
+  return onTheTable(punto) && punto.z >= 0
 }

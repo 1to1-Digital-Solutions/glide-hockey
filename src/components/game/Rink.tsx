@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useXR } from '@react-three/xr'
 import { useFrame, type RootState, type ThreeEvent } from '@react-three/fiber'
-import { sucesosDelFotograma, type Handedness, type SucesoEnLaMano } from '../../lib/haptics'
+import { frameEvents, type Handedness, type HandEvent } from '../../lib/haptics'
 import { Vector3, type Group, type PointLight, type Texture } from 'three'
 import type { RefObject } from 'react'
-import { FUERZA_DEL_GOL_EN_CONTRA, direccionDelGolEnContra } from '../../lib/goalAgainst'
+import { GOAL_AGAINST_STRENGTH, goalAgainstDirection } from '../../lib/goalAgainst'
 import type { HitFeedbackHandle } from '../xr/HitFeedback'
 import {
   OPPONENT_SKILLS,
@@ -60,10 +60,10 @@ import { MalletHand } from './MalletHand'
 export function Rink({
   play,
   slide,
-  sentir,
+  feel: sentir,
   onHand,
   environment,
-  golpeRecibido,
+  hitFeedback: golpeRecibido,
 }: {
   play: PlayGameSound
   /**
@@ -73,7 +73,7 @@ export function Rink({
    */
   slide: (speed: number) => void
   /** Lo que se siente en la mano: el golpe del mazo al disco y el gol (`useGameHaptics`). */
-  sentir?: (suceso: SucesoEnLaMano) => void
+  feel?: (suceso: HandEvent) => void
   /** Qué mano lleva el mazo en el visor, o `null` al soltarlo (`useGameHaptics`). */
   onHand?: (mano: Handedness | null) => void
   /** Los reflejos de la sala para el disco, los mismos que lleva el tablero. */
@@ -82,11 +82,11 @@ export function Rink({
    * El golpe que recibe el cuerpo (`GolpeRecibido`, montado en `GameWorld`): se dispara con el
    * gol en contra y frena el reloj de la mesa mientras dura su cámara lenta.
    */
-  golpeRecibido?: RefObject<HitFeedbackHandle | null>
+  hitFeedback?: RefObject<HitFeedbackHandle | null>
 }) {
   const {
-    apuntarHito,
-    apuntarHazana,
+    recordMilestone: apuntarHito,
+    recordFeat: apuntarHazana,
     gameState,
     prompt,
     activeDifficulty,
@@ -94,7 +94,7 @@ export function Rink({
     scoreOpponent,
     scorePlayer,
     setMalletHeld,
-    esperandoElMazo,
+    waitingForMallet: esperandoElMazo,
     seed,
   } = useGame()
 
@@ -176,7 +176,7 @@ export function Rink({
     table.current = next
 
     // Cómo entró cada gol, si fue una hazaña: se apunta a la partida y se cuenta al salón al final.
-    for (const hazana of fotograma.hazanas) apuntarHazana(hazana)
+    for (const hazana of fotograma.feats) apuntarHazana(hazana)
     for (const goal of goals) {
       if (goal === 'player') scorePlayer()
       else {
@@ -195,7 +195,7 @@ export function Rink({
     if (goals.length > 0) play('goal')
     // Y lo que se siente, que no es lo mismo que lo que se oye: el golpe de la máquina y el
     // rebote en la banda suenan, pero no los toca la mano (`sucesosDelFotograma`).
-    if (sentir != null) for (const suceso of sucesosDelFotograma(golpesAntes, fotograma)) sentir(suceso)
+    if (sentir != null) for (const suceso of frameEvents(golpesAntes, fotograma)) sentir(suceso)
 
     // Y el gol en contra, como golpe recibido, **después** de la vibración del gol: `pulse()` no
     // encola y cada pulso corta al anterior, así que el largo del golpe en las dos manos es el
@@ -204,7 +204,7 @@ export function Rink({
     const rinkAhora = rink.current
     if (goals.includes('opponent') && rinkAhora != null) {
       const ojos = rinkAhora.worldToLocal(state.camera.getWorldPosition(headPoint.current))
-      golpeRecibido?.current?.hit(FUERZA_DEL_GOL_EN_CONTRA, direccionDelGolEnContra(ojos))
+      golpeRecibido?.current?.hit(GOAL_AGAINST_STRENGTH, goalAgainstDirection(ojos))
     }
 
     // El disco deslizándose se oye y se ve según lo rápido que va; parado, o
@@ -273,7 +273,7 @@ export function Rink({
       {enSesion ? (
         <MalletHand
           rink={rink}
-          destino={pointer}
+          target={pointer}
           onMove={(destino, cogido, lado) => {
             pointer.current = destino
             enLaMano.current = cogido
@@ -295,7 +295,7 @@ export function Rink({
         ref={playerObject}
         color={PALETTE.primary}
         environment={environment}
-        resaltado={esperandoElMazo}
+        highlighted={esperandoElMazo}
       />
       <Mallet ref={opponentObject} color={PALETTE.rival} environment={environment} />
 

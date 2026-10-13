@@ -33,9 +33,9 @@ export type PlayGameSound = (sound: GameSound, strength?: number) => void
 export type SlidePuck = (speed: number) => void
 
 /** El corte del paso bajo del bus, en hercios: el oído tapado de un golpe recibido. */
-export type FiltrarBus = (hz: number) => void
+export type FilterBus = (hz: number) => void
 
-export function useGameAudio(): { play: PlayGameSound; slide: SlidePuck; filtrar: FiltrarBus } {
+export function useGameAudio(): { play: PlayGameSound; slide: SlidePuck; filter: FilterBus } {
   const { muted, sfxVolume } = useGame()
   const audio = useRef<GlideHockeyAudio | null>(null)
 
@@ -93,9 +93,9 @@ export function useGameAudio(): { play: PlayGameSound; slide: SlidePuck; filtrar
 
   // El filtro del golpe recibido va al mismo bus, silenciado o no: sin audio
   // abierto no hay nada que tapar, y el motor que se abra después nace abierto.
-  const filtrar = useCallback((hz: number) => {
+  const filter = useCallback((hz: number) => {
     audio.current?.setLowpass(hz)
   }, [])
 
-  return useMemo(() => ({ play, slide, filtrar }), [play, slide, filtrar])
+  return useMemo(() => ({ play, slide, filter }), [play, slide, filter])
 }

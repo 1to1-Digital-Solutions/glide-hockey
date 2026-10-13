@@ -3,7 +3,7 @@ import {
   PLAYER_MALLET_SPEED,
   type OpponentSkill,
 } from './gameConfig'
-import { JUGADA_NUEVA, hazanaDelGol, tocar, type Hazana, type Jugada } from './feats'
+import { NEW_POSSESSION, goalFeat, touch, type Feat, type Possession } from './feats'
 import { opponentStart, playerStart, stepOpponent } from './opponent'
 import {
   NO_IMPACT,
@@ -120,7 +120,7 @@ export interface TableState {
    * Cómo va la jugada desde el último saque (quién tocó el último, cuántas veces y desde dónde):
    * es lo que dice si un gol es una hazaña (`hazanas.ts`).
    */
-  jugada: Jugada
+  possession: Possession
 }
 
 /** La mesa recién puesta: el disco en el centro y cada mazo en su sitio. */
@@ -155,7 +155,7 @@ export function startTable({
     plays: 0,
     opponentHits: 0,
     leftover: 0,
-    jugada: JUGADA_NUEVA,
+    possession: NEW_POSSESSION,
   }
 }
 
@@ -202,7 +202,7 @@ export interface FrameResult {
   /** Con qué fuerza: el golpe y el rebote más fuertes del fotograma, en m/s. */
   impact: Impact
   /** Las hazañas de los goles del fotograma, en orden (`hazanaDelGol`). */
-  hazanas: readonly Hazana[]
+  feats: readonly Feat[]
 }
 
 /**
@@ -222,7 +222,7 @@ export function advanceTable(
   input: FrameInput,
 ): FrameResult {
   const elapsed = frameSeconds(input.delta)
-  if (elapsed === 0) return { table, goals: [], struck: false, bounced: false, impact: NO_IMPACT, hazanas: [] }
+  if (elapsed === 0) return { table, goals: [], struck: false, bounced: false, impact: NO_IMPACT, feats: [] }
 
   // Se juegan los pasos enteros que caben en lo acumulado y lo que sobra espera
   // al fotograma siguiente. Como `elapsed` viene topado, el número de pasos
@@ -236,7 +236,7 @@ export function advanceTable(
     leftover: pending - steps * STEP_SECONDS,
   }
   const goals: Scorer[] = []
-  const hazanas: Hazana[] = []
+  const feats: Feat[] = []
   let struck = false
   let bounced = false
   let impact: Impact = NO_IMPACT
@@ -253,13 +253,13 @@ export function advanceTable(
     const step = advanceStep(current, input, STEP_SECONDS, camino(manoDesde, input, repartido / pending, (i + 1) / steps))
     current = step.table
     if (step.goal != null) goals.push(step.goal)
-    if (step.hazana != null) hazanas.push(step.hazana)
+    if (step.feat != null) feats.push(step.feat)
     struck = struck || step.struck
     bounced = bounced || step.bounced
     impact = strongerImpact(impact, step.impact)
   }
 
-  return { table: current, goals, struck, bounced, impact, hazanas }
+  return { table: current, goals, struck, bounced, impact, feats: feats }
 }
 
 /** Lo que deja un paso de simulación, además de la mesa. */
@@ -269,11 +269,11 @@ interface StepOutcome {
   struck: boolean
   bounced: boolean
   impact: Impact
-  hazana: Hazana | null
+  feat: Feat | null
 }
 
 /** Un paso en el que no pasa nada digno de contarse. */
-const QUIET = { goal: null, struck: false, bounced: false, impact: NO_IMPACT, hazana: null } as const
+const QUIET = { goal: null, struck: false, bounced: false, impact: NO_IMPACT, feat: null } as const
 
 /**
  * Hasta dónde ha llegado la mano en el paso `parte` de los de este fotograma.
@@ -318,7 +318,7 @@ function advanceStep(
         puck: saca ? serve(table.pendingServe) : table.puck,
         plays: saca ? table.plays + 1 : table.plays,
         opponentHits: saca ? 0 : table.opponentHits,
-        jugada: saca ? JUGADA_NUEVA : table.jugada,
+        possession: saca ? NEW_POSSESSION : table.possession,
       },
       ...QUIET,
     }
@@ -350,9 +350,9 @@ function advanceStep(
   // del jugador que del de la máquina.
   const struck = result.struckBy.length > 0
   // Quién ha tocado el disco en este paso, con el disco donde estaba al tocarlo.
-  const jugada = result.struckBy.reduce<Jugada>(
-    (antes, mazo) => tocar(antes, mazo === PLAYER_MALLET ? 'player' : 'opponent', table.puck.position.z),
-    table.jugada,
+  const possession = result.struckBy.reduce<Possession>(
+    (antes, mazo) => touch(antes, mazo === PLAYER_MALLET ? 'player' : 'opponent', table.puck.position.z),
+    table.possession,
   )
 
   if (result.goal != null) {
@@ -368,13 +368,13 @@ function advanceStep(
         pendingServe: result.goal,
         playerHits,
         opponentHits,
-        jugada: JUGADA_NUEVA,
+        possession: NEW_POSSESSION,
       },
       goal: result.goal,
       struck,
       bounced: result.bounced,
       impact: result.impact,
-      hazana: hazanaDelGol(jugada, result.goal),
+      feat: goalFeat(possession, result.goal),
     }
   }
 
@@ -399,13 +399,13 @@ function advanceStep(
       // Sacar de nuevo abre jugada, lo mismo que sacar tras un gol.
       plays: reserve ? table.plays + 1 : table.plays,
       opponentHits: reserve ? 0 : opponentHits,
-      jugada: reserve ? JUGADA_NUEVA : jugada,
+      possession: reserve ? NEW_POSSESSION : possession,
     },
     goal: null,
     struck,
     bounced: result.bounced,
     impact: result.impact,
-    hazana: null,
+    feat: null,
   }
 }
 

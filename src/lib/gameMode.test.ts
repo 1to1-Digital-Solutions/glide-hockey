@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ENDLESS, filasDelModo, isEndless, runOutcome } from './gameMode'
+import { ENDLESS, modeRows, isEndless, runOutcome } from './gameMode'
 
 describe('cómo acaba una partida', () => {
   it('sigue viva mientras nadie llegue a los goles pactados', () => {
@@ -31,23 +31,23 @@ describe('cómo acaba una partida', () => {
 })
 
 describe('las filas del menú en cada modo (la plantilla común)', () => {
-  const filas = (modo: Parameters<typeof filasDelModo>[0], masOpciones: boolean) => [...filasDelModo(modo, masOpciones).filas]
+  const filas = (modo: Parameters<typeof modeRows>[0], masOpciones: boolean) => [...modeRows(modo, masOpciones).rows]
 
   it('plegado: el modo y, en los niveles, cuál; lo demás, detrás de «Más opciones»', () => {
-    expect(filas('practice', false)).toEqual(['modo'])
-    expect(filas('levels', false)).toEqual(['modo', 'goles'])
-    expect(filas('duel', false)).toEqual(['modo'])
-    for (const modo of ['practice', 'levels', 'duel'] as const) expect(filasDelModo(modo, false).plegable, modo).toBe(true)
+    expect(filas('practice', false)).toEqual(['mode'])
+    expect(filas('levels', false)).toEqual(['mode', 'goals'])
+    expect(filas('duel', false)).toEqual(['mode'])
+    for (const modo of ['practice', 'levels', 'duel'] as const) expect(modeRows(modo, false).foldable, modo).toBe(true)
   })
 
   it('desplegado: lo de la práctica, el decorado y el confort', () => {
-    expect(filas('practice', true)).toEqual(['modo', 'maquina', 'goles', 'ajustes'])
-    expect(filas('levels', true)).toEqual(['modo', 'goles', 'ajustes'])
-    expect(filas('duel', true)).toEqual(['modo', 'ajustes'])
+    expect(filas('practice', true)).toEqual(['mode', 'machine', 'goals', 'settings'])
+    expect(filas('levels', true)).toEqual(['mode', 'goals', 'settings'])
+    expect(filas('duel', true)).toEqual(['mode', 'settings'])
   })
 
   it('el reto es una partida fija: nada plegado y sin botón, aunque se pida', () => {
-    expect(filas('challenge', true)).toEqual(['modo'])
-    expect(filasDelModo('challenge', false).plegable).toBe(false)
+    expect(filas('challenge', true)).toEqual(['mode'])
+    expect(modeRows('challenge', false).foldable).toBe(false)
   })
 })

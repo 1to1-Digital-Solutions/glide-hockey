@@ -25,22 +25,22 @@ import type { Hand } from '@/lib/settings'
 import { HINT_MARK_COLOR, THROB, moveToward, advanceHints, throb, sweepPhase, noHints } from '@/lib/hints'
 import { MALLET_RADIUS } from '@/lib/gameConfig'
 import {
-  CALCO_Y,
-  EMPUJE,
-  GUION_DE_AYUDAS,
-  HUELLA,
-  HUELLAS,
-  HUELLAS_Y,
-  MANDO_JUNTO_AL_MAZO,
-  MARCA_DE_PORTERIA,
-  mandoJuntoAlMazo,
-  mazoFantasmaEn,
-  type AyudaDelMazo,
-  type HechoDeLasAyudas,
+  DECAL_Y,
+  PUSH,
+  HINT_SCRIPT,
+  FOOTPRINT,
+  FOOTPRINTS,
+  FOOTPRINTS_Y,
+  CONTROLLER_BESIDE_MALLET,
+  GOAL_MARK,
+  controllerBesideMallet,
+  ghostMalletAt,
+  type MalletHint,
+  type HintFact,
 } from '@/lib/hintScript'
 
 /** Lo transparente que llega a ponerse cada ayuda encendida del todo (`OPACIDAD` de `Ayudas.tsx`). */
-export const OPACIDAD_DE_LA_AYUDA = { suelo: 0.75, gesto: 0.7, porteria: 0.72 } as const
+export const OPACIDAD_DE_LA_AYUDA = { floor: 0.75, gesture: 0.7, goal: 0.72 } as const
 
 /** Lo que mide el mazo fantasma: el aro al radio del mazo de verdad y un apunte de mango (`FANTASMA`). */
 export const FANTASMA = { grosor: 0.008, mango: { radio: 0.02, alto: 0.05 } } as const
@@ -54,8 +54,8 @@ const APAGADA = 0.004
  * agarre de cara a los ojos.
  */
 export function juntoAlMazo(mano: Hand = 'right'): { posicion: Vector3; giro: number; escala: number } {
-  const { posicion, giro } = mandoJuntoAlMazo(mano)
-  return { posicion: new Vector3(posicion.x, posicion.y, posicion.z), giro, escala: MANDO_JUNTO_AL_MAZO.escala }
+  const { position: posicion, rotation: giro } = controllerBesideMallet(mano)
+  return { posicion: new Vector3(posicion.x, posicion.y, posicion.z), giro, escala: CONTROLLER_BESIDE_MALLET.scale }
 }
 
 /** Lo que las ayudas necesitan saber de la partida, cada fotograma. */
@@ -63,12 +63,12 @@ export interface MomentoDeLasAyudas {
   /** Con el visor puesto (o forzadas en plano): sin eso, no se enseñan ni corren sus plazos. */
   dando: boolean
   /** Lo hecho: la partida en marcha, el mazo en la mano, el primer golpe y el primer gol. */
-  hechos: Readonly<Record<HechoDeLasAyudas, boolean>>
+  hechos: Readonly<Record<HintFact, boolean>>
 }
 
 export class AyudasDelJuego {
   private readonly estado = noHints()
-  private readonly fuerzas: Record<AyudaDelMazo, number> = { suelo: 0, mando: 0, gesto: 0, porteria: 0 }
+  private readonly fuerzas: Record<MalletHint, number> = { floor: 0, controller: 0, gesture: 0, goal: 0 }
   private readonly huellas: { nodo: MeshInstance3D; material: StandardMaterial3D }[] = []
   readonly fantasma = new Node3D()
   private readonly pinturaDelFantasma: StandardMaterial3D[] = []
@@ -85,11 +85,11 @@ export class AyudasDelJuego {
     /** El mando de verdad junto al mazo fantasma, ya plantado con `juntoAlMazo()`, o nada. */
     readonly mando: RealController | null = null,
   ) {
-    for (const h of HUELLAS) {
+    for (const h of FOOTPRINTS) {
       // Una huella es un óvalo: el círculo de doce lados estirado a lo largo del pie.
       const material = translucent(HINT_MARK_COLOR, 0, 3)
-      const nodo = layFlat(mesh(flatMesh(arcTriangles(0, 1, 0, Math.PI * 2, 12)), material), h.x, HUELLAS_Y, h.z)
-      nodo.scale = new Vector3(HUELLA.ancho / 2, HUELLA.largo / 2, 1)
+      const nodo = layFlat(mesh(flatMesh(arcTriangles(0, 1, 0, Math.PI * 2, 12)), material), h.x, FOOTPRINTS_Y, h.z)
+      nodo.scale = new Vector3(FOOTPRINT.width / 2, FOOTPRINT.length / 2, 1)
       nodo.visible = false
       suelo.add_child(nodo)
       this.huellas.push({ nodo, material })
@@ -105,14 +105,14 @@ export class AyudasDelJuego {
       return m
     }
     const anilla = hoop(MALLET_RADIUS, FANTASMA.grosor, pintura(), 24)
-    anilla.position = new Vector3(0, CALCO_Y, 0)
+    anilla.position = new Vector3(0, DECAL_Y, 0)
     this.fantasma.add_child(anilla)
     this.fantasma.add_child(cylinder(FANTASMA.mango.radio, FANTASMA.mango.radio, FANTASMA.mango.alto, pintura(), new Vector3(0, FANTASMA.mango.alto / 2, 0), 10))
     mesa.add_child(this.fantasma)
 
     // La marca de la portería contraria, calcada en el fondo: por ahí pasa el disco.
     this.pinturaDeLaPorteria = translucent(HINT_MARK_COLOR, 0, 4)
-    this.porteria = layFlat(quad(MARCA_DE_PORTERIA.ancho, MARCA_DE_PORTERIA.fondo, this.pinturaDeLaPorteria), 0, CALCO_Y, MARCA_DE_PORTERIA.z)
+    this.porteria = layFlat(quad(GOAL_MARK.width, GOAL_MARK.depth, this.pinturaDeLaPorteria), 0, DECAL_Y, GOAL_MARK.z)
     this.porteria.set_name('MarcaDeLaPorteria')
     this.porteria.visible = false
     mesa.add_child(this.porteria)
@@ -121,7 +121,7 @@ export class AyudasDelJuego {
   }
 
   /** Lo que se ve de cada ayuda ahora mismo, de 0 a 1. */
-  get fuerza(): Readonly<Record<AyudaDelMazo, number>> {
+  get fuerza(): Readonly<Record<MalletHint, number>> {
     return this.fuerzas
   }
 
@@ -133,9 +133,9 @@ export class AyudasDelJuego {
   actualizar(delta: number, momento: MomentoDeLasAyudas): void {
     this.reloj += delta
     const { dando } = momento
-    const paso = advanceHints(GUION_DE_AYUDAS, momento.hechos, this.estado, dando ? delta : 0)
+    const paso = advanceHints(HINT_SCRIPT, momento.hechos, this.estado, dando ? delta : 0)
     let alguna = false
-    for (const ayuda of GUION_DE_AYUDAS) {
+    for (const ayuda of HINT_SCRIPT) {
       const quiere = dando && paso.lit.has(ayuda.id) ? 1 : 0
       this.fuerzas[ayuda.id] = moveToward(this.fuerzas[ayuda.id], quiere, delta)
       if (this.fuerzas[ayuda.id] > APAGADA) alguna = true
@@ -146,29 +146,29 @@ export class AyudasDelJuego {
     const pulso = throb(this.reloj, THROB.strength)
 
     // Las huellas, latiendo: es lo que las separa de una mancha de la moqueta.
-    const suelo = this.fuerzas.suelo
+    const suelo = this.fuerzas.floor
     for (const h of this.huellas) {
       h.nodo.visible = suelo > APAGADA
-      opacidad(h.material, suelo * OPACIDAD_DE_LA_AYUDA.suelo * pulso)
+      opacidad(h.material, suelo * OPACIDAD_DE_LA_AYUDA.floor * pulso)
     }
 
     // El mazo fantasma, dando su empujón: se recoge despacio y empuja deprisa hasta tocar el disco.
-    const gesto = this.fuerzas.gesto
+    const gesto = this.fuerzas.gesture
     this.fantasma.visible = gesto > APAGADA
-    const donde = mazoFantasmaEn(sweepPhase(this.reloj, EMPUJE.periodo).progress)
+    const donde = ghostMalletAt(sweepPhase(this.reloj, PUSH.period).progress)
     this.fantasma.position = new Vector3(donde.x, 0, donde.z)
-    for (const m of this.pinturaDelFantasma) opacidad(m, gesto * OPACIDAD_DE_LA_AYUDA.gesto * pulso)
+    for (const m of this.pinturaDelFantasma) opacidad(m, gesto * OPACIDAD_DE_LA_AYUDA.gesture * pulso)
 
     // La marca de la portería **no late**: se queda mientras se juega, y algo que palpita mientras
     // el disco cruza la mesa roba la mirada justo cuando hace falta en otro sitio.
-    const porteria = this.fuerzas.porteria
+    const porteria = this.fuerzas.goal
     this.porteria.visible = porteria > APAGADA
-    opacidad(this.pinturaDeLaPorteria, porteria * OPACIDAD_DE_LA_AYUDA.porteria)
+    opacidad(this.pinturaDeLaPorteria, porteria * OPACIDAD_DE_LA_AYUDA.goal)
 
     // El mando se apaga escondiéndolo, no desmontándolo: volver a enseñarlo recompilaría el modelo.
     const mando = this.mando
     if (mando != null) {
-      if (this.fuerzas.mando > APAGADA) {
+      if (this.fuerzas.controller > APAGADA) {
         mando.encender('agarre')
         mando.actualizar(delta)
       } else mando.apagar()
@@ -176,13 +176,13 @@ export class AyudasDelJuego {
   }
 
   /** Lo que de verdad se ve: las ayudas con algo pintado ahora mismo. */
-  visibles(): AyudaDelMazo[] {
-    const visible: Record<AyudaDelMazo, boolean> = {
-      suelo: this.huellas.some((h) => h.nodo.visible),
-      mando: this.mando?.visible ?? false,
-      gesto: this.fantasma.visible,
-      porteria: this.porteria.visible,
+  visibles(): MalletHint[] {
+    const visible: Record<MalletHint, boolean> = {
+      floor: this.huellas.some((h) => h.nodo.visible),
+      controller: this.mando?.visible ?? false,
+      gesture: this.fantasma.visible,
+      goal: this.porteria.visible,
     }
-    return GUION_DE_AYUDAS.map((a) => a.id).filter((id) => visible[id])
+    return HINT_SCRIPT.map((a) => a.id).filter((id) => visible[id])
   }
 }

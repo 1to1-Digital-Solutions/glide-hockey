@@ -27,7 +27,7 @@ const REFERENCIA := 1.6
 const PASO_DE_GIRO := PI / 6
 const MAX_FRAMES := 72 * 180
 const PERFIL_DE_OPENXR := "/interaction_profiles/oculus/touch_controller"
-const AYUDAS := ["suelo", "mando", "gesto", "porteria"]
+const AYUDAS := ["floor", "controller", "gesture", "goal"]
 
 const CASOS := [
 	{

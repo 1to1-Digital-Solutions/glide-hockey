@@ -10,7 +10,7 @@ import { isPinching } from '../../lib/pinch'
 import { useEffect, useRef } from 'react'
 import { Vector3, type Group, type Object3D } from 'three'
 
-import { siguienteAgarre, type ManoEnLaMesa } from '../../lib/malletGrab'
+import { nextGrab, type HandOnTable } from '../../lib/malletGrab'
 import { markHandBusy, releaseHands } from '../xr/busyHands'
 import { constrainMallet, type Vec2 } from '../../lib/puckPhysics'
 import { useGame } from '../../lib/gameStore'
@@ -31,7 +31,7 @@ import { useGame } from '../../lib/gameStore'
  */
 export function MalletHand({
   rink,
-  destino,
+  target: destino,
   onMove,
   onRelease,
 }: {
@@ -41,7 +41,7 @@ export function MalletHand({
    * Dónde va el mazo ahora mismo. Es el mismo dato que mueve la mesa, no una copia: si
    * fueran dos, coger el mazo se mediría contra un mazo que no es el que se ve.
    */
-  destino: React.RefObject<Vec2>
+  target: React.RefObject<Vec2>
   /**
    * A dónde va el mazo, ya dentro de los límites de la mesa, que va cogido y con qué mano: es lo
    * que decide en qué mando vibra el golpe (`useGameHaptics`).
@@ -50,7 +50,7 @@ export function MalletHand({
   /** Se ha soltado: el mazo vuelve a perseguir en vez de ir en la mano. */
   onRelease: () => void
 }) {
-  const { apuntarHito } = useGame()
+  const { recordMilestone: apuntarHito } = useGame()
   const izquierda = useXRInputSourceState('controller', 'left')
   const derecha = useXRInputSourceState('controller', 'right')
   // Y las manos desnudas, que son el otro modo de entrada del visor: sin esto, quien no
@@ -83,7 +83,7 @@ export function MalletHand({
     // avanza una vez por lado y por fotograma, o el flanco que enciende «un toque» se
     // contaría dos veces y el mazo se cogería y se soltaría en el mismo gesto.
     const conMando = izquierda?.object != null || derecha?.object != null
-    let enLaMesa: ManoEnLaMesa | null = null
+    let enLaMesa: HandOnTable | null = null
     // De qué lado es la mano que manda este fotograma: es lo que apaga el rayo de ESE mando
     // y no el del otro (ver `xr/manosOcupadas.ts`).
     let lado: 'left' | 'right' | null = null
@@ -104,8 +104,8 @@ export function MalletHand({
         )
         lado = mano === izquierda ? 'left' : 'right'
         enLaMesa = {
-          posicion: { x: local.x, z: local.z },
-          agarrando: sujeta[lado],
+          position: { x: local.x, z: local.z },
+          grabbing: sujeta[lado],
         }
       }
     } else {
@@ -119,35 +119,35 @@ export function MalletHand({
       }
       const sujeta = pasarElEnganche(
         enganche.current,
-        { left: leidas.left?.agarrando ?? false, right: leidas.right?.agarrando ?? false },
+        { left: leidas.left?.grabbing ?? false, right: leidas.right?.grabbing ?? false },
         agarre,
       )
       for (const lado_ of ['left', 'right'] as const) {
         const leida = leidas[lado_]
         if (leida == null) continue
-        const conAgarre = { ...leida, agarrando: sujeta[lado_] }
+        const conAgarre = { ...leida, grabbing: sujeta[lado_] }
         // La que esté agarrando manda; si ninguna, vale la primera que haya para saber si
         // está encima del mazo cuando pellizque.
-        if (conAgarre.agarrando || enLaMesa == null) {
+        if (conAgarre.grabbing || enLaMesa == null) {
           enLaMesa = conAgarre
           lado = lado_
         }
       }
     }
 
-    const siguiente = siguienteAgarre(
-      { cogido: cogido.current, destino: destino.current },
+    const siguiente = nextGrab(
+      { held: cogido.current, target: destino.current },
       enLaMesa,
     )
-    const soltado = cogido.current && !siguiente.cogido
-    cogido.current = siguiente.cogido
+    const soltado = cogido.current && !siguiente.held
+    cogido.current = siguiente.held
     // Con el mazo en la mano, el rayo de ese mando se apaga: apuntar a la pared mientras se
     // sostiene algo es justo lo contrario de lo que está pasando.
     // El primer paso del tutorial se supera cogiendo el mazo de verdad.
-    if (siguiente.cogido) apuntarHito('grab')
-    markHandBusy('left', siguiente.cogido && lado === 'left')
-    markHandBusy('right', siguiente.cogido && lado === 'right')
-    if (siguiente.cogido) onMove(constrainMallet(siguiente.destino, 'player'), true, lado)
+    if (siguiente.held) apuntarHito('grab')
+    markHandBusy('left', siguiente.held && lado === 'left')
+    markHandBusy('right', siguiente.held && lado === 'right')
+    if (siguiente.held) onMove(constrainMallet(siguiente.target, 'player'), true, lado)
     else if (soltado) onRelease()
   })
 
@@ -217,7 +217,7 @@ function leerLaMano(
   pellizcando: { left: boolean; right: boolean },
   mesa: Group,
   punto: Vector3,
-): ManoEnLaMesa | null {
+): HandOnTable | null {
   const articulaciones = estado?.inputSource.hand
   if (articulaciones == null || frame == null || referenceSpace == null) return null
 
@@ -241,12 +241,12 @@ function leerLaMano(
         )
 
   const lado = estado?.inputSource.handedness === 'left' ? 'left' : 'right'
-  const agarrando = isPinching(separacion, pellizcando[lado])
-  pellizcando[lado] = agarrando
+  const grabbing = isPinching(separacion, pellizcando[lado])
+  pellizcando[lado] = grabbing
 
   const { position } = posePalma.transform
   punto.set(position.x, position.y, position.z)
   if (origin != null) origin.localToWorld(punto)
   mesa.worldToLocal(punto)
-  return { posicion: { x: punto.x, z: punto.z }, agarrando }
+  return { position: { x: punto.x, z: punto.z }, grabbing: grabbing }
 }

@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { Euler, InstancedMesh, Matrix4, Quaternion, Vector3 } from 'three'
-import { NEONES_DEL_FONDO } from '../../lib/scoreboardSign'
+import { BACK_NEONS } from '../../lib/scoreboardSign'
 import { TABLE_CENTER_Z } from '../../lib/gameConfig'
 import { PALETTE } from '../../lib/palette'
 
@@ -270,9 +270,9 @@ export function Room() {
 
       {/* Los neones de la pared del fondo: dos rayas de luz, que es lo que se
           ve al levantar la vista en un recreativo. */}
-      {NEONES_DEL_FONDO.tiras.map((neon, i) => (
+      {BACK_NEONS.strips.map((neon, i) => (
         <mesh key={neon.y} position={[0, neon.y, centre - ROOM_DEPTH / 2 + 0.03]}>
-          <planeGeometry args={[neon.ancho, NEONES_DEL_FONDO.grueso]} />
+          <planeGeometry args={[neon.width, BACK_NEONS.thickness]} />
           <meshBasicMaterial color={NEON_COLORS[i]} toneMapped={false} />
         </mesh>
       ))}

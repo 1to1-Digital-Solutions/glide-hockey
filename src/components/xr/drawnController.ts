@@ -17,12 +17,12 @@ import type { ControllerButton } from '../../lib/tutorial'
  */
 
 /** Lo que mide el dibujo, en metros: alto del mando de aro a base. */
-export const ALTO_DEL_MANDO = 0.18
+export const CONTROLLER_HEIGHT = 0.18
 
 /** Colores del trazo: el mando apagado y el botón que toca. */
-export interface ColoresDelMando {
-  readonly cuerpo: string
-  readonly resaltado: string
+export interface ControllerColors {
+  readonly body: string
+  readonly highlight: string
 }
 
 /** Dónde cae cada botón dentro del dibujo, en fracción de su alto desde el centro. */
@@ -39,18 +39,18 @@ const BOTONES: Record<ControllerButton, { x: number; y: number; r: number }> = {
  * El trazo se escala con `ALTO_DEL_MANDO`, así que cambiar ese número cambia el dibujo
  * entero sin tocar ninguna cuenta de aquí.
  */
-export function dibujarMando(
+export function drawController(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   boton: ControllerButton | null,
-  colores: ColoresDelMando,
+  colores: ControllerColors,
 ): void {
-  const u = ALTO_DEL_MANDO
+  const u = CONTROLLER_HEIGHT
   ctx.save()
   ctx.translate(x, y)
   ctx.lineWidth = u * 0.045
-  ctx.strokeStyle = colores.cuerpo
+  ctx.strokeStyle = colores.body
   ctx.lineJoin = 'round'
   ctx.lineCap = 'round'
 
@@ -73,13 +73,13 @@ export function dibujarMando(
     const encendido = nombre === boton
     ctx.beginPath()
     ctx.arc(sitio.x * u, sitio.y * u, sitio.r * u * (encendido ? 1.6 : 1), 0, Math.PI * 2)
-    ctx.fillStyle = encendido ? colores.resaltado : colores.cuerpo
+    ctx.fillStyle = encendido ? colores.highlight : colores.body
     ctx.fill()
     // Y un halo alrededor del que toca: a un metro, un punto un poco más gordo no se ve.
     if (!encendido) continue
     ctx.beginPath()
     ctx.arc(sitio.x * u, sitio.y * u, sitio.r * u * 2.8, 0, Math.PI * 2)
-    ctx.strokeStyle = colores.resaltado
+    ctx.strokeStyle = colores.highlight
     ctx.lineWidth = u * 0.035
     ctx.stroke()
   }

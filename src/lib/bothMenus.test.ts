@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SCENERIES } from './settings'
-import { GAME_MODE_ORDER, MODOS_DEL_MENU } from './gameMode'
+import { GAME_MODE_ORDER, MENU_MODE_ORDER } from './gameMode'
 import { MENU_BOXES, MENU_BUTTON, MENU_PANEL } from './xrMenuLayout'
 
 /**
@@ -30,17 +30,17 @@ describe('los modos, en los dos menús', () => {
   // dentro del visor, que es donde el duelo se juega pasándose el mando.
   it('cada modo tiene su botón en el panel del visor, el duelo también', () => {
     expect(GAME_MODE_ORDER).toContain('duel')
-    for (const mode of GAME_MODE_ORDER) expect(MENU_BOXES[`modo ${mode}`], mode).toBeDefined()
+    for (const mode of GAME_MODE_ORDER) expect(MENU_BOXES[`mode ${mode}`], mode).toBeDefined()
   })
 
   it('y caben en la fila sin pisarse ni salirse del panel', () => {
-    const xs = MODOS_DEL_MENU.map((mode) => MENU_BOXES[`modo ${mode}`].position[0])
+    const xs = MENU_MODE_ORDER.map((mode) => MENU_BOXES[`mode ${mode}`].position[0])
     const ancho = MENU_BUTTON.mode[0]
     for (let i = 1; i < xs.length; i += 1) expect(xs[i] - xs[i - 1]).toBeGreaterThan(ancho)
     expect(Math.max(...xs.map(Math.abs)) + ancho / 2).toBeLessThan(MENU_PANEL.width / 2)
   })
 
   it('con el reto, el que da medalla, el primero de la fila; los demás, en su orden', () => {
-    expect(MODOS_DEL_MENU).toEqual(['challenge', 'practice', 'levels', 'duel'])
+    expect(MENU_MODE_ORDER).toEqual(['challenge', 'practice', 'levels', 'duel'])
   })
 })

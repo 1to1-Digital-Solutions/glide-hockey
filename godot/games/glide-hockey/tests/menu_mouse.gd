@@ -86,7 +86,7 @@ func _process(_delta: float) -> void:
 				failures.append("el menú abre en %s y no en el reto" % game.modo_de_la_partida())
 			if game.cartel_visible():
 				failures.append("el cartel del objetivo se ve en el menú")
-			apretado_en = mover("jugar")
+			apretado_en = mover("play")
 			boton(apretado_en, true)
 		1:
 			boton(apretado_en, false)
@@ -108,14 +108,14 @@ func _process(_delta: float) -> void:
 			boton(apretado_en, false)
 		5:
 			esperar("menu", "tras dejar el reto")
-			apretado_en = mover("modo levels")
+			apretado_en = mover("mode levels")
 			boton(apretado_en, true)
 		6:
 			boton(apretado_en, false)
 			# El mismo botón dos veces: un segundo roce en menos de 300 ms no cuenta (`Punteria`).
 			OS.delay_msec(320)
 		7:
-			apretado_en = mover("jugar")
+			apretado_en = mover("play")
 			boton(apretado_en, true)
 		8:
 			boton(apretado_en, false)
@@ -135,7 +135,7 @@ func _process(_delta: float) -> void:
 			boton(apretado_en, false)
 		12:
 			esperar("menu", "tras volver al menú desde el aviso")
-			apretado_en = mover("salir")
+			apretado_en = mover("exit")
 			boton(apretado_en, true)
 		13:
 			boton(apretado_en, false)

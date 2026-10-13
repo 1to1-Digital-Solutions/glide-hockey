@@ -1,6 +1,6 @@
 'use client'
 
-import { SIN_HITOS, TUTORIAL_STEPS, apuntarHito, type TutorialHitos, type TutorialStepKey } from './tutorial'
+import { NO_MILESTONES, TUTORIAL_STEPS, recordMilestone, type TutorialMilestones, type TutorialStepKey } from './tutorial'
 import {
   createContext,
   useCallback,
@@ -13,7 +13,7 @@ import {
 } from 'react'
 import { volumeFactor, type Scenery } from './settings'
 import { setScenery as setArcadeScenery, useLang, useScenery, useVolumes } from './settingsClient'
-import { AVISO_DE_QUE_CUENTA_MS, conElAvisoDeQueCuenta, loQueCallaElMarcador, partidaDelCartel } from './scoreboardSign'
+import { NOW_IT_COUNTS_MS, withNowItCountsNotice, scoreboardOmits, signRun } from './scoreboardSign'
 import { challengeRound } from './challenge'
 import {
   COUNTDOWN_SECONDS,
@@ -56,16 +56,16 @@ import {
   subscribeUnlockedLevel,
 } from './progress'
 import { migrateLegacyKeysOnce } from './legacyKeys'
-import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana } from './feats'
+import { withFeats, earnFeats, matchFeats, type Feat } from './feats'
 import { goalSign, medalToCelebrate, type Medal, type Goal, type GoalSignView } from './goal'
-import { semillaDeLaMesa } from './opponent'
+import { tableSeed } from './opponent'
 import { exposeTestRun } from './testRun'
 import type { GameResult, Challenge } from './seed'
 import { forgetOwnScenery } from './scenery'
 import { gameStorage } from './storage'
 import { type Scorer } from './puckPhysics'
 import { concededPenalty, scoreConceded, scoreGoal } from './scoring'
-import { traductorSuave } from './textos'
+import { softTranslator } from './textos'
 
 /**
  * El estado de una partida de air hockey y las tres cosas que se eligen antes
@@ -107,20 +107,20 @@ export interface DuelView {
 const MODO_DEL_RETO: GameMode = 'challenge'
 
 /** Todos los pasos del tutorial, hechos: con ellos no queda nada que enseñar (`tutorialStep`). */
-const TODOS_LOS_HITOS = Object.fromEntries(TUTORIAL_STEPS.map((paso) => [paso, true])) as TutorialHitos
+const TODOS_LOS_HITOS = Object.fromEntries(TUTORIAL_STEPS.map((paso) => [paso, true])) as TutorialMilestones
 
 /**
  * Lo que el salón le pasa al store a través de la escena (ver `GlideHockeyScene`).
  *
  * Todo opcional: sin nada, el juego arranca en el menú y juega como en su propia web.
  */
-export interface OpcionesDelSalon {
+export interface HallOptions {
   /**
    * Jugar este reto: se entra **directamente** en una partida del reto, con los
    * tiros de la máquina sacados de la semilla. Se lee al montar; otro reto es
    * otro montaje.
    */
-  reto?: Challenge
+  challenge?: Challenge
   /**
    * Se llama una vez al acabar cada partida con puntuación (no al dejarla a medias), con las
    * hazañas que se estrenan en ella (`hazanas.ts`).
@@ -131,7 +131,7 @@ export interface OpcionesDelSalon {
    * marcador (`objetivo.ts`). Sin él —el juego abierto suelto— el cartel dice la misión y el
    * récord local.
    */
-  objetivo?: Goal
+  goal?: Goal
 }
 
 export interface GameStore {
@@ -197,16 +197,16 @@ export interface GameStore {
   outcome: RunOutcome | null
 
   /** Lo que pasó el salón, o `null` con el juego abierto suelto: los menús dicen qué modo da medalla. */
-  objetivo: Goal | null
+  goal: Goal | null
   /**
    * Lo que dice el cartel de encima del marcador (`objetivo.ts`), o `null` si no hay nada que
    * colgar: en el menú, y fuera del reto con el juego abierto suelto.
    */
   cartel: GoalSignView | null
   /** La medalla que ya es de quien juega en esta partida: cuando sube, se celebra el listón. */
-  medalla: Medal | null
+  medal: Medal | null
   /** Lo que el marcador del fondo calla porque ya lo dice el cartel (`loQueCallaElMarcador`). */
-  callado: { puntos: boolean; ronda: boolean }
+  omitted: { points: boolean; round: boolean }
 
   gameState: GameState
 
@@ -217,8 +217,8 @@ export interface GameStore {
    * suyo se supera **haciéndolo de verdad**, así que no necesita ni pararle el juego a nadie
    * ni escuchar nada aparte. Se acumula: hacer algo no se deshace.
    */
-  hitos: TutorialHitos
-  apuntarHito: (hito: TutorialStepKey) => void
+  milestones: TutorialMilestones
+  recordMilestone: (hito: TutorialStepKey) => void
   /** Segundos para el saque. Solo tiene sentido en `countdown`. */
   countdown: number
   /**
@@ -238,7 +238,7 @@ export interface GameStore {
    * el countdown se queda parado en el 1 sin ninguna explicación». Lo leen la cuenta atrás
    * —que escribe qué falta— y el mazo, que se enciende para que se vea cuál es.
    */
-  esperandoElMazo: boolean
+  waitingForMallet: boolean
   /**
    * Identificador de partida. Sube al empezar una nueva, y en reto también al
    * pasar de ronda: es lo que remonta la mesa y devuelve el disco al centro.
@@ -254,7 +254,7 @@ export interface GameStore {
    * Lo que se juega ahora es el `reto` que pasó el salón. Deja de serlo en cuanto se empieza
    * otra partida o se vuelve al menú.
    */
-  enReto: boolean
+  inChallenge: boolean
   /** Si hay una sesión inmersiva abierta, es decir, si se juega con gafas. */
   immersive: boolean
   /** Si el juego está callado. Es de quien juega y se recuerda entre visitas. */
@@ -307,14 +307,14 @@ export interface GameStore {
    * marcador ni en los puntos—, aunque se oyen y se sienten igual. Al cerrarse el tutorial el reto
    * empieza desde cero (`acabarLaLeccion`).
    */
-  aprendiendo: boolean
-  setAprendiendo: (aprendiendo: boolean) => void
+  learning: boolean
+  setLearning: (aprendiendo: boolean) => void
   /**
    * El tutorial se ha cerrado —por sus pasos, por «Siguiente» o por «Saltar»— con la partida en
    * marcha. En el reto, la partida vuelve a empezar desde cero, con su cuenta atrás, y el cartel
    * avisa un momento de que ahora cuenta para medalla. Fuera del reto no hace nada.
    */
-  acabarLaLeccion: () => void
+  finishLesson: () => void
   /**
    * Lo que se está preguntando ahora mismo, o `null` si no se pregunta nada.
    *
@@ -338,7 +338,7 @@ export interface GameStore {
    * Apunta una hazaña de la mesa (un gol de un toque desde el fondo, uno en propia puerta) a la
    * partida en curso: se guarda y se cuenta al salón al acabarla. Con la partida decidida no cuenta.
    */
-  apuntarHazana: (hazana: Hazana) => void
+  recordFeat: (hazana: Feat) => void
   resetGame: () => void
 }
 
@@ -350,16 +350,16 @@ export function clampGoalTarget(goals: number): number {
   return Math.min(MAX_GOALS, Math.max(MIN_GOALS, Math.round(goals)))
 }
 
-export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon = {}): GameStore {
+export function useGameStoreValue({ challenge: reto, onFinish, goal: objetivo }: HallOptions = {}): GameStore {
   // Lo guardado cuando el juego se llamaba `air-hockey`, traído a las claves de ahora.
   // Durante el render y no en un efecto: el récord y los niveles se leen más abajo con
   // `useSyncExternalStore`, que lee ya en esta misma pasada (ver `lib/legacyKeys.ts`).
   migrateLegacyKeysOnce()
 
   const [goalTarget, setGoalTargetState] = useState(DEFAULT_GOALS)
-  const [hitos, setHitos] = useState<TutorialHitos>(SIN_HITOS)
+  const [milestones, setHitos] = useState<TutorialMilestones>(NO_MILESTONES)
   const anotarHito = useCallback((hito: TutorialStepKey) => {
-    setHitos((actuales) => apuntarHito(actuales, hito))
+    setHitos((actuales) => recordMilestone(actuales, hito))
   }, [])
   const [difficulty, setDifficulty] = useState<Difficulty>('easy')
   // El menú abre **siempre** en el reto, con salón o sin él, y no recuerda el último modo: es el
@@ -377,13 +377,13 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
   const [countdown, setCountdown] = useState(reto != null ? COUNTDOWN_SECONDS : 0)
   const [prompt, setPrompt] = useState<'quit' | null>(null)
   const [tutorialRunning, setTutorialRunning] = useState(false)
-  const [aprendiendo, setAprendiendo] = useState(false)
+  const [learning, setLearning] = useState(false)
   /** Si el cartel está avisando de que ya cuenta (`conElAvisoDeQueCuenta`). */
   const [avisoQueCuenta, setAvisoQueCuenta] = useState(false)
   const [malletHeld, setMalletHeld] = useState(false)
   const [runId, setRunId] = useState(reto != null ? 1 : 0)
   // El reto se mira una sola vez, al montar: es lo que decide con qué se arranca.
-  const [enReto, setEnReto] = useState(reto != null)
+  const [inChallenge, setEnReto] = useState(reto != null)
   const [semillaDelReto] = useState(() => reto?.seed ?? null)
   // Ronda del reto. Vive aquí y no se deriva porque es lo único que sobrevive
   // de una partida a la siguiente dentro del mismo reto.
@@ -404,7 +404,7 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
   // Las hazañas de esta partida (en el reto, de todas sus rondas): se estrenan y se cuentan al
   // salón al acabar. Un ref y no estado porque no se pintan, y un conjunto porque Strict Mode
   // repite los efectos y la misma hazaña no tiene que contar dos veces.
-  const hazanasDeLaPartida = useRef(new Set<Hazana>())
+  const hazanasDeLaPartida = useRef(new Set<Feat>())
 
   // El récord no es estado de React: vive en el navegador y el juego se
   // suscribe a él, así que no hay una copia que pueda discrepar de lo guardado.
@@ -503,7 +503,7 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
   const totalPlayerGoals = previousPlayerGoals + playerGoals
   // La ronda y no el `runId`: dentro del reto, la mesa de cada ronda es la misma
   // para todos, pase lo que pase en las anteriores.
-  const seed = duelMode ? duel.seed : semillaDeLaMesa(enReto ? semillaDelReto : null, runId, challengeRoundNumber)
+  const seed = duelMode ? duel.seed : tableSeed(inChallenge ? semillaDelReto : null, runId, challengeRoundNumber)
   const totalOpponentGoals = previousOpponentGoals + opponentGoals
 
   // Cuándo se acaba una partida lo decide el marcador (ver `gameMode.ts`).
@@ -534,12 +534,12 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
   // toca— y avisa de que la partida va a empezar de verdad.
   // Y en el visor no pasa del último segundo hasta tener el mazo en la mano: sacar con el
   // mazo en la mesa es empezar a perder.
-  const esperandoElMazo = immersive && !malletHeld && countdown <= 1
+  const waitingForMallet = immersive && !malletHeld && countdown <= 1
   useEffect(() => {
-    if (!running || countdown <= 0 || esperandoElMazo || prompt !== null || tutorialRunning) return
+    if (!running || countdown <= 0 || waitingForMallet || prompt !== null || tutorialRunning) return
     const timer = setTimeout(() => setCountdown((value) => value - 1), 1000)
     return () => clearTimeout(timer)
-  }, [running, countdown, esperandoElMazo, prompt, tutorialRunning])
+  }, [running, countdown, waitingForMallet, prompt, tutorialRunning])
 
   // De qué ronda se subió ya el escalón. Sin esta marca, dos ejecuciones del
   // efecto por la misma ronda —Strict Mode las provoca en desarrollo— sumarían
@@ -558,7 +558,7 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
     if (advancedRound.current === challengeRoundNumber) return
     advancedRound.current = challengeRoundNumber
     // Cada ronda del reto es un partido: ganarla sin encajar ya es la hazaña.
-    for (const hazana of hazanasDelPartido({ ganado: true, encajados: opponentGoals, sinFin: false })) {
+    for (const hazana of matchFeats({ won: true, conceded: opponentGoals, sinFin: false })) {
       hazanasDeLaPartida.current.add(hazana)
     }
 
@@ -659,23 +659,23 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
     /* v8 ignore next */
     if (avisada.current === runId) return
     avisada.current = runId
-    for (const hazana of hazanasDelPartido({ ganado: outcome === 'won', encajados: opponentGoals, sinFin: endlessRun })) {
+    for (const hazana of matchFeats({ won: outcome === 'won', conceded: opponentGoals, sinFin: endlessRun })) {
       hazanasDeLaPartida.current.add(hazana)
     }
-    const nuevas = estrenarHazanas(hazanasDeLaPartida.current)
-    avisar.current?.(conHazanas({ mode: gameMode, points: points, challenge: enReto }, nuevas))
-  }, [gameState, gameMode, duelMode, points, bestStreak, endlessRun, levelResult, activeLevel, runId, enReto, outcome, opponentGoals])
+    const nuevas = earnFeats(hazanasDeLaPartida.current)
+    avisar.current?.(withFeats({ mode: gameMode, points: points, challenge: inChallenge }, nuevas))
+  }, [gameState, gameMode, duelMode, points, bestStreak, endlessRun, levelResult, activeLevel, runId, inChallenge, outcome, opponentGoals])
 
   // El cartel de encima del marcador: qué hay que superar y cuánto falta. Se arma ya traducido,
   // como lo pinta: sus frases son plantillas, y componerlas fuera obligaría a partirlas.
   const lang = useLang()
-  const t = useMemo(() => traductorSuave(lang), [lang])
+  const t = useMemo(() => softTranslator(lang), [lang])
   const goles = totalPlayerGoals + totalOpponentGoals
   const partida = useMemo(
     () =>
-      partidaDelCartel(
+      signRun(
         {
-          objetivo: objetivo == null ? objetivo : { ...objetivo, record: salonAlEmpezar },
+          goal: objetivo == null ? objetivo : { ...objetivo, record: salonAlEmpezar },
           gameMode,
           gameState,
           round: challengeRoundNumber,
@@ -689,11 +689,11 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
     [objetivo, salonAlEmpezar, gameMode, gameState, challengeRoundNumber, goles, points, streak, recordToBeat, t],
   )
   const cartel = useMemo(
-    () => (partida == null ? null : conElAvisoDeQueCuenta(goalSign(partida, t), gameMode, avisoQueCuenta, t)),
+    () => (partida == null ? null : withNowItCountsNotice(goalSign(partida, t), gameMode, avisoQueCuenta, t)),
     [partida, t, gameMode, avisoQueCuenta],
   )
-  const medalla = partida == null ? null : medalToCelebrate(partida)
-  const callado = useMemo(() => loQueCallaElMarcador(partida), [partida])
+  const medal = partida == null ? null : medalToCelebrate(partida)
+  const omitted = useMemo(() => scoreboardOmits(partida), [partida])
 
   // La marca de este modo: puntos, o la racha en la partida sin fin. En Niveles
   // no hay marca que batir: hay estrellas. En el duelo, tampoco: hay quien gana.
@@ -856,7 +856,7 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
   }, [enJuego, activeDifficulty, lapFactor, anotarHito])
 
   // Aprendiendo en el reto, lo que mete la máquina no cuenta (`aprendiendo`).
-  const aprendiendoElReto = aprendiendo && challenge
+  const aprendiendoElReto = learning && challenge
   const scoreOpponent = useCallback(() => {
     if (!enJuego || aprendiendoElReto) return
     setOpponentGoals((value) => value + 1)
@@ -866,7 +866,7 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
     setPoints((total) => scoreConceded(total, concededPenalty(round)))
   }, [enJuego, aprendiendoElReto, round])
 
-  const acabarLaLeccion = useCallback(() => {
+  const finishLesson = useCallback(() => {
     if (!challenge || !running) return
     // El reto, desde cero: lo de antes era aprender. La mesa se estrena (`runId`) con el disco
     // en el centro, y la cuenta atrás vuelve a esperar al mazo en la mano.
@@ -881,12 +881,12 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
   // El aviso se quita solo.
   useEffect(() => {
     if (!avisoQueCuenta) return
-    const quitar = setTimeout(() => setAvisoQueCuenta(false), AVISO_DE_QUE_CUENTA_MS)
+    const quitar = setTimeout(() => setAvisoQueCuenta(false), NOW_IT_COUNTS_MS)
     return () => clearTimeout(quitar)
   }, [avisoQueCuenta])
 
-  const apuntarHazana = useCallback(
-    (hazana: Hazana) => {
+  const recordFeat = useCallback(
+    (hazana: Feat) => {
       if (!enJuego) return
       hazanasDeLaPartida.current.add(hazana)
     },
@@ -914,9 +914,9 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
       prompt,
       tutorialRunning,
       setTutorialRunning,
-      aprendiendo,
-      setAprendiendo,
-      acabarLaLeccion,
+      learning,
+      setLearning,
+      finishLesson,
       askToQuit,
       keepPlaying,
       goalTarget,
@@ -945,20 +945,20 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
       bestPoints: bestForMode,
       isRecord,
       outcome,
-      objetivo: objetivo ?? null,
+      goal: objetivo ?? null,
       cartel,
-      medalla,
-      callado,
+      medal,
+      omitted,
       gameState,
-      hitos,
-      apuntarHito: anotarHito,
+      milestones,
+      recordMilestone: anotarHito,
       countdown,
       malletHeld,
       setMalletHeld,
-      esperandoElMazo,
+      waitingForMallet,
       runId,
       seed,
-      enReto,
+      inChallenge,
       immersive,
       muted,
       sfxVolume,
@@ -976,18 +976,18 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
       startGame,
       scorePlayer,
       scoreOpponent,
-      apuntarHazana,
+      recordFeat,
       resetGame,
     }),
     [
       prompt,
       tutorialRunning,
-      aprendiendo,
-      acabarLaLeccion,
+      learning,
+      finishLesson,
       askToQuit,
       keepPlaying,
       malletHeld,
-      esperandoElMazo,
+      waitingForMallet,
       goalTarget,
       difficulty,
       gameMode,
@@ -1016,13 +1016,13 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
       outcome,
       objetivo,
       cartel,
-      medalla,
-      callado,
+      medal,
+      omitted,
       gameState,
       countdown,
       runId,
       seed,
-      enReto,
+      inChallenge,
       immersive,
       muted,
       sfxVolume,
@@ -1038,9 +1038,9 @@ export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon
       startGame,
       scorePlayer,
       scoreOpponent,
-      apuntarHazana,
+      recordFeat,
       resetGame,
-      hitos,
+      milestones,
       anotarHito,
     ],
   )

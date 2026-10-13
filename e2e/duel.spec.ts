@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { abrirJuego } from './helpers'
+import { openGame } from './helpers'
 
 /**
  * El duelo por turnos, de principio a fin.
@@ -15,7 +15,7 @@ import { abrirJuego } from './helpers'
  */
 
 test('el duelo va preconfigurado: ni nivel, ni goles, ni sin fin', async ({ page }) => {
-  await abrirJuego(page)
+  await openGame(page)
   await page.getByRole('button', { name: 'Duel', exact: true }).click()
 
   await expect(page.getByText('whoever beats it by more wins')).toBeVisible()
@@ -26,7 +26,7 @@ test('el duelo va preconfigurado: ni nivel, ni goles, ni sin fin', async ({ page
 
 test('juega uno, se pasa el mando, juega el otro y se sabe quién gana', async ({ page }) => {
   test.setTimeout(420_000)
-  await abrirJuego(page)
+  await openGame(page)
   await page.getByRole('button', { name: 'Duel', exact: true }).click()
   await page.getByRole('button', { name: 'Play', exact: true }).click()
 

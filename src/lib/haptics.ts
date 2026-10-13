@@ -14,7 +14,7 @@
  */
 
 import { impactStrength } from './audioEngine'
-import { pulsosDelListon } from './scoreboardSign'
+import { thresholdPulses } from './scoreboardSign'
 import { type FrameResult } from './matchLoop'
 import type { Medal } from './goal'
 import { pulsesFor, type HandSide, type HandPulse } from './hapticFeedback'
@@ -28,15 +28,15 @@ export interface HapticPulse {
 }
 
 /** Lo que pasa en la mesa y puede sentirse en la mano. */
-export type SucesoEnLaMano =
+export type HandEvent =
   /** El mazo del jugador golpea el disco; `fuerza` (0–1) sale de la velocidad del choque. */
-  | { readonly tipo: 'golpe'; readonly fuerza: number }
+  | { readonly type: 'hit'; readonly strength: number }
   /** Entra un gol, a favor o en contra. */
-  | { readonly tipo: 'gol' }
+  | { readonly type: 'goal' }
   /** Se acaba el partido. */
-  | { readonly tipo: 'end' }
+  | { readonly type: 'end' }
   /** Se cruza un listón de medalla: lo celebra el cartel del objetivo. */
-  | { readonly tipo: 'liston'; readonly medalla: Medal }
+  | { readonly type: 'threshold'; readonly medal: Medal }
 
 /**
  * Lo fuerte que llega el gol, como `llegada` de `tactos.ts`: la más suave de las suyas.
@@ -44,7 +44,7 @@ export type SucesoEnLaMano =
  * El disco entra lejos, en la otra punta de la mesa: se avisa sin que se confunda con un golpe
  * que haya dado la mano. A CALIBRAR CON EL VISOR.
  */
-export const FUERZA_DEL_GOL = 0
+export const GOAL_STRENGTH = 0
 
 /**
  * El final del partido: no es un contacto, es lo único que dice que se acabó sin mirar el
@@ -62,13 +62,13 @@ export const FINAL_PULSE: HapticPulse = { intensity: 0.6, durationMs: 220 }
  *
  * @param golpesAntes Los golpes del jugador que llevaba la mesa antes de este fotograma.
  */
-export function sucesosDelFotograma(
+export function frameEvents(
   golpesAntes: number,
   { table, goals, impact }: Pick<FrameResult, 'table' | 'goals' | 'impact'>,
-): SucesoEnLaMano[] {
-  const sucesos: SucesoEnLaMano[] = []
-  if (table.playerHits > golpesAntes) sucesos.push({ tipo: 'golpe', fuerza: impactStrength(impact.strike) })
-  if (goals.length > 0) sucesos.push({ tipo: 'gol' })
+): HandEvent[] {
+  const sucesos: HandEvent[] = []
+  if (table.playerHits > golpesAntes) sucesos.push({ type: 'hit', strength: impactStrength(impact.strike) })
+  if (goals.length > 0) sucesos.push({ type: 'goal' })
   return sucesos
 }
 
@@ -78,23 +78,23 @@ export function sucesosDelFotograma(
  * **Sin mano no hay pulso**: el mazo suelto no lo toca nadie, y mandarlo a las dos manos «por si
  * acaso» es lo que dejaba los dos mandos vibrando.
  */
-export function pulsosDelSuceso(suceso: SucesoEnLaMano, mazo: HandSide | null): HandPulse[] {
+export function eventPulses(suceso: HandEvent, mazo: HandSide | null): HandPulse[] {
   if (mazo == null) return []
-  switch (suceso.tipo) {
-    case 'golpe':
+  switch (suceso.type) {
+    case 'hit':
       // Una fuerza que no es número —un fotograma perdido— cuenta como un golpe entero: mejor
       // eso que pasarle `NaN` al vibrador.
       return pulsesFor({
         type: 'impact',
         hand: mazo,
-        strength: Number.isFinite(suceso.fuerza) ? suceso.fuerza : 1,
+        strength: Number.isFinite(suceso.strength) ? suceso.strength : 1,
       })
-    case 'gol':
-      return pulsesFor({ type: 'arrival', hand: mazo, strength: FUERZA_DEL_GOL })
+    case 'goal':
+      return pulsesFor({ type: 'arrival', hand: mazo, strength: GOAL_STRENGTH })
     case 'end':
       return [{ hand: mazo, intensity: FINAL_PULSE.intensity, ms: FINAL_PULSE.durationMs, delay: 0 }]
-    case 'liston':
-      return pulsosDelListon(suceso.medalla, mazo)
+    case 'threshold':
+      return thresholdPulses(suceso.medal, mazo)
   }
 }
 
@@ -122,7 +122,7 @@ function actuatorOf(source: HapticSource): HapticActuator | undefined {
  * Da un toque en el mando de esa mano. Devuelve si vibró: un mando sin vibrador, o uno que
  * rechace el pulso, no es un error, es un mando distinto.
  */
-export function pulsarMano(
+export function pulseHand(
   session: HapticSession | null | undefined,
   mano: HandSide,
   intensidad: number,
@@ -151,14 +151,14 @@ export function pulsarMano(
  * Reproduce una lista de pulsos: los de `retardo` 0 en el acto y el resto con `programar`, que es
  * quien lleva el reloj (y quien los cancela al desmontar). Cada pulso mira la sesión en su momento.
  */
-export function reproducir(
+export function playPulses(
   session: HapticSession | null | undefined,
   pulsos: readonly HandPulse[],
   programar: (hacer: () => void, ms: number) => void,
 ): void {
   for (const { hand: mano, intensity: intensidad, ms, delay: retardo } of pulsos) {
     const hacer = () => {
-      pulsarMano(session, mano, intensidad, ms)
+      pulseHand(session, mano, intensidad, ms)
     }
     if (retardo > 0) programar(hacer, retardo)
     else hacer()

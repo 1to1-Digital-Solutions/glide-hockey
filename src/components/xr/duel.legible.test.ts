@@ -7,9 +7,9 @@ import {
   unreadableTexts,
   worstReadingDistance,
 } from '../../lib/panelReading'
-import { traductor } from '../../lib/textos'
-import { ESCALA_DE_LA_COLUMNA, XR_UI, XR_UI_ROTATION, aLaEscalaDeLaColumna, vistasDelPanel } from '../game/GameWorld'
-import { DUEL_TEXT, GAME_OVER_BOXES, GAME_OVER_SIZE, dibujarElDuelo } from './XRHud'
+import { translator } from '../../lib/textos'
+import { COLUMN_SCALE, XR_UI, XR_UI_ROTATION, atColumnScale, panelViews } from '../game/GameWorld'
+import { DUEL_TEXT, GAME_OVER_BOXES, GAME_OVER_SIZE, drawDuel } from './XRHud'
 import { LINE_HEIGHT } from './canvasPanel'
 import { recordingCanvas, legibilityProblems, type DrawnText } from './legibility'
 
@@ -23,7 +23,7 @@ import { recordingCanvas, legibilityProblems, type DrawnText } from './legibilit
  */
 
 const IDIOMAS = ['en', 'es'] as const
-const VISTAS = vistasDelPanel(XR_UI.panel, XR_UI_ROTATION.panel)
+const VISTAS = panelViews(XR_UI.panel, XR_UI_ROTATION.panel)
 
 const TRASPASO: DuelView = {
   player: 0,
@@ -59,7 +59,7 @@ function todosLosFinales(): { donde: string; escritos: DrawnText[] }[] {
       ['empate', EMPATE],
     ] as const) {
       const { ctx, drawnTexts: escritos } = recordingCanvas()
-      dibujarElDuelo(ctx, traductor(lang), duelo, { scored: 7, conceded: 5 }, MUCHOS)
+      drawDuel(ctx, translator(lang), duelo, { scored: 7, conceded: 5 }, MUCHOS)
       finales.push({ donde: `${lang} ${nombre}`, escritos })
     }
   }
@@ -68,33 +68,33 @@ function todosLosFinales(): { donde: string; escritos: DrawnText[] }[] {
 
 describe('el final de una partida del duelo', () => {
   it('se lee en los dos idiomas, en el traspaso y al final', () => {
-    const panel = { width: GAME_OVER_SIZE[0] * ESCALA_DE_LA_COLUMNA, height: GAME_OVER_SIZE[1] * ESCALA_DE_LA_COLUMNA }
+    const panel = { width: GAME_OVER_SIZE[0] * COLUMN_SCALE, height: GAME_OVER_SIZE[1] * COLUMN_SCALE }
     for (const { donde, escritos } of todosLosFinales()) {
       expect(escritos.length, 'no se ha medido nada').toBeGreaterThan(0)
-      const escalados = aLaEscalaDeLaColumna(escritos)
-      const distancia = Math.max(...VISTAS.map(({ pose, ojos }) => worstReadingDistance(escalados, pose, ojos, LINE_HEIGHT)))
+      const escalados = atColumnScale(escritos)
+      const distancia = Math.max(...VISTAS.map(({ pose, eyes: ojos }) => worstReadingDistance(escalados, pose, ojos, LINE_HEIGHT)))
       expect(legibilityProblems(escalados, { panel, distance: distancia }), donde).toEqual([])
     }
   })
 
   it('en el traspaso dice a quién le toca, y al final quién gana', () => {
-    const t = traductor('es')
+    const t = translator('es')
 
     const traspaso = recordingCanvas()
-    dibujarElDuelo(traspaso.ctx, t, TRASPASO, { scored: 7, conceded: 5 }, MUCHOS)
+    drawDuel(traspaso.ctx, t, TRASPASO, { scored: 7, conceded: 5 }, MUCHOS)
     const dichoEnElTraspaso = traspaso.drawnTexts.map((e) => e.text).join(' ')
     expect(dichoEnElTraspaso).toContain('Jugador 1: 7–5')
     expect(dichoEnElTraspaso).toContain('Pásale el mando a Jugador 2.')
 
     const final = recordingCanvas()
-    dibujarElDuelo(final.ctx, t, GANADO, { scored: 7, conceded: 2 }, MUCHOS)
+    drawDuel(final.ctx, t, GANADO, { scored: 7, conceded: 2 }, MUCHOS)
     const dicho = final.drawnTexts.map((e) => e.text).join(' ')
     expect(dicho).toContain('Gana Jugador 2')
     expect(dicho).toContain('Jugador 1: 7–5 (+2)')
     expect(dicho).toContain('Jugador 2: 7–2 (+5)')
 
     const empate = recordingCanvas()
-    dibujarElDuelo(empate.ctx, t, EMPATE, { scored: 4, conceded: 2 }, MUCHOS)
+    drawDuel(empate.ctx, t, EMPATE, { scored: 4, conceded: 2 }, MUCHOS)
     expect(empate.drawnTexts.map((e) => e.text).join(' ')).toContain('Empate')
   })
 })
@@ -104,8 +104,8 @@ describe('cada letra del final del duelo se lee de un vistazo', () => {
     for (const { donde, escritos } of todosLosFinales()) {
       for (const vista of VISTAS) {
         expect(
-          unreadableTexts(aLaEscalaDeLaColumna(escritos), vista.pose, vista.ojos, LINE_HEIGHT),
-          `${donde}, ${vista.donde}`,
+          unreadableTexts(atColumnScale(escritos), vista.pose, vista.eyes, LINE_HEIGHT),
+          `${donde}, ${vista.where}`,
         ).toEqual([])
       }
     }

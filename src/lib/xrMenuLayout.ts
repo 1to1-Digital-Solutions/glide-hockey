@@ -1,5 +1,5 @@
 import { DIFFICULTY_ORDER, TABLE_CENTER_Z, TABLE_HEIGHT } from './gameConfig'
-import { MODOS_DEL_MENU } from './gameMode'
+import { MENU_MODE_ORDER } from './gameMode'
 import { COMFORT_LEVELS } from './hitFeedback'
 import { MENU_DEGREES } from './menuTemplate'
 import { REFERENCE_EYE_HEIGHT } from './uiHeight'
@@ -211,26 +211,26 @@ export const MENU_BOXES = {
   // Los modos, repartidos alrededor del centro: recorren la lista, así que un modo nuevo tiene su
   // botón sin que nadie se acuerde de añadirlo aquí.
   ...Object.fromEntries(
-    MODOS_DEL_MENU.map((mode, index) => [
-      `modo ${mode}`,
-      caja((index - (MODOS_DEL_MENU.length - 1) / 2) * MODE_STEP, MENU_ROW.mode, MENU_BUTTON.mode),
+    MENU_MODE_ORDER.map((mode, index) => [
+      `mode ${mode}`,
+      caja((index - (MENU_MODE_ORDER.length - 1) / 2) * MODE_STEP, MENU_ROW.mode, MENU_BUTTON.mode),
     ]),
   ),
   ...Object.fromEntries(
-    DIFFICULTY_ORDER.map((level, index) => [`nivel ${level}`, caja((index - 2) * 0.135, MENU_ROW.level, LEVEL_BUTTON)]),
+    DIFFICULTY_ORDER.map((level, index) => [`level ${level}`, caja((index - 2) * 0.135, MENU_ROW.level, LEVEL_BUTTON)]),
   ),
-  menos: caja(-0.19, MENU_ROW.goals, MENU_BUTTON.small),
-  mas: caja(0.19, MENU_ROW.goals, MENU_BUTTON.small),
-  'sin fin': caja(0.32, MENU_ROW.goals, MENU_BUTTON.small),
-  escenario: caja(-0.28, MENU_ROW.record, MENU_BUTTON.small),
-  jugar: caja(0, MENU_ROW.actions, MENU_BUTTON.play),
+  minus: caja(-0.19, MENU_ROW.goals, MENU_BUTTON.small),
+  plus: caja(0.19, MENU_ROW.goals, MENU_BUTTON.small),
+  endless: caja(0.32, MENU_ROW.goals, MENU_BUTTON.small),
+  scenery: caja(-0.28, MENU_ROW.record, MENU_BUTTON.small),
+  play: caja(0, MENU_ROW.actions, MENU_BUTTON.play),
   // Pegado al borde derecho de la banda de arriba: a su izquierda queda sitio para el nombre.
-  'mas opciones': caja(MENU_PANEL.width / 2 - 0.02 - MENU_BUTTON.toggle[0] / 2, MENU_ROW.title, MENU_BUTTON.toggle),
-  salir: caja(0.28, MENU_ROW.actions, MENU_BUTTON.small),
+  'more options': caja(MENU_PANEL.width / 2 - 0.02 - MENU_BUTTON.toggle[0] / 2, MENU_ROW.title, MENU_BUTTON.toggle),
+  exit: caja(0.28, MENU_ROW.actions, MENU_BUTTON.small),
   // Las tres opciones del confort, a la derecha de su nombre, que va en la misma línea: encima
   // no hay sitio, que es el borde del panel.
   ...Object.fromEntries(
-    COMFORT_LEVELS.map((confort, index) => [`confort ${confort}`, caja(MENU_COMFORT_X[index], MENU_ROW.comfort, MENU_BUTTON.small)]),
+    COMFORT_LEVELS.map((confort, index) => [`comfort ${confort}`, caja(MENU_COMFORT_X[index], MENU_ROW.comfort, MENU_BUTTON.small)]),
   ),
 } as Record<string, MenuBox>
 
@@ -243,18 +243,18 @@ export const MENU_BOXES = {
  * Se aparta al empezar: el final y el aviso de salir siguen en la columna, a 55°, fuera de donde
  * se juega. A CALIBRAR CON EL VISOR: `azimut`.
  */
-export const MENU_DEL_VISOR = { distancia: 1.5, azimut: MENU_DEGREES - 1 } as const
+export const HEADSET_MENU = { distance: 1.5, azimuth: MENU_DEGREES - 1 } as const
 
 /**
  * El sitio del menú del visor en la fase de menú, en coordenadas de la mesa (su centro, a la altura
  * del tablero), que es de donde cuelga la interfaz: el centro, a la altura de los ojos de referencia.
  * Lo leen la web (`GameWorld.tsx`) y el port de Godot (`reparto.ts`).
  */
-export function sitioDelMenu(): [number, number, number] {
-  const azimut = (MENU_DEL_VISOR.azimut * Math.PI) / 180
+export function menuPlacement(): [number, number, number] {
+  const azimut = (HEADSET_MENU.azimuth * Math.PI) / 180
   return [
-    -MENU_DEL_VISOR.distancia * Math.sin(azimut),
+    -HEADSET_MENU.distance * Math.sin(azimut),
     REFERENCE_EYE_HEIGHT - TABLE_HEIGHT,
-    -MENU_DEL_VISOR.distancia * Math.cos(azimut) - TABLE_CENTER_Z,
+    -HEADSET_MENU.distance * Math.cos(azimut) - TABLE_CENTER_Z,
   ]
 }

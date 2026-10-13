@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
-  SIN_HITOS,
+  NO_MILESTONES,
   TUTORIAL_BUTTONS,
   TUTORIAL_SEEN_KEY,
   TUTORIAL_SEEN_VALUE,
   TUTORIAL_STEPS,
-  apuntarHito,
+  recordMilestone,
   markTutorialSeen,
   tutorialSeen,
   tutorialStep,
-  type TutorialHitos,
+  type TutorialMilestones,
 } from './tutorial'
 
 /**
@@ -24,20 +24,20 @@ import {
  */
 
 /** Los hitos con estos conseguidos. */
-function hechos(...cuales: readonly (keyof TutorialHitos)[]): TutorialHitos {
-  return cuales.reduce(apuntarHito, SIN_HITOS)
+function hechos(...cuales: readonly (keyof TutorialMilestones)[]): TutorialMilestones {
+  return cuales.reduce(recordMilestone, NO_MILESTONES)
 }
 
 describe('qué paso toca', () => {
   it('sin hacer nada, el primero', () => {
-    expect(tutorialStep(SIN_HITOS, 0)).toBe(TUTORIAL_STEPS[0])
+    expect(tutorialStep(NO_MILESTONES, 0)).toBe(TUTORIAL_STEPS[0])
   })
 
   it('haciendo cada cosa se recorren todos y se acaba', () => {
-    let hitos = SIN_HITOS
+    let hitos = NO_MILESTONES
     const recorridos = [tutorialStep(hitos, 0)]
     for (const paso of TUTORIAL_STEPS) {
-      hitos = apuntarHito(hitos, paso)
+      hitos = recordMilestone(hitos, paso)
       recorridos.push(tutorialStep(hitos, 0))
     }
     expect(recorridos).toEqual([...TUTORIAL_STEPS, null])
@@ -45,7 +45,7 @@ describe('qué paso toca', () => {
 
   it('esperar no adelanta nada: el tutorial no lleva reloj', () => {
     // El control de lo que se cambió: sin hitos, el paso es el mismo para siempre.
-    expect(tutorialStep(SIN_HITOS, 0)).toBe(tutorialStep(SIN_HITOS, 0))
+    expect(tutorialStep(NO_MILESTONES, 0)).toBe(tutorialStep(NO_MILESTONES, 0))
   })
 
   it('conseguir algo de más adelante no salta lo de antes', () => {
@@ -55,7 +55,7 @@ describe('qué paso toca', () => {
 
   it('un hito no se deshace', () => {
     const hitos = hechos(TUTORIAL_STEPS[0])
-    expect(apuntarHito(hitos, TUTORIAL_STEPS[0])).toBe(hitos)
+    expect(recordMilestone(hitos, TUTORIAL_STEPS[0])).toBe(hitos)
     expect(tutorialStep(hitos, 0)).toBe(TUTORIAL_STEPS[1])
   })
 })
@@ -63,16 +63,16 @@ describe('qué paso toca', () => {
 describe('las dos salidas', () => {
   it('siguiente pasa al siguiente aunque no se haya conseguido', () => {
     // Un paso que no se consigue dejaría a alguien encerrado en él.
-    expect(tutorialStep(SIN_HITOS, 1)).toBe(TUTORIAL_STEPS[1])
+    expect(tutorialStep(NO_MILESTONES, 1)).toBe(TUTORIAL_STEPS[1])
   })
 
   it('saltarlos todos lo termina', () => {
-    expect(tutorialStep(SIN_HITOS, TUTORIAL_STEPS.length)).toBeNull()
+    expect(tutorialStep(NO_MILESTONES, TUTORIAL_STEPS.length)).toBeNull()
   })
 
   it('saltar de más no rompe nada', () => {
-    expect(tutorialStep(SIN_HITOS, 99)).toBeNull()
-    expect(tutorialStep(SIN_HITOS, -3)).toBe(TUTORIAL_STEPS[0])
+    expect(tutorialStep(NO_MILESTONES, 99)).toBeNull()
+    expect(tutorialStep(NO_MILESTONES, -3)).toBe(TUTORIAL_STEPS[0])
   })
 })
 

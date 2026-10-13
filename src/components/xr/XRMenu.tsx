@@ -10,10 +10,10 @@ import {
 } from '../../lib/gameConfig'
 import { useGame } from '../../lib/gameStore'
 import { useLang } from '../../lib/settingsClient'
-import { traductor, type TextKey } from '../../lib/textos'
+import { translator, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
-import { GAME_MODE_HINTS, GAME_MODE_LABELS, MODOS_DEL_MENU, filasDelModo, type GameMode } from '../../lib/gameMode'
-import { daMedalla, fraseDeLaMedalla } from '../../lib/scoreboardSign'
+import { GAME_MODE_HINTS, GAME_MODE_LABELS, MENU_MODE_ORDER, modeRows, type GameMode } from '../../lib/gameMode'
+import { givesMedal, medalPhrase } from '../../lib/scoreboardSign'
 import type { Goal } from '../../lib/goal'
 import { LEVEL_COUNT } from '../../lib/levels'
 import { MENU_EN } from '../../lib/menuWords'
@@ -38,13 +38,13 @@ import {
   levelBarHeight,
 } from '../../lib/xrMenuLayout'
 import { COMFORT_LEVELS, type Comfort } from '../../lib/hitFeedback'
-import { CONFORT_LEGEND, useConfort } from '../../lib/comfort'
+import { COMFORT_LEGEND, useComfort } from '../../lib/comfort'
 import type { Scenery } from '../../lib/settings'
 import { SCENERY_LABELS } from '../../lib/scenery'
 import { useExit } from '../../game/exit'
 import {
   DIM_COLOR,
-  XRSalirIcon,
+  XRExitIcon,
   XRNumber,
   XRPanel,
   XRPlate,
@@ -161,9 +161,9 @@ function ModeIcon({ mode, lit }: { mode: GameMode; lit: boolean }) {
  * El dibujo de cada confort, **por forma**: apagado es un aro tachado; suave, un punto con una
  * onda; entero, un punto con dos. Se cuentan las ondas sin distinguir colores.
  */
-function ConfortIcon({ confort, lit }: { confort: Comfort; lit: boolean }) {
+function ConfortIcon({ confort: comfort, lit }: { confort: Comfort; lit: boolean }) {
   const color = lit ? PALETTE.foreground : DIM_COLOR
-  if (confort === 'off') {
+  if (comfort === 'off') {
     return (
       <group>
         <mesh>
@@ -177,7 +177,7 @@ function ConfortIcon({ confort, lit }: { confort: Comfort; lit: boolean }) {
       </group>
     )
   }
-  const ondas = confort === 'gentle' ? 1 : 2
+  const ondas = comfort === 'gentle' ? 1 : 2
   return (
     <group>
       <mesh>
@@ -201,7 +201,7 @@ function ConfortIcon({ confort, lit }: { confort: Comfort; lit: boolean }) {
  * récord— y eso no se ve desde una pantalla. Sacado aquí, `legibilidad.test.ts` los escribe
  * en un lienzo que apunta y comprueba que ninguno se pisa con otro ni se sale del panel.
  */
-export function dibujarLosNombres(
+export function drawRowNames(
   ctx: CanvasRenderingContext2D,
   t: (clave: TextKey) => string,
   levels: boolean,
@@ -213,16 +213,16 @@ export function dibujarLosNombres(
   // Solo la práctica pregunta el nivel de la máquina y los goles; en niveles, la fila de los
   // goles pasa a ser la del nivel que se juega, y en el reto no queda ninguna de las dos. Lo que
   // no es del modo, solo con «Más opciones» desplegado.
-  const { filas: hay, plegable } = filasDelModo(gameMode, masOpciones)
+  const { rows: hay, foldable: plegable } = modeRows(gameMode, masOpciones)
   const filas: (readonly [number, string])[] = [
     [ROW.mode, t(MENU_EN.mode)],
-    ...(hay.has('maquina') ? [[ROW.level, t('Level')] as const] : []),
-    ...(hay.has('goles') ? [[ROW.goals, levels ? t('Stage') : t('Goals')] as const] : []),
+    ...(hay.has('machine') ? [[ROW.level, t('Level')] as const] : []),
+    ...(hay.has('goals') ? [[ROW.goals, levels ? t('Stage') : t('Goals')] as const] : []),
   ]
   // El nombre de la cabina, arriba a la izquierda, hasta el botón de «Más opciones»: es un nombre
   // propio y no se traduce. Con él se reconoce el menú como el de las otras cabinas.
   const izquierda = -PANEL.width / 2 + 0.05
-  const mas = MENU_BOXES['mas opciones']
+  const mas = MENU_BOXES['more options']
   drawText(ctx, gameName(), izquierda, ROW.title, {
     size: MENU_TEXT.title,
     color: PALETTE.foreground,
@@ -240,12 +240,12 @@ export function dibujarLosNombres(
   }
   // El confort lleva el nombre en su misma línea y a la izquierda de sus botones: encima está
   // la banda de «Más opciones».
-  if (hay.has('ajustes')) {
-    drawText(ctx, t(CONFORT_LEGEND), -PANEL.width / 2 + 0.05, ROW.comfort, {
+  if (hay.has('settings')) {
+    drawText(ctx, t(COMFORT_LEGEND), -PANEL.width / 2 + 0.05, ROW.comfort, {
       size: MENU_TEXT.comfort,
       color: DIM_COLOR,
       align: 'left',
-      maxWidth: MENU_BOXES['confort off'].position[0] - MENU_BUTTON.small[0] / 2 - 0.02 - (-PANEL.width / 2 + 0.05),
+      maxWidth: MENU_BOXES['comfort off'].position[0] - MENU_BUTTON.small[0] / 2 - 0.02 - (-PANEL.width / 2 + 0.05),
     })
   }
   for (const [y, nombre] of filas) {
@@ -260,8 +260,8 @@ export function dibujarLosNombres(
   // El interruptor del decorado era **un icono y nada más**: con las gafas puestas no
   // hay forma de saber qué hace hasta pulsarlo. Al lado va lo que está puesto ahora —a la
   // derecha y no debajo: debajo caía justo encima del rótulo «Modo»—.
-  if (hay.has('ajustes')) {
-    const desde = MENU_BOXES.escenario.position[0] + MENU_BUTTON.small[0] / 2 + 0.02
+  if (hay.has('settings')) {
+    const desde = MENU_BOXES.scenery.position[0] + MENU_BUTTON.small[0] / 2 + 0.02
     drawText(ctx, t(SCENERY_LABELS[scenery]), desde, ROW.record, {
       size: MENU_TEXT.scenery,
       color: DIM_COLOR,
@@ -273,17 +273,17 @@ export function dibujarLosNombres(
 
   // Si el modo elegido cuenta para medalla, en la línea del rótulo «Modo» y a su derecha: junto a
   // los botones de los que habla. En dorado el que cuenta, que además lleva su marca en el botón.
-  drawText(ctx, t(fraseDeLaMedalla(objetivo, gameMode)), PANEL.width / 2 - 0.05, ROW.mode + ROW_LABEL_RISE, {
+  drawText(ctx, t(medalPhrase(objetivo, gameMode)), PANEL.width / 2 - 0.05, ROW.mode + ROW_LABEL_RISE, {
     size: MENU_TEXT.medal,
-    color: daMedalla(objetivo, gameMode) ? COMMON_PALETTE.gold : DIM_COLOR,
+    color: givesMedal(objetivo, gameMode) ? COMMON_PALETTE.gold : DIM_COLOR,
     align: 'right',
     maxWidth: MENU_MEDAL_WIDTH,
   })
 
   // El nombre de cada modo, en la franja de abajo de su botón (`MENU_MODE_LABEL_DROP`): los iconos
   // solos no dicen qué modo es cada uno. El elegido, en claro, como su icono.
-  for (const modo of MODOS_DEL_MENU) {
-    const [x, y] = MENU_BOXES[`modo ${modo}`].position
+  for (const modo of MENU_MODE_ORDER) {
+    const [x, y] = MENU_BOXES[`mode ${modo}`].position
     drawText(ctx, t(GAME_MODE_LABELS[modo]), x, y + MENU_MODE_LABEL_DROP, {
       size: MENU_TEXT.mode,
       color: modo === gameMode ? PALETTE.foreground : DIM_COLOR,
@@ -330,29 +330,29 @@ function MenuAbierto() {
     setScenery,
     bestPoints,
     startGame,
-    objetivo,
+    goal: objetivo,
   } = useGame()
   const [masOpciones, setMasOpciones] = useState(false)
   const exit = useExit()
-  const [confort, setConfort] = useConfort()
+  const [confort, setConfort] = useComfort()
   // Fuera de una sesión de realidad aumentada no hay habitación que enseñar: el
   // visor no entrega el passthrough en realidad virtual.
   const passthroughAvailable = useXR((state) => state.mode) === 'immersive-ar'
-  const t = traductor(useLang())
+  const t = translator(useLang())
 
   // **Solo la práctica pregunta**: nivel y goles los manda la escalera en reto y en niveles, así
   // que ahí la partida ya está hecha y sus filas no se pintan —ni apagadas—. Niveles conserva la
   // suya, que es qué nivel desbloqueado se juega. Y lo que no es del modo, solo con «Más
   // opciones» desplegado.
-  const { filas: hay, plegable } = filasDelModo(gameMode, masOpciones)
-  const practice = hay.has('maquina')
+  const { rows: hay, foldable: plegable } = modeRows(gameMode, masOpciones)
+  const practice = hay.has('machine')
   const levels = gameMode === 'levels'
 
   // Los nombres de las filas, en un lienzo aparte: el resto del panel es geometría y ahí no
   // cabe una letra. La tercera fila cambia de pregunta con el modo, así que cambia de
   // nombre con ella.
   const nombrarFilas = useCallback(
-    (ctx: CanvasRenderingContext2D) => dibujarLosNombres(ctx, t, levels, gameMode, scenery, objetivo, masOpciones),
+    (ctx: CanvasRenderingContext2D) => drawRowNames(ctx, t, levels, gameMode, scenery, objetivo, masOpciones),
     [levels, t, gameMode, scenery, objetivo, masOpciones],
   )
 
@@ -373,7 +373,7 @@ function MenuAbierto() {
 
       {/* «Más opciones» o «Menos opciones»: lo escrito va en el lienzo de los rótulos. */}
       {plegable ? (
-        <XRPressable box={MENU_BOXES['mas opciones']} onSelect={() => setMasOpciones(!masOpciones)}>
+        <XRPressable box={MENU_BOXES['more options']} onSelect={() => setMasOpciones(!masOpciones)}>
           <XRPlate
             width={MENU_BUTTON.toggle[0]}
             height={MENU_BUTTON.toggle[1]}
@@ -385,10 +385,10 @@ function MenuAbierto() {
 
       {/* Cuánto se nota un gol en contra (`lib/golpeRecibido.ts`). Aquí y no solo en la web
           porque es con el visor puesto cuando se sabe si marea. Detrás de «Más opciones». */}
-      {hay.has('ajustes') && COMFORT_LEVELS.map((opcion) => {
+      {hay.has('settings') && COMFORT_LEVELS.map((opcion) => {
         const selected = opcion === confort
         return (
-          <XRPressable key={opcion} box={MENU_BOXES[`confort ${opcion}`]} onSelect={() => setConfort(opcion)}>
+          <XRPressable key={opcion} box={MENU_BOXES[`comfort ${opcion}`]} onSelect={() => setConfort(opcion)}>
             <XRPlate
               width={SMALL_BUTTON[0]}
               height={SMALL_BUTTON[1]}
@@ -400,12 +400,12 @@ function MenuAbierto() {
         )
       })}
 
-      {MODOS_DEL_MENU.map((mode) => {
+      {MENU_MODE_ORDER.map((mode) => {
         const selected = mode === gameMode
         return (
           <XRPressable
             key={mode}
-            box={MENU_BOXES[`modo ${mode}`]}
+            box={MENU_BOXES[`mode ${mode}`]}
             onSelect={() => setGameMode(mode)}
           >
             <XRPlate
@@ -419,7 +419,7 @@ function MenuAbierto() {
             </group>
             {/* El modo que da medalla lleva su marca en la esquina: un disco dorado, que se
                 distingue por estar o no estar, además de decirlo la frase de abajo. */}
-            {daMedalla(objetivo, mode) ? (
+            {givesMedal(objetivo, mode) ? (
               <mesh position={[MODE_BUTTON[0] / 2 - MARCA_DE_MEDALLA * 1.6, MODE_BUTTON[1] / 2 - MARCA_DE_MEDALLA * 1.6, 0.002]}>
                 <circleGeometry args={[MARCA_DE_MEDALLA, 20]} />
                 <meshBasicMaterial color={COMMON_PALETTE.gold} toneMapped={false} />
@@ -437,7 +437,7 @@ function MenuAbierto() {
         return (
           <XRPressable
             key={level}
-            box={MENU_BOXES[`nivel ${level}`]}
+            box={MENU_BOXES[`level ${level}`]}
             onSelect={() => setDifficulty(level)}
           >
             <XRPlate
@@ -460,10 +460,10 @@ function MenuAbierto() {
       {/* La fila de goles: a cuántos se juega en prueba, o el nivel en Niveles
           (con sus estrellas debajo). Los mismos dos botones, otra pregunta. En el
           reto no hay pregunta y no se pinta. */}
-      {hay.has('goles') ? (
+      {hay.has('goals') ? (
         <>
           <XRPressable
-            box={MENU_BOXES.menos}
+            box={MENU_BOXES.minus}
             onSelect={() => (levels ? setLevel(activeLevel - 1) : setGoalTarget(goalTarget - 1))}
             disabled={levels ? activeLevel <= 1 : endless || goalTarget <= MIN_GOALS}
           >
@@ -510,7 +510,7 @@ function MenuAbierto() {
           )}
 
           <XRPressable
-            box={MENU_BOXES.mas}
+            box={MENU_BOXES.plus}
             onSelect={() => (levels ? setLevel(activeLevel + 1) : setGoalTarget(goalTarget + 1))}
             disabled={
               levels ? activeLevel >= unlockedLevel : endless || goalTarget >= MAX_GOALS
@@ -529,7 +529,7 @@ function MenuAbierto() {
               respuesta. En reto y niveles no hay nada que elegir. */}
           {practice ? (
             <XRPressable
-              box={MENU_BOXES['sin fin']}
+              box={MENU_BOXES.endless}
               onSelect={() => setEndless(!endless)}
             >
               <XRPlate
@@ -564,9 +564,9 @@ function MenuAbierto() {
           Fuera de una sesión de realidad aumentada no hay habitación que
           enseñar, así que el botón se apaga en vez de prometerla. Escribe el
           escenario del arcade: el panel del salón y este botón enseñan lo mismo. */}
-      {hay.has('ajustes') ? (
+      {hay.has('settings') ? (
         <XRPressable
-          box={MENU_BOXES.escenario}
+          box={MENU_BOXES.scenery}
           onSelect={() => setScenery(scenery === 'room' ? 'place' : 'room')}
           disabled={!passthroughAvailable}
         >
@@ -581,7 +581,7 @@ function MenuAbierto() {
       ) : null}
 
       <XRPressable
-        box={MENU_BOXES.jugar}
+        box={MENU_BOXES.play}
         onSelect={startGame}
       >
         <XRPlate
@@ -593,7 +593,7 @@ function MenuAbierto() {
       </XRPressable>
 
       <XRPressable
-        box={MENU_BOXES.salir}
+        box={MENU_BOXES.exit}
         onSelect={exit}
       >
         <XRPlate
@@ -602,7 +602,7 @@ function MenuAbierto() {
           color={PALETTE.rail}
           opacity={0.8}
         />
-        <XRSalirIcon />
+        <XRExitIcon />
       </XRPressable>
     </group>
   )

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { dibujarLosNombres } from './XRMenu'
+import { drawRowNames } from './XRMenu'
 import { LINE_HEIGHT } from './canvasPanel'
 import { recordingCanvas, legibilityProblems, type DrawnText } from './legibility'
 import { MENU_BOXES, MENU_PANEL, MENU_RECORD_X, MENU_ROW, MENU_TEXT } from '../../lib/xrMenuLayout'
@@ -21,21 +21,21 @@ import {
 import { panelPoints, tablePoints, whatThePanelHides } from '../../lib/panelOcclusion'
 import { REFERENCE_EYE_HEIGHT, uiRiseOverWorld, worldRise } from '../../lib/uiHeight'
 import { HALF_WIDTH } from '../../lib/puckPhysics'
-import { traductor } from '../../lib/textos'
+import { translator } from '../../lib/textos'
 import { MENU_EN } from '../../lib/menuWords'
 import { MENU_DEGREES, setGameName, degreesFromFront, gameName } from '../../lib/menuTemplate'
 import { SCOREBOARD_SIZE } from './XRHud'
 import { PANEL_HEIGHT, PANEL_WIDTH } from './XRTutorial'
 import {
-  COLUMNA,
-  ESCALA_DE_LA_COLUMNA,
+  COLUMN,
+  COLUMN_SCALE,
   XR_QUIT,
   XR_UI,
   XR_UI_ROTATION,
-  aLaEscalaDeLaColumna,
-  delEspacioDelJugador,
-  distanciaDelJugador,
-  vistasDelPanel,
+  atColumnScale,
+  fromPlayerSpace,
+  distanceFromPlayer,
+  panelViews,
 } from '../game/GameWorld'
 
 /**
@@ -49,7 +49,7 @@ import {
 
 const IDIOMAS = ['en', 'es'] as const
 // Donde nace el menú, casi de frente (`XR_UI.menu`): es donde se lee.
-const VISTAS = vistasDelPanel(XR_UI.menu, XR_UI_ROTATION.menu)
+const VISTAS = panelViews(XR_UI.menu, XR_UI_ROTATION.menu)
 
 /**
  * Todo lo que puede escribir el panel: cada modo y decorado, con «Más opciones» plegado y
@@ -63,7 +63,7 @@ function todosLosMomentos(): { donde: string; escritos: DrawnText[] }[] {
         for (const gameMode of GAME_MODE_ORDER) {
           for (const scenery of SCENERIES) {
             const { ctx, drawnTexts: escritos } = recordingCanvas()
-            dibujarLosNombres(ctx, traductor(lang), levels, gameMode, scenery, null, masOpciones)
+            drawRowNames(ctx, translator(lang), levels, gameMode, scenery, null, masOpciones)
             const plegado = masOpciones ? '' : ' plegado'
             momentos.push({ donde: `${lang} ${levels ? 'niveles' : 'práctica'} ${gameMode} ${scenery}${plegado}`, escritos })
           }
@@ -79,9 +79,9 @@ describe('los nombres de las filas del menú se leen', () => {
     for (const { donde, escritos } of todosLosMomentos()) {
       expect(escritos.length, 'no se ha medido nada').toBeGreaterThan(0)
       // Medidos como se pintan: la columna entera va escalada (`ESCALA_DE_LA_COLUMNA`).
-      const escalados = aLaEscalaDeLaColumna(escritos)
-      const distancia = Math.max(...VISTAS.map(({ pose, ojos }) => worstReadingDistance(escalados, pose, ojos, LINE_HEIGHT)))
-      const panel = { width: MENU_PANEL.width * ESCALA_DE_LA_COLUMNA, height: MENU_PANEL.height * ESCALA_DE_LA_COLUMNA }
+      const escalados = atColumnScale(escritos)
+      const distancia = Math.max(...VISTAS.map(({ pose, eyes: ojos }) => worstReadingDistance(escalados, pose, ojos, LINE_HEIGHT)))
+      const panel = { width: MENU_PANEL.width * COLUMN_SCALE, height: MENU_PANEL.height * COLUMN_SCALE }
       expect(legibilityProblems(escalados, { panel, distance: distancia }), donde).toEqual([])
     }
   })
@@ -92,16 +92,16 @@ describe('los nombres de las filas del menú se leen', () => {
    */
   it('dicen qué es el modo elegido y qué decorado está puesto', () => {
     for (const lang of IDIOMAS) {
-      const t = traductor(lang)
+      const t = translator(lang)
       for (const gameMode of GAME_MODE_ORDER) {
         const { ctx, drawnTexts: escritos } = recordingCanvas()
-        dibujarLosNombres(ctx, t, false, gameMode, 'place')
+        drawRowNames(ctx, t, false, gameMode, 'place')
         const frase = t(GAME_MODE_HINTS[gameMode])
         expect(escritos.some((e) => frase.startsWith(e.text.trim())), `${lang} ${gameMode}`).toBe(true)
       }
       for (const scenery of SCENERIES) {
         const { ctx, drawnTexts: escritos } = recordingCanvas()
-        dibujarLosNombres(ctx, t, false, 'practice', scenery, null, true)
+        drawRowNames(ctx, t, false, 'practice', scenery, null, true)
         expect(escritos.map((e) => e.text), `${lang} ${scenery}`).toContain(t(SCENERY_LABELS[scenery]))
       }
     }
@@ -120,13 +120,13 @@ describe('el menú se llama como la cabina', () => {
         expect(titulo, `${donde} ${nombre}`).toBeDefined()
         expect(titulo!.height / LINE_HEIGHT, `${donde} ${nombre}`).toBeCloseTo(MENU_TEXT.title, 9)
         expect(titulo!.y).toBeCloseTo(MENU_ROW.title, 9)
-        const mas = MENU_BOXES['mas opciones']
+        const mas = MENU_BOXES['more options']
         expect(titulo!.x + titulo!.width / 2, `${donde} ${nombre}`).toBeLessThan(mas.position[0] - mas.size[0] / 2)
-        const escalados = aLaEscalaDeLaColumna(escritos)
-        const panel = { width: MENU_PANEL.width * ESCALA_DE_LA_COLUMNA, height: MENU_PANEL.height * ESCALA_DE_LA_COLUMNA }
+        const escalados = atColumnScale(escritos)
+        const panel = { width: MENU_PANEL.width * COLUMN_SCALE, height: MENU_PANEL.height * COLUMN_SCALE }
         expect(legibilityProblems(escalados, { panel }), `${donde} ${nombre}`).toEqual([])
         for (const vista of VISTAS) {
-          expect(unreadableTexts(escalados, vista.pose, vista.ojos, LINE_HEIGHT), `${donde} ${nombre}, ${vista.donde}`).toEqual([])
+          expect(unreadableTexts(escalados, vista.pose, vista.eyes, LINE_HEIGHT), `${donde} ${nombre}, ${vista.where}`).toEqual([])
         }
       }
     }
@@ -135,7 +135,7 @@ describe('el menú se llama como la cabina', () => {
   it('el que pasa el salón manda sobre el del paquete', () => {
     setGameName('Air Hockey')
     const { ctx, drawnTexts: escritos } = recordingCanvas()
-    dibujarLosNombres(ctx, traductor('es'), false, 'challenge')
+    drawRowNames(ctx, translator('es'), false, 'challenge')
     expect(escritos.map((e) => e.text)).toContain('Air Hockey')
   })
 })
@@ -143,13 +143,13 @@ describe('el menú se llama como la cabina', () => {
 describe('cada modo lleva su nombre', () => {
   it('debajo de su icono, dentro de su botón y sin encogerse, en los dos idiomas', () => {
     for (const lang of IDIOMAS) {
-      const t = traductor(lang)
+      const t = translator(lang)
       const { ctx, drawnTexts: escritos } = recordingCanvas()
-      dibujarLosNombres(ctx, t, false, 'challenge')
+      drawRowNames(ctx, t, false, 'challenge')
       for (const modo of GAME_MODE_ORDER) {
         const nombre = escritos.find((e) => e.text === t(GAME_MODE_LABELS[modo]))
         expect(nombre, `${lang} ${modo}`).toBeDefined()
-        const { position, size } = MENU_BOXES[`modo ${modo}`]
+        const { position, size } = MENU_BOXES[`mode ${modo}`]
         expect(Math.abs(nombre!.x - position[0]) * 2 + nombre!.width, `${lang} ${modo} a lo ancho`).toBeLessThanOrEqual(size[0])
         expect(Math.abs(nombre!.y - position[1]) * 2 + nombre!.height, `${lang} ${modo} a lo alto`).toBeLessThanOrEqual(size[1] + 1e-9)
         expect(nombre!.height / LINE_HEIGHT).toBeCloseTo(MENU_TEXT.mode, 9)
@@ -161,10 +161,10 @@ describe('cada modo lleva su nombre', () => {
 describe('el menú dice de cada modo si cuenta para medalla', () => {
   it('en la línea del rótulo «Modo», con letras: solo el reto cuenta', () => {
     for (const lang of IDIOMAS) {
-      const t = traductor(lang)
+      const t = translator(lang)
       for (const gameMode of GAME_MODE_ORDER) {
         const { ctx, drawnTexts: escritos } = recordingCanvas()
-        dibujarLosNombres(ctx, t, gameMode === 'levels', gameMode, 'place')
+        drawRowNames(ctx, t, gameMode === 'levels', gameMode, 'place')
         const frase = t(gameMode === 'challenge' ? 'Counts for a medal' : 'Does not count for a medal')
         const escrita = escritos.find((e) => e.text === frase)
         const rotulo = escritos.find((e) => e.text === t('Mode'))!
@@ -178,7 +178,7 @@ describe('el menú dice de cada modo si cuenta para medalla', () => {
   it('y si el salón saca las medallas de otro modo, el reto tampoco cuenta', () => {
     const { ctx, drawnTexts: escritos } = recordingCanvas()
     const otro = { medals: { bronze: 1, silver: 2, gold: 3 }, better: 'higher', unit: 'points', record: null, mode: 'levels' } as const
-    dibujarLosNombres(ctx, traductor('en'), false, 'challenge', 'place', otro)
+    drawRowNames(ctx, translator('en'), false, 'challenge', 'place', otro)
     expect(escritos.map((e) => e.text)).toContain('Does not count for a medal')
   })
 })
@@ -187,7 +187,7 @@ describe('el menú empieza por el modo, y solo la práctica pregunta', () => {
   /** Los nombres de las filas que se pintan con ese modo. */
   function filas(gameMode: (typeof GAME_MODE_ORDER)[number], masOpciones = true): string[] {
     const { ctx, drawnTexts: escritos } = recordingCanvas()
-    dibujarLosNombres(ctx, traductor('en'), gameMode === 'levels', gameMode, 'place', null, masOpciones)
+    drawRowNames(ctx, translator('en'), gameMode === 'levels', gameMode, 'place', null, masOpciones)
     return escritos
       .map((e) => e.text)
       .filter((texto) => ['Mode', 'Level', 'Goals', 'Stage', 'When hit', 'More options', 'Fewer options'].includes(texto))
@@ -216,12 +216,12 @@ describe('el menú empieza por el modo, y solo la práctica pregunta', () => {
     for (const lang of IDIOMAS) {
       for (const masOpciones of [false, true]) {
         const { ctx, drawnTexts: escritos } = recordingCanvas()
-        const t = traductor(lang)
-        dibujarLosNombres(ctx, t, false, 'practice', 'place', null, masOpciones)
+        const t = translator(lang)
+        drawRowNames(ctx, t, false, 'practice', 'place', null, masOpciones)
         const texto = t(masOpciones ? MENU_EN.fewerOptions : MENU_EN.moreOptions)
         const escrito = escritos.find((e) => e.text === texto)
         expect(escrito, `${lang} ${texto}`).toBeDefined()
-        const { position, size } = MENU_BOXES['mas opciones']
+        const { position, size } = MENU_BOXES['more options']
         expect(Math.abs(escrito!.x - position[0]) * 2 + escrito!.width, `${lang} ${texto}`).toBeLessThanOrEqual(size[0])
         expect(escrito!.height / LINE_HEIGHT).toBeCloseTo(MENU_TEXT.toggle, 9)
       }
@@ -237,7 +237,7 @@ describe('cada letra del menú se lee de un vistazo', () => {
   it(`ninguna baja de ${MIN_READING_DEGREES}°, en ningún momento, idioma ni altura de ojos`, () => {
     for (const { donde, escritos } of todosLosMomentos()) {
       for (const vista of VISTAS) {
-        expect(unreadableTexts(aLaEscalaDeLaColumna(escritos), vista.pose, vista.ojos, LINE_HEIGHT), `${donde}, ${vista.donde}`).toEqual([])
+        expect(unreadableTexts(atColumnScale(escritos), vista.pose, vista.eyes, LINE_HEIGHT), `${donde}, ${vista.where}`).toEqual([])
       }
     }
   })
@@ -258,8 +258,8 @@ describe('cada letra del menú se lee de un vistazo', () => {
     ]
     // Lo único escrito dentro de un botón es el nombre de cada modo, en el suyo, y «Más opciones»
     // (o «Menos»), en el suyo.
-    const nombresDeLosModos = new Set(IDIOMAS.flatMap((lang) => GAME_MODE_ORDER.map((modo) => traductor(lang)(GAME_MODE_LABELS[modo]))))
-    const delPliegue = new Set(IDIOMAS.flatMap((lang) => [MENU_EN.moreOptions, MENU_EN.fewerOptions].map((frase) => traductor(lang)(frase))))
+    const nombresDeLosModos = new Set(IDIOMAS.flatMap((lang) => GAME_MODE_ORDER.map((modo) => translator(lang)(GAME_MODE_LABELS[modo]))))
+    const delPliegue = new Set(IDIOMAS.flatMap((lang) => [MENU_EN.moreOptions, MENU_EN.fewerOptions].map((frase) => translator(lang)(frase))))
     const suyo = (texto: DrawnText, boton: { x: number; y: number; width: number; height: number }) =>
       centreInside(texto, boton) &&
       ((nombresDeLosModos.has(texto.text) && Math.abs(boton.y - MENU_ROW.mode) < 1e-9) ||
@@ -271,8 +271,8 @@ describe('cada letra del menú se lee de un vistazo', () => {
 
   it('el control: el nombre del decorado a 24 mm, con el panel a 1,45 m, no llegaba', () => {
     const { escritos } = todosLosMomentos().find(({ donde }) => donde === 'es práctica practice place')!
-    const decorado = escritos.find((e) => e.text === traductor('es')(SCENERY_LABELS.place))!
-    const [x, y] = delEspacioDelJugador([0, 0.52, -0.25])
+    const decorado = escritos.find((e) => e.text === translator('es')(SCENERY_LABELS.place))!
+    const [x, y] = fromPlayerSpace([0, 0.52, -0.25])
     const comoEstaba = { position: [x, y, -1.45] as const, rotation: [-0.2, 0, 0] as const }
     expect(unreadableTexts([{ ...decorado, height: 0.024 * LINE_HEIGHT }], comoEstaba, eyesAt(1.6), LINE_HEIGHT)).toHaveLength(1)
   })
@@ -280,23 +280,23 @@ describe('cada letra del menú se lee de un vistazo', () => {
 
 describe('dónde nace el menú', () => {
   it(`a ${MENU_DEGREES}° o menos del frente de quien juega`, () => {
-    expect(degreesFromFront(delEspacioDelJugador(XR_UI.menu))).toBeLessThanOrEqual(MENU_DEGREES)
+    expect(degreesFromFront(fromPlayerSpace(XR_UI.menu))).toBeLessThanOrEqual(MENU_DEGREES)
   })
 
   it('a la distancia de la columna y a la altura de los ojos: la letra ocupa en el ojo lo mismo', () => {
-    expect(distanciaDelJugador(XR_UI.menu)).toBeCloseTo(distanciaDelJugador(XR_UI.panel), 9)
-    expect(delEspacioDelJugador(XR_UI.menu)[1]).toBeCloseTo(eyesAt(REFERENCE_EYE_HEIGHT).y, 9)
+    expect(distanceFromPlayer(XR_UI.menu)).toBeCloseTo(distanceFromPlayer(XR_UI.panel), 9)
+    expect(fromPlayerSpace(XR_UI.menu)[1]).toBeCloseTo(eyesAt(REFERENCE_EYE_HEIGHT).y, 9)
   })
 
   it('de cara a quien juega', () => {
-    expect(XR_UI_ROTATION.menu).toEqual(panelRotation(delEspacioDelJugador(XR_UI.menu), eyesAt(REFERENCE_EYE_HEIGHT)))
+    expect(XR_UI_ROTATION.menu).toEqual(panelRotation(fromPlayerSpace(XR_UI.menu), eyesAt(REFERENCE_EYE_HEIGHT)))
   })
 
   it('sin tapar el marcador ni la demostración; de la mesa, como mucho la esquina del fondo', () => {
     // En la fase de menú no se juega: que asome sobre el canto izquierdo del fondo no estorba a
     // nadie, y al empezar se aparta. El cartel del objetivo no sale en el menú.
-    const medidas = { width: MENU_PANEL.width * ESCALA_DE_LA_COLUMNA, height: MENU_PANEL.height * ESCALA_DE_LA_COLUMNA }
-    const [x, y, z] = delEspacioDelJugador(XR_UI.menu)
+    const medidas = { width: MENU_PANEL.width * COLUMN_SCALE, height: MENU_PANEL.height * COLUMN_SCALE }
+    const [x, y, z] = fromPlayerSpace(XR_UI.menu)
     for (const ojos of EYE_HEIGHTS) {
       for (const aLaAltura of [false, true]) {
         const mundo = worldRise(ojos, aLaAltura)
@@ -305,16 +305,16 @@ describe('dónde nace el menú', () => {
         const donde = `ojos a ${ojos} m${aLaAltura ? ', mundo a su altura' : ''}`
         expect(
           whatThePanelHides(pose, medidas, eyesAt(ojos), [
-            { que: 'el marcador', puntos: subir(panelPoints(delEspacioDelJugador(XR_UI.scoreboard), SCOREBOARD_SIZE, 6)) },
+            { what: 'el marcador', points: subir(panelPoints(fromPlayerSpace(XR_UI.scoreboard), SCOREBOARD_SIZE, 6)) },
             {
-              que: 'la demostración',
-              puntos: subir(panelPoints(delEspacioDelJugador(XR_UI.tutorial), { width: PANEL_WIDTH, height: PANEL_HEIGHT }, 6)),
+              what: 'la demostración',
+              points: subir(panelPoints(fromPlayerSpace(XR_UI.tutorial), { width: PANEL_WIDTH, height: PANEL_HEIGHT }, 6)),
             },
           ]),
           donde,
         ).toEqual([])
         const mesa = subir(tablePoints(13))
-        const tapados = whatThePanelHides(pose, medidas, eyesAt(ojos), [{ que: 'la mesa', puntos: mesa }])
+        const tapados = whatThePanelHides(pose, medidas, eyesAt(ojos), [{ what: 'la mesa', points: mesa }])
         const cuantos = tapados.length === 0 ? 0 : Number(/en (\d+) de/.exec(tapados[0])![1])
         expect(cuantos / mesa.length, donde).toBeLessThan(0.15)
       }
@@ -322,7 +322,7 @@ describe('dónde nace el menú', () => {
   })
 
   it('el control: en la columna, a 55°, nacía fuera de la mirada', () => {
-    expect(degreesFromFront(delEspacioDelJugador(XR_UI.panel))).toBeGreaterThan(MENU_DEGREES)
+    expect(degreesFromFront(fromPlayerSpace(XR_UI.panel))).toBeGreaterThan(MENU_DEGREES)
   })
 })
 
@@ -330,30 +330,30 @@ describe('dónde se planta la columna: el final y el aviso de salir', () => {
   it('entera fuera de la mesa y lejos de donde anda el mazo, ni una esquina encima', () => {
     // Estaba a un metro y colgando sobre el tablero; ahora queda al lado de la mesa, y su borde
     // de abajo puede bajar de la altura del tablero sin tocarlo.
-    const pose = { position: delEspacioDelJugador(XR_UI.panel), rotation: XR_UI_ROTATION.panel }
-    const w = (MENU_PANEL.width * ESCALA_DE_LA_COLUMNA) / 2
-    const h = (MENU_PANEL.height * ESCALA_DE_LA_COLUMNA) / 2
+    const pose = { position: fromPlayerSpace(XR_UI.panel), rotation: XR_UI_ROTATION.panel }
+    const w = (MENU_PANEL.width * COLUMN_SCALE) / 2
+    const h = (MENU_PANEL.height * COLUMN_SCALE) / 2
     for (const [u, v] of [[-w, -h], [w, -h], [-w, h], [w, h]]) {
       expect(pointOnPanel(pose, u, v).x, `esquina ${u}, ${v}`).toBeLessThan(-HALF_WIDTH - 0.3)
     }
   })
 
   it('la regla del salón: a 1,4–1,6 m de los ojos, entre 50° y 65° a la izquierda, a su altura', () => {
-    const [x, y, z] = delEspacioDelJugador(XR_UI.panel)
+    const [x, y, z] = fromPlayerSpace(XR_UI.panel)
     const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
     const azimut = (Math.atan2(-x, -z) * 180) / Math.PI
-    expect(distanciaDelJugador(XR_UI.panel)).toBeGreaterThanOrEqual(1.4)
-    expect(distanciaDelJugador(XR_UI.panel)).toBeLessThanOrEqual(1.6)
+    expect(distanceFromPlayer(XR_UI.panel)).toBeGreaterThanOrEqual(1.4)
+    expect(distanceFromPlayer(XR_UI.panel)).toBeLessThanOrEqual(1.6)
     expect(azimut).toBeGreaterThanOrEqual(50)
     expect(azimut).toBeLessThanOrEqual(65)
-    expect(COLUMNA.azimut).toBeCloseTo(azimut, 9)
+    expect(COLUMN.azimuth).toBeCloseTo(azimut, 9)
     expect(y).toBeCloseTo(ojos.y, 9)
     // Fuera del rectángulo de la mesa, y lejos de donde anda el mazo.
     expect(x).toBeLessThan(-HALF_WIDTH - 0.4)
   })
 
   it('de cara a quien juega: girada hacia los ojos, no de frente a la mesa', () => {
-    expect(XR_UI_ROTATION.panel).toEqual(panelRotation(delEspacioDelJugador(XR_UI.panel), eyesAt(REFERENCE_EYE_HEIGHT)))
+    expect(XR_UI_ROTATION.panel).toEqual(panelRotation(fromPlayerSpace(XR_UI.panel), eyesAt(REFERENCE_EYE_HEIGHT)))
     // Un giro de verdad: con la columna a 55° a la izquierda, el panel mira hacia la derecha.
     expect(Math.abs(XR_UI_ROTATION.panel[1])).toBeGreaterThan(0.8)
   })
@@ -374,13 +374,13 @@ describe('dónde se planta la columna: el final y el aviso de salir', () => {
  * `XRWorldHeight`).
  */
 describe('lo que el menú deja ver', () => {
-  const MEDIDAS = { width: MENU_PANEL.width * ESCALA_DE_LA_COLUMNA, height: MENU_PANEL.height * ESCALA_DE_LA_COLUMNA }
+  const MEDIDAS = { width: MENU_PANEL.width * COLUMN_SCALE, height: MENU_PANEL.height * COLUMN_SCALE }
 
   /** Cada vista: dónde queda el panel y cuánto se ha movido el mundo bajo él. */
   const VISTAS_CON_MUNDO = EYE_HEIGHTS.flatMap((ojos) =>
     [false, true].map((aLaAlturaDeLosOjos) => {
       const mundo = worldRise(ojos, aLaAlturaDeLosOjos)
-      const [x, y, z] = delEspacioDelJugador(XR_UI.panel)
+      const [x, y, z] = fromPlayerSpace(XR_UI.panel)
       return {
         donde: `ojos a ${ojos} m${aLaAlturaDeLosOjos ? ', mundo a su altura' : ''}`,
         pose: { position: [x, y + mundo + uiRiseOverWorld(ojos, aLaAlturaDeLosOjos), z] as const, rotation: XR_UI_ROTATION.panel },
@@ -394,11 +394,11 @@ describe('lo que el menú deja ver', () => {
   function loQueHayDetras(mundo: number) {
     const subir = (puntos: ReturnType<typeof tablePoints>) => puntos.map((p) => ({ ...p, y: p.y + mundo }))
     return [
-      { que: 'la mesa', puntos: subir(tablePoints(13)) },
-      { que: 'el marcador', puntos: subir(panelPoints(delEspacioDelJugador(XR_UI.scoreboard), SCOREBOARD_SIZE, 6)) },
+      { what: 'la mesa', points: subir(tablePoints(13)) },
+      { what: 'el marcador', points: subir(panelPoints(fromPlayerSpace(XR_UI.scoreboard), SCOREBOARD_SIZE, 6)) },
       {
-        que: 'la demostración del gesto',
-        puntos: subir(panelPoints(delEspacioDelJugador(XR_UI.tutorial), { width: PANEL_WIDTH, height: PANEL_HEIGHT }, 6)),
+        what: 'la demostración del gesto',
+        points: subir(panelPoints(fromPlayerSpace(XR_UI.tutorial), { width: PANEL_WIDTH, height: PANEL_HEIGHT }, 6)),
       },
     ]
   }
@@ -412,7 +412,7 @@ describe('lo que el menú deja ver', () => {
   it('ni asomándose a un lado de la mesa o echándose atrás: se juega desde el extremo, no se rodea', () => {
     // En air hockey no se da la vuelta a la mesa —el mazo no pasa de medio campo—, pero sí se
     // mueve uno delante de su portería. Desde ahí tampoco puede caer la columna sobre la mesa.
-    const pose = { position: delEspacioDelJugador(XR_UI.panel), rotation: XR_UI_ROTATION.panel }
+    const pose = { position: fromPlayerSpace(XR_UI.panel), rotation: XR_UI_ROTATION.panel }
     for (const x of [-0.5, -0.25, 0, 0.25, 0.5]) {
       for (const z of [-0.1, 0.2, 0.5]) {
         for (const alto of EYE_HEIGHTS) {
@@ -426,7 +426,7 @@ describe('lo que el menú deja ver', () => {
   it('el control: centrado sobre la mesa y a la altura de los ojos, tapaba los tres', () => {
     // La demostración ya no está de frente —va a un lado del cartel (`sitioDelTutorial`)— y aun
     // así un menú centrado le pisaba el canto; cuando estaba de frente, la tapaba entera.
-    const comoEstaba = delEspacioDelJugador([0, 0.62, 0.2])
+    const comoEstaba = fromPlayerSpace([0, 0.62, 0.2])
     const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
     expect(
       whatThePanelHides(

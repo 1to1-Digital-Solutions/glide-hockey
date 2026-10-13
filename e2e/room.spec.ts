@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { abrirJuego } from './helpers'
+import { openGame } from './helpers'
 
 /**
  * Que la sala esté **cerrada**: que mirar hacia arriba no sea mirar a la nada.
@@ -43,7 +43,7 @@ test('la escena trae su propio fondo, y no es la nada', async ({ page }) => {
   // Tiene que traerlo el juego y no el `<Canvas>`: montado en el salón, el hub retira el suyo
   // al entrar en la cabina, así que un juego sin fondo propio se queda sin ninguno.
   await spyClearColor(page)
-  await abrirJuego(page)
+  await openGame(page)
 
   // Un fondo es un color **opaco**: transparente deja ver el negro de detrás, que es justo
   // el problema. Y oscuro sin llegar a negro: es la sala de un recreativo de noche, no el

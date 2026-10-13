@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { abrirJuego, observarLaMesa } from './helpers'
+import { openGame, watchTable } from './helpers'
 import { enterVR, installXREmulator, skipTutorial, startGameInsideSession } from './support/xr'
 
 /**
@@ -20,8 +20,8 @@ test('con las manos desnudas el mazo también se coge', async ({ page }) => {
   // La demostración del gesto para la partida hasta que termina, y aquí lo que se prueba es
   // el gesto: se entra como quien ya la ha visto.
   await skipTutorial(page)
-  await observarLaMesa(page)
-  await abrirJuego(page)
+  await watchTable(page)
+  await openGame(page)
   await enterVR(page)
   await page.evaluate(() => window.__xrTest.useHands())
   await startGameInsideSession(page)

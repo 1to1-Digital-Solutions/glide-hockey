@@ -1,12 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
 import { constrainMallet, type Vec2 } from '@/lib/puckPhysics'
 import {
-  abrirJuego,
-  esperarALaMesa,
-  jugarPartida,
-  leerLaMesa,
-  observarLaMesa,
-  perseguirElDisco,
+  openGame,
+  waitForTable,
+  playMatch,
+  readTable,
+  watchTable,
+  chasePuck,
 } from './helpers'
 
 /**
@@ -46,7 +46,7 @@ const TOLERANCIA = 0.03
  * sitio. El mazo no cruza la línea de medio campo, de ahí el `constrainMallet`.
  */
 async function llevarElMazoAlDisco(page: Page): Promise<Vec2> {
-  const mesa = await leerLaMesa(page)
+  const mesa = await readTable(page)
   // Recién empezada la partida el disco espera el saque en el centro de la
   // mesa. Si estuviera lejos de ahí es que se ha jugado media partida antes de
   // mirar, y entonces ni el mazo está donde se cree ni el píxel al que se
@@ -61,7 +61,7 @@ async function llevarElMazoAlDisco(page: Page): Promise<Vec2> {
 
   await expect
     .poll(
-      async () => distancia((await leerLaMesa(page)).playerMallet, destino),
+      async () => distancia((await readTable(page)).playerMallet, destino),
       { message: 'el mazo no fue a donde apuntaba el ratón' },
     )
     .toBeLessThan(TOLERANCIA)
@@ -70,11 +70,11 @@ async function llevarElMazoAlDisco(page: Page): Promise<Vec2> {
 }
 
 test('el ratón mueve el mazo del jugador a donde apunta', async ({ page }) => {
-  await observarLaMesa(page)
-  await abrirJuego(page)
-  await jugarPartida(page, { goles: 15, nivel: 'Easy' })
+  await watchTable(page)
+  await openGame(page)
+  await playMatch(page, { goles: 15, nivel: 'Easy' })
 
-  const inicio = await esperarALaMesa(page)
+  const inicio = await waitForTable(page)
   // El mazo sale delante de su portería, a media mesa del centro: si ya
   // estuviera donde se le va a mandar, llegar no demostraría nada.
   expect(
@@ -87,10 +87,10 @@ test('el ratón mueve el mazo del jugador a donde apunta', async ({ page }) => {
 test('el mazo golpea el disco cuando se le persigue con el ratón', async ({
   page,
 }) => {
-  await observarLaMesa(page)
-  await abrirJuego(page)
-  await jugarPartida(page, { goles: 15, nivel: 'Easy' })
-  await esperarALaMesa(page)
+  await watchTable(page)
+  await openGame(page)
+  await playMatch(page, { goles: 15, nivel: 'Easy' })
+  await waitForTable(page)
 
   // Primero se comprueba que el ratón manda de verdad. Sin esto, un mazo
   // clavado delante de su portería acabaría tocando el disco de rebote y el
@@ -101,7 +101,7 @@ test('el mazo golpea el disco cuando se le persigue con el ratón', async ({
   // gol ni a un número de golpes: basta con que el mazo alcance el disco una
   // vez y la física cuente el golpe.
   await expect
-    .poll(() => perseguirElDisco(page), {
+    .poll(() => chasePuck(page), {
       // Cada vuelta lee dónde se ve el disco y lleva el ratón hasta ahí: cuanto
       // más seguidas, menos se le escapa.
       intervals: [20],

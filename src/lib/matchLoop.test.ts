@@ -13,7 +13,7 @@ import {
   type FrameInput,
   type TableState,
 } from './matchLoop'
-import { playerStart, semillaDeLaMesa } from './opponent'
+import { playerStart, tableSeed } from './opponent'
 import { RALLY_SECONDS, type Scorer, type Vec2 } from './puckPhysics'
 
 /**
@@ -627,7 +627,7 @@ describe('el reto: la misma semilla, la misma mesa', () => {
    */
   function rondas(semilla: number, runId = 1) {
     return [1, 2, 3].map((ronda) => {
-      let table = startTable({ skill, lastScorer: null, seed: semillaDeLaMesa(semilla, runId + ronda, ronda) })
+      let table = startTable({ skill, lastScorer: null, seed: tableSeed(semilla, runId + ronda, ronda) })
       const rastro: string[] = []
       for (let paso = 1; paso <= 60 * 20; paso += 1) {
         const result = advanceTable(table, frame(1 / 60))
@@ -652,7 +652,7 @@ describe('el reto: la misma semilla, la misma mesa', () => {
   })
 
   it('sin reto, la semilla es el número de partida, como siempre', () => {
-    expect(semillaDeLaMesa(null, 7, 3)).toBe(7)
-    expect(semillaDeLaMesa(5, 7, 3)).not.toBe(semillaDeLaMesa(5, 7, 4))
+    expect(tableSeed(null, 7, 3)).toBe(7)
+    expect(tableSeed(5, 7, 3)).not.toBe(tableSeed(5, 7, 4))
   })
 })

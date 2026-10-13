@@ -198,14 +198,14 @@ export function texto(lang: Lang, key: TextKey): string {
  * orden de las palabras cambia de un idioma a otro, y concatenar obliga al español a
  * fingir la sintaxis inglesa.
  */
-export function formatea(plantilla: string, valores: Record<string, string | number>): string {
+export function formatText(plantilla: string, valores: Record<string, string | number>): string {
   return plantilla.replace(/\{(\w+)\}/g, (hueco, nombre: string) =>
     nombre in valores ? String(valores[nombre]) : hueco,
   )
 }
 
 /** Un traductor que acepta cualquier frase: el del cartel del objetivo (`Traducir` de `objetivo.ts`). */
-export type Traductor = (clave: string, valores?: Record<string, string | number>) => string
+export type Translator = (clave: string, valores?: Record<string, string | number>) => string
 
 /**
  * El traductor que no exige que la frase esté en el diccionario: la que no está sale tal cual.
@@ -213,11 +213,11 @@ export type Traductor = (clave: string, valores?: Record<string, string | number
  * Es el que recibe el cartel del objetivo, que traduce sus frases y además lo que le llega ya
  * dicho de fuera —la unidad del récord, que el salón pasa en el idioma de quien juega—.
  */
-export function traductorSuave(lang: Lang): Traductor {
+export function softTranslator(lang: Lang): Translator {
   return (frase, valores) => {
     // Con `hasOwnProperty` y no con `in`: una unidad que se llamara como algo de `Object` no es una frase.
     const dicho = lang === 'es' && Object.prototype.hasOwnProperty.call(ES, frase) ? ES[frase as TextKey] : frase
-    return valores === undefined ? dicho : formatea(dicho, valores)
+    return valores === undefined ? dicho : formatText(dicho, valores)
   }
 }
 
@@ -227,10 +227,10 @@ export function traductorSuave(lang: Lang): Traductor {
  * Se pide una vez arriba del componente —`const t = traductor(useLang())`— y se usa como
  * `t('Back to the menu')`, o con huecos: `t('· round {round}', { round })`.
  */
-export function traductor(lang: Lang) {
+export function translator(lang: Lang) {
   return (key: TextKey, valores?: Record<string, string | number>): string => {
     const frase = texto(lang, key)
-    return valores === undefined ? frase : formatea(frase, valores)
+    return valores === undefined ? frase : formatText(frase, valores)
   }
 }
 
@@ -245,7 +245,7 @@ export function traductor(lang: Lang) {
  * el navegador —el del visor no trae todos—, y con `'en-GB'` fijo la versión española decía
  * «8,068». Es la cuenta de Gloop Pop.
  */
-export function formatoDeCifra(n: number, lang: Lang): string {
+export function formatFigure(n: number, lang: Lang): string {
   if (!Number.isFinite(n)) return '0'
   const { separador, desde } = lang === 'es' ? { separador: '.', desde: 5 } : { separador: ',', desde: 4 }
   const redondeado = Math.round(n)

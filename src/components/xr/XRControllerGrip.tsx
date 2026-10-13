@@ -58,17 +58,17 @@ function apuntarPuño(
 export function XRControllerGrip({
   grabRadius,
   rayLength = 6,
-  agarre = true,
-  rayo,
+  grab: agarre = true,
+  ray: rayo,
 }: {
   /** Radio de la esfera de agarre, en metros. Sin él, el de la librería. */
   grabRadius?: number
   /** Hasta dónde llega el rayo con el que se pulsan los menús. */
   rayLength?: number
   /** Si el mando lleva puntero de agarre. */
-  agarre?: boolean
+  grab?: boolean
   /** Cómo se dibuja el rayo, si el juego tiene el suyo. Sin él, uno tenue de `rayLength`. */
-  rayo?: Exclude<ComponentProps<typeof DefaultXRInputSourceRayPointer>['rayModel'], boolean | undefined>
+  ray?: Exclude<ComponentProps<typeof DefaultXRInputSourceRayPointer>['rayModel'], boolean | undefined>
 }) {
   const state = useXRInputSourceStateContext('controller')
   const ocupada = useHandBusy(state.inputSource.handedness as 'left' | 'right' | undefined)

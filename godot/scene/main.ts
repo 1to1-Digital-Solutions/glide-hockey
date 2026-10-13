@@ -96,15 +96,15 @@ import {
   TABLE_LENGTH,
   TABLE_WIDTH,
 } from '@/lib/gameConfig'
-import { SONIDO_DEL_LISTON } from '@/lib/scoreboardSign'
-import { finalSuenaAGanar, type MatchScore } from '@/lib/duel'
+import { THRESHOLD_SOUND } from '@/lib/scoreboardSign'
+import { endSoundsLikeWin, type MatchScore } from '@/lib/duel'
 import { getDuelTally } from '@/lib/duelTally'
 import { GAME_MODE_ORDER, type GameMode } from '@/lib/gameMode'
 import type { Difficulty } from '@/lib/gameConfig'
-import { FUERZA_DEL_GOL_EN_CONTRA, direccionDelGolEnContra } from '@/lib/goalAgainst'
+import { GOAL_AGAINST_STRENGTH, goalAgainstDirection } from '@/lib/goalAgainst'
 import { getBestPoints } from '@/lib/highScore'
 import * as hostAnchor from '@/lib/hostAnchor'
-import { ALCANCE_DE_AGARRE } from '@/lib/malletGrab'
+import { GRAB_REACH } from '@/lib/malletGrab'
 import { advanceTable, startTable, type TableState } from '@/lib/matchLoop'
 import { MUSIC_VOLUME } from '@/lib/music'
 import { MUSIC_FADE_MS, fadeVolume } from '@/lib/musicFade'
@@ -655,7 +655,7 @@ export default class GlideHockey extends Node3D {
       // es dónde queda el puño (`MalletHand.tsx` y `malletGrab.ts` en la web). Por eso la
       // empuñadura es la identidad: el asa va justo en el puño.
       empunadura: IDENTIDAD,
-      alcance: ALCANCE_DE_AGARRE,
+      alcance: GRAB_REACH,
       alCoger: (mano) => this.manosQueLoLlevaron.add(mano),
     })
   }
@@ -797,8 +797,8 @@ export default class GlideHockey extends Node3D {
     const liston = this.interfaz.liston
     if (liston != null) {
       this.listones.push(liston)
-      this.sfx.play(SONIDO_DEL_LISTON[liston])
-      this.sentir({ tipo: 'liston', medalla: liston })
+      this.sfx.play(THRESHOLD_SOUND[liston])
+      this.sentir({ tipo: 'threshold', medalla: liston })
     }
     // La cuenta parada en el último segundo enseña el agarre en el mando de verdad (`XRCountdown`):
     // el paso de coger del tutorial se supera en la cuenta, antes de que su panel llegue a salir.
@@ -814,7 +814,7 @@ export default class GlideHockey extends Node3D {
     const hitos = partida.hitos
     this.ayudas.actualizar(delta, {
       dando: this.driver === 'xr' || this.ayudasEnPlano,
-      hechos: { tanda: fase !== 'menu', grab: hitos.grab, hit: hitos.hit, goal: hitos.goal },
+      hechos: { round: fase !== 'menu', grab: hitos.grab, hit: hitos.hit, goal: hitos.goal },
     })
     if (this.player != null) this.apuntarLoQueSeVe()
 
@@ -876,7 +876,7 @@ export default class GlideHockey extends Node3D {
     })
     this.table = frame.table
     // Las hazañas antes que los goles que las traen: el último gol cierra la partida en el acto.
-    for (const hazana of frame.hazanas) {
+    for (const hazana of frame.feats) {
       this.hazanasDeLaMesa.push(hazana)
       partida.apuntarHazana(hazana)
     }
@@ -904,13 +904,13 @@ export default class GlideHockey extends Node3D {
   private golpeDelGolEnContra(): void {
     const camara = this.player?.camara ?? this.camera
     if (camara == null) {
-      this.golpe.golpe(FUERZA_DEL_GOL_EN_CONTRA, null)
+      this.golpe.golpe(GOAL_AGAINST_STRENGTH, null)
       return
     }
     const ojos = this.mesa.to_local(camara.global_position)
-    const hacia = direccionDelGolEnContra({ x: ojos.x, y: ojos.y, z: ojos.z })
+    const hacia = goalAgainstDirection({ x: ojos.x, y: ojos.y, z: ojos.z })
     const global = Basis.MULTIPLY(this.mesa.global_basis, new Vector3(hacia.x, hacia.y, hacia.z))
-    this.golpe.golpe(FUERZA_DEL_GOL_EN_CONTRA, { x: global.x, y: global.y, z: global.z })
+    this.golpe.golpe(GOAL_AGAINST_STRENGTH, { x: global.x, y: global.y, z: global.z })
   }
 
   /** El partido se ha acabado: el cierre que suena (y el récord encima) y el pulso final. */
@@ -920,7 +920,7 @@ export default class GlideHockey extends Node3D {
     const marcador = { scored: partida.totalPlayerGoals, conceded: partida.totalOpponentGoals }
     if (partida.duelView != null) this.partidasDelDuelo.push({ ...marcador, seed: partida.seed })
     // El final del duelo suena a ganar: lo gana uno de los dos que están delante (`duel.ts`).
-    const cierre = finalSuenaAGanar(partida.duelView?.over ?? false, marcador) ? 'win' : 'loss'
+    const cierre = endSoundsLikeWin(partida.duelView?.over ?? false, marcador) ? 'win' : 'loss'
     this.cierres.push(cierre)
     this.sfx.play(cierre)
     this.sentir({ tipo: 'end' })

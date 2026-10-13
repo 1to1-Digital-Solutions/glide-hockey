@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { abrirJuego, observarLaMesa } from './helpers'
+import { openGame, watchTable } from './helpers'
 import { TUTORIAL_SEEN_KEY } from '../src/lib/tutorial'
 import { enterVR, installXREmulator } from './support/xr'
 
@@ -16,8 +16,8 @@ import { enterVR, installXREmulator } from './support/xr'
 test('con el tutorial pendiente, tres goles en contra dejan el reto intacto', async ({ page }) => {
   test.setTimeout(180_000)
   await installXREmulator(page)
-  await observarLaMesa(page)
-  await abrirJuego(page)
+  await watchTable(page)
+  await openGame(page)
   await enterVR(page)
 
   // El menú abre en el reto: se juega tal cual, sin tocar el modo.

@@ -21,7 +21,7 @@ import { Panel } from '@kit/runtime/ui/panel'
 
 import type { Lang } from '@/lib/settings'
 import { PALETTE } from '@/lib/palette'
-import { traductor, type TextKey } from '@/lib/textos'
+import { translator, type TextKey } from '@/lib/textos'
 
 import { Cifras } from './digits'
 import { DIM } from './menu'
@@ -143,7 +143,7 @@ export class CuentaAtras {
     if (clave === this.pintado) return
     this.pintado = clave
     this.aviso.borrarTextos()
-    this.aviso.parrafo(traductor(estado.lang)(fraseDelMazo(estado.conUnToque)), 0, 0, {
+    this.aviso.parrafo(translator(estado.lang)(fraseDelMazo(estado.conUnToque)), 0, 0, {
       alto: LETRA_DEL_AVISO.phrase,
       color: PALETTE.foreground,
       anchoMax: AVISO_DEL_MAZO[0] - 0.06,

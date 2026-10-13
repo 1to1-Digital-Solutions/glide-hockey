@@ -4,7 +4,7 @@ import { PALETTE } from '@/lib/palette'
 import './globals.css'
 import { requestLang } from '../lib/server-lang'
 import { gameName } from '../lib/menuTemplate'
-import { traductor } from '../lib/textos'
+import { translator } from '../lib/textos'
 
 const orbitron = Orbitron({
   variable: '--font-heading',
@@ -25,7 +25,7 @@ const inter = Inter({
  * (ver `lib/ajustes.ts`), y eso solo se puede leer aquí dentro.
  */
 export async function generateMetadata(): Promise<Metadata> {
-  const t = traductor(await requestLang())
+  const t = translator(await requestLang())
 
   return {
     // El nombre no se traduce —es el de la cabina (`nombreDelJuego`), el mismo en el salón y en

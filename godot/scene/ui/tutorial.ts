@@ -16,14 +16,14 @@ import type { PointerAim } from '@kit/runtime/ui/pointerAim'
 
 import type { GrabMode, Lang } from '@/lib/settings'
 import { PALETTE } from '@/lib/palette'
-import { traductor, type TextKey } from '@/lib/textos'
+import { translator, type TextKey } from '@/lib/textos'
 import {
   TUTORIAL_BUTTONS,
   TUTORIAL_STEPS,
   markTutorialSeen,
   tutorialSeen,
   tutorialStep,
-  type TutorialHitos,
+  type TutorialMilestones,
   type TutorialStepKey,
 } from '@/lib/tutorial'
 
@@ -74,7 +74,7 @@ export class TutorialDelJuego {
   }
 
   /** El paso que toca con lo hecho, o `null` si ya no queda ninguno. */
-  paso(hitos: TutorialHitos): TutorialStepKey | null {
+  paso(hitos: TutorialMilestones): TutorialStepKey | null {
     return this.pendiente ? tutorialStep(hitos, this.saltados) : null
   }
 
@@ -91,7 +91,7 @@ export class TutorialDelJuego {
    * Un fotograma: si toca enseñarlo (`activo`: jugando, con visor y no en un reto), el paso de
    * ahora; si no, fuera. Al acabar los pasos se guarda como visto.
    */
-  actualizar(activo: boolean, hitos: TutorialHitos, lang: Lang, agarre: GrabMode, delta: number): EstadoDelTutorial {
+  actualizar(activo: boolean, hitos: TutorialMilestones, lang: Lang, agarre: GrabMode, delta: number): EstadoDelTutorial {
     const paso = this.paso(hitos)
     if (this.pendiente && paso == null) {
       markTutorialSeen()
@@ -109,7 +109,7 @@ export class TutorialDelJuego {
     }
     const clave = `${paso}:${lang}:${agarre}`
     if (clave !== this.pintado) {
-      const t = traductor(lang)
+      const t = translator(lang)
       const frases = agarre === 'toggle' ? FRASES_CON_UN_TOQUE : FRASES
       this.vista.rotular({ next: t('Next'), skip: t('Skip tutorial') })
       this.vista.mostrarPaso(TUTORIAL_STEPS.indexOf(paso) + 1, TUTORIAL_STEPS.length, t(frases[paso]), TUTORIAL_BUTTONS[paso])

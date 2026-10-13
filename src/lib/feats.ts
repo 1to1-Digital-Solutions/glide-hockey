@@ -15,15 +15,15 @@ import { createStoredPreference } from './storage'
  * - `GH_LONG_SHOT`: marcar de un solo toque desde el fondo de tu campo.
  * - `GH_OWN_GOAL` (oculto): marcar en tu propia portería.
  */
-export const HAZANAS = ['GH_SHUTOUT', 'GH_LONG_SHOT', 'GH_OWN_GOAL'] as const
+export const FEATS = ['GH_SHUTOUT', 'GH_LONG_SHOT', 'GH_OWN_GOAL'] as const
 
-export type Hazana = (typeof HAZANAS)[number]
+export type Feat = (typeof FEATS)[number]
 
 /** Dónde se recuerda cuáles se han conseguido ya. Con el prefijo del juego, como los récords. */
-export const HAZANAS_KEY = 'glide-hockey:hazanas'
+export const FEATS_KEY = 'glide-hockey:hazanas'
 
 /** El resultado con sus hazañas, o tal cual si no se estrenó ninguna. */
-export function conHazanas(resultado: GameResult, nuevas: readonly Hazana[]): GameResult {
+export function withFeats(resultado: GameResult, nuevas: readonly Feat[]): GameResult {
   return nuevas.length > 0 ? { ...resultado, feats: [...nuevas] } : resultado
 }
 
@@ -31,33 +31,33 @@ export function conHazanas(resultado: GameResult, nuevas: readonly Hazana[]): Ga
  * Las hazañas del texto guardado, en el orden de `HAZANAS` y sin repetir. Es entrada externa
  * (se edita a mano desde el navegador), así que lo que no es una hazaña de este juego se ignora.
  */
-export function leerHazanas(texto: string | null): Hazana[] {
+export function readFeats(texto: string | null): Feat[] {
   const escritas = new Set((texto ?? '').split(','))
-  return HAZANAS.filter((hazana) => escritas.has(hazana))
+  return FEATS.filter((hazana) => escritas.has(hazana))
 }
 
 /** El texto guardado, tal cual: comparable con `Object.is` (ver `createStoredPreference`). */
 const guardadas = createStoredPreference<string>({
-  key: HAZANAS_KEY,
+  key: FEATS_KEY,
   parse: (raw) => raw ?? '',
   serialize: (value) => value,
 })
 
 /** Las que ya se consiguieron alguna vez. */
-export function hazanasGuardadas(): Hazana[] {
-  return leerHazanas(guardadas.get())
+export function storedFeats(): Feat[] {
+  return readFeats(guardadas.get())
 }
 
 /**
  * Apunta las hazañas de una partida y devuelve **solo las que se estrenan**: las que ya estaban
  * no se vuelven a contar al salón. Sin ninguna nueva no escribe nada.
  */
-export function estrenarHazanas(conseguidas: Iterable<Hazana>): Hazana[] {
-  const antes = new Set(hazanasGuardadas())
+export function earnFeats(conseguidas: Iterable<Feat>): Feat[] {
+  const antes = new Set(storedFeats())
   const ahora = new Set(conseguidas)
-  const nuevas = HAZANAS.filter((hazana) => ahora.has(hazana) && !antes.has(hazana))
+  const nuevas = FEATS.filter((hazana) => ahora.has(hazana) && !antes.has(hazana))
   if (nuevas.length > 0) {
-    guardadas.save(HAZANAS.filter((hazana) => antes.has(hazana) || ahora.has(hazana)).join(','))
+    guardadas.save(FEATS.filter((hazana) => antes.has(hazana) || ahora.has(hazana)).join(','))
   }
   return nuevas
 }
@@ -66,15 +66,15 @@ export function estrenarHazanas(conseguidas: Iterable<Hazana>): Hazana[] {
  * Qué deja un partido cerrado: ganarlo sin encajar. La partida sin fin no cuenta —la cierra el
  * jugador cuando quiere y un 1-0 abandonado no es un partido—, y el duelo tampoco, que es de dos.
  */
-export function hazanasDelPartido({
-  ganado,
-  encajados,
+export function matchFeats({
+  won: ganado,
+  conceded: encajados,
   sinFin,
 }: {
-  ganado: boolean
-  encajados: number
+  won: boolean
+  conceded: number
   sinFin: boolean
-}): Hazana[] {
+}): Feat[] {
   return ganado && !sinFin && encajados === 0 ? ['GH_SHUTOUT'] : []
 }
 
@@ -82,36 +82,36 @@ export function hazanasDelPartido({
  * La jugada en curso, contada desde el último saque: quién tocó el disco el último y, si fue el
  * jugador, cuántas veces seguidas y desde dónde.
  */
-export interface Jugada {
+export interface Possession {
   /** Quién tocó el disco el último, o `null` si nadie desde el saque. */
-  readonly ultimo: Scorer | null
+  readonly last: Scorer | null
   /** Toques seguidos del jugador sin que la máquina toque entre medias. */
-  readonly toquesSeguidos: number
+  readonly touchesInARow: number
   /** Si el primero de esos toques fue con el disco en el fondo del campo propio. */
-  readonly desdeElFondo: boolean
+  readonly fromTheBack: boolean
 }
 
 /** La jugada recién sacada: nadie ha tocado el disco. */
-export const JUGADA_NUEVA: Jugada = { ultimo: null, toquesSeguidos: 0, desdeElFondo: false }
+export const NEW_POSSESSION: Possession = { last: null, touchesInARow: 0, fromTheBack: false }
 
 /**
  * Desde dónde cuenta un tiro como lejano: la mitad de atrás del campo propio, más cerca de tu
  * portería que de la línea de medio campo. El mazo no cruza esa línea, así que «desde tu campo»
  * es cualquier tiro; lo que pide destreza es cruzar la mesa entera de un toque.
  */
-export const FONDO_DEL_CAMPO = HALF_LENGTH / 2
+export const BACK_OF_OWN_HALF = HALF_LENGTH / 2
 
 /**
  * Un toque de un mazo al disco. `z` es dónde estaba el disco, en coordenadas de la mesa: el
  * campo del jugador es el de `z` positiva.
  */
-export function tocar(jugada: Jugada, quien: Scorer, z: number): Jugada {
-  if (quien === 'opponent') return { ultimo: 'opponent', toquesSeguidos: 0, desdeElFondo: false }
-  const primero = jugada.ultimo !== 'player'
+export function touch(jugada: Possession, quien: Scorer, z: number): Possession {
+  if (quien === 'opponent') return { last: 'opponent', touchesInARow: 0, fromTheBack: false }
+  const primero = jugada.last !== 'player'
   return {
-    ultimo: 'player',
-    toquesSeguidos: primero ? 1 : jugada.toquesSeguidos + 1,
-    desdeElFondo: primero ? z >= FONDO_DEL_CAMPO : jugada.desdeElFondo,
+    last: 'player',
+    touchesInARow: primero ? 1 : jugada.touchesInARow + 1,
+    fromTheBack: primero ? z >= BACK_OF_OWN_HALF : jugada.fromTheBack,
   }
 }
 
@@ -119,8 +119,8 @@ export function tocar(jugada: Jugada, quien: Scorer, z: number): Jugada {
  * La hazaña que deja un gol, según cómo fue la jugada: el del jugador de un solo toque desde el
  * fondo, o el que el jugador se mete en su propia portería (el último toque fue suyo).
  */
-export function hazanaDelGol(jugada: Jugada, gol: Scorer): Hazana | null {
-  if (jugada.ultimo !== 'player') return null
+export function goalFeat(jugada: Possession, gol: Scorer): Feat | null {
+  if (jugada.last !== 'player') return null
   if (gol === 'opponent') return 'GH_OWN_GOAL'
-  return jugada.toquesSeguidos === 1 && jugada.desdeElFondo ? 'GH_LONG_SHOT' : null
+  return jugada.touchesInARow === 1 && jugada.fromTheBack ? 'GH_LONG_SHOT' : null
 }

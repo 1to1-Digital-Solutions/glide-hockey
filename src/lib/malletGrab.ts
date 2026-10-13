@@ -26,22 +26,22 @@ import { MALLET_RADIUS } from './gameConfig'
  * Un poco más que el propio mazo: con el visor puesto la mano nunca cae exactamente
  * encima, y exigir precisión de milímetros convierte cogerlo en un minijuego aparte.
  */
-export const ALCANCE_DE_AGARRE = MALLET_RADIUS + 0.12
+export const GRAB_REACH = MALLET_RADIUS + 0.12
 
 /** Lo que la mano y el botón dicen en este fotograma. */
-export interface ManoEnLaMesa {
+export interface HandOnTable {
   /** Dónde está la mano, en coordenadas de la mesa. */
-  posicion: Vec2
+  position: Vec2
   /** Si el botón de agarre está apretado ahora mismo. */
-  agarrando: boolean
+  grabbing: boolean
 }
 
 /** Lo que el mazo sabe de sí mismo entre fotogramas. */
-export interface AgarreDelMazo {
+export interface MalletGrab {
   /** Si el mazo va en la mano ahora mismo. */
-  cogido: boolean
+  held: boolean
   /** A dónde va el mazo. Sin mano que lo lleve, se queda donde estaba. */
-  destino: Vec2
+  target: Vec2
 }
 
 /** A qué distancia está la mano del mazo. */
@@ -56,19 +56,19 @@ function distancia(a: Vec2, b: Vec2): number {
  * @param mano      Lo que dice la mano, o `null` si no hay ninguna en la mesa: sin mando,
  *                  fuera de sesión, o con el mando apuntando a otra parte.
  */
-export function siguienteAgarre(previo: AgarreDelMazo, mano: ManoEnLaMesa | null): AgarreDelMazo {
+export function nextGrab(previo: MalletGrab, mano: HandOnTable | null): MalletGrab {
   // Sin mano no se suelta lo que se llevaba: un mando que desaparece un fotograma —se
   // pierde el seguimiento al salir del campo de visión— dejaría el mazo tirado en medio
   // de una jugada.
   if (mano === null) return previo
 
-  if (!mano.agarrando) return { cogido: false, destino: previo.destino }
+  if (!mano.grabbing) return { held: false, target: previo.target }
 
   // Ya cogido, sigue a la mano vaya donde vaya: soltar por distancia lo perdería justo
   // en el golpe, que es cuando más rápido va.
-  if (previo.cogido) return { cogido: true, destino: mano.posicion }
+  if (previo.held) return { held: true, target: mano.position }
 
   // Recién apretado: solo se coge si la mano está encima. Apretar desde lejos no hace nada.
-  const alAlcance = distancia(mano.posicion, previo.destino) <= ALCANCE_DE_AGARRE
-  return alAlcance ? { cogido: true, destino: mano.posicion } : { cogido: false, destino: previo.destino }
+  const alAlcance = distancia(mano.position, previo.target) <= GRAB_REACH
+  return alAlcance ? { held: true, target: mano.position } : { held: false, target: previo.target }
 }

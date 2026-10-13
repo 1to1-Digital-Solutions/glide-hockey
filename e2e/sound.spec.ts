@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { abrirJuego, jugarPartida } from './helpers'
+import { openGame, playMatch } from './helpers'
 
 /**
  * Entra al juego con los efectos apagados desde los ajustes del arcade.
@@ -76,7 +76,7 @@ test('la partida suena: la mesa pide sus sonidos al navegador', async ({
   page,
 }) => {
   await contarElAudio(page)
-  await abrirJuego(page)
+  await openGame(page)
 
   // Nada más llegar al menú no se ha abierto ningún contexto: el navegador
   // dejaría en suspenso el que se creara antes de que nadie tocase nada.
@@ -84,7 +84,7 @@ test('la partida suena: la mesa pide sus sonidos al navegador', async ({
 
   // Una partida a muchos goles contra la máquina más lenta: no hace falta que
   // termine, solo que el disco se mueva y choque con algo.
-  await jugarPartida(page, { goles: 15, nivel: 'Easy' })
+  await playMatch(page, { goles: 15, nivel: 'Easy' })
 
   await expect
     .poll(async () => (await leerElAudio(page))?.sonidos ?? 0, {
@@ -121,9 +121,9 @@ test('en silencio no se abre siquiera el audio del navegador', async ({
 }) => {
   await contarElAudio(page)
   await entrarEnSilencio(page)
-  await abrirJuego(page)
+  await openGame(page)
 
-  await jugarPartida(page, { goles: 15, nivel: 'Easy' })
+  await playMatch(page, { goles: 15, nivel: 'Easy' })
 
   // Lo suficiente para que en una partida con sonido ya hubiera sonado algo:
   // el disco sale del centro y llega al fondo de la mesa en menos de dos

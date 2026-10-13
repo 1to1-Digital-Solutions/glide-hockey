@@ -1,9 +1,9 @@
 'use client'
 
 import { type ReactNode } from 'react'
-import { GameContext, useGameStoreValue, type OpcionesDelSalon } from '../lib/gameStore'
+import { GameContext, useGameStoreValue, type HallOptions } from '../lib/gameStore'
 
-export function GameProvider({ children, reto, onFinish, objetivo }: { children: ReactNode } & OpcionesDelSalon) {
-  const store = useGameStoreValue({ reto, onFinish, objetivo })
+export function GameProvider({ children, challenge: challenge, onFinish, goal: goal }: { children: ReactNode } & HallOptions) {
+  const store = useGameStoreValue({ challenge: challenge, onFinish, goal: goal })
   return <GameContext.Provider value={store}>{children}</GameContext.Provider>
 }

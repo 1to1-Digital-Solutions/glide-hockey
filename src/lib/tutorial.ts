@@ -72,13 +72,13 @@ export const COMPONENTE_DEL_BOTON: Record<ControllerButton, string> = {
  * apuntan lo que pasa —coger, tirar, clavar—, y así el tutorial no necesita ni pararle el
  * juego a nadie ni escuchar nada: **se deduce**.
  */
-export type TutorialHitos = Readonly<Record<TutorialStepKey, boolean>>
+export type TutorialMilestones = Readonly<Record<TutorialStepKey, boolean>>
 
 /** Nada hecho todavía. */
-export const SIN_HITOS: TutorialHitos = { grab: false, hit: false, goal: false }
+export const NO_MILESTONES: TutorialMilestones = { grab: false, hit: false, goal: false }
 
 /** Los hitos de antes más el que se acaba de conseguir. */
-export function apuntarHito(hitos: TutorialHitos, hito: TutorialStepKey): TutorialHitos {
+export function recordMilestone(hitos: TutorialMilestones, hito: TutorialStepKey): TutorialMilestones {
   if (hitos[hito]) return hitos
   return { ...hitos, [hito]: true }
 }
@@ -92,7 +92,7 @@ export function apuntarHito(hitos: TutorialHitos, hito: TutorialStepKey): Tutori
  *
  * @param saltados Cuántos pasos se ha saltado quien juega con el botón de siguiente.
  */
-export function tutorialStep(hitos: TutorialHitos, saltados: number): TutorialStepKey | null {
+export function tutorialStep(hitos: TutorialMilestones, saltados: number): TutorialStepKey | null {
   for (let i = Math.max(0, saltados); i < TUTORIAL_STEPS.length; i += 1) {
     const paso = TUTORIAL_STEPS[i]
     if (!hitos[paso]) return paso

@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test'
 
 import { CROSSFADE } from '../src/lib/hints'
-import { GUION_DE_AYUDAS } from '../src/lib/hintScript'
-import { abrirJuego } from './helpers'
+import { HINT_SCRIPT } from '../src/lib/hintScript'
+import { openGame } from './helpers'
 import { installDrawCallCounter, letSettle, medianDrawCalls } from './support/scenery'
 import { enterVR, installXREmulator, skipTutorial, startGameInsideSession } from './support/xr'
 
@@ -44,7 +44,7 @@ const CAPTURAS = 'test-results/capturas'
 const A_LAS_AYUDAS = { yaw: 0, pitch: -50 }
 
 /** Lo que tarda la ayuda más paciente en irse sola, más el cruce con el que se desvanece. */
-const HASTA_QUE_SE_VAN = Math.max(...GUION_DE_AYUDAS.map((ayuda) => ayuda.expiresAfter)) + CROSSFADE + 2
+const HASTA_QUE_SE_VAN = Math.max(...HINT_SCRIPT.map((ayuda) => ayuda.expiresAfter)) + CROSSFADE + 2
 
 /**
  * Cuántas llamadas de dibujo por fotograma pueden costar todas las ayudas a la vez.
@@ -66,7 +66,7 @@ test.describe('Las ayudas visuales', () => {
     await installDrawCallCounter(page)
     await installXREmulator(page)
     await skipTutorial(page)
-    await abrirJuego(page)
+    await openGame(page)
   })
 
   test('se pintan al entrar en la cabina, y se van solas al agotarse su plazo', async ({

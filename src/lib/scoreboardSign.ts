@@ -26,31 +26,31 @@ import { REFERENCE_EYE_HEIGHT } from './uiHeight'
  * portería de la máquina e inclinado hacia quien juega. Es de donde cuelga el cartel, y por eso
  * sus medidas viven aquí y la escena las lee.
  */
-export const MARCADOR_DEL_FONDO = {
-  centro: [0, 0.5, -HALF_LENGTH - 0.05] as [number, number, number],
+export const BACK_SCOREBOARD = {
+  center: [0, 0.5, -HALF_LENGTH - 0.05] as [number, number, number],
   /** Como el `rotation.x` de three: echado hacia atrás, de cara a los ojos. */
-  inclinacion: -0.18,
-  ancho: 0.52,
-  alto: 0.34,
+  tilt: -0.18,
+  width: 0.52,
+  height: 0.34,
 } as const
 
 /** El aire entre el canto de arriba del marcador y el cartel, en metros. */
-export const AIRE_SOBRE_EL_MARCADOR = 0.03
+export const GAP_ABOVE_SCOREBOARD = 0.03
 
 /** Lo que mide el cartel por cada metro de distancia de lectura: su ancho y su alto. */
-export interface ProporcionDelCartel {
+export interface SignProportion {
   readonly width: number
   readonly height: number
 }
 
 /** Dónde queda el cartel y cómo se orienta. */
-export interface SitioDelCartel {
+export interface SignPlacement {
   /** Su centro, en el espacio de la mesa, que es de donde cuelga la interfaz. */
   readonly position: [number, number, number]
   /** Como el `rotation` de three: de cara a los ojos e inclinado hacia ellos. */
   readonly rotation: [number, number, number, 'YXZ']
   /** De los ojos al centro del cartel, en metros: de ahí sale su tamaño. */
-  readonly distancia: number
+  readonly distance: number
 }
 
 /** Del espacio de la mesa al de quien juega: los pies en el origen y el `−Z` delante. */
@@ -59,16 +59,16 @@ function delEspacioDelJugador(pieza: Triple): [number, number, number] {
 }
 
 /** El centro del canto de arriba del marcador, en el espacio de quien juega. */
-export function cantoDeArribaDelMarcador(): { x: number; y: number; z: number } {
+export function scoreboardTopEdge(): { x: number; y: number; z: number } {
   const pose: PanelPose = {
-    position: delEspacioDelJugador(MARCADOR_DEL_FONDO.centro),
-    rotation: [MARCADOR_DEL_FONDO.inclinacion, 0, 0],
+    position: delEspacioDelJugador(BACK_SCOREBOARD.center),
+    rotation: [BACK_SCOREBOARD.tilt, 0, 0],
   }
-  return pointOnPanel(pose, 0, MARCADOR_DEL_FONDO.alto / 2)
+  return pointOnPanel(pose, 0, BACK_SCOREBOARD.height / 2)
 }
 
 /** La pose del cartel ya colocado, en el espacio de quien juega: para medirlo. */
-export function poseDelCartel(sitio: SitioDelCartel): PanelPose {
+export function signPose(sitio: SignPlacement): PanelPose {
   return { position: delEspacioDelJugador(sitio.position), rotation: sitio.rotation }
 }
 
@@ -86,10 +86,10 @@ export function poseDelCartel(sitio: SitioDelCartel): PanelPose {
  *
  * @param proporcion Lo que mide el cartel por metro de distancia de lectura.
  */
-export function sitioDelCartel(proporcion: ProporcionDelCartel): SitioDelCartel {
+export function signPlacement(proporcion: SignProportion): SignPlacement {
   const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
-  const canto = cantoDeArribaDelMarcador()
-  const apoyo = { x: canto.x, y: canto.y + AIRE_SOBRE_EL_MARCADOR, z: canto.z }
+  const canto = scoreboardTopEdge()
+  const apoyo = { x: canto.x, y: canto.y + GAP_ABOVE_SCOREBOARD, z: canto.z }
 
   let centro: [number, number, number] = [apoyo.x, apoyo.y, apoyo.z]
   for (let vuelta = 0; vuelta < 12; vuelta++) {
@@ -100,7 +100,7 @@ export function sitioDelCartel(proporcion: ProporcionDelCartel): SitioDelCartel 
   return {
     position: [centro[0], centro[1] - TABLE_HEIGHT, centro[2] - TABLE_CENTER_Z],
     rotation: panelRotation(centro, ojos),
-    distancia: distanceFromEyes(centro, ojos),
+    distance: distanceFromEyes(centro, ojos),
   }
 }
 
@@ -115,13 +115,13 @@ export function sitioDelCartel(proporcion: ProporcionDelCartel): SitioDelCartel 
  * su canto izquierdo queda a 14° del frente y el cartel acaba a 12°: dos grados de aire. A la
  * derecha, porque a la izquierda está el botón de parar (55°). A CALIBRAR CON EL VISOR.
  */
-export const TUTORIAL_A_UN_LADO = {
+export const TUTORIAL_TO_ONE_SIDE = {
   /** Grados a la derecha del frente. */
-  azimut: 32,
+  azimuth: 32,
   /** De los ojos al panel, en horizontal. */
-  distancia: 1.2,
+  distance: 1.2,
   /** Lo que sube su centro sobre los ojos de referencia. */
-  sobreLosOjos: 0.02,
+  aboveEyes: 0.02,
 } as const
 
 /**
@@ -130,12 +130,12 @@ export const TUTORIAL_A_UN_LADO = {
  * @param azimut Grados a la derecha del frente; con cero, de frente: donde estaba, y donde sigue
  *   en plano, que no tiene a dónde girar la cabeza.
  */
-export function sitioDelTutorial(azimut: number = TUTORIAL_A_UN_LADO.azimut): [number, number, number] {
+export function tutorialPlacement(azimut: number = TUTORIAL_TO_ONE_SIDE.azimuth): [number, number, number] {
   const giro = (azimut * Math.PI) / 180
   return [
-    TUTORIAL_A_UN_LADO.distancia * Math.sin(giro),
-    REFERENCE_EYE_HEIGHT + TUTORIAL_A_UN_LADO.sobreLosOjos - TABLE_HEIGHT,
-    -TUTORIAL_A_UN_LADO.distancia * Math.cos(giro) - TABLE_CENTER_Z,
+    TUTORIAL_TO_ONE_SIDE.distance * Math.sin(giro),
+    REFERENCE_EYE_HEIGHT + TUTORIAL_TO_ONE_SIDE.aboveEyes - TABLE_HEIGHT,
+    -TUTORIAL_TO_ONE_SIDE.distance * Math.cos(giro) - TABLE_CENTER_Z,
   ]
 }
 
@@ -149,11 +149,11 @@ export function sitioDelTutorial(azimut: number = TUTORIAL_A_UN_LADO.azimut): [n
  * —la separación entre ellas no cambia— quedan 0,4° de aire con los ojos a 1,9 m; más abajo,
  * más (`cartelDelMarcador.legible.test.ts`).
  */
-export const NEONES_DEL_FONDO = {
-  grueso: 0.06,
-  tiras: [
-    { y: 2.75, ancho: 5 },
-    { y: 2.45, ancho: 3.6 },
+export const BACK_NEONS = {
+  thickness: 0.06,
+  strips: [
+    { y: 2.75, width: 5 },
+    { y: 2.45, width: 3.6 },
   ],
 } as const
 
@@ -161,18 +161,18 @@ export const NEONES_DEL_FONDO = {
 const MODO_QUE_CUENTA: GameMode = 'challenge'
 
 /** La misión del reto en una frase. */
-export const MISION_DEL_RETO = 'Win games until you lose one'
+export const CHALLENGE_MISSION = 'Win games until you lose one'
 
 /** Lo que le queda a quien juega: la ronda, a cuántos goles va y lo que vale el próximo. */
-export const LO_QUE_QUEDA = 'Round {round} · to {goals} goals · goal +{points}'
+export const REMAINING_TEMPLATE = 'Round {round} · to {goals} goals · goal +{points}'
 
 /**
  * Lo que queda, escrito. **De ahí salen los miles de los listones**: el próximo gol vale lo que
  * diga la ronda —la máquina sube de nivel y los goles valen más— y la racha que se lleve.
  */
-export function loQueQueda(round: number, streak: number, t: Translate): string {
+export function remainingText(round: number, streak: number, t: Translate): string {
   const ronda = challengeRound(round)
-  return t(LO_QUE_QUEDA, {
+  return t(REMAINING_TEMPLATE, {
     round: ronda.round,
     goals: ronda.goalTarget,
     points: goalPoints({ difficulty: ronda.difficulty, streak: streak + 1, lap: ronda.multiplier }),
@@ -180,19 +180,19 @@ export function loQueQueda(round: number, streak: number, t: Translate): string 
 }
 
 /** Si ese modo da medalla: lo que el menú dice de cada uno. */
-export function daMedalla(objetivo: Goal | null | undefined, mode: GameMode): boolean {
+export function givesMedal(objetivo: Goal | null | undefined, mode: GameMode): boolean {
   return mode === MODO_QUE_CUENTA && countsForMedal(objetivo, mode)
 }
 
 /** Lo que el menú dice de un modo: si cuenta para medalla o no. */
-export function fraseDeLaMedalla(objetivo: Goal | null | undefined, mode: GameMode) {
-  return daMedalla(objetivo, mode) ? ('Counts for a medal' as const) : ('Does not count for a medal' as const)
+export function medalPhrase(objetivo: Goal | null | undefined, mode: GameMode) {
+  return givesMedal(objetivo, mode) ? ('Counts for a medal' as const) : ('Does not count for a medal' as const)
 }
 
 /** Lo que el cartel necesita saber de lo que se está jugando. */
-export interface LoQueSeJuega {
+export interface GameInPlay {
   /** Lo que pasó el salón, si lo pasó. */
-  objetivo?: Goal | null
+  goal?: Goal | null
   gameMode: GameMode
   gameState: 'menu' | 'countdown' | 'playing' | 'finished'
   /** La ronda del reto por la que se va (1 fuera de él). */
@@ -214,12 +214,12 @@ export interface LoQueSeJuega {
  * cualquier otro modo, dentro del salón el cartel dice bajito que no cuenta para medalla; con el
  * juego abierto suelto no hay medalla de la que hablar y no se cuelga. En el menú, nunca.
  */
-export function partidaDelCartel(juego: LoQueSeJuega, t: Translate): Run | null {
+export function signRun(juego: GameInPlay, t: Translate): Run | null {
   const { gameMode, gameState } = juego
   if (gameState === 'menu') return null
-  const objetivo = juego.objetivo ?? null
-  const mision = t(MISION_DEL_RETO)
-  if (!daMedalla(objetivo, gameMode)) {
+  const objetivo = juego.goal ?? null
+  const mision = t(CHALLENGE_MISSION)
+  if (!givesMedal(objetivo, gameMode)) {
     if (objetivo == null) return null
     return { goal: objetivo, phase: 'playing', points: 0, mission: mision, counts: false, mode: t(GAME_MODE_LABELS[gameMode]) }
   }
@@ -229,7 +229,7 @@ export function partidaDelCartel(juego: LoQueSeJuega, t: Translate): Run | null 
     phase: gameState === 'finished' ? 'end' : sinEmpezar ? 'before' : 'playing',
     points: juego.points,
     mission: mision,
-    remaining: loQueQueda(juego.round, juego.streak, t),
+    remaining: remainingText(juego.round, juego.streak, t),
     record: juego.record > 0 ? juego.record : null,
   }
 }
@@ -241,20 +241,20 @@ export function partidaDelCartel(juego: LoQueSeJuega, t: Translate): Run | null 
  * ronda va escrita en el cartel mientras se juega. Al acabar el cartel dice lo que faltó, así que
  * la ronda vuelve al marcador: es en la que se quedó el reto.
  */
-export function loQueCallaElMarcador(partida: Run | null): { puntos: boolean; ronda: boolean } {
+export function scoreboardOmits(partida: Run | null): { points: boolean; round: boolean } {
   const cuenta = partida != null && partida.counts !== false
-  return { puntos: cuenta, ronda: cuenta && partida.phase !== 'end' }
+  return { points: cuenta, round: cuenta && partida.phase !== 'end' }
 }
 
 /** Cómo se llama el sonido de cada listón cruzado (`audioEngine.ts`; en Godot, su efecto renderizado). */
-export const SONIDO_DEL_LISTON = { bronze: 'medal-bronze', silver: 'medal-silver', gold: 'medal-gold' } as const
+export const THRESHOLD_SOUND = { bronze: 'medal-bronze', silver: 'medal-silver', gold: 'medal-gold' } as const
 
 /**
  * Lo que se siente en la mano del mazo al cruzar un listón: algo lejano ha llegado, más fuerte
  * cuanto mejor es la medalla. Sale detrás del pulso del gol que lo cruzó, que si no lo cortaría.
  * A CALIBRAR CON EL VISOR.
  */
-export function pulsosDelListon(medalla: Medal, mano: HandSide | null): HandPulse[] {
+export function thresholdPulses(medalla: Medal, mano: HandSide | null): HandPulse[] {
   if (mano == null) return []
   return pulsesFor({ type: 'arrival', hand: mano, strength: 0.5 + 0.25 * MEDALS.indexOf(medalla) }).map((pulso) => ({
     ...pulso,
@@ -266,10 +266,10 @@ export function pulsosDelListon(medalla: Medal, mano: HandSide | null): HandPuls
  * Lo que dura el aviso de que la partida ya cuenta, en milisegundos: lo justo para leer una
  * línea antes de que la cuenta atrás llegue al saque.
  */
-export const AVISO_DE_QUE_CUENTA_MS = 2500
+export const NOW_IT_COUNTS_MS = 2500
 
 /** La frase del aviso: la común del salón (`palabras.ts`). */
-export const AVISO_DE_QUE_CUENTA = MENU_EN.nowItCounts
+export const NOW_IT_COUNTS_NOTICE = MENU_EN.nowItCounts
 
 /**
  * El cartel justo al cerrar el tutorial en el reto: su línea grande dice que **ahora cuenta para
@@ -279,12 +279,12 @@ export const AVISO_DE_QUE_CUENTA = MENU_EN.nowItCounts
  * por «Siguiente» o por «Saltar»— el reto empieza desde cero, y quien juega tiene que saber que lo
  * que viene ya sí cuenta. Solo en el reto, que es lo único que da medalla.
  */
-export function conElAvisoDeQueCuenta(
+export function withNowItCountsNotice(
   vista: GoalSignView | null,
   gameMode: GameMode,
   avisando: boolean,
   t: Translate,
 ): GoalSignView | null {
   if (vista == null || vista.subdued || gameMode !== 'challenge' || !avisando) return vista
-  return { ...vista, title: t(AVISO_DE_QUE_CUENTA) }
+  return { ...vista, title: t(NOW_IT_COUNTS_NOTICE) }
 }

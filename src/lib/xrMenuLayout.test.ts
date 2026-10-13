@@ -17,7 +17,7 @@ describe('las barras del nivel', () => {
 
   it('ninguna se sale de su botón', () => {
     for (let index = 0; index < niveles; index += 1) {
-      expect(LEVEL_BAR_BOTTOM + levelBarHeight(index), `nivel ${index}`).toBeLessThanOrEqual(
+      expect(LEVEL_BAR_BOTTOM + levelBarHeight(index), `level ${index}`).toBeLessThanOrEqual(
         LEVEL_BUTTON[1] / 2,
       )
     }
@@ -60,8 +60,8 @@ describe('la salida', () => {
 
     expect(
       exitProblems(
-        comoCaja('salir'),
-        nombres.filter((nombre) => nombre !== 'salir').map(comoCaja),
+        comoCaja('exit'),
+        nombres.filter((nombre) => nombre !== 'exit').map(comoCaja),
         { width: MENU_PANEL.width, height: MENU_PANEL.height },
       ),
     ).toEqual([])

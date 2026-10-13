@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { abrirJuego, observarLaMesa } from './helpers'
+import { openGame, watchTable } from './helpers'
 import { openHost } from './support/host'
 import { drawCallBudget } from './support/budget'
 
@@ -74,7 +74,7 @@ const TECHO_MESA = drawCallBudget('table').max
 
 test('la mesa cabe en su presupuesto de llamadas de dibujo', async ({ page }) => {
   await countDrawCalls(page)
-  await abrirJuego(page)
+  await openGame(page)
 
   const llamadas = await medianaDeLlamadas(page)
   console.log(`[mesa] llamadas de dibujo por fotograma: ${llamadas}`)
@@ -100,7 +100,7 @@ const CARTEL = drawCallBudget('goal-sign')
 
 test('el cartel del objetivo añade como mucho dos llamadas de dibujo', async ({ page }) => {
   await countDrawCalls(page)
-  await observarLaMesa(page)
+  await watchTable(page)
   await openHost(page, undefined, {
     reto: 20261005,
     goal: { medals: { bronze: 1500, silver: 8000, gold: 20000 }, better: 'higher', unit: 'points in the challenge', record: null, mode: 'challenge' },

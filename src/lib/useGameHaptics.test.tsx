@@ -39,7 +39,7 @@ describe('useGameHaptics', () => {
     withHeadset()
     const { result } = renderHook(() => useGameHaptics())
 
-    result.current.sentir({ tipo: 'golpe', fuerza: 1 })
+    result.current.feel({ type: 'hit', strength: 1 })
 
     expect(xr.left).not.toHaveBeenCalled()
     expect(xr.right).not.toHaveBeenCalled()
@@ -51,7 +51,7 @@ describe('useGameHaptics', () => {
     const { result } = renderHook(() => useGameHaptics())
 
     result.current.noteHand('left')
-    result.current.sentir({ tipo: 'golpe', fuerza: 1 })
+    result.current.feel({ type: 'hit', strength: 1 })
     expect(xr.left).toHaveBeenCalledTimes(1)
     vi.advanceTimersByTime(HAPTIC_RECIPES.impact.ms)
 
@@ -65,12 +65,12 @@ describe('useGameHaptics', () => {
 
     result.current.noteHand('left')
     result.current.noteHand('right')
-    result.current.sentir({ tipo: 'gol' })
+    result.current.feel({ type: 'goal' })
     expect(xr.right).toHaveBeenCalledTimes(1)
     expect(xr.left).not.toHaveBeenCalled()
 
     result.current.noteHand(null)
-    result.current.sentir({ tipo: 'gol' })
+    result.current.feel({ type: 'goal' })
     expect(xr.right).toHaveBeenCalledTimes(1)
   })
 
@@ -80,7 +80,7 @@ describe('useGameHaptics', () => {
     const { result, unmount } = renderHook(() => useGameHaptics())
 
     result.current.noteHand('right')
-    result.current.sentir({ tipo: 'golpe', fuerza: 1 })
+    result.current.feel({ type: 'hit', strength: 1 })
     unmount()
     vi.advanceTimersByTime(1000)
 
@@ -93,7 +93,7 @@ describe('useGameHaptics', () => {
     const { result } = renderHook(() => useGameHaptics())
 
     result.current.noteHand('right')
-    expect(() => result.current.sentir({ tipo: 'golpe', fuerza: 1 })).not.toThrow()
+    expect(() => result.current.feel({ type: 'hit', strength: 1 })).not.toThrow()
     expect(xr.right).not.toHaveBeenCalled()
   })
 
@@ -101,8 +101,8 @@ describe('useGameHaptics', () => {
     withHeadset()
     const { result } = renderHook(() => useGameHaptics())
 
-    result.current.pulsar({ hand: 'left', intensity: 0.6, ms: 220, delay: 0 })
-    result.current.pulsar({ hand: 'right', intensity: 0.6, ms: 220, delay: 0 })
+    result.current.pulse({ hand: 'left', intensity: 0.6, ms: 220, delay: 0 })
+    result.current.pulse({ hand: 'right', intensity: 0.6, ms: 220, delay: 0 })
 
     expect(xr.left).toHaveBeenCalledWith(0.6, 220)
     expect(xr.right).toHaveBeenCalledWith(0.6, 220)

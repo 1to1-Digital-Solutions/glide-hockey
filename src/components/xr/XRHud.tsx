@@ -7,17 +7,17 @@ import type { DuelTally } from '../../lib/duelTally'
 import { useGame, type DuelView } from '../../lib/gameStore'
 import { useDuelTally } from '../../lib/useDuelTally'
 import { useGrabMode, useLang } from '../../lib/settingsClient'
-import { traductor, type TextKey } from '../../lib/textos'
+import { translator, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
 import { RealController } from './RealController'
-import { MARCADOR_DEL_FONDO } from '../../lib/scoreboardSign'
+import { BACK_SCOREBOARD } from '../../lib/scoreboardSign'
 import { isEndless } from '../../lib/gameMode'
 import { PALETTE } from '../../lib/palette'
 import { emissiveMaterial, COMMON_PALETTE } from '../../lib/commonPalette'
 import { useExit } from '../../game/exit'
 import {
   DIM_COLOR,
-  XRSalirIcon,
+  XRExitIcon,
   XRMenuIcon,
   XRNumber,
   XRPanel,
@@ -59,14 +59,14 @@ function hitBox(
  * menú de ajustes lo tapaba entero, y eso solo se ve desde los ojos de quien juega
  * (`lib/panelOcclusion.ts`).
  */
-export const SCOREBOARD_SIZE = { width: MARCADOR_DEL_FONDO.ancho, height: MARCADOR_DEL_FONDO.alto } as const
+export const SCOREBOARD_SIZE = { width: BACK_SCOREBOARD.width, height: BACK_SCOREBOARD.height } as const
 
 /**
  * A qué altura van los goles: en su fila de arriba, o **en medio** cuando el cartel de encima ya
  * dice los puntos y la ronda y debajo no queda nada (`loQueCallaElMarcador`).
  */
-export function filaDeLosGoles(callado: { puntos: boolean; ronda: boolean }): number {
-  return callado.puntos && callado.ronda ? 0 : ROW.goals
+export function goalsRow(callado: { points: boolean; round: boolean }): number {
+  return callado.points && callado.round ? 0 : ROW.goals
 }
 
 /**
@@ -76,15 +76,15 @@ export function filaDeLosGoles(callado: { puntos: boolean; ronda: boolean }): nu
  * ronda se leen ahí, con letras, y aquí quedan los goles.
  */
 export function XRScoreboard() {
-  const { gameState, playerGoals, opponentGoals, points, round, lap, gameMode, activeLevel, duel, callado } =
+  const { gameState, playerGoals, opponentGoals, points, round, lap, gameMode, activeLevel, duel, omitted: callado } =
     useGame()
   // La ronda del reto, el nivel en Niveles o, en el duelo, qué jugador tiene el mando: la misma
   // fila. Sin letras, el número del jugador es lo que dice de quién es el marcador cian.
-  const fila = callado.ronda ? null : (round ?? (gameMode === 'levels' ? activeLevel : duel != null ? duel.player + 1 : null))
+  const fila = callado.round ? null : (round ?? (gameMode === 'levels' ? activeLevel : duel != null ? duel.player + 1 : null))
   // La vuelta a la escalera del reto, solo cuando ya hay más de una: en la
   // primera no dice nada que la ronda no diga ya (ver `lib/challenge.ts`).
-  const vuelta = !callado.ronda && lap != null && lap > 1 ? lap : null
-  const goles = filaDeLosGoles(callado)
+  const vuelta = !callado.round && lap != null && lap > 1 ? lap : null
+  const goles = goalsRow(callado)
   if (gameState === 'menu') return null
 
   return (
@@ -115,7 +115,7 @@ export function XRScoreboard() {
         position={[0.12, goles, 0]}
       />
 
-      {callado.puntos ? null : (
+      {callado.points ? null : (
         <XRNumber
           value={points}
           size={0.055}
@@ -163,7 +163,7 @@ export function XRScoreboard() {
  * salía de la placa por arriba; y en español, con un toque, la frase ocupa tres. La placa tiene
  * alto para tres y la frase va centrada en ella.
  */
-export const AVISO_DEL_MAZO: [number, number] = [0.62, 0.2]
+export const MALLET_NOTICE: [number, number] = [0.62, 0.2]
 
 /** A qué tamaño se escribe el aviso de coger el mazo, en metros de alto de letra. */
 export const MALLET_TEXT = { phrase: 0.036 } as const
@@ -172,7 +172,7 @@ export const MALLET_TEXT = { phrase: 0.036 } as const
  * Lo que pone el aviso de coger el mazo, fuera del componente **para poder medirlo**
  * (`cuenta.legible.test.ts`): es texto del visor como cualquier otro panel.
  */
-export function dibujarElAvisoDelMazo(
+export function drawMalletNotice(
   ctx: CanvasRenderingContext2D,
   t: (clave: TextKey) => string,
   conUnToque: boolean,
@@ -186,7 +186,7 @@ export function dibujarElAvisoDelMazo(
     ),
     0,
     0,
-    { size: MALLET_TEXT.phrase, color: PALETTE.foreground, weight: '700', maxWidth: AVISO_DEL_MAZO[0] - 0.06 },
+    { size: MALLET_TEXT.phrase, color: PALETTE.foreground, weight: '700', maxWidth: MALLET_NOTICE[0] - 0.06 },
   )
 }
 
@@ -206,12 +206,12 @@ export function dibujarElAvisoDelMazo(
  * cualquiera.
  */
 export function XRCountdown() {
-  const { gameState, countdown, esperandoElMazo } = useGame()
-  const t = traductor(useLang())
+  const { gameState, countdown, waitingForMallet: esperandoElMazo } = useGame()
+  const t = translator(useLang())
   const conUnToque = useGrabMode() === 'toggle'
 
   const escribir = useCallback(
-    (ctx: CanvasRenderingContext2D) => dibujarElAvisoDelMazo(ctx, t, conUnToque),
+    (ctx: CanvasRenderingContext2D) => drawMalletNotice(ctx, t, conUnToque),
     [t, conUnToque],
   )
 
@@ -225,10 +225,10 @@ export function XRCountdown() {
         <RealController hand="left" button="agarre" />
         <RealController hand="right" button="agarre" />
         <group>
-          <XRPanel width={AVISO_DEL_MAZO[0]} height={AVISO_DEL_MAZO[1]} />
+          <XRPanel width={MALLET_NOTICE[0]} height={MALLET_NOTICE[1]} />
           <CanvasPanel
-            width={AVISO_DEL_MAZO[0]}
-            height={AVISO_DEL_MAZO[1]}
+            width={MALLET_NOTICE[0]}
+            height={MALLET_NOTICE[1]}
             draw={escribir}
             fallbackColor={PALETTE.background}
           />
@@ -267,7 +267,7 @@ export const DUEL_TEXT = { title: 0.05, body: 0.034 } as const
  * dice con una placa de color. Aparte del componente para poder **medirlo** en los dos idiomas
  * (`duelo.legible.test.ts`): el español es más largo y es donde el texto se sale.
  */
-export function dibujarElDuelo(
+export function drawDuel(
   ctx: CanvasRenderingContext2D,
   t: (clave: TextKey, valores?: Record<string, string | number>) => string,
   duel: DuelView,
@@ -349,12 +349,12 @@ export function XRGameOver() {
     resetGame,
   } = useGame()
   const exit = useExit()
-  const t = traductor(useLang())
+  const t = translator(useLang())
   const tally = useDuelTally()
 
   const escribirElDuelo = useCallback(
     (ctx: CanvasRenderingContext2D) => {
-      if (duel != null) dibujarElDuelo(ctx, t, duel, { scored: playerGoals, conceded: opponentGoals }, tally)
+      if (duel != null) drawDuel(ctx, t, duel, { scored: playerGoals, conceded: opponentGoals }, tally)
     },
     [t, duel, playerGoals, opponentGoals, tally],
   )
@@ -440,7 +440,7 @@ export function XRGameOver() {
           color={PALETTE.rail}
           opacity={0.8}
         />
-        <XRSalirIcon />
+        <XRExitIcon />
       </XRPressable>
     </group>
   )
@@ -532,7 +532,7 @@ export const CONFIRM_TEXT = { title: 0.05, body: 0.034, button: 0.034 } as const
  * se descubrió este. Sacado aquí, `legibilidad.test.ts` lo escribe en un lienzo que apunta
  * y comprueba que ni se pisa ni se sale.
  */
-export function dibujarElAviso(ctx: CanvasRenderingContext2D, t: (clave: TextKey) => string): void {
+export function drawExitNotice(ctx: CanvasRenderingContext2D, t: (clave: TextKey) => string): void {
   drawParagraph(ctx, t('Leave the game?'), 0, 0.15, {
     size: CONFIRM_TEXT.title,
     color: PALETTE.foreground,
@@ -565,9 +565,9 @@ export function dibujarElAviso(ctx: CanvasRenderingContext2D, t: (clave: TextKey
 export function XRQuitConfirm() {
   const { prompt, resetGame, keepPlaying } = useGame()
   const exit = useExit()
-  const t = traductor(useLang())
+  const t = translator(useLang())
 
-  const escribir = useCallback((ctx: CanvasRenderingContext2D) => dibujarElAviso(ctx, t), [t])
+  const escribir = useCallback((ctx: CanvasRenderingContext2D) => drawExitNotice(ctx, t), [t])
 
   if (prompt !== 'quit') return null
 

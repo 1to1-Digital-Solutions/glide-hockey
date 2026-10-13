@@ -31,7 +31,7 @@ const KNOB_HEIGHT = 0.045
 export function Mallet({
   color,
   environment,
-  resaltado = false,
+  highlighted: resaltado = false,
   ref,
 }: {
   color: string
@@ -44,7 +44,7 @@ export function Mallet({
    * pasaba era que el 1 se quedaba clavado: «el countdown se queda parado en el 1 sin
    * ninguna explicación. Se podría ayudar al usuario, o que el objeto brille más».
    */
-  resaltado?: boolean
+  highlighted?: boolean
   ref?: Ref<Group>
 }) {
   return (

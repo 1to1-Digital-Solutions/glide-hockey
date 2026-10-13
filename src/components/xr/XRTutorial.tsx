@@ -8,7 +8,7 @@ import { PALETTE } from '../../lib/palette'
 import { COMMON_PALETTE } from '../../lib/commonPalette'
 import { DIM_COLOR } from './XRUi'
 import { useGame } from '../../lib/gameStore'
-import { traductor, type TextKey } from '../../lib/textos'
+import { translator, type TextKey } from '../../lib/textos'
 import {
   TUTORIAL_BUTTONS,
   TUTORIAL_STEPS,
@@ -19,7 +19,7 @@ import {
 } from '../../lib/tutorial'
 import { ButtonHighlight, useButtonFeedback } from './buttonHighlight'
 import { CanvasPanel, drawParagraph, drawText, roundedRect, paragraphHeight } from './canvasPanel'
-import { dibujarMando } from './drawnController'
+import { drawController } from './drawnController'
 import { RealController } from './RealController'
 import { NO_RAYCAST } from '../raycast'
 
@@ -74,11 +74,11 @@ export const TUTORIAL_TEXT = { counter: 0.036, phrase: 0.042, button: 0.036 } as
  * Los dos botones, abajo del panel: lo bastante anchos para que «Saltar tutorial» quepa entero a
  * su tamaño, con dos centímetros entre ellos.
  */
-export const BOTON = { width: 0.37, height: 0.09, y: -PANEL_HEIGHT / 2 + 0.08 }
+export const BUTTON = { width: 0.37, height: 0.09, y: -PANEL_HEIGHT / 2 + 0.08 }
 
 export const BOTONES = [
-  { id: 'next' as const, x: 0.195, texto: 'Next' as TextKey },
-  { id: 'skip' as const, x: -0.195, texto: 'Skip tutorial' as TextKey },
+  { id: 'next' as const, x: 0.195, text: 'Next' as TextKey },
+  { id: 'skip' as const, x: -0.195, text: 'Skip tutorial' as TextKey },
 ]
 
 /** Lo que se pide en cada paso. */
@@ -93,7 +93,7 @@ export const FRASES: Record<TutorialStepKey, TextKey> = {
  * pantalla que explica el gesto: enseñar el de mantener a quien no puede mantener nada sería
  * explicarle el juego al revés.
  */
-export const FRASES_CON_UN_TOQUE: Record<TutorialStepKey, TextKey> = {
+export const PHRASES_WITH_ONE_TAP: Record<TutorialStepKey, TextKey> = {
   grab: 'Press the grip button on the mallet to pick it up',
   hit: 'Push the puck with it',
   goal: 'Score a goal',
@@ -110,16 +110,16 @@ const FRASE = { size: TUTORIAL_TEXT.phrase, maxWidth: PANEL_WIDTH - 0.1 }
  * dibujado tiene que bajar con ella. Sale de aquí y no de dentro del dibujo para que
  * el test pueda comprobar los mismos números que se pintan, y no una copia suya.
  */
-export function repartoDelPaso(
+export function stepLayout(
   ctx: CanvasRenderingContext2D,
   step: TutorialStepKey,
   frases: Record<TutorialStepKey, TextKey>,
   t: (clave: TextKey) => string,
-): { techoDeLaFrase: number; sueloDeLaFrase: number; mando: number } {
-  const techoDeLaFrase = PANEL_HEIGHT / 2 - 0.13
-  const sueloDeLaFrase = techoDeLaFrase - paragraphHeight(ctx, t(frases[step]), FRASE)
-  const techoDeLosBotones = BOTON.y + BOTON.height / 2
-  return { techoDeLaFrase, sueloDeLaFrase, mando: (sueloDeLaFrase + techoDeLosBotones) / 2 }
+): { phraseTop: number; phraseBottom: number; controller: number } {
+  const phraseTop = PANEL_HEIGHT / 2 - 0.13
+  const phraseBottom = phraseTop - paragraphHeight(ctx, t(frases[step]), FRASE)
+  const techoDeLosBotones = BUTTON.y + BUTTON.height / 2
+  return { phraseTop: phraseTop, phraseBottom: phraseBottom, controller: (phraseBottom + techoDeLosBotones) / 2 }
 }
 
 /**
@@ -128,7 +128,7 @@ export function repartoDelPaso(
  * medir con un lienzo de mentira —`legibilidad.ts`—: es texto que nadie ha visto aún
  * con el visor puesto, y la frase larga en español es donde se sale.
  */
-export function dibujarElPaso(
+export function drawStep(
   ctx: CanvasRenderingContext2D,
   step: TutorialStepKey | null,
   frases: Record<TutorialStepKey, TextKey>,
@@ -151,28 +151,28 @@ export function dibujarElPaso(
   //
   // **Anclado por arriba**, no centrado: centrado, la frase que pasa de dos líneas a tres
   // crece hacia arriba y se mete debajo del contador. El español las tiene casi siempre.
-  const reparto = repartoDelPaso(ctx, step, frases, t)
-  drawParagraph(ctx, t(frases[step]), 0, reparto.techoDeLaFrase, {
+  const reparto = stepLayout(ctx, step, frases, t)
+  drawParagraph(ctx, t(frases[step]), 0, reparto.phraseTop, {
     ...FRASE,
     color: PALETTE.foreground,
     weight: '600',
     anchor: 'top',
   })
 
-  dibujarMando(ctx, 0, reparto.mando, TUTORIAL_BUTTONS[step], {
-    cuerpo: DIM_COLOR,
-    resaltado: PALETTE.foreground,
+  drawController(ctx, 0, reparto.controller, TUTORIAL_BUTTONS[step], {
+    body: DIM_COLOR,
+    highlight: PALETTE.foreground,
   })
 
   for (const boton of BOTONES) {
-    roundedRect(ctx, boton.x, BOTON.y, BOTON.width, BOTON.height, 0.016)
+    roundedRect(ctx, boton.x, BUTTON.y, BUTTON.width, BUTTON.height, 0.016)
     ctx.fillStyle = DIM_COLOR
     ctx.fill()
-    drawText(ctx, t(boton.texto), boton.x, BOTON.y, {
+    drawText(ctx, t(boton.text), boton.x, BUTTON.y, {
       size: TUTORIAL_TEXT.button,
       color: PALETTE.background,
       weight: '700',
-      maxWidth: BOTON.width - 0.03,
+      maxWidth: BUTTON.width - 0.03,
     })
   }
 }
@@ -186,9 +186,9 @@ export function XRTutorial({
   /** Como el `rotation` de three: con el orden, si no es `'XYZ'`. */
   rotation?: [number, number, number] | [number, number, number, 'YXZ']
 } = {}) {
-  const { gameState, gameMode, hitos, setTutorialRunning, setAprendiendo, acabarLaLeccion, enReto } = useGame()
-  const t = traductor(useLang())
-  const frases = useGrabMode() === 'toggle' ? FRASES_CON_UN_TOQUE : FRASES
+  const { gameState, gameMode, milestones: hitos, setTutorialRunning, setLearning: setAprendiendo, finishLesson: acabarLaLeccion, inChallenge: enReto } = useGame()
+  const t = translator(useLang())
+  const frases = useGrabMode() === 'toggle' ? PHRASES_WITH_ONE_TAP : FRASES
   const enSesion = useXR((state) => state.mode != null)
 
   // Se decide una sola vez al montar: leerlo en cada render lo apagaría a mitad, en cuanto se
@@ -242,7 +242,7 @@ export function XRTutorial({
   }, [setTutorialRunning])
 
   const draw = useCallback(
-    (ctx: CanvasRenderingContext2D) => dibujarElPaso(ctx, step, frases, t),
+    (ctx: CanvasRenderingContext2D) => drawStep(ctx, step, frases, t),
     [step, frases, t],
   )
 
@@ -258,20 +258,20 @@ export function XRTutorial({
       <group position={position} rotation={rotation}>
         <CanvasPanel width={PANEL_WIDTH} height={PANEL_HEIGHT} draw={draw} fallbackColor={PALETTE.background} />
         {BOTONES.map((boton) => (
-          <group key={boton.id} position={[boton.x, BOTON.y, 0.002]}>
+          <group key={boton.id} position={[boton.x, BUTTON.y, 0.002]}>
             <mesh
               onClick={boton.id === 'next' ? siguiente : saltar}
               {...handlersFor(boton.id)}
             >
-              <planeGeometry args={[BOTON.width, BOTON.height]} />
+              <planeGeometry args={[BUTTON.width, BUTTON.height]} />
               <meshBasicMaterial transparent opacity={0} depthWrite={false} />
             </mesh>
             {/* **Encenderse al apuntar es lo que dice que el botón responde.** El resto de
                 paneles del juego ya lo hacen y estos no, así que con el visor puesto el
                 tutorial parecía un cartel: «los botones no se marcan cuando se apuntan». */}
             <ButtonHighlight
-              width={BOTON.width}
-              height={BOTON.height}
+              width={BUTTON.width}
+              height={BUTTON.height}
               state={stateOf(boton.id)}
               glow={COMMON_PALETTE.accent}
               ink={PALETTE.background}

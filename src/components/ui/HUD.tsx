@@ -8,7 +8,7 @@ import { useGame } from '../../lib/gameStore'
 import { useLang } from '../../lib/settingsClient'
 import { COMMON_PALETTE } from '../../lib/commonPalette'
 import { MENU_EN } from '../../lib/menuWords'
-import { formatoDeCifra, traductor } from '../../lib/textos'
+import { formatFigure, translator } from '../../lib/textos'
 import { useDuelTally } from '../../lib/useDuelTally'
 
 /**
@@ -69,7 +69,7 @@ function Scoreboard() {
   } = useGame()
   const endless = isEndless(activeGoalTarget)
   const lang = useLang()
-  const t = traductor(lang)
+  const t = translator(lang)
   // En el duelo, el marcador de la izquierda es de quien tiene el mando: con dos personas
   // delante, «Tú» no dice a cuál de las dos.
   const quien = duel ? t(PLAYER_LABELS[duel.player]) : null
@@ -98,7 +98,7 @@ function Scoreboard() {
 
         <span aria-hidden className="h-8 w-px bg-white/10" />
 
-        <Stat label={t('Points')} value={formatoDeCifra(points, lang)} />
+        <Stat label={t('Points')} value={formatFigure(points, lang)} />
         {streak > 1 ? <Stat label={t('Streak')} value={`×${streak}`} /> : null}
 
         <span aria-hidden className="h-8 w-px bg-white/10" />
@@ -180,7 +180,7 @@ function GameOver() {
   const reto = gameMode === 'challenge'
   const endless = isEndless(activeGoalTarget)
   const lang = useLang()
-  const t = traductor(lang)
+  const t = translator(lang)
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
       <div className="pointer-events-auto animate-fade-slide-up w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_92%,transparent)] p-6 text-center shadow-2xl backdrop-blur-sm">
@@ -237,7 +237,7 @@ function GameOver() {
                 })}
         </p>
         <p className="mt-5 text-5xl font-bold tabular-nums">
-          {formatoDeCifra(points, lang)}
+          {formatFigure(points, lang)}
         </p>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/40">
           {t('points')}
@@ -303,7 +303,7 @@ function GameOver() {
  * máquina (ver `lib/duel.ts`).
  */
 function DuelOver() {
-  const t = traductor(useLang())
+  const t = translator(useLang())
   const { duel, playerGoals, opponentGoals, outcome, startGame, resetGame } = useGame()
   const tally = useDuelTally()
   // `DuelOver` solo se pinta en el duelo; el tipo no lo sabe.
@@ -392,7 +392,7 @@ function DuelOver() {
 function QuitButton() {
   const { askToQuit, immersive, endRun, activeGoalTarget, gameState } = useGame()
   const exit = useExit()
-  const t = traductor(useLang())
+  const t = translator(useLang())
 
   return (
     <div className="pointer-events-none absolute right-4 bottom-4 flex gap-2">
@@ -437,7 +437,7 @@ function QuitButton() {
  */
 function QuitConfirm() {
   const { resetGame, keepPlaying } = useGame()
-  const t = traductor(useLang())
+  const t = translator(useLang())
 
   return (
     <div

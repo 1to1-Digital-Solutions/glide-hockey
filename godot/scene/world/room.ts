@@ -24,7 +24,7 @@ import { BoxMesh, Color, Node3D, QuadMesh, Vector2, Vector3, type Environment, t
 import { quad, ring, withShadow, matte, multiMesh, unlit, translucent, layFlat } from '@kit/runtime/scene/parts'
 import { deCuaternion, escalar, giroSobre, multiplicar, transformOf, type M3 } from '@kit/runtime/scene/matrices'
 
-import { NEONES_DEL_FONDO } from '@/lib/scoreboardSign'
+import { BACK_NEONS } from '@/lib/scoreboardSign'
 import { TABLE_CENTER_Z } from '@/lib/gameConfig'
 import { PALETTE } from '@/lib/palette'
 
@@ -118,9 +118,9 @@ export class Sala {
 
     // Los neones de la pared del fondo: dos rayas de luz, sin tono (`toneMapped={false}`).
     // A la altura que deja libre el cartel del objetivo (`NEONES_DEL_FONDO`).
-    NEONES_DEL_FONDO.tiras.forEach((neon, i) => {
+    BACK_NEONS.strips.forEach((neon, i) => {
       const color = [NEON_PINK, NEON_CYAN][i]!
-      n.add_child(quad(neon.ancho, NEONES_DEL_FONDO.grueso, unlit(color), new Vector3(0, neon.y, centre - ROOM.depth / 2 + 0.03)))
+      n.add_child(quad(neon.width, BACK_NEONS.thickness, unlit(color), new Vector3(0, neon.y, centre - ROOM.depth / 2 + 0.03)))
     })
 
     // Las máquinas: el mueble, la pantalla apagada algo inclinada y el cartel encendido de arriba.

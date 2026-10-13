@@ -18,27 +18,27 @@ import type { TextKey } from './textos'
  * El movimiento reducido del sistema no pasa por aquí: lo mira el propio
  * `GolpeRecibido`, y manda por encima de lo que se elija.
  */
-export const CONFORT_KEY = 'glide-hockey:confort'
+export const COMFORT_KEY = 'glide-hockey:confort'
 
 const preferencia = createStoredPreference<Comfort>({
-  key: CONFORT_KEY,
+  key: COMFORT_KEY,
   // Lo guardado es entrada externa: solo cuenta un valor que exista.
   parse: parseComfort,
   serialize: (valor) => valor,
 })
 
-export const getConfort = preferencia.get
-export const saveConfort = preferencia.save
+export const getComfort = preferencia.get
+export const saveComfort = preferencia.save
 
 /** El confort elegido y cómo cambiarlo, visto desde React. */
-export function useConfort(): [Comfort, (valor: Comfort) => void] {
+export function useComfort(): [Comfort, (valor: Comfort) => void] {
   const confort = useSyncExternalStore(preferencia.subscribe, preferencia.get, preferencia.getServer)
   const cambiar = useCallback((valor: Comfort) => preferencia.save(valor), [])
   return [confort, cambiar]
 }
 
 /** Con qué se entra, para quien lo pinte antes de leer nada. */
-export const CONFORT_INICIAL: Comfort = DEFAULT_COMFORT
+export const INITIAL_COMFORT: Comfort = DEFAULT_COMFORT
 
 /**
  * Cómo se llama la fila y cada opción, en los dos menús. «Full» y no «Normal» en
@@ -46,5 +46,5 @@ export const CONFORT_INICIAL: Comfort = DEFAULT_COMFORT
  * tradujera a sí misma no la distinguiría el guardián de lo que falta traducir.
  * Lo mismo que en gloop-pop, para que las dos cabinas digan lo mismo.
  */
-export const CONFORT_LEGEND: TextKey = 'When hit'
-export const CONFORT_LABELS: Record<Comfort, TextKey> = { off: 'Off', gentle: 'Gentle', normal: 'Full' }
+export const COMFORT_LEGEND: TextKey = 'When hit'
+export const COMFORT_LABELS: Record<Comfort, TextKey> = { off: 'Off', gentle: 'Gentle', normal: 'Full' }

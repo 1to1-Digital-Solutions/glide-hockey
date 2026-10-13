@@ -18,7 +18,7 @@
  *   jugador** al disco, en la mano que lo lleva y con la fuerza del choque; el gol, suave; y el
  *   final del partido, largo. El roce y el rebote no los toca la mano, así que no vibran.
  */
-import { pulsosDelListon } from '@/lib/scoreboardSign'
+import { thresholdPulses } from '@/lib/scoreboardSign'
 import { MAX_PUCK_SPEED } from '@/lib/gameConfig'
 import type { FrameResult } from '@/lib/matchLoop'
 import type { Medal } from '@/lib/goal'
@@ -68,17 +68,17 @@ export const PULSO_DEL_FINAL = { intensidad: 0.6, ms: 220 } as const
 
 /** Lo que se siente de un suceso de la mesa (`SucesoEnLaMano`). */
 export type SucesoEnLaMano =
-  | { readonly tipo: 'golpe'; readonly fuerza: number }
-  | { readonly tipo: 'gol' }
+  | { readonly tipo: 'hit'; readonly fuerza: number }
+  | { readonly tipo: 'goal' }
   | { readonly tipo: 'end' }
   /** Se cruza un listón de medalla: lo celebra el cartel del objetivo. */
-  | { readonly tipo: 'liston'; readonly medalla: Medal }
+  | { readonly tipo: 'threshold'; readonly medalla: Medal }
 
 /** Lo que de un fotograma de la mesa llega a la mano (`sucesosDelFotograma`). */
 export function sucesosDelFotograma(golpesAntes: number, { table, goals, impact }: Pick<FrameResult, 'table' | 'goals' | 'impact'>): SucesoEnLaMano[] {
   const sucesos: SucesoEnLaMano[] = []
-  if (table.playerHits > golpesAntes) sucesos.push({ tipo: 'golpe', fuerza: impactStrength(impact.strike) })
-  if (goals.length > 0) sucesos.push({ tipo: 'gol' })
+  if (table.playerHits > golpesAntes) sucesos.push({ tipo: 'hit', fuerza: impactStrength(impact.strike) })
+  if (goals.length > 0) sucesos.push({ tipo: 'goal' })
   return sucesos
 }
 
@@ -86,13 +86,13 @@ export function sucesosDelFotograma(golpesAntes: number, { table, goals, impact 
 export function pulsosDelSuceso(suceso: SucesoEnLaMano, mazo: HandSide | null): HandPulse[] {
   if (mazo == null) return []
   switch (suceso.tipo) {
-    case 'golpe':
+    case 'hit':
       return pulsesFor({ type: 'impact', hand: mazo, strength: Number.isFinite(suceso.fuerza) ? suceso.fuerza : 1 })
-    case 'gol':
+    case 'goal':
       return pulsesFor({ type: 'arrival', hand: mazo, strength: FUERZA_DEL_GOL })
     case 'end':
       return [{ hand: mazo, intensity: PULSO_DEL_FINAL.intensidad, ms: PULSO_DEL_FINAL.ms, delay: 0 }]
-    case 'liston':
-      return pulsosDelListon(suceso.medalla, mazo)
+    case 'threshold':
+      return thresholdPulses(suceso.medalla, mazo)
   }
 }

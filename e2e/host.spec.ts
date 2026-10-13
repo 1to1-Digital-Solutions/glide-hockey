@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { observarLaMesa } from './helpers'
+import { watchTable } from './helpers'
 import { ASSETS_BASE, enterHostBooth, isAtSiteRoot, openHost } from './support/host'
 import { installXREmulator } from './support/xr'
 
@@ -68,7 +68,7 @@ test.describe('Montado dentro de otro anfitrión', () => {
     // una sesión abierta, y eso no puede tomarse como «se entró al visor con una partida de
     // escritorio a medias», que la descartaría y dejaría el reto en el menú.
     test.setTimeout(120_000)
-    await observarLaMesa(page)
+    await watchTable(page)
     await installXREmulator(page)
     await openHost(page, undefined, { aLaCarta: true, reto: 20260925 })
     await expect

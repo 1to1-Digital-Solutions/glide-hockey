@@ -21,15 +21,15 @@ import { RealController } from '@kit/runtime/ui/controller'
 import { MAX_EXPIRY } from '@/lib/hints'
 import { MALLET_RADIUS, PUCK_RADIUS, TABLE_CENTER_Z } from '@/lib/gameConfig'
 import {
-  AYUDAS_QUE_OCUPAN_LA_MESA,
-  GUION_DE_AYUDAS,
-  HUELLAS,
-  HUELLAS_Y,
-  MANDO_JUNTO_AL_MAZO,
-  MARCA_DE_PORTERIA,
-  enElCampoDelJugador,
-  sobreLaMesa,
-  type HechoDeLasAyudas,
+  HINTS_ON_THE_TABLE,
+  HINT_SCRIPT,
+  FOOTPRINTS,
+  FOOTPRINTS_Y,
+  CONTROLLER_BESIDE_MALLET,
+  GOAL_MARK,
+  inPlayerHalf,
+  onTheTable,
+  type HintFact,
 } from '@/lib/hintScript'
 import { playerStart } from '@/lib/opponent'
 import { gameStorage } from '@/lib/storage'
@@ -109,7 +109,7 @@ describe('las ayudas, con el guion de la web', () => {
   let suelo: Node3D
   let mesa: Node3D
   let ayudas: AyudasDelJuego
-  const hechos = (h: Partial<Record<HechoDeLasAyudas, boolean>> = {}) => ({ tanda: false, grab: false, hit: false, goal: false, ...h })
+  const hechos = (h: Partial<Record<HintFact, boolean>> = {}) => ({ round: false, grab: false, hit: false, goal: false, ...h })
 
   beforeEach(() => {
     suelo = new Node3D()
@@ -119,47 +119,47 @@ describe('las ayudas, con el guion de la web', () => {
   })
   afterEach(() => suelo.free())
 
-  function correr(segundos: number, h: Partial<Record<HechoDeLasAyudas, boolean>>, dando = true): void {
+  function correr(segundos: number, h: Partial<Record<HintFact, boolean>>, dando = true): void {
     for (let t = 0; t < segundos; t += 0.05) ayudas.actualizar(0.05, { dando, hechos: hechos(h) })
   }
 
   it('al entrar, solo las huellas; nada aparece de golpe', () => {
     ayudas.actualizar(0.05, { dando: true, hechos: hechos() })
-    expect(ayudas.fuerza.suelo).toBeGreaterThan(0)
-    expect(ayudas.fuerza.suelo).toBeLessThan(0.2)
+    expect(ayudas.fuerza.floor).toBeGreaterThan(0)
+    expect(ayudas.fuerza.floor).toBeLessThan(0.2)
     correr(1, {})
-    expect(ayudas.visibles()).toEqual(['suelo'])
+    expect(ayudas.visibles()).toEqual(['floor'])
   })
 
   it('con la partida, el mando y el mazo fantasma; con el mazo en la mano, la portería; y se van', () => {
-    correr(1, { tanda: true })
-    expect(ayudas.visibles()).toEqual(['suelo', 'mando', 'gesto'])
-    correr(1, { tanda: true, grab: true })
-    expect(ayudas.visibles()).toEqual(['suelo', 'porteria'])
-    correr(1, { tanda: true, grab: true, hit: true })
-    expect(ayudas.visibles()).toEqual(['porteria'])
-    correr(1, { tanda: true, grab: true, hit: true, goal: true })
+    correr(1, { round: true })
+    expect(ayudas.visibles()).toEqual(['floor', 'controller', 'gesture'])
+    correr(1, { round: true, grab: true })
+    expect(ayudas.visibles()).toEqual(['floor', 'goal'])
+    correr(1, { round: true, grab: true, hit: true })
+    expect(ayudas.visibles()).toEqual(['goal'])
+    correr(1, { round: true, grab: true, hit: true, goal: true })
     expect(ayudas.visibles()).toEqual([])
   })
 
   it('lo que se levanta de la mesa se ha ido con el mazo en la mano, antes de que salga el disco', () => {
-    correr(1, { tanda: true })
-    correr(1, { tanda: true, grab: true })
+    correr(1, { round: true })
+    correr(1, { round: true, grab: true })
     const visibles = ayudas.visibles()
-    for (const id of AYUDAS_QUE_OCUPAN_LA_MESA) expect(visibles, id).not.toContain(id)
+    for (const id of HINTS_ON_THE_TABLE) expect(visibles, id).not.toContain(id)
   })
 
   it('ninguna se queda puesta: pasado el plazo más largo, todas fuera aunque no se haga nada', () => {
-    correr(MAX_EXPIRY + 1, { tanda: true, grab: true })
+    correr(MAX_EXPIRY + 1, { round: true, grab: true })
     expect(ayudas.visibles()).toEqual([])
-    expect(Math.max(...GUION_DE_AYUDAS.map((a) => a.expiresAfter))).toBeLessThanOrEqual(MAX_EXPIRY)
+    expect(Math.max(...HINT_SCRIPT.map((a) => a.expiresAfter))).toBeLessThanOrEqual(MAX_EXPIRY)
   })
 
   it('sin visor no se enseñan ni corren sus plazos', () => {
-    correr(30, { tanda: true }, false)
+    correr(30, { round: true }, false)
     expect(ayudas.visibles()).toEqual([])
-    correr(1, { tanda: true })
-    expect(ayudas.visibles()).toContain('gesto')
+    correr(1, { round: true })
+    expect(ayudas.visibles()).toContain('gesture')
   })
 
   it('las huellas van a los pies, a la par y de frente', () => {
@@ -169,11 +169,11 @@ describe('las ayudas, con el guion de la web', () => {
       const n = suelo.get_child(i)
       if (n instanceof Node3D && n !== mesa) huellas.push(n)
     }
-    expect(huellas.length).toBe(HUELLAS.length)
+    expect(huellas.length).toBe(FOOTPRINTS.length)
     huellas.forEach((n, i) => {
-      expect(n.position.x).toBeCloseTo(HUELLAS[i].x, 6)
-      expect(n.position.y).toBeCloseTo(HUELLAS_Y, 6)
-      expect(n.position.z).toBeCloseTo(HUELLAS[i].z, 6)
+      expect(n.position.x).toBeCloseTo(FOOTPRINTS[i].x, 6)
+      expect(n.position.y).toBeCloseTo(FOOTPRINTS_Y, 6)
+      expect(n.position.z).toBeCloseTo(FOOTPRINTS[i].z, 6)
     })
   })
 
@@ -181,9 +181,9 @@ describe('las ayudas, con el guion de la web', () => {
     let masCerca = Infinity
     let masLejos = -Infinity
     for (let t = 0; t < 1.7; t += 0.02) {
-      ayudas.actualizar(0.02, { dando: true, hechos: hechos({ tanda: true }) })
+      ayudas.actualizar(0.02, { dando: true, hechos: hechos({ round: true }) })
       const p = ayudas.fantasma.position
-      expect(enElCampoDelJugador({ x: p.x, z: p.z }), `${p.z}`).toBe(true)
+      expect(inPlayerHalf({ x: p.x, z: p.z }), `${p.z}`).toBe(true)
       masCerca = Math.min(masCerca, p.z)
       masLejos = Math.max(masLejos, p.z)
     }
@@ -193,25 +193,25 @@ describe('las ayudas, con el guion de la web', () => {
 
   it('la marca de la portería va calcada dentro de la mesa, en el fondo de la máquina', () => {
     const p = ayudas.porteria.position
-    expect(p.z).toBeCloseTo(MARCA_DE_PORTERIA.z, 6)
-    for (const z of [p.z - MARCA_DE_PORTERIA.fondo / 2, p.z + MARCA_DE_PORTERIA.fondo / 2]) {
-      for (const x of [-MARCA_DE_PORTERIA.ancho / 2, MARCA_DE_PORTERIA.ancho / 2]) expect(sobreLaMesa({ x, z })).toBe(true)
+    expect(p.z).toBeCloseTo(GOAL_MARK.z, 6)
+    for (const z of [p.z - GOAL_MARK.depth / 2, p.z + GOAL_MARK.depth / 2]) {
+      for (const x of [-GOAL_MARK.width / 2, GOAL_MARK.width / 2]) expect(onTheTable({ x, z })).toBe(true)
     }
   })
 
   it('el mando va a un palmo del sitio del mazo, crecido y con el agarre marcado', () => {
-    correr(1, { tanda: true })
+    correr(1, { round: true })
     const mando = ayudas.mando!
     expect(mando.visible).toBe(true)
     expect(mando.perfil).toBe('meta-quest-touch-plus')
     expect(mando.sitioDeLaMarca).not.toBeNull()
     const junto = juntoAlMazo()
-    expect(mando.nodo.position.x).toBeCloseTo(playerStart().x + MANDO_JUNTO_AL_MAZO.separacion, 6)
-    expect(mando.nodo.position.y).toBeCloseTo(MANDO_JUNTO_AL_MAZO.alto, 6)
+    expect(mando.nodo.position.x).toBeCloseTo(playerStart().x + CONTROLLER_BESIDE_MALLET.separation, 6)
+    expect(mando.nodo.position.y).toBeCloseTo(CONTROLLER_BESIDE_MALLET.height, 6)
     expect(mando.nodo.position.z).toBeCloseTo(playerStart().z, 6)
     expect(mando.nodo.scale.x).toBeCloseTo(junto.escala, 6)
     expect(mando.nodo.rotation.y).toBeCloseTo(junto.giro, 6)
-    correr(1, { tanda: true, grab: true })
+    correr(1, { round: true, grab: true })
     expect(mando.visible).toBe(false)
     // Queda colgado de la mesa: esconderlo no lo desmonta.
     expect(mando.nodo.get_parent()).toBe(mesa)

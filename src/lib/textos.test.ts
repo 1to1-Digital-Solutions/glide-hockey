@@ -5,9 +5,9 @@ import { DIFFICULTY_LABELS } from './gameConfig'
 import { GAME_MODE_HINTS, GAME_MODE_LABELS } from './gameMode'
 import { PLAYER_LABELS } from './duel'
 import { SCENERY_HINTS, SCENERY_LABELS } from './scenery'
-import { CONFORT_LABELS, CONFORT_LEGEND } from './comfort'
+import { COMFORT_LABELS, COMFORT_LEGEND } from './comfort'
 import { plural } from './menuWords'
-import { TEXT_KEYS, formatea, formatoDeCifra, texto, traductor, traductorSuave, type TextKey } from './textos'
+import { TEXT_KEYS, formatText, formatFigure, texto, translator, softTranslator, type TextKey } from './textos'
 
 /**
  * El diccionario del juego.
@@ -42,7 +42,7 @@ describe('el diccionario', () => {
 
   it('en español traduce', () => {
     expect(texto('es', 'Back to the menu')).toBe('Volver al menú')
-    expect(traductor('es')('Play')).toBe('Jugar')
+    expect(translator('es')('Play')).toBe('Jugar')
   })
 
   it('traduce todas las etiquetas de los mapas de configuración', () => {
@@ -54,9 +54,9 @@ describe('el diccionario', () => {
       ...Object.values(DIFFICULTY_LABELS),
       ...Object.values(SCENERY_LABELS),
       ...Object.values(SCENERY_HINTS),
-      ...Object.values(CONFORT_LABELS),
+      ...Object.values(COMFORT_LABELS),
       ...PLAYER_LABELS,
-      CONFORT_LEGEND,
+      COMFORT_LEGEND,
     ]
     const sinTraducir = etiquetas.filter((e) => texto('es', e) === e)
 
@@ -89,7 +89,7 @@ describe('el diccionario', () => {
 
 describe('las cuentas, con su plural', () => {
   it('la racha sin fin de la portada: un gol, dos goles, en los dos idiomas', () => {
-    const racha = (lang: 'en' | 'es', n: number) => traductor(lang)(plural(n, '{n} goal', '{n} goals') as TextKey, { n })
+    const racha = (lang: 'en' | 'es', n: number) => translator(lang)(plural(n, '{n} goal', '{n} goals') as TextKey, { n })
     expect([racha('en', 1), racha('en', 2)]).toEqual(['1 goal', '2 goals'])
     expect([racha('es', 1), racha('es', 2)]).toEqual(['1 gol', '2 goles'])
   })
@@ -97,25 +97,25 @@ describe('las cuentas, con su plural', () => {
 
 describe('el traductor que acepta cualquier frase', () => {
   it('traduce lo que está en el diccionario, con sus huecos', () => {
-    expect(traductorSuave('es')('Back to the menu')).toBe('Volver al menú')
-    expect(traductorSuave('es')('Level {level}, locked', { level: 3 })).toBe('Nivel 3, bloqueado')
-    expect(traductorSuave('en')('Level {level}, locked', { level: 3 })).toBe('Level 3, locked')
+    expect(softTranslator('es')('Back to the menu')).toBe('Volver al menú')
+    expect(softTranslator('es')('Level {level}, locked', { level: 3 })).toBe('Nivel 3, bloqueado')
+    expect(softTranslator('en')('Level {level}, locked', { level: 3 })).toBe('Level 3, locked')
   })
 
   it('y lo que no está —la unidad del récord, que el salón pasa ya dicha— sale tal cual', () => {
-    expect(traductorSuave('es')('puntos en el reto')).toBe('puntos en el reto')
-    expect(traductorSuave('en')('puntos en el reto')).toBe('puntos en el reto')
+    expect(softTranslator('es')('puntos en el reto')).toBe('puntos en el reto')
+    expect(softTranslator('en')('puntos en el reto')).toBe('puntos en el reto')
     // Ni lo que solo se llama como algo de los objetos de JavaScript.
-    expect(traductorSuave('es')('toString')).toBe('toString')
+    expect(softTranslator('es')('toString')).toBe('toString')
   })
 
   it('sabe las frases del cartel del objetivo, comunes a todos los juegos', () => {
-    expect(traductorSuave('es')('{missing} short of gold', { missing: 40 })).toBe('Te han faltado 40 para el oro')
-    expect(traductorSuave('es')('New record!')).toBe('¡Nuevo récord!')
+    expect(softTranslator('es')('{missing} short of gold', { missing: 40 })).toBe('Te han faltado 40 para el oro')
+    expect(softTranslator('es')('New record!')).toBe('¡Nuevo récord!')
   })
 
   it('el modo que cuenta se llama Reto', () => {
-    expect(traductor('es')('Challenge')).toBe('Reto')
+    expect(translator('es')('Challenge')).toBe('Reto')
   })
 })
 
@@ -123,38 +123,38 @@ describe('los huecos de una frase', () => {
   it('se rellenan por nombre, no por orden', () => {
     // Por orden, el español tendría que fingir la sintaxis inglesa para que los huecos
     // cayeran donde toca.
-    expect(formatea('{a} de {b}', { b: 2, a: 1 })).toBe('1 de 2')
+    expect(formatText('{a} de {b}', { b: 2, a: 1 })).toBe('1 de 2')
   })
 
   it('deja en paz un hueco que nadie rellena', () => {
     // Antes eso que reventar por una frase a medias: se ve el hueco y se arregla, en vez
     // de pintar «undefined» en mitad del marcador.
-    expect(formatea('{a} de {b}', { a: 1 })).toBe('1 de {b}')
+    expect(formatText('{a} de {b}', { a: 1 })).toBe('1 de {b}')
   })
 
   it('llega hasta el traductor', () => {
-    expect(traductor('es')('Level {level}, locked', { level: 3 })).toBe('Nivel 3, bloqueado')
-    expect(traductor('en')('Level {level}, locked', { level: 3 })).toBe('Level 3, locked')
+    expect(translator('es')('Level {level}, locked', { level: 3 })).toBe('Nivel 3, bloqueado')
+    expect(translator('en')('Level {level}, locked', { level: 3 })).toBe('Level 3, locked')
   })
 })
 
 describe('las cifras, en el idioma de quien juega', () => {
   it('agrupan los miles con punto en español y con coma en inglés', () => {
-    expect(formatoDeCifra(12400, 'es')).toBe('12.400')
-    expect(formatoDeCifra(12400, 'en')).toBe('12,400')
-    expect(formatoDeCifra(1234567, 'es')).toBe('1.234.567')
-    expect(formatoDeCifra(-20000, 'es')).toBe('-20.000')
-    expect(formatoDeCifra(999, 'es')).toBe('999')
+    expect(formatFigure(12400, 'es')).toBe('12.400')
+    expect(formatFigure(12400, 'en')).toBe('12,400')
+    expect(formatFigure(1234567, 'es')).toBe('1.234.567')
+    expect(formatFigure(-20000, 'es')).toBe('-20.000')
+    expect(formatFigure(999, 'es')).toBe('999')
   })
 
   it('en español desde las cinco cifras, como el cartel; en inglés, desde las cuatro', () => {
-    expect(formatoDeCifra(8068, 'es')).toBe('8068')
-    expect(formatoDeCifra(8068, 'en')).toBe('8,068')
-    expect(formatoDeCifra(9999.6, 'es')).toBe('10.000')
+    expect(formatFigure(8068, 'es')).toBe('8068')
+    expect(formatFigure(8068, 'en')).toBe('8,068')
+    expect(formatFigure(9999.6, 'es')).toBe('10.000')
   })
 
   it('lo que no es una cifra se escribe como cero', () => {
-    expect(formatoDeCifra(Number.NaN, 'es')).toBe('0')
+    expect(formatFigure(Number.NaN, 'es')).toBe('0')
   })
 
   it('y en el código no queda ningún `toLocaleString`, que escribía «8,068» en español', () => {

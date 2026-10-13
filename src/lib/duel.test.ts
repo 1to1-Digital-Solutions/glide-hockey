@@ -6,7 +6,7 @@ import {
   duelOver,
   duelTurn,
   duelWinner,
-  finalSuenaAGanar,
+  endSoundsLikeWin,
   formatMargin,
   margin,
   newDuel,
@@ -131,11 +131,11 @@ describe('quién gana', () => {
 
 describe('cómo suena el final', () => {
   it('fuera del duelo, y en la partida del primero, lo dice el marcador', () => {
-    expect(finalSuenaAGanar(false, { scored: 7, conceded: 3 })).toBe(true)
-    expect(finalSuenaAGanar(false, { scored: 3, conceded: 7 })).toBe(false)
+    expect(endSoundsLikeWin(false, { scored: 7, conceded: 3 })).toBe(true)
+    expect(endSoundsLikeWin(false, { scored: 3, conceded: 7 })).toBe(false)
   })
 
   it('el final del duelo suena a ganar aunque quien jugó el último perdiera su partida', () => {
-    expect(finalSuenaAGanar(true, { scored: 2, conceded: 7 })).toBe(true)
+    expect(endSoundsLikeWin(true, { scored: 2, conceded: 7 })).toBe(true)
   })
 })

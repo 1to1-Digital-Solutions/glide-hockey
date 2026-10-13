@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { abrirJuego, jugarPartida } from './helpers'
+import { openGame, playMatch } from './helpers'
 
 /**
  * Una partida de verdad, de principio a fin.
@@ -13,8 +13,8 @@ import { abrirJuego, jugarPartida } from './helpers'
  * test. En Imposible, además, tarda unos segundos en vez de un minuto.
  */
 test('la máquina marca y la partida termina', async ({ page }) => {
-  await abrirJuego(page)
-  await jugarPartida(page, { goles: 3, nivel: 'Impossible' })
+  await openGame(page)
+  await playMatch(page, { goles: 3, nivel: 'Impossible' })
 
   // A tres goles y con el mazo parado, la máquina llega antes.
   await expect(
@@ -27,8 +27,8 @@ test('la máquina marca y la partida termina', async ({ page }) => {
 })
 
 test('desde el resumen se vuelve al menú', async ({ page }) => {
-  await abrirJuego(page)
-  await jugarPartida(page, { goles: 3, nivel: 'Impossible' })
+  await openGame(page)
+  await playMatch(page, { goles: 3, nivel: 'Impossible' })
 
   await expect(
     page.getByRole('heading', { name: 'Game lost' }),
@@ -41,8 +41,8 @@ test('desde el resumen se vuelve al menú', async ({ page }) => {
 test('dejar la partida devuelve al menú sin esperar al final', async ({
   page,
 }) => {
-  await abrirJuego(page)
-  await jugarPartida(page, { goles: 15, nivel: 'Easy' })
+  await openGame(page)
+  await playMatch(page, { goles: 15, nivel: 'Easy' })
 
   // Pregunta antes: el botón se pulsa sin querer y salir pierde los goles.
   await page.getByRole('button', { name: 'Leave the game' }).click()
@@ -53,7 +53,7 @@ test('dejar la partida devuelve al menú sin esperar al final', async ({
 })
 
 test('el menú abre en el reto: no pregunta nivel ni goles, y Jugar sin tocar nada lo empieza', async ({ page }) => {
-  await abrirJuego(page)
+  await openGame(page)
 
   await expect(page.getByRole('button', { name: 'Challenge' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText('Counts for a medal.', { exact: false })).toBeVisible()
@@ -71,7 +71,7 @@ test('el menú abre en el reto: no pregunta nivel ni goles, y Jugar sin tocar na
 })
 
 test('la práctica sigue a un toque, y ahí no hay objetivo que colgar', async ({ page }) => {
-  await abrirJuego(page)
+  await openGame(page)
   await page.getByRole('button', { name: 'Practice', exact: true }).click()
 
   await expect(page.getByText('Does not count for a medal.', { exact: false })).toBeVisible()

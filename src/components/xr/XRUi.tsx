@@ -305,7 +305,7 @@ const FORMA_DE_SALIR = (() => {
  * unificarlo». La forma sale de `FLECHA_DE_SALIR`, la misma que pintan en su lienzo los
  * juegos que dibujan el menú con texto.
  */
-export function XRSalirIcon({
+export function XRExitIcon({
   size = 0.05,
   color = PALETTE.foreground,
 }: {

@@ -1,6 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react'
 
-import { serieGuardada, tallyDelTexto, type DuelTally } from './duelTally'
+import { storedTally, tallyFromText, type DuelTally } from './duelTally'
 
 /**
  * Lo que llevan los dos que están jugando (`duelTally.ts`), y React se entera cuando cambia.
@@ -9,6 +9,6 @@ import { serieGuardada, tallyDelTexto, type DuelTally } from './duelTally'
  * el port a Godot, que no lo tiene.
  */
 export function useDuelTally(): DuelTally {
-  const texto = useSyncExternalStore(serieGuardada.subscribe, serieGuardada.get, serieGuardada.getServer)
-  return useMemo(() => tallyDelTexto(texto), [texto])
+  const texto = useSyncExternalStore(storedTally.subscribe, storedTally.get, storedTally.getServer)
+  return useMemo(() => tallyFromText(texto), [texto])
 }

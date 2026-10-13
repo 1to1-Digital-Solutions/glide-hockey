@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { Euler, InstancedMesh, Matrix4, Quaternion, Vector3 } from 'three'
-import { NEONES_DEL_FONDO } from '../../lib/cartelDelMarcador'
+import { NEONES_DEL_FONDO } from '../../lib/scoreboardSign'
 import { TABLE_CENTER_Z } from '../../lib/gameConfig'
 import { PALETTE } from '../../lib/palette'
 

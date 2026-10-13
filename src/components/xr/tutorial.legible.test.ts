@@ -14,10 +14,10 @@ import { signAspect } from './GoalSign'
 import { SCOREBOARD_SIZE } from './XRHud'
 import { LINE_HEIGHT } from './canvasPanel'
 import { recordingCanvas, legibilityProblems, type DrawnText } from './legibility'
-import { ALTO_DEL_MANDO } from './mandoDibujado'
+import { ALTO_DEL_MANDO } from './drawnController'
 import { TUTORIAL_STEPS } from '../../lib/tutorial'
 import { traductor } from '../../lib/textos'
-import { sitioDelTutorial } from '../../lib/cartelDelMarcador'
+import { sitioDelTutorial } from '../../lib/scoreboardSign'
 import { panelPoints, tablePoints, whatThePanelHides } from '../../lib/panelOcclusion'
 import { REFERENCE_EYE_HEIGHT } from '../../lib/uiHeight'
 import {
@@ -32,7 +32,7 @@ import {
   worstReadingDistance,
   type PanelPose,
 } from '../../lib/panelReading'
-import { SITIO_DEL_CARTEL } from '../game/CartelDelMarcador'
+import { SITIO_DEL_CARTEL } from '../game/ScoreboardSign'
 import { XR_UI, XR_UI_ROTATION, delEspacioDelJugador, vistasDelPanel } from '../game/GameWorld'
 
 /**

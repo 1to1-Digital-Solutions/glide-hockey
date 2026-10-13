@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://games/glide-hockey/tests/menu_raton.gd" id="1"]
-
-[node name="MenuRaton" type="Node"]
-script = ExtResource("1")

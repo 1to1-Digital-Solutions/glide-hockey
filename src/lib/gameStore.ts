@@ -13,7 +13,7 @@ import {
 } from 'react'
 import { volumeFactor, type Scenery } from './settings'
 import { setScenery as setArcadeScenery, useLang, useScenery, useVolumes } from './settingsClient'
-import { AVISO_DE_QUE_CUENTA_MS, conElAvisoDeQueCuenta, loQueCallaElMarcador, partidaDelCartel } from './cartelDelMarcador'
+import { AVISO_DE_QUE_CUENTA_MS, conElAvisoDeQueCuenta, loQueCallaElMarcador, partidaDelCartel } from './scoreboardSign'
 import { challengeRound } from './challenge'
 import {
   COUNTDOWN_SECONDS,
@@ -56,7 +56,7 @@ import {
   subscribeUnlockedLevel,
 } from './progress'
 import { migrateLegacyKeysOnce } from './legacyKeys'
-import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana } from './hazanas'
+import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana } from './feats'
 import { goalSign, medalToCelebrate, type Medal, type Goal, type GoalSignView } from './goal'
 import { semillaDeLaMesa } from './opponent'
 import { exposeTestRun } from './testRun'

@@ -3,7 +3,7 @@ import {
   PLAYER_MALLET_SPEED,
   type OpponentSkill,
 } from './gameConfig'
-import { JUGADA_NUEVA, hazanaDelGol, tocar, type Hazana, type Jugada } from './hazanas'
+import { JUGADA_NUEVA, hazanaDelGol, tocar, type Hazana, type Jugada } from './feats'
 import { opponentStart, playerStart, stepOpponent } from './opponent'
 import {
   NO_IMPACT,

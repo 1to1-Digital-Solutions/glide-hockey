@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://games/glide-hockey/tests/xr_mando.gd" id="1"]
-
-[node name="XrMando" type="Node"]
-script = ExtResource("1")

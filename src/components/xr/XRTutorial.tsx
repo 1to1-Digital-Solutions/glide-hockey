@@ -19,7 +19,7 @@ import {
 } from '../../lib/tutorial'
 import { ButtonHighlight, useButtonFeedback } from './buttonHighlight'
 import { CanvasPanel, drawParagraph, drawText, roundedRect, paragraphHeight } from './canvasPanel'
-import { dibujarMando } from './mandoDibujado'
+import { dibujarMando } from './drawnController'
 import { RealController } from './RealController'
 import { NO_RAYCAST } from '../raycast'
 

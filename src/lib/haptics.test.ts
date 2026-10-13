@@ -11,7 +11,7 @@ import {
   type HapticSession,
   type HapticSource,
 } from './haptics'
-import { pulsosDelListon } from './cartelDelMarcador'
+import { pulsosDelListon } from './scoreboardSign'
 import { OPPONENT_SKILLS } from './gameConfig'
 import { advanceTable, startTable, type TableState } from './matchLoop'
 import { HALF_LENGTH, HALF_WIDTH, type Vec2 } from './puckPhysics'

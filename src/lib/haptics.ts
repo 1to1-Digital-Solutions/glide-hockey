@@ -14,7 +14,7 @@
  */
 
 import { impactStrength } from './audioEngine'
-import { pulsosDelListon } from './cartelDelMarcador'
+import { pulsosDelListon } from './scoreboardSign'
 import { type FrameResult } from './matchLoop'
 import type { Medal } from './goal'
 import { pulsesFor, type HandSide, type HandPulse } from './hapticFeedback'

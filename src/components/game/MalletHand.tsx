@@ -6,7 +6,7 @@ import { useXR, useXRInputSourceState } from '@react-three/xr'
 import { startGrab, stepGrab, type GrabLatch } from '../../lib/grab'
 import { useGrabMode } from '../../lib/settingsClient'
 import type { GrabMode } from '../../lib/settings'
-import { isPinching } from '../../lib/pellizco'
+import { isPinching } from '../../lib/pinch'
 import { useEffect, useRef } from 'react'
 import { Vector3, type Group, type Object3D } from 'three'
 

@@ -5,7 +5,7 @@ import { DIFFICULTY_LABELS } from './gameConfig'
 import { GAME_MODE_HINTS, GAME_MODE_LABELS } from './gameMode'
 import { PLAYER_LABELS } from './duel'
 import { SCENERY_HINTS, SCENERY_LABELS } from './scenery'
-import { CONFORT_LABELS, CONFORT_LEGEND } from './confort'
+import { CONFORT_LABELS, CONFORT_LEGEND } from './comfort'
 import { plural } from './menuWords'
 import { TEXT_KEYS, formatea, formatoDeCifra, texto, traductor, traductorSuave, type TextKey } from './textos'
 

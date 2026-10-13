@@ -6,7 +6,7 @@ import { useFrame, type RootState, type ThreeEvent } from '@react-three/fiber'
 import { sucesosDelFotograma, type Handedness, type SucesoEnLaMano } from '../../lib/haptics'
 import { Vector3, type Group, type PointLight, type Texture } from 'three'
 import type { RefObject } from 'react'
-import { FUERZA_DEL_GOL_EN_CONTRA, direccionDelGolEnContra } from '../../lib/golEnContra'
+import { FUERZA_DEL_GOL_EN_CONTRA, direccionDelGolEnContra } from '../../lib/goalAgainst'
 import type { HitFeedbackHandle } from '../xr/HitFeedback'
 import {
   OPPONENT_SKILLS,

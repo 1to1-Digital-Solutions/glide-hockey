@@ -1122,7 +1122,7 @@ describe('las hazañas de la partida', () => {
     act(() => hook.result.current.apuntarHazana('GH_OWN_GOAL'))
     for (let i = 0; i < 3; i += 1) act(() => hook.result.current.scorePlayer())
     expect(onFinish).toHaveBeenCalledTimes(2)
-    expect(onFinish.mock.calls[1]?.[0]).not.toHaveProperty('hazanas')
+    expect(onFinish.mock.calls[1]?.[0]).not.toHaveProperty('feats')
   })
 
   it('en el reto, la ronda ganada sin encajar se cuenta al perder el reto', () => {
@@ -1148,7 +1148,7 @@ describe('las hazañas de la partida', () => {
     }
     esperarAlSaque(hook)
     perderLaPartida(hook)
-    expect(onFinish.mock.calls[0]?.[0]).not.toHaveProperty('hazanas')
+    expect(onFinish.mock.calls[0]?.[0]).not.toHaveProperty('feats')
   })
 
   it('dejarla a medias no guarda las de la mesa', () => {

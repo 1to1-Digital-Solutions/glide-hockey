@@ -13,122 +13,124 @@ import {
 } from './tutorial'
 
 /**
- * El guion del tutorial.
+ * The script of the tutorial.
  *
- * Lo que se vigila aquí es que **se avance haciendo**. El de antes iba por reloj: se podía
- * mirar sin hacer nada y al acabar el tiempo se daba por aprendido. Reportado con el visor
- * puesto: el paso de lanzar no debería pasar hasta que se consiga lo último.
+ * What is watched here is that **progress comes from doing**. The earlier one ran by the
+ * clock: one could watch without doing anything and when the time ran out it was taken as
+ * learnt. Reported with the headset on: the throwing step should not pass until the last
+ * thing is achieved.
  *
- * Y que el paso se **calcule** de lo que ha pasado en la partida en vez de guardarse aparte:
- * un tutorial que lleva su propia cuenta acaba discrepando del juego.
+ * And that the step is **computed** from what has happened in the match instead of being
+ * stored apart: a tutorial that keeps its own count ends up disagreeing with the game.
  */
 
-/** Los hitos con estos conseguidos. */
-function hechos(...cuales: readonly (keyof TutorialMilestones)[]): TutorialMilestones {
-  return cuales.reduce(recordMilestone, NO_MILESTONES)
+/** The milestones with these achieved. */
+function achieved(...which: readonly (keyof TutorialMilestones)[]): TutorialMilestones {
+  return which.reduce(recordMilestone, NO_MILESTONES)
 }
 
-describe('qué paso toca', () => {
-  it('sin hacer nada, el primero', () => {
+describe('which step is due', () => {
+  it('with nothing done, the first one', () => {
     expect(tutorialStep(NO_MILESTONES, 0)).toBe(TUTORIAL_STEPS[0])
   })
 
-  it('haciendo cada cosa se recorren todos y se acaba', () => {
-    let hitos = NO_MILESTONES
-    const recorridos = [tutorialStep(hitos, 0)]
-    for (const paso of TUTORIAL_STEPS) {
-      hitos = recordMilestone(hitos, paso)
-      recorridos.push(tutorialStep(hitos, 0))
+  it('doing each thing goes through them all and it ends', () => {
+    let milestones = NO_MILESTONES
+    const visited = [tutorialStep(milestones, 0)]
+    for (const step of TUTORIAL_STEPS) {
+      milestones = recordMilestone(milestones, step)
+      visited.push(tutorialStep(milestones, 0))
     }
-    expect(recorridos).toEqual([...TUTORIAL_STEPS, null])
+    expect(visited).toEqual([...TUTORIAL_STEPS, null])
   })
 
-  it('esperar no adelanta nada: el tutorial no lleva reloj', () => {
-    // El control de lo que se cambió: sin hitos, el paso es el mismo para siempre.
+  it('waiting advances nothing: the tutorial has no clock', () => {
+    // The control for what was changed: with no milestones, the step is the same forever.
     expect(tutorialStep(NO_MILESTONES, 0)).toBe(tutorialStep(NO_MILESTONES, 0))
   })
 
-  it('conseguir algo de más adelante no salta lo de antes', () => {
-    // Conseguir lo último sin haber pasado por coger deja el paso de coger donde estaba.
-    expect(tutorialStep(hechos('goal'), 0)).toBe('grab')
+  it('achieving something from further on does not skip what comes before', () => {
+    // Achieving the last thing without having gone through picking up leaves the picking-up
+    // step where it was.
+    expect(tutorialStep(achieved('goal'), 0)).toBe('grab')
   })
 
-  it('un hito no se deshace', () => {
-    const hitos = hechos(TUTORIAL_STEPS[0])
-    expect(recordMilestone(hitos, TUTORIAL_STEPS[0])).toBe(hitos)
-    expect(tutorialStep(hitos, 0)).toBe(TUTORIAL_STEPS[1])
+  it('a milestone is not undone', () => {
+    const milestones = achieved(TUTORIAL_STEPS[0])
+    expect(recordMilestone(milestones, TUTORIAL_STEPS[0])).toBe(milestones)
+    expect(tutorialStep(milestones, 0)).toBe(TUTORIAL_STEPS[1])
   })
 })
 
-describe('las dos salidas', () => {
-  it('siguiente pasa al siguiente aunque no se haya conseguido', () => {
-    // Un paso que no se consigue dejaría a alguien encerrado en él.
+describe('the two ways out', () => {
+  it('next moves on to the next one even if it has not been achieved', () => {
+    // A step that is not achieved would leave someone locked inside it.
     expect(tutorialStep(NO_MILESTONES, 1)).toBe(TUTORIAL_STEPS[1])
   })
 
-  it('saltarlos todos lo termina', () => {
+  it('skipping them all ends it', () => {
     expect(tutorialStep(NO_MILESTONES, TUTORIAL_STEPS.length)).toBeNull()
   })
 
-  it('saltar de más no rompe nada', () => {
+  it('skipping too many breaks nothing', () => {
     expect(tutorialStep(NO_MILESTONES, 99)).toBeNull()
     expect(tutorialStep(NO_MILESTONES, -3)).toBe(TUTORIAL_STEPS[0])
   })
 })
 
-describe('qué botón enseña cada paso', () => {
-  it('el de agarrar enseña el botón de agarre', () => {
+describe('which button each step teaches', () => {
+  it('the grabbing one teaches the grip button', () => {
     expect(TUTORIAL_BUTTONS.grab).toBe('agarre')
   })
 
-  it('todos los pasos dicen algo, aunque sea que no hay botón', () => {
-    // Un paso sin entrada aquí saldría dibujando el mando sin resaltar nada.
-    for (const paso of TUTORIAL_STEPS) expect(paso in TUTORIAL_BUTTONS).toBe(true)
+  it('every step says something, even if it is that there is no button', () => {
+    // A step with no entry here would come out drawing the controller with nothing highlighted.
+    for (const step of TUTORIAL_STEPS) expect(step in TUTORIAL_BUTTONS).toBe(true)
   })
 })
 
-describe('si ya se ha visto', () => {
-  const almacen = (valor: string | null) => ({ getItem: () => valor })
+describe('whether it has already been seen', () => {
+  const storage = (value: string | null) => ({ getItem: () => value })
 
-  it('solo el valor exacto cuenta como visto', () => {
-    expect(tutorialSeen(almacen(TUTORIAL_SEEN_VALUE))).toBe(true)
-    expect(tutorialSeen(almacen('2'))).toBe(false)
-    expect(tutorialSeen(almacen(null))).toBe(false)
+  it('only the exact value counts as seen', () => {
+    expect(tutorialSeen(storage(TUTORIAL_SEEN_VALUE))).toBe(true)
+    expect(tutorialSeen(storage('2'))).toBe(false)
+    expect(tutorialSeen(storage(null))).toBe(false)
   })
 
-  it('sin almacenamiento se vuelve a enseñar: ver de más es mejor que no entender', () => {
+  it('with no storage it is shown again: seeing it once too often is better than not understanding', () => {
     expect(tutorialSeen(null)).toBe(false)
     expect(
       tutorialSeen({
         getItem: () => {
-          throw new Error('capado')
+          throw new Error('blocked')
         },
       }),
     ).toBe(false)
   })
 
-  it('la versión sube cuando la lección cambia, y esta cambió entera', () => {
+  it('the version goes up when the lesson changes, and this one changed entirely', () => {
     expect(Number(TUTORIAL_SEEN_VALUE)).toBeGreaterThan(2)
   })
 
-  it('se deja constancia con la clave del juego', () => {
-    const escrito: Record<string, string> = {}
-    const guardado = markTutorialSeen({
+  it('the record is left under the key of the game', () => {
+    const written: Record<string, string> = {}
+    const saved = markTutorialSeen({
       getItem: () => null,
-      setItem: (clave: string, valor: string) => {
-        escrito[clave] = valor
+      setItem: (key: string, value: string) => {
+        written[key] = value
       },
     } as unknown as Storage)
-    expect(guardado).toBe(true)
-    expect(escrito[TUTORIAL_SEEN_KEY]).toBe(TUTORIAL_SEEN_VALUE)
+    expect(saved).toBe(true)
+    expect(written[TUTORIAL_SEEN_KEY]).toBe(TUTORIAL_SEEN_VALUE)
   })
 
-  it('y si el navegador no guarda, se dice que no se guardó', () => {
+  it('and if the browser does not store, it says it was not stored', () => {
     expect(markTutorialSeen(null)).toBe(false)
     expect(
       markTutorialSeen({
         setItem: () => {
-          throw new Error('capado')
+          throw new Error('blocked')
         },
       } as unknown as Storage),
     ).toBe(false)

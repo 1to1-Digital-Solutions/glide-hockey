@@ -1,28 +1,28 @@
 import { type Vec2 } from './puckPhysics'
 
 /**
- * Lo que está pasando en la mesa, para quien mire desde fuera del Canvas.
+ * What is happening on the table, for whoever looks from outside the Canvas.
  *
- * El disco y los mazos son objetos de three: desde el DOM no hay forma de
- * seleccionarlos, ni de saber dónde están, ni de saber si se han tocado. Un
- * test de navegador que quiera comprobar que el ratón mueve el mazo solo podría
- * mirar el marcador y esperar a que caiga un gol, que depende de la puntería y
- * de la máquina en la que corra.
+ * The puck and the mallets are three objects: from the DOM there is no way to
+ * select them, nor to know where they are, nor to know whether they have
+ * touched. A browser test that wanted to check that the mouse moves the mallet
+ * could only look at the scoreboard and wait for a goal to drop, which depends
+ * on the aim and on the machine it runs on.
  *
- * Esto lo evita publicando el estado de la partida, pero **solo si alguien lo
- * ha pedido**: la escena escribe en `window.__glideHockeyScene` si esa propiedad
- * ya existe, y si no existe no hace nada. Ningún navegador la trae de serie,
- * así que quien no la cree —o sea, todo el mundo menos los tests— paga una
- * comprobación por fotograma y nada más.
+ * This avoids it by publishing the state of the match, but **only if someone
+ * has asked for it**: the scene writes to `window.__glideHockeyScene` if that
+ * property already exists, and if it does not exist it does nothing. No browser
+ * ships with it, so whoever does not create it —that is, everybody except the
+ * tests— pays one check per frame and nothing more.
  */
 
-/** Punto de la página, en las mismas coordenadas que trae un evento de puntero. */
+/** Point of the page, in the same coordinates a pointer event brings. */
 export interface ScreenPoint {
   x: number
   y: number
 }
 
-/** Lo que ocupa el canvas dentro de la página. */
+/** What the canvas takes up inside the page. */
 export interface CanvasRect {
   left: number
   top: number
@@ -30,22 +30,23 @@ export interface CanvasRect {
   height: number
 }
 
-/** La foto de la mesa que se publica en cada fotograma. */
+/** The snapshot of the table that is published every frame. */
 export interface SceneProbe {
-  /** El mazo del jugador, en coordenadas de la mesa. */
+  /** The player's mallet, in table coordinates. */
   playerMallet: Vec2
-  /** El disco, en coordenadas de la mesa. */
+  /** The puck, in table coordinates. */
   puck: Vec2
   /**
-   * Dónde se ve el disco, en píxeles de la página: es a donde hay que llevar
-   * el ratón para que el mazo vaya a por él.
+   * Where the puck is seen, in page pixels: it is where the mouse has to be
+   * taken for the mallet to go after it.
    */
   puckScreen: ScreenPoint
-  /** Golpes del mazo del jugador al disco desde que empezó la partida. */
+  /** Hits of the player's mallet on the puck since the match started. */
   playerHits: number
   /**
-   * Goles que ha metido la máquina **en la mesa** desde que se montó, cuenten o no en el
-   * marcador: aprendiendo el reto no cuentan (`aprendiendo`), y así se ve que entraron igual.
+   * Goals the machine has scored **on the table** since it was mounted, whether or not they
+   * count on the scoreboard: while learning the challenge they do not count (`learning`), and
+   * this way one can see they went in all the same.
    */
   goalsAgainst: number
 }
@@ -53,19 +54,19 @@ export interface SceneProbe {
 declare global {
   interface Window {
     /**
-     * La ranura de la que habla la cabecera. Opcional porque lo normal es que
-     * no exista: solo la crea quien quiera mirar dentro de la escena.
+     * The slot the header talks about. Optional because normally it does not
+     * exist: only whoever wants to look inside the scene creates it.
      */
     __glideHockeyScene?: SceneProbe | null
   }
 }
 
 /**
- * Pasa de coordenadas normalizadas de three —el cuadrado de −1 a 1, con la Y
- * creciendo hacia arriba— al píxel de la página donde se ve ese punto.
+ * Goes from three's normalised coordinates —the square from −1 to 1, with the Y
+ * growing upwards— to the pixel of the page where that point is seen.
  *
- * Es la inversa de lo que hace R3F al recibir un evento de puntero, así que
- * mover el ratón al punto devuelto vuelve a apuntar al mismo sitio de la mesa.
+ * It is the inverse of what R3F does on receiving a pointer event, so moving
+ * the mouse to the returned point aims at the same place on the table again.
  */
 export function screenPointFromNdc(
   ndcX: number,
@@ -78,12 +79,12 @@ export function screenPointFromNdc(
   }
 }
 
-/** ¿Alguien ha pedido ver lo que pasa en la mesa? */
+/** Has someone asked to see what happens on the table? */
 export function isSceneProbeRequested(): boolean {
   return typeof window !== 'undefined' && '__glideHockeyScene' in window
 }
 
-/** Publica el estado de la mesa, si alguien lo ha pedido. */
+/** Publishes the state of the table, if someone has asked for it. */
 export function publishSceneProbe(probe: SceneProbe): void {
   if (!isSceneProbeRequested()) return
   window.__glideHockeyScene = probe

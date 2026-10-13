@@ -2,112 +2,112 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createStoredPreference, gameStorage } from './storage'
 
 /**
- * Lo que se prueba aquí no es «guardar y leer», que es lo fácil: es que el
- * juego **siga jugándose** cuando el navegador no deja guardar nada. En modo
- * privado, o con el almacenamiento vetado por política, tocar `localStorage`
- * lanza; si eso subiera, el juego se caería al arrancar por una preferencia
- * prescindible.
+ * What is tested here is not «save and read», which is the easy part: it is
+ * that the game **can still be played** when the browser does not allow
+ * anything to be stored. In private mode, or with the storage barred by policy,
+ * touching `localStorage` throws; if that bubbled up, the game would crash on
+ * startup because of a dispensable preference.
  */
 
-/** El almacenamiento de un navegador en modo privado: lanza en vez de fallar. */
+/** The storage of a browser in private mode: it throws instead of failing. */
 function blockedStorage(): Storage {
   return {
     getItem: () => {
-      throw new DOMException('bloqueado', 'SecurityError')
+      throw new DOMException('blocked', 'SecurityError')
     },
     setItem: () => {
-      throw new DOMException('cuota agotada', 'QuotaExceededError')
+      throw new DOMException('quota exhausted', 'QuotaExceededError')
     },
   } as unknown as Storage
 }
 
-const numero = (raw: string | null): number => {
+const toNumber = (raw: string | null): number => {
   const value = Number(raw)
   return Number.isFinite(value) && value > 0 ? value : 0
 }
 
-/** Una preferencia de mentira con clave fija. */
-function contador() {
+/** A fake preference with a fixed key. */
+function counter() {
   return createStoredPreference<number>({
-    key: 'glide-hockey:test:contador',
-    parse: numero,
+    key: 'glide-hockey:test:counter',
+    parse: toNumber,
     serialize: String,
   })
 }
 
-/** Y otra con una clave por variante, como la del récord por modo. */
-function porModo() {
+/** And another with one key per variant, like that of the record per mode. */
+function perMode() {
   return createStoredPreference<number, [string]>({
     key: (mode: string) => `glide-hockey:test:${mode}`,
-    parse: numero,
+    parse: toNumber,
     serialize: String,
   })
 }
 
 afterEach(() => {
-  // En este orden: mientras el getter de `localStorage` esté falseado, limpiarlo
-  // lanzaría y tumbaría el test siguiente por el fallo del anterior.
+  // In this order: while the `localStorage` getter is faked, clearing it would
+  // throw and bring down the next test because of the previous one's failure.
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   localStorage.clear()
 })
 
-describe('el almacenamiento del navegador', () => {
-  it('en el navegador es el de siempre', () => {
+describe('the browser storage', () => {
+  it('in the browser it is the usual one', () => {
     expect(gameStorage()).toBe(window.localStorage)
   })
 
-  it('en el servidor no hay ninguno', () => {
-    // Es lo que mantiene igual el HTML que se prerenderiza y el que se hidrata:
-    // si aquí se leyera algo, React avisaría de que no cuadran.
+  it('on the server there is none', () => {
+    // It is what keeps the prerendered HTML and the hydrated one the same:
+    // if something were read here, React would warn that they do not match.
     vi.stubGlobal('window', undefined)
     expect(gameStorage()).toBeNull()
   })
 
-  it('si el navegador prohíbe tocarlo, es como no tenerlo', () => {
+  it('if the browser forbids touching it, it is like not having it', () => {
     vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
-      throw new DOMException('bloqueado', 'SecurityError')
+      throw new DOMException('blocked', 'SecurityError')
     })
     expect(gameStorage()).toBeNull()
   })
 })
 
-describe('una preferencia guardada entre visitas', () => {
-  it('lo guardado se vuelve a leer en la siguiente visita', () => {
-    const pref = contador()
+describe('a preference stored between visits', () => {
+  it('what is stored is read again on the next visit', () => {
+    const pref = counter()
     pref.save(7)
 
     expect(pref.get()).toBe(7)
-    // Otra pestaña, u otra visita, lee lo mismo.
-    expect(contador().get()).toBe(7)
+    // Another tab, or another visit, reads the same.
+    expect(counter().get()).toBe(7)
   })
 
-  it('sin nada guardado, el valor de entrada', () => {
-    expect(contador().get()).toBe(0)
+  it('with nothing stored, the starting value', () => {
+    expect(counter().get()).toBe(0)
   })
 
-  it('lo guardado es entrada externa: solo se acepta lo que vale', () => {
-    localStorage.setItem('glide-hockey:test:contador', 'lo que sea')
-    expect(contador().get()).toBe(0)
+  it('what is stored is external input: only what is valid is accepted', () => {
+    localStorage.setItem('glide-hockey:test:counter', 'whatever')
+    expect(counter().get()).toBe(0)
   })
 
-  it('en el servidor siempre el valor de entrada, aunque haya algo guardado', () => {
-    const pref = contador()
+  it('on the server always the starting value, even if something is stored', () => {
+    const pref = counter()
     pref.save(7)
     expect(pref.getServer()).toBe(0)
   })
 
-  it('con una clave por variante, cada variante guarda la suya', () => {
-    const pref = porModo()
-    pref.save(3, 'facil')
-    pref.save(9, 'dificil')
+  it('with one key per variant, each variant stores its own', () => {
+    const pref = perMode()
+    pref.save(3, 'easy')
+    pref.save(9, 'hard')
 
-    expect(pref.get('facil')).toBe(3)
-    expect(pref.get('dificil')).toBe(9)
+    expect(pref.get('easy')).toBe(3)
+    expect(pref.get('hard')).toBe(9)
   })
 
-  it('avisa a quien la mira cuando cambia, y deja de hacerlo al soltarla', () => {
-    const pref = contador()
+  it('notifies whoever watches it when it changes, and stops doing so on releasing it', () => {
+    const pref = counter()
     const listener = vi.fn()
     const unsubscribe = pref.subscribe(listener)
 
@@ -119,10 +119,10 @@ describe('una preferencia guardada entre visitas', () => {
     expect(listener).toHaveBeenCalledTimes(1)
   })
 
-  it('también escucha a las otras pestañas', () => {
-    // `useSyncExternalStore` solo vuelve a leer cuando se le avisa: sin esto, un
-    // cambio hecho en otra pestaña no aparecería hasta recargar.
-    const pref = contador()
+  it('also listens to the other tabs', () => {
+    // `useSyncExternalStore` only reads again when it is notified: without this, a
+    // change made in another tab would not show up until reloading.
+    const pref = counter()
     const listener = vi.fn()
     const unsubscribe = pref.subscribe(listener)
 
@@ -134,20 +134,20 @@ describe('una preferencia guardada entre visitas', () => {
     expect(listener).toHaveBeenCalledTimes(1)
   })
 
-  describe('cuando el navegador no deja guardar', () => {
-    it('leer da el valor de entrada en vez de lanzar', () => {
+  describe('when the browser does not allow storing', () => {
+    it('reading gives the starting value instead of throwing', () => {
       vi.spyOn(window, 'localStorage', 'get').mockReturnValue(blockedStorage())
-      expect(contador().get()).toBe(0)
+      expect(counter().get()).toBe(0)
     })
 
-    it('guardar no rompe, y lo elegido vale al menos para esta visita', () => {
-      // Sin esto, con el almacenamiento bloqueado pulsar una opción del menú no hacía
-      // **nada**: la escritura fallaba en silencio y la relectura devolvía lo de antes,
-      // así que el botón se quedaba sin marcar. Lo que no se pudo guardar se recuerda en
-      // memoria hasta que se cierre la pestaña; entre visitas se pierde, que es lo que
-      // significa no tener almacenamiento.
+    it('saving does not break, and what was chosen holds at least for this visit', () => {
+      // Without this, with the storage blocked pressing a menu option did **nothing**:
+      // the write failed silently and the re-read returned what was there before, so
+      // the button stayed unmarked. What could not be stored is remembered in memory
+      // until the tab is closed; between visits it is lost, which is what not having
+      // storage means.
       vi.spyOn(window, 'localStorage', 'get').mockReturnValue(blockedStorage())
-      const pref = contador()
+      const pref = counter()
       const listener = vi.fn()
       pref.subscribe(listener)
 
@@ -157,11 +157,11 @@ describe('una preferencia guardada entre visitas', () => {
       expect(listener).toHaveBeenCalledTimes(1)
     })
 
-    it('sin almacenamiento ninguno, ni lectura ni escritura rompen', () => {
+    it('with no storage at all, neither reading nor writing break', () => {
       vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
-        throw new DOMException('bloqueado', 'SecurityError')
+        throw new DOMException('blocked', 'SecurityError')
       })
-      const pref = contador()
+      const pref = counter()
       expect(() => pref.save(9)).not.toThrow()
       expect(pref.get()).toBe(9)
     })

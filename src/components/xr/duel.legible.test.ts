@@ -14,18 +14,19 @@ import { LINE_HEIGHT } from './canvasPanel'
 import { recordingCanvas, legibilityProblems, type DrawnText } from './legibility'
 
 /**
- * El final de una partida del duelo, medido en vez de mirado.
+ * The end of a match of the duel, measured instead of looked at.
  *
- * Es texto dentro del visor, que es donde un renglón que se sale o dos que se pisan solo se
- * descubren con las gafas puestas. Se mide en los dos idiomas y en los dos momentos del duelo: el
- * traspaso —a quién pasarle el mando— y el final, con ganador y con empate. Y **desde donde se
- * juega**: en la columna (`XR_UI.panel`), a su escala, girado como ella y a tres alturas de ojos.
+ * It is text inside the headset, which is where a line that runs off or two that overlap are only
+ * discovered with the goggles on. It is measured in both languages and at both moments of the
+ * duel: the handover —who to pass the controller to— and the end, with a winner and with a tie.
+ * And **from where the game is played**: on the column (`XR_UI.panel`), at its scale, rotated
+ * like it and at three eye heights.
  */
 
-const IDIOMAS = ['en', 'es'] as const
-const VISTAS = panelViews(XR_UI.panel, XR_UI_ROTATION.panel)
+const LANGUAGES = ['en', 'es'] as const
+const VIEWS = panelViews(XR_UI.panel, XR_UI_ROTATION.panel)
 
-const TRASPASO: DuelView = {
+const HANDOVER: DuelView = {
   player: 0,
   matches: [{ scored: 7, conceded: 5 }, null],
   next: 1,
@@ -33,7 +34,7 @@ const TRASPASO: DuelView = {
   winner: null,
 }
 
-const GANADO: DuelView = {
+const WON: DuelView = {
   player: 1,
   matches: [
     { scored: 7, conceded: 5 },
@@ -44,88 +45,88 @@ const GANADO: DuelView = {
   winner: 1,
 }
 
-const EMPATE: DuelView = { ...GANADO, matches: [{ scored: 7, conceded: 5 }, { scored: 4, conceded: 2 }], winner: null }
+const TIE: DuelView = { ...WON, matches: [{ scored: 7, conceded: 5 }, { scored: 4, conceded: 2 }], winner: null }
 
-/** Una pareja que lleva muchos: las cifras más anchas que va a ver nadie. */
-const MUCHOS = { wins: [123, 99] as const, ties: 42 }
+/** A pair with many played: the widest figures anyone is going to see. */
+const MANY = { wins: [123, 99] as const, ties: 42 }
 
-/** Lo que escribe el final del duelo en cada momento y en los dos idiomas, sin escalar. */
-function todosLosFinales(): { donde: string; escritos: DrawnText[] }[] {
-  const finales: { donde: string; escritos: DrawnText[] }[] = []
-  for (const lang of IDIOMAS) {
-    for (const [nombre, duelo] of [
-      ['traspaso', TRASPASO],
-      ['ganado', GANADO],
-      ['empate', EMPATE],
+/** What the end of the duel writes at each moment and in both languages, unscaled. */
+function allEndings(): { where: string; texts: DrawnText[] }[] {
+  const endings: { where: string; texts: DrawnText[] }[] = []
+  for (const lang of LANGUAGES) {
+    for (const [name, duel] of [
+      ['handover', HANDOVER],
+      ['won', WON],
+      ['tie', TIE],
     ] as const) {
-      const { ctx, drawnTexts: escritos } = recordingCanvas()
-      drawDuel(ctx, translator(lang), duelo, { scored: 7, conceded: 5 }, MUCHOS)
-      finales.push({ donde: `${lang} ${nombre}`, escritos })
+      const { ctx, drawnTexts: texts } = recordingCanvas()
+      drawDuel(ctx, translator(lang), duel, { scored: 7, conceded: 5 }, MANY)
+      endings.push({ where: `${lang} ${name}`, texts })
     }
   }
-  return finales
+  return endings
 }
 
-describe('el final de una partida del duelo', () => {
-  it('se lee en los dos idiomas, en el traspaso y al final', () => {
+describe('the end of a match of the duel', () => {
+  it('reads in both languages, at the handover and at the end', () => {
     const panel = { width: GAME_OVER_SIZE[0] * COLUMN_SCALE, height: GAME_OVER_SIZE[1] * COLUMN_SCALE }
-    for (const { donde, escritos } of todosLosFinales()) {
-      expect(escritos.length, 'no se ha medido nada').toBeGreaterThan(0)
-      const escalados = atColumnScale(escritos)
-      const distancia = Math.max(...VISTAS.map(({ pose, eyes: ojos }) => worstReadingDistance(escalados, pose, ojos, LINE_HEIGHT)))
-      expect(legibilityProblems(escalados, { panel, distance: distancia }), donde).toEqual([])
+    for (const { where, texts } of allEndings()) {
+      expect(texts.length, 'nothing was measured').toBeGreaterThan(0)
+      const scaled = atColumnScale(texts)
+      const readingDistance = Math.max(...VIEWS.map(({ pose, eyes: eyePoint }) => worstReadingDistance(scaled, pose, eyePoint, LINE_HEIGHT)))
+      expect(legibilityProblems(scaled, { panel, distance: readingDistance }), where).toEqual([])
     }
   })
 
-  it('en el traspaso dice a quién le toca, y al final quién gana', () => {
+  it('at the handover it says whose turn it is, and at the end who wins', () => {
     const t = translator('es')
 
-    const traspaso = recordingCanvas()
-    drawDuel(traspaso.ctx, t, TRASPASO, { scored: 7, conceded: 5 }, MUCHOS)
-    const dichoEnElTraspaso = traspaso.drawnTexts.map((e) => e.text).join(' ')
-    expect(dichoEnElTraspaso).toContain('Jugador 1: 7–5')
-    expect(dichoEnElTraspaso).toContain('Pásale el mando a Jugador 2.')
+    const handover = recordingCanvas()
+    drawDuel(handover.ctx, t, HANDOVER, { scored: 7, conceded: 5 }, MANY)
+    const saidAtHandover = handover.drawnTexts.map((e) => e.text).join(' ')
+    expect(saidAtHandover).toContain('Jugador 1: 7–5')
+    expect(saidAtHandover).toContain('Pásale el mando a Jugador 2.')
 
-    const final = recordingCanvas()
-    drawDuel(final.ctx, t, GANADO, { scored: 7, conceded: 2 }, MUCHOS)
-    const dicho = final.drawnTexts.map((e) => e.text).join(' ')
-    expect(dicho).toContain('Gana Jugador 2')
-    expect(dicho).toContain('Jugador 1: 7–5 (+2)')
-    expect(dicho).toContain('Jugador 2: 7–2 (+5)')
+    const ending = recordingCanvas()
+    drawDuel(ending.ctx, t, WON, { scored: 7, conceded: 2 }, MANY)
+    const said = ending.drawnTexts.map((e) => e.text).join(' ')
+    expect(said).toContain('Gana Jugador 2')
+    expect(said).toContain('Jugador 1: 7–5 (+2)')
+    expect(said).toContain('Jugador 2: 7–2 (+5)')
 
-    const empate = recordingCanvas()
-    drawDuel(empate.ctx, t, EMPATE, { scored: 4, conceded: 2 }, MUCHOS)
-    expect(empate.drawnTexts.map((e) => e.text).join(' ')).toContain('Empate')
+    const tie = recordingCanvas()
+    drawDuel(tie.ctx, t, TIE, { scored: 4, conceded: 2 }, MANY)
+    expect(tie.drawnTexts.map((e) => e.text).join(' ')).toContain('Empate')
   })
 })
 
-describe('cada letra del final del duelo se lee de un vistazo', () => {
-  it(`ninguna baja de ${MIN_READING_DEGREES}°, en ningún momento ni altura de ojos`, () => {
-    for (const { donde, escritos } of todosLosFinales()) {
-      for (const vista of VISTAS) {
+describe('every letter of the end of the duel reads at a glance', () => {
+  it(`none drops below ${MIN_READING_DEGREES}°, at any moment or eye height`, () => {
+    for (const { where, texts } of allEndings()) {
+      for (const view of VIEWS) {
         expect(
-          unreadableTexts(atColumnScale(escritos), vista.pose, vista.eyes, LINE_HEIGHT),
-          `${donde}, ${vista.where}`,
+          unreadableTexts(atColumnScale(texts), view.pose, view.eyes, LINE_HEIGHT),
+          `${where}, ${view.where}`,
         ).toEqual([])
       }
     }
   })
 
-  it('y todas se escriben con un tamaño de la lista, sin encogerse', () => {
-    for (const { donde, escritos } of todosLosFinales()) {
-      expect(sizesOffList(escritos, LINE_HEIGHT, Object.values(DUEL_TEXT)), donde).toEqual([])
+  it('and all of them are written at a size from the list, without shrinking', () => {
+    for (const { where, texts } of allEndings()) {
+      expect(sizesOffList(texts, LINE_HEIGHT, Object.values(DUEL_TEXT)), where).toEqual([])
     }
   })
 
-  it('y ningún renglón se mete en los botones de abajo', () => {
-    const botones = Object.values(GAME_OVER_BOXES).map(({ position, size }) => ({
+  it('and no line gets into the buttons below', () => {
+    const buttons = Object.values(GAME_OVER_BOXES).map(({ position, size }) => ({
       x: position[0],
       y: position[1],
       width: size[0],
       height: size[1],
     }))
-    for (const { donde, escritos } of todosLosFinales()) {
-      expect(textsOnButtons(escritos, botones), donde).toEqual([])
+    for (const { where, texts } of allEndings()) {
+      expect(textsOnButtons(texts, buttons), where).toEqual([])
     }
   })
 })

@@ -3,14 +3,14 @@
 import { GlideHockey } from '@/game'
 
 /**
- * La web del juego: un envoltorio que le da la pantalla entera y poco más. El
- * juego vive en `src/game` y se monta igual aquí que dentro de otra aplicación
- * (ver `docs/mounting-the-game.md`), así que esta página es también la forma de
- * desarrollarlo y de probarlo con el visor.
+ * The game's website: a wrapper that gives it the whole screen and little else.
+ * The game lives in `src/game` and mounts the same here as inside another
+ * application (see `docs/mounting-the-game.md`), so this page is also the way to
+ * develop it and to try it with the headset.
  */
 export default function Home() {
-  // Un `div` y no un `main`: el propio juego ya marca su menú como `main`, y
-  // anidar dos landmarks deja al lector de pantalla con dos veces el mismo.
+  // A `div` and not a `main`: the game itself already marks its menu as `main`,
+  // and nesting two landmarks leaves the screen reader with the same one twice.
   return (
     <div className="h-dvh w-full">
       <GlideHockey />

@@ -2,66 +2,66 @@ import { describe, expect, it } from 'vitest'
 import { GRAB_REACH, nextGrab, type MalletGrab } from './malletGrab'
 
 /**
- * Lo que se comprueba aquí es cómo se siente coger el mazo, que es lo que el rayo hacía
- * mal: el mazo tiene que ir donde va la mano y no donde se apunta.
+ * What is checked here is how grabbing the mallet feels, which is what the ray got
+ * wrong: the mallet has to go where the hand goes and not where one aims.
  */
-const enReposo: MalletGrab = { held: false, target: { x: 0, z: 0.6 } }
+const atRest: MalletGrab = { held: false, target: { x: 0, z: 0.6 } }
 
-describe('coger el mazo', () => {
-  it('apretar con la mano encima lo coge', () => {
-    const despues = nextGrab(enReposo, {
+describe('grabbing the mallet', () => {
+  it('squeezing with the hand on top grabs it', () => {
+    const after = nextGrab(atRest, {
       position: { x: 0.02, z: 0.62 },
       grabbing: true,
     })
 
-    expect(despues.held).toBe(true)
-    expect(despues.target).toEqual({ x: 0.02, z: 0.62 })
+    expect(after.held).toBe(true)
+    expect(after.target).toEqual({ x: 0.02, z: 0.62 })
   })
 
-  it('apretar desde lejos no lo trae a la mano', () => {
-    // Es lo que lo devolvería a ser un cursor: el mazo cruzando media mesa de un salto
-    // porque alguien apretó un botón mirando hacia allí.
-    const despues = nextGrab(enReposo, {
+  it('squeezing from far away does not bring it to the hand', () => {
+    // It is what would turn it back into a cursor: the mallet crossing half the table in one
+    // jump because someone squeezed a button while looking that way.
+    const after = nextGrab(atRest, {
       position: { x: 0.5, z: -0.4 },
       grabbing: true,
     })
 
-    expect(despues.held).toBe(false)
-    expect(despues.target).toEqual(enReposo.target)
+    expect(after.held).toBe(false)
+    expect(after.target).toEqual(atRest.target)
   })
 
-  it('la mano no tiene que caer exacta encima', () => {
-    const justo = { x: enReposo.target.x, z: enReposo.target.z + GRAB_REACH - 0.001 }
-    expect(nextGrab(enReposo, { position: justo, grabbing: true }).held).toBe(true)
+  it('the hand does not have to land exactly on top', () => {
+    const justInside = { x: atRest.target.x, z: atRest.target.z + GRAB_REACH - 0.001 }
+    expect(nextGrab(atRest, { position: justInside, grabbing: true }).held).toBe(true)
   })
 
-  it('sin apretar no se coge, por muy encima que esté la mano', () => {
-    const despues = nextGrab(enReposo, { position: enReposo.target, grabbing: false })
-    expect(despues.held).toBe(false)
+  it('without squeezing it is not grabbed, however much on top the hand is', () => {
+    const after = nextGrab(atRest, { position: atRest.target, grabbing: false })
+    expect(after.held).toBe(false)
   })
 })
 
-describe('sostener el mazo', () => {
-  const cogido: MalletGrab = { held: true, target: { x: 0, z: 0.6 } }
+describe('holding the mallet', () => {
+  const held: MalletGrab = { held: true, target: { x: 0, z: 0.6 } }
 
-  it('sigue a la mano vaya donde vaya', () => {
-    // Sin esto se soltaría en pleno golpe, que es cuando la mano va más rápido y más
-    // lejos: el radio de agarre solo decide cuándo se coge, no cuándo se suelta.
-    const lejos = { x: 0.45, z: 0.15 }
-    expect(nextGrab(cogido, { position: lejos, grabbing: true })).toEqual({
+  it('follows the hand wherever it goes', () => {
+    // Without this it would be let go mid-hit, which is when the hand goes fastest and
+    // furthest: the grab radius only decides when it is grabbed, not when it is let go.
+    const far = { x: 0.45, z: 0.15 }
+    expect(nextGrab(held, { position: far, grabbing: true })).toEqual({
       held: true,
-      target: lejos,
+      target: far,
     })
   })
 
-  it('se suelta al soltar el botón, y el mazo se queda donde estaba', () => {
-    const despues = nextGrab(cogido, { position: { x: 0.3, z: 0.2 }, grabbing: false })
-    expect(despues).toEqual({ held: false, target: cogido.target })
+  it('is let go on releasing the button, and the mallet stays where it was', () => {
+    const after = nextGrab(held, { position: { x: 0.3, z: 0.2 }, grabbing: false })
+    expect(after).toEqual({ held: false, target: held.target })
   })
 
-  it('perder el mando un fotograma no lo suelta', () => {
-    // El seguimiento se pierde al salirse el mando del campo de visión del visor. Soltar
-    // ahí dejaría el mazo tirado en mitad de una jugada.
-    expect(nextGrab(cogido, null)).toEqual(cogido)
+  it('losing the controller for one frame does not let it go', () => {
+    // Tracking is lost when the controller leaves the headset's field of view. Letting go
+    // there would leave the mallet lying in the middle of a rally.
+    expect(nextGrab(held, null)).toEqual(held)
   })
 })

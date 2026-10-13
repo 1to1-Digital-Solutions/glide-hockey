@@ -16,237 +16,241 @@ import { constrainMallet, type Vec2 } from '../../lib/puckPhysics'
 import { useGame } from '../../lib/gameStore'
 
 /**
- * El mazo en la mano, con el visor puesto.
+ * The mallet in the hand, with the headset on.
  *
- * Lee las dos manos cada fotograma, las trae a coordenadas de la mesa y le pasa el destino
- * al mazo mientras se sostenga. Lo que decide cuándo se coge y cuándo se suelta es
- * `lib/malletGrab.ts`, que se prueba sin visor; aquí solo está lo que necesita a three: la
- * pose del mando y el cambio de coordenadas.
+ * It reads both hands every frame, brings them to table coordinates and passes the target
+ * to the mallet while it is held. What decides when it is grabbed and when it is released is
+ * `lib/malletGrab.ts`, which is tested without a headset; here there is only what needs
+ * three: the controller's pose and the change of coordinates.
  *
- * **Las dos manos, no una elegida.** Quien juega coge el mazo con la que tenga libre y la
- * cambia a media partida, como en una mesa de verdad. Manda la que esté agarrando; si las
- * dos aprietan, la que ya lo llevaba.
+ * **Both hands, not a chosen one.** Whoever plays grabs the mallet with whichever is free and
+ * switches it mid-match, as at a real table. The one that is grabbing leads; if both
+ * squeeze, the one that already had it.
  *
- * Fuera de sesión no hace nada: allí el mazo lo lleva el ratón sobre el tablero.
+ * Outside a session it does nothing: there the mallet is carried by the mouse on the table top.
  */
 export function MalletHand({
   rink,
-  target: destino,
+  target,
   onMove,
   onRelease,
 }: {
-  /** La mesa, para pasar del mundo a sus coordenadas. */
+  /** The table, to go from the world to its coordinates. */
   rink: React.RefObject<Group | null>
   /**
-   * Dónde va el mazo ahora mismo. Es el mismo dato que mueve la mesa, no una copia: si
-   * fueran dos, coger el mazo se mediría contra un mazo que no es el que se ve.
+   * Where the mallet is going right now. It is the same datum that moves the table, not a
+   * copy: if there were two, grabbing the mallet would be measured against a mallet that is
+   * not the one seen.
    */
   target: React.RefObject<Vec2>
   /**
-   * A dónde va el mazo, ya dentro de los límites de la mesa, que va cogido y con qué mano: es lo
-   * que decide en qué mando vibra el golpe (`useGameHaptics`).
+   * Where the mallet goes, already inside the table's limits, that it is held and with which
+   * hand: it is what decides in which controller the hit vibrates (`useGameHaptics`).
    */
-  onMove: (destino: Vec2, cogido: boolean, lado: 'left' | 'right' | null) => void
-  /** Se ha soltado: el mazo vuelve a perseguir en vez de ir en la mano. */
+  onMove: (target: Vec2, held: boolean, side: 'left' | 'right' | null) => void
+  /** It has been released: the mallet goes back to chasing instead of going in the hand. */
   onRelease: () => void
 }) {
-  const { recordMilestone: apuntarHito } = useGame()
-  const izquierda = useXRInputSourceState('controller', 'left')
-  const derecha = useXRInputSourceState('controller', 'right')
-  // Y las manos desnudas, que son el otro modo de entrada del visor: sin esto, quien no
-  // tiene los mandos a mano —o no puede sostenerlos— no puede coger el mazo y no juega.
-  const manoIzquierda = useXRInputSourceState('hand', 'left')
-  const manoDerecha = useXRInputSourceState('hand', 'right')
+  const { recordMilestone } = useGame()
+  const leftController = useXRInputSourceState('controller', 'left')
+  const rightController = useXRInputSourceState('controller', 'right')
+  // And the bare hands, which are the headset's other input mode: without this, whoever does
+  // not have the controllers at hand —or cannot hold them— cannot grab the mallet and does
+  // not play.
+  const leftHand = useXRInputSourceState('hand', 'left')
+  const rightHand = useXRInputSourceState('hand', 'right')
   const referenceSpace = useXR((state) => state.originReferenceSpace)
   const origin = useXR((state) => state.origin)
-  const pellizcando = useRef({ left: false, right: false })
-  // Cómo se sujeta el mazo: manteniendo el gatillo (o el pellizco) toda la partida, o con
-  // un toque para cogerlo y otro para soltarlo. Una partida entera con la mano cerrada es
-  // el agarre más largo de las trece cabinas, así que es donde más se nota (ver
-  // `lib/agarre.ts`). El enganche se lleva por lado, porque el mazo se cambia de mano.
-  const agarre = useGrabMode()
-  const enganche = useRef<{ left: GrabLatch; right: GrabLatch }>({
+  const pinching = useRef({ left: false, right: false })
+  // How the mallet is held: keeping the trigger (or the pinch) held the whole match, or with
+  // one tap to grab it and another to release it. A whole match with the hand closed is
+  // the longest grab of the thirteen cabinets, so it is where it shows the most (see
+  // `lib/grab.ts`). The latch is kept per side, because the mallet changes hands.
+  const grabMode = useGrabMode()
+  const latch = useRef<{ left: GrabLatch; right: GrabLatch }>({
     left: startGrab(),
     right: startGrab(),
   })
 
-  /** Si el mazo va en la mano. Dónde está lo dice `destino`, que es de la mesa. */
-  const cogido = useRef(false)
-  // Se reutiliza entre fotogramas: `worldToLocal` muta lo que recibe y esto corre a 90 Hz.
-  const punto = useRef(new Vector3())
+  /** Whether the mallet is in the hand. Where it is, `target` says, and that is the table's. */
+  const held = useRef(false)
+  // Reused between frames: `worldToLocal` mutates what it receives and this runs at 90 Hz.
+  const point = useRef(new Vector3())
 
   useFrame((_, __, frame) => {
-    const grupo = rink.current
-    if (grupo == null) return
+    const group = rink.current
+    if (group == null) return
 
-    // Lo que dice cada lado en este fotograma, **antes** de decidir nada: el enganche solo
-    // avanza una vez por lado y por fotograma, o el flanco que enciende «un toque» se
-    // contaría dos veces y el mazo se cogería y se soltaría en el mismo gesto.
-    const conMando = izquierda?.object != null || derecha?.object != null
-    let enLaMesa: HandOnTable | null = null
-    // De qué lado es la mano que manda este fotograma: es lo que apaga el rayo de ESE mando
-    // y no el del otro (ver `xr/manosOcupadas.ts`).
-    let lado: 'left' | 'right' | null = null
+    // What each side says on this frame, **before** deciding anything: the latch only
+    // advances once per side and per frame, or the edge that switches on «one tap» would
+    // be counted twice and the mallet would be grabbed and released in the same gesture.
+    const withController = leftController?.object != null || rightController?.object != null
+    let onTable: HandOnTable | null = null
+    // Which side the hand that leads this frame is on: it is what switches off the ray of
+    // THAT controller and not the other's (see `xr/busyHands.ts`).
+    let side: 'left' | 'right' | null = null
 
-    if (conMando) {
-      const apretado = {
-        left: aprietaElGatillo(izquierda),
-        right: aprietaElGatillo(derecha),
+    if (withController) {
+      const pressed = {
+        left: isSqueezing(leftController),
+        right: isSqueezing(rightController),
       }
-      const sujeta = pasarElEnganche(enganche.current, apretado, agarre)
-      const mano = manoQueManda(izquierda, derecha, cogido.current, sujeta)
+      const holding = stepLatch(latch.current, pressed, grabMode)
+      const hand = leadingHand(leftController, rightController, held.current, holding)
 
-      if (mano?.object != null) {
-        // La pose del mando llega en coordenadas del mundo; la mesa puede estar movida y
-        // girada (el salón la coloca donde le toca), así que se trae a las suyas.
-        const local = grupo.worldToLocal(
-          punto.current.setFromMatrixPosition(mano.object.matrixWorld),
+      if (hand?.object != null) {
+        // The controller's pose arrives in world coordinates; the table may be moved and
+        // turned (the hall places it where it belongs), so it is brought to its own.
+        const local = group.worldToLocal(
+          point.current.setFromMatrixPosition(hand.object.matrixWorld),
         )
-        lado = mano === izquierda ? 'left' : 'right'
-        enLaMesa = {
+        side = hand === leftController ? 'left' : 'right'
+        onTable = {
           position: { x: local.x, z: local.z },
-          grabbing: sujeta[lado],
+          grabbing: holding[side],
         }
       }
     } else {
-      // Sin mando, la mano desnuda. Aquí no hay botón que apretar: agarrar es juntar el
-      // pulgar y el índice (ver `lib/pellizco.ts`), y el mazo va donde va la palma. El
-      // pellizco pasa por el mismo enganche: quien no puede mantener un gatillo tampoco
-      // tiene por qué poder mantener los dedos juntos una partida entera.
-      const leidas = {
-        left: leerLaMano(manoIzquierda, frame, referenceSpace, origin, pellizcando.current, grupo, punto.current),
-        right: leerLaMano(manoDerecha, frame, referenceSpace, origin, pellizcando.current, grupo, punto.current),
+      // Without a controller, the bare hand. Here there is no button to squeeze: grabbing is
+      // bringing the thumb and the index finger together (see `lib/pinch.ts`), and the mallet
+      // goes where the palm goes. The pinch goes through the same latch: whoever cannot hold
+      // a trigger need not be able to keep their fingers together a whole match either.
+      const readings = {
+        left: readHand(leftHand, frame, referenceSpace, origin, pinching.current, group, point.current),
+        right: readHand(rightHand, frame, referenceSpace, origin, pinching.current, group, point.current),
       }
-      const sujeta = pasarElEnganche(
-        enganche.current,
-        { left: leidas.left?.grabbing ?? false, right: leidas.right?.grabbing ?? false },
-        agarre,
+      const holding = stepLatch(
+        latch.current,
+        { left: readings.left?.grabbing ?? false, right: readings.right?.grabbing ?? false },
+        grabMode,
       )
-      for (const lado_ of ['left', 'right'] as const) {
-        const leida = leidas[lado_]
-        if (leida == null) continue
-        const conAgarre = { ...leida, grabbing: sujeta[lado_] }
-        // La que esté agarrando manda; si ninguna, vale la primera que haya para saber si
-        // está encima del mazo cuando pellizque.
-        if (conAgarre.grabbing || enLaMesa == null) {
-          enLaMesa = conAgarre
-          lado = lado_
+      for (const eachSide of ['left', 'right'] as const) {
+        const reading = readings[eachSide]
+        if (reading == null) continue
+        const withGrab = { ...reading, grabbing: holding[eachSide] }
+        // The one that is grabbing leads; if neither, the first one there is will do to know
+        // whether it is over the mallet when it pinches.
+        if (withGrab.grabbing || onTable == null) {
+          onTable = withGrab
+          side = eachSide
         }
       }
     }
 
-    const siguiente = nextGrab(
-      { held: cogido.current, target: destino.current },
-      enLaMesa,
+    const next = nextGrab(
+      { held: held.current, target: target.current },
+      onTable,
     )
-    const soltado = cogido.current && !siguiente.held
-    cogido.current = siguiente.held
-    // Con el mazo en la mano, el rayo de ese mando se apaga: apuntar a la pared mientras se
-    // sostiene algo es justo lo contrario de lo que está pasando.
-    // El primer paso del tutorial se supera cogiendo el mazo de verdad.
-    if (siguiente.held) apuntarHito('grab')
-    markHandBusy('left', siguiente.held && lado === 'left')
-    markHandBusy('right', siguiente.held && lado === 'right')
-    if (siguiente.held) onMove(constrainMallet(siguiente.target, 'player'), true, lado)
-    else if (soltado) onRelease()
+    const released = held.current && !next.held
+    held.current = next.held
+    // With the mallet in the hand, the ray of that controller switches off: pointing at the
+    // wall while holding something is just the opposite of what is happening.
+    // The first step of the tutorial is passed by really grabbing the mallet.
+    if (next.held) recordMilestone('grab')
+    markHandBusy('left', next.held && side === 'left')
+    markHandBusy('right', next.held && side === 'right')
+    if (next.held) onMove(constrainMallet(next.target, 'player'), true, side)
+    else if (released) onRelease()
   })
 
-  // Al quitar la escena —volver al salón, acabar la partida— nadie lleva nada: si no, el
-  // rayo se quedaría apagado en el arco, donde es lo único con lo que se elige cabina.
+  // On removing the scene —going back to the hall, ending the match— nobody carries anything:
+  // otherwise the ray would stay off in the arc, where it is the only thing a cabinet is
+  // chosen with.
   useEffect(() => () => releaseHands(), [])
 
   return null
 }
 
 /**
- * Cuál de las dos manos lleva el mazo.
+ * Which of the two hands carries the mallet.
  *
- * Con el mazo ya cogido manda la que siga apretando —cambiar de mano a mitad de un golpe
- * porque la otra rozó el botón sería perderlo—; libre, la primera que apriete.
+ * With the mallet already held, the one that keeps squeezing leads —changing hands halfway
+ * through a hit because the other one brushed the button would be losing it—; free, the
+ * first one to squeeze.
  */
-function manoQueManda<T>(
-  izquierda: T | undefined,
-  derecha: T | undefined,
-  cogido: boolean,
-  sujeta: { left: boolean; right: boolean },
+function leadingHand<T>(
+  left: T | undefined,
+  right: T | undefined,
+  held: boolean,
+  holding: { left: boolean; right: boolean },
 ): T | undefined {
-  if (cogido) return sujeta.left ? izquierda : sujeta.right ? derecha : undefined
-  if (sujeta.left) return izquierda
-  if (sujeta.right) return derecha
-  // Sin nadie agarrando se devuelve una cualquiera: hace falta su posición para saber si
-  // la mano está encima del mazo cuando agarre.
-  return izquierda ?? derecha
+  if (held) return holding.left ? left : holding.right ? right : undefined
+  if (holding.left) return left
+  if (holding.right) return right
+  // With nobody grabbing, either one is returned: its position is needed to know whether
+  // the hand is over the mallet when it grabs.
+  return left ?? right
 }
 
-/** Si el gatillo lateral de ese mando está apretado ahora mismo. */
-function aprietaElGatillo(
-  mando: { gamepad: { 'xr-standard-squeeze'?: { state: string } } } | undefined,
+/** Whether the side trigger of that controller is squeezed right now. */
+function isSqueezing(
+  controller: { gamepad: { 'xr-standard-squeeze'?: { state: string } } } | undefined,
 ): boolean {
-  return mando?.gamepad['xr-standard-squeeze']?.state === 'pressed'
+  return controller?.gamepad['xr-standard-squeeze']?.state === 'pressed'
 }
 
 /**
- * Avanza el enganche de los dos lados y dice cuál sujeta el mazo.
+ * Advances the latch of both sides and says which one holds the mallet.
  *
- * Muta el objeto que recibe a propósito: es el mismo `ref` que vive entre fotogramas, y
- * copiarlo por pasada sería basura que recoger noventa veces por segundo.
+ * It mutates the object it receives on purpose: it is the same `ref` that lives between
+ * frames, and copying it per pass would be garbage to collect ninety times per second.
  */
-function pasarElEnganche(
-  enganche: { left: GrabLatch; right: GrabLatch },
-  apretado: { left: boolean; right: boolean },
-  agarre: GrabMode,
+function stepLatch(
+  latch: { left: GrabLatch; right: GrabLatch },
+  pressed: { left: boolean; right: boolean },
+  grabMode: GrabMode,
 ): { left: boolean; right: boolean } {
-  enganche.left = stepGrab(enganche.left, apretado.left, agarre)
-  enganche.right = stepGrab(enganche.right, apretado.right, agarre)
-  return { left: enganche.left.holding, right: enganche.right.holding }
+  latch.left = stepGrab(latch.left, pressed.left, grabMode)
+  latch.right = stepGrab(latch.right, pressed.right, grabMode)
+  return { left: latch.left.holding, right: latch.right.holding }
 }
 
 /**
- * Dónde está una mano desnuda sobre la mesa, y si está agarrando.
+ * Where a bare hand is over the table, and whether it is grabbing.
  *
- * Se leen las articulaciones del fotograma de WebXR y no `state.object`: ese objeto solo lo
- * rellena la librería cuando dibuja el modelo de la mano, y quien monta el juego decide si
- * se dibuja —dentro del salón, no—. Las articulaciones llegan siempre que el visor las siga.
+ * The joints of the WebXR frame are read and not `state.object`: that object is only filled
+ * in by the library when it draws the hand model, and whoever mounts the game decides whether
+ * it is drawn —inside the hall, it is not—. The joints arrive whenever the headset tracks them.
  */
-function leerLaMano(
-  estado: ReturnType<typeof useXRInputSourceState<'hand'>>,
+function readHand(
+  state: ReturnType<typeof useXRInputSourceState<'hand'>>,
   frame: XRFrame | undefined,
   referenceSpace: XRReferenceSpace | null | undefined,
-  /** El origen de XR, que es de quien monta el juego: la pose llega en su espacio. */
+  /** The XR origin, which belongs to whoever mounts the game: the pose arrives in its space. */
   origin: Object3D | undefined,
-  pellizcando: { left: boolean; right: boolean },
-  mesa: Group,
-  punto: Vector3,
+  pinching: { left: boolean; right: boolean },
+  table: Group,
+  point: Vector3,
 ): HandOnTable | null {
-  const articulaciones = estado?.inputSource.hand
-  if (articulaciones == null || frame == null || referenceSpace == null) return null
+  const joints = state?.inputSource.hand
+  if (joints == null || frame == null || referenceSpace == null) return null
 
-  const palma = articulaciones.get('wrist')
-  const pulgar = articulaciones.get('thumb-tip')
-  const indice = articulaciones.get('index-finger-tip')
-  if (palma == null || pulgar == null || indice == null) return null
+  const palm = joints.get('wrist')
+  const thumb = joints.get('thumb-tip')
+  const index = joints.get('index-finger-tip')
+  if (palm == null || thumb == null || index == null) return null
 
-  const posePalma = frame.getJointPose?.(palma, referenceSpace)
-  if (posePalma == null) return null
+  const palmPose = frame.getJointPose?.(palm, referenceSpace)
+  if (palmPose == null) return null
 
-  const posePulgar = frame.getJointPose?.(pulgar, referenceSpace)
-  const poseIndice = frame.getJointPose?.(indice, referenceSpace)
-  const separacion =
-    posePulgar == null || poseIndice == null
+  const thumbPose = frame.getJointPose?.(thumb, referenceSpace)
+  const indexPose = frame.getJointPose?.(index, referenceSpace)
+  const separation =
+    thumbPose == null || indexPose == null
       ? null
       : Math.hypot(
-          posePulgar.transform.position.x - poseIndice.transform.position.x,
-          posePulgar.transform.position.y - poseIndice.transform.position.y,
-          posePulgar.transform.position.z - poseIndice.transform.position.z,
+          thumbPose.transform.position.x - indexPose.transform.position.x,
+          thumbPose.transform.position.y - indexPose.transform.position.y,
+          thumbPose.transform.position.z - indexPose.transform.position.z,
         )
 
-  const lado = estado?.inputSource.handedness === 'left' ? 'left' : 'right'
-  const grabbing = isPinching(separacion, pellizcando[lado])
-  pellizcando[lado] = grabbing
+  const side = state?.inputSource.handedness === 'left' ? 'left' : 'right'
+  const grabbing = isPinching(separation, pinching[side])
+  pinching[side] = grabbing
 
-  const { position } = posePalma.transform
-  punto.set(position.x, position.y, position.z)
-  if (origin != null) origin.localToWorld(punto)
-  mesa.worldToLocal(punto)
-  return { position: { x: punto.x, z: punto.z }, grabbing: grabbing }
+  const { position } = palmPose.transform
+  point.set(position.x, position.y, position.z)
+  if (origin != null) origin.localToWorld(point)
+  table.worldToLocal(point)
+  return { position: { x: point.x, z: point.z }, grabbing }
 }

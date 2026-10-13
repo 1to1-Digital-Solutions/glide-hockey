@@ -1,65 +1,66 @@
 import type { ControllerButton } from '../../lib/tutorial'
 
 /**
- * El dibujo de un mando con un botón resaltado, para el tutorial.
+ * The drawing of a controller with one button highlighted, for the tutorial.
  *
- * **Es la mitad de la lección.** Una frase que dice «el botón de agarre» solo sirve a quien ya
- * sabe cuál es; con el visor puesto lo que hay en la mano es un mando con cinco botones y
- * ninguno con su nombre escrito. Reportado con el visor puesto: «si tiene que pulsar el botón
- * de agarrar, indicar cuál es ese botón, mostrando un mando y remarcando cuál es».
+ * **It is half of the lesson.** A phrase that says «el botón de agarre» only helps whoever
+ * already knows which one it is; with the headset on, what is in the hand is a controller with
+ * five buttons and none with its name written on it. Reported with the headset on: «if they have
+ * to press the grab button, show which button that is, displaying a controller and marking which
+ * one it is».
  *
- * Se dibuja a trazos en el mismo lienzo 2D que el resto del panel y **no se descarga nada**:
- * un modelo del mando son 97 MB de paquete y un `.glb` de un CDN que la política del salón
- * bloquea (ver `xr/xrStore.ts`). Un mando reconocible son cuatro trazos: el aro de arriba, el
- * cuerpo, el gatillo por delante y el agarre por dentro.
+ * It is drawn in strokes on the same 2D canvas as the rest of the panel and **nothing is
+ * downloaded**: a controller model is 97 MB of package and a `.glb` from a CDN that the hall's
+ * policy blocks (see `xr/xrStore.ts`). A recognisable controller is four strokes: the ring on
+ * top, the body, the trigger at the front and the grab button on the inside.
  *
- * Todo en metros, como el resto del panel, y centrado en el punto que se le pase.
+ * Everything in metres, like the rest of the panel, and centred on the point it is given.
  */
 
-/** Lo que mide el dibujo, en metros: alto del mando de aro a base. */
+/** What the drawing measures, in metres: height of the controller from ring to base. */
 export const CONTROLLER_HEIGHT = 0.18
 
-/** Colores del trazo: el mando apagado y el botón que toca. */
+/** Colours of the stroke: the controller switched off and the button in question. */
 export interface ControllerColors {
   readonly body: string
   readonly highlight: string
 }
 
-/** Dónde cae cada botón dentro del dibujo, en fracción de su alto desde el centro. */
-const BOTONES: Record<ControllerButton, { x: number; y: number; r: number }> = {
-  // El gatillo va por delante, donde el índice.
+/** Where each button falls inside the drawing, as a fraction of its height from the centre. */
+const BUTTONS: Record<ControllerButton, { x: number; y: number; r: number }> = {
+  // The trigger goes at the front, where the index finger is.
   gatillo: { x: -0.17, y: 0.06, r: 0.055 },
-  // El de agarre, en el costado, donde cierran los dedos.
+  // The grab one, on the side, where the fingers close.
   agarre: { x: 0.17, y: -0.04, r: 0.055 },
 }
 
 /**
- * Dibuja el mando centrado en `(x, y)`, resaltando `boton` si se le da uno.
+ * Draws the controller centred on `(x, y)`, highlighting `button` if it is given one.
  *
- * El trazo se escala con `ALTO_DEL_MANDO`, así que cambiar ese número cambia el dibujo
- * entero sin tocar ninguna cuenta de aquí.
+ * The stroke scales with `CONTROLLER_HEIGHT`, so changing that number changes the whole
+ * drawing without touching any sum here.
  */
 export function drawController(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  boton: ControllerButton | null,
-  colores: ControllerColors,
+  button: ControllerButton | null,
+  colors: ControllerColors,
 ): void {
   const u = CONTROLLER_HEIGHT
   ctx.save()
   ctx.translate(x, y)
   ctx.lineWidth = u * 0.045
-  ctx.strokeStyle = colores.body
+  ctx.strokeStyle = colors.body
   ctx.lineJoin = 'round'
   ctx.lineCap = 'round'
 
-  // El aro de seguimiento, arriba: es lo que hace que un mando se lea como un mando.
+  // The tracking ring, on top: it is what makes a controller read as a controller.
   ctx.beginPath()
   ctx.arc(0, u * 0.3, u * 0.26, Math.PI * 0.15, Math.PI * 0.85, true)
   ctx.stroke()
 
-  // El cuerpo: la empuñadura, un poco caída hacia atrás.
+  // The body: the handle, leaning back a little.
   ctx.beginPath()
   ctx.moveTo(-u * 0.1, u * 0.22)
   ctx.lineTo(-u * 0.05, -u * 0.34)
@@ -67,19 +68,19 @@ export function drawController(
   ctx.lineTo(u * 0.12, u * 0.22)
   ctx.stroke()
 
-  // El gatillo, por delante, y el agarre, en el costado: se dibujan siempre apagados y el
-  // que toca se repinta encendido encima.
-  for (const [nombre, sitio] of Object.entries(BOTONES) as [ControllerButton, (typeof BOTONES)[ControllerButton]][]) {
-    const encendido = nombre === boton
+  // The trigger, at the front, and the grab button, on the side: they are always drawn switched
+  // off and the one in question is repainted lit on top.
+  for (const [name, spot] of Object.entries(BUTTONS) as [ControllerButton, (typeof BUTTONS)[ControllerButton]][]) {
+    const lit = name === button
     ctx.beginPath()
-    ctx.arc(sitio.x * u, sitio.y * u, sitio.r * u * (encendido ? 1.6 : 1), 0, Math.PI * 2)
-    ctx.fillStyle = encendido ? colores.highlight : colores.body
+    ctx.arc(spot.x * u, spot.y * u, spot.r * u * (lit ? 1.6 : 1), 0, Math.PI * 2)
+    ctx.fillStyle = lit ? colors.highlight : colors.body
     ctx.fill()
-    // Y un halo alrededor del que toca: a un metro, un punto un poco más gordo no se ve.
-    if (!encendido) continue
+    // And a halo around the one in question: at one metre, a slightly fatter dot cannot be seen.
+    if (!lit) continue
     ctx.beginPath()
-    ctx.arc(sitio.x * u, sitio.y * u, sitio.r * u * 2.8, 0, Math.PI * 2)
-    ctx.strokeStyle = colores.highlight
+    ctx.arc(spot.x * u, spot.y * u, spot.r * u * 2.8, 0, Math.PI * 2)
+    ctx.strokeStyle = colors.highlight
     ctx.lineWidth = u * 0.035
     ctx.stroke()
   }

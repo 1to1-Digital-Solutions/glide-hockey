@@ -1,18 +1,18 @@
 /**
- * Las constantes del juego: la mesa, el disco, los mazos y lo que hace cada
- * dificultad.
+ * The game's constants: the table, the puck, the mallets and what each
+ * difficulty does.
  *
- * Vive aparte de la escena porque la física del disco, la máquina rival y sus
- * tests necesitan los mismos números que se pintan: si la mesa se ensancha, el
- * rebote tiene que ensancharse con ella.
+ * It lives apart from the scene because the puck physics, the rival machine and
+ * their tests need the same numbers that are drawn: if the table gets wider,
+ * the bounce has to get wider with it.
  *
- * Todo en metros: la escena está a escala humana y el jugador la ve de pie con
- * el visor. Los colores están en `palette.ts`.
+ * Everything in metres: the scene is at human scale and the player sees it
+ * standing up with the headset. The colours are in `palette.ts`.
  */
 
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert' | 'impossible'
 
-/** Orden de dificultades de menor a mayor para construir selectores. */
+/** Order of difficulties from lowest to highest, to build selectors. */
 export const DIFFICULTY_ORDER: Difficulty[] = [
   'easy',
   'medium',
@@ -21,7 +21,7 @@ export const DIFFICULTY_ORDER: Difficulty[] = [
   'impossible',
 ]
 
-/** Etiqueta visible, en inglés: es la clave con la que se traduce (ver `textos.ts`). */
+/** Visible label, in English: it is the key it is translated with (see `textos.ts`). */
 export const DIFFICULTY_LABELS = {
   easy: 'Easy',
   medium: 'Medium',
@@ -31,151 +31,155 @@ export const DIFFICULTY_LABELS = {
 } as const satisfies Record<Difficulty, string>
 
 /**
- * La mesa, medida como una de verdad pero un poco más estrecha: en el visor se
- * juega apuntando desde el borde, y con los 1,07 m de una de competición el
- * lado lejano queda a un ángulo incómodo.
+ * The table, sized like a real one but a little narrower: in the headset one
+ * plays aiming from the edge, and with the 1.07 m of a competition one the
+ * far side ends up at an awkward angle.
  *
- * El eje X es el ancho (de banda a banda) y el Z el largo (de portería a
- * portería). El jugador defiende el lado de Z positivo, que es el que tiene
- * delante.
+ * The X axis is the width (from rail to rail) and Z the length (from goal to
+ * goal). The player defends the positive Z side, which is the one in front of
+ * them.
  */
 export const TABLE_WIDTH = 1.1
 export const TABLE_LENGTH = 2
-/** Altura de la superficie de juego sobre el suelo. */
+/** Height of the playing surface above the floor. */
 export const TABLE_HEIGHT = 0.9
 /**
- * Dónde está el centro de la mesa respecto al jugador, que está en el origen.
+ * Where the centre of the table is relative to the player, who is at the origin.
  *
- * A 1,2 m de él: el borde cercano le queda a 20 cm, la distancia a la que uno
- * se planta delante de una mesa de verdad.
+ * 1.2 m away from them: the near edge ends up 20 cm away, the distance at which
+ * one stands in front of a real table.
  */
 export const TABLE_CENTER_Z = -1.2
 
 /**
- * Ancho del hueco de cada portería, centrado en la banda del fondo.
+ * Width of the opening of each goal, centred on the end rail.
  *
- * Medio metro y no cuarenta centímetros. Con el mazo de quince de diámetro, la portería
- * antigua se tapaba sola: el disco entraba por una rendija de doce centímetros y meter gol
- * —o encajarlo— pasaba de raro a improbable. Aquí lo que se busca no es el reglamento de un
- * salón, es que una partida de cinco minutos tenga goles.
+ * Half a metre and not forty centimetres. With the mallet fifteen across, the old goal
+ * covered itself: the puck went in through a twelve-centimetre slit and scoring a goal
+ * —or conceding one— went from rare to unlikely. What is wanted here is not the rulebook of
+ * an arcade hall, it is for a five-minute match to have goals.
  */
 export const GOAL_WIDTH = 0.55
-/** Alto de las bandas que rodean la mesa, medido desde la superficie. */
+/** Height of the rails that surround the table, measured from the surface. */
 export const RAIL_HEIGHT = 0.05
 
 export const PUCK_RADIUS = 0.05
 /**
- * Radio del mazo.
+ * Radius of the mallet.
  *
- * Algo más pequeño que antes (era 7,5 cm): tapaba media portería él solo, y con la mano
- * puesta encima uno no ve el disco pasar por debajo. Sigue siendo mayor que el disco, que
- * es lo que hace que golpear sea fácil y parar, un poco menos.
+ * Somewhat smaller than before (it was 7.5 cm): it covered half the goal by itself, and with
+ * the hand on top one does not see the puck go by underneath. It is still bigger than the
+ * puck, which is what makes hitting easy and stopping, a little less so.
  */
 export const MALLET_RADIUS = 0.066
 
 /**
- * Rozamiento del disco sobre el colchón de aire, como fracción de velocidad
- * que se pierde por segundo. Bajo a propósito: sobre aire el disco apenas se
- * frena, y un valor alto convierte el juego en empujar en vez de golpear.
+ * Friction of the puck on the air cushion, as the fraction of speed that is
+ * lost per second. Low on purpose: on air the puck barely slows down, and a
+ * high value turns the game into pushing instead of hitting.
  */
 export const PUCK_FRICTION = 0.28
 
 /**
- * Tope de velocidad del disco, en m/s.
+ * Speed cap of the puck, in m/s.
  *
- * Sin él, dos golpes seguidos en la misma dirección lo dejan yendo tan rápido
- * que atraviesa la banda entre dos fotogramas y se sale de la mesa.
+ * Without it, two hits in a row in the same direction leave it going so fast
+ * that it goes through the rail between two frames and leaves the table.
  */
 export const MAX_PUCK_SPEED = 6
 
-/** Cuánta velocidad conserva el disco al rebotar en una banda. */
+/** How much speed the puck keeps when bouncing off a rail. */
 export const WALL_RESTITUTION = 0.9
 
 /**
- * Cuánto devuelve un mazo al golpear: lo de un mazo de verdad contra un disco
- * de verdad, que no llega a devolver todo lo que recibe.
+ * How much a mallet gives back when hitting: that of a real mallet against a
+ * real puck, which does not quite give back everything it receives.
  *
- * Estuvo en 1,15 —por encima de 1— para que un golpe seco saliera más rápido de
- * lo que llegaba. Eso ya lo hace la física sola y sin inventarse energía: el
- * impulso se calcula con la velocidad **relativa**, así que un mazo que avanza
- * a 3 m/s contra un disco que viene a 2 le devuelve casi 7. Lo que hacía el
- * 1,15 era que un mazo QUIETO devolviera el disco más rápido de lo que llegó,
- * que es una mesa que juega sola.
+ * It was at 1.15 —above 1— so that a sharp hit came out faster than it
+ * arrived. The physics already does that by itself and without making up
+ * energy: the impulse is computed with the **relative** speed, so a mallet
+ * moving forward at 3 m/s against a puck coming at 2 gives it back almost 7.
+ * What the 1.15 did was make a STILL mallet return the puck faster than it
+ * arrived, which is a table that plays by itself.
  */
 export const MALLET_RESTITUTION = 0.85
 
 /**
- * Velocidad máxima del mazo del jugador, en m/s.
+ * Maximum speed of the player's mallet, in m/s.
  *
- * El mazo persigue al puntero en vez de aparecer donde él esté: un tirón de
- * ratón lo teletransportaría al otro lado del disco sin tocarlo, y con el rayo
- * del mando cualquier temblor saldría como un golpe. Perseguir con un tope
- * convierte los dos gestos en un movimiento con inercia, que es lo que la
- * física necesita para saber con cuánta fuerza golpea.
+ * The mallet chases the pointer instead of appearing wherever it is: a mouse
+ * jerk would teleport it to the other side of the puck without touching it,
+ * and with the controller ray any tremor would come out as a hit. Chasing with
+ * a cap turns both gestures into a movement with inertia, which is what the
+ * physics needs to know how hard it hits.
  */
 export const PLAYER_MALLET_SPEED = 4.5
 
-/** Velocidad a la que sale el disco al sacar de centro, en m/s. */
+/** Speed at which the puck leaves on the serve from the centre, in m/s. */
 export const SERVE_SPEED = 1.1
 
-/** Segundos de cuenta atrás entre pulsar «Jugar» y el primer saque. */
+/** Seconds of countdown between pressing «Jugar» and the first serve. */
 export const COUNTDOWN_SECONDS = 3
 
-/** Segundos que se celebra un gol antes de volver a sacar. */
+/** Seconds a goal is celebrated before serving again. */
 export const GOAL_PAUSE_SECONDS = 1.4
 
-/** Goles a los que se puede jugar una partida de prueba. */
+/** Goals a practice match can be played to. */
 export const MIN_GOALS = 3
 export const MAX_GOALS = 15
-/** Con cuántos se entra: una partida corta, para probar sin comprometerse. */
+/** How many one starts with: a short match, to try it without committing. */
 export const DEFAULT_GOALS = 7
 
-/** Cómo juega la máquina en cada dificultad. */
+/** How the machine plays at each difficulty. */
 export interface OpponentSkill {
-  /** Velocidad máxima del mazo rival, en m/s. Es lo que decide a qué llega. */
+  /** Maximum speed of the rival mallet, in m/s. It is what decides what it reaches. */
   maxSpeed: number
   /**
-   * Cuánto se adelanta al disco al defender, en segundos: con qué antelación
-   * calcula dónde va a estar en vez de perseguir dónde está.
+   * How far it gets ahead of the puck when defending, in seconds: how far in
+   * advance it works out where it will be instead of chasing where it is.
    */
   anticipation: number
   /**
-   * A qué distancia de su portería se planta a esperar, en fracción de su
-   * mitad de mesa. Cuanto mayor, más adelante presiona y más hueco deja.
+   * How far from its goal it stands and waits, as a fraction of its half of
+   * the table. The larger, the further forward it presses and the bigger the
+   * gap it leaves.
    */
   defenseDepth: number
   /**
-   * Desde qué distancia sale a golpear el disco, en metros. Corto es esperar
-   * atrás; largo es salir a buscarlo hasta media pista.
+   * From what distance it comes out to hit the puck, in metres. Short means
+   * waiting at the back; long means going out to fetch it up to mid-rink.
    */
   attackRange: number
   /**
-   * Cada cuántos golpes tira al poste que el jugador **sí** cubre, de 0 a 1.
+   * How often it shoots at the post the player **does** cover, from 0 to 1.
    *
-   * Es el tiro que engaña al que se ha ido al hueco antes de tiempo. A cero, la
-   * máquina va siempre al hueco y a la tercera partida se sabe dónde va a tirar.
+   * It is the shot that fools whoever went to the gap too early. At zero, the
+   * machine always goes for the gap and by the third match one knows where it
+   * will shoot.
    */
   cross: number
   /**
-   * Y cada cuántos manda el disco a la banda para que llegue por el otro lado,
-   * de 0 a 1. Cero por debajo de la dificultad media: un rebote en banda no se
-   * lee viniendo, y en Fácil eso no es un rival, es una trampa.
+   * And how often it sends the puck to the rail so that it arrives from the
+   * other side, from 0 to 1. Zero below medium difficulty: a bounce off the
+   * rail cannot be read as it comes, and on Easy that is not a rival, it is a
+   * trap.
    */
   bank: number
 }
 
 /**
- * La dificultad sube por tres sitios a la vez: la máquina se mueve más rápido
- * —llega a discos que antes se le escapaban—, defiende más adelante, lo que
- * cierra el ángulo de tiro, y **mezcla más los tiros**. Los tres hacen falta:
- * solo con velocidad se queda pegada a su portería y el jugador tira desde media
- * pista sin oposición; y sin mezcla, la más rápida de todas sigue tirando siempre
- * al mismo sitio, que es lo que se aprende en tres partidas.
+ * The difficulty goes up in three places at once: the machine moves faster
+ * —it reaches pucks that used to get away from it—, defends further forward,
+ * which closes the shooting angle, and **mixes its shots more**. All three are
+ * needed: with speed alone it stays glued to its goal and the player shoots from
+ * mid-rink unopposed; and without mixing, the fastest of all still always shoots
+ * at the same place, which is what one learns in three matches.
  *
- * Las dos proporciones de tiro se reparten así: `bank` primero, `cross` después y
- * el resto al hueco. En Fácil eso deja el 92 % de los tiros al hueco —previsible
- * a propósito, que es lo que hace que se le pueda ganar mirando—; en Imposible,
- * 30 % al hueco, 40 % cruzado y 30 % a la banda, que ya no se adivina.
+ * The two shot proportions are split like this: `bank` first, `cross` next and
+ * the rest at the gap. On Easy that leaves 92 % of the shots at the gap
+ * —predictable on purpose, which is what makes it beatable by watching—; on
+ * Impossible, 30 % at the gap, 40 % crossed and 30 % off the rail, which can no
+ * longer be guessed.
  */
 export const OPPONENT_SKILLS: Record<Difficulty, OpponentSkill> = {
   easy: { maxSpeed: 0.9, anticipation: 0.05, defenseDepth: 0.18, attackRange: 0.3, cross: 0.08, bank: 0 },

@@ -32,22 +32,22 @@ import { useImmersiveSupport } from '../xr/useImmersiveSupport'
 import { getXrStore } from '../xr/xrStore'
 
 /**
- * La pantalla de inicio de escritorio: las tres decisiones del juego —modo,
- * nivel de la máquina y a cuántos goles— más la entrada al visor. En el duelo
- * no se elige ni nivel ni goles: los dos juegan lo mismo (`DUEL_SETUP`).
+ * The desktop start screen: the three decisions of the game —mode, level of
+ * the machine and how many goals to play to— plus the way into the headset. In
+ * the duel neither level nor goals are chosen: both play the same (`DUEL_SETUP`).
  *
- * Se superpone al Canvas en vez de sustituirlo, para que la mesa se vea de
- * fondo mientras se elige: es lo que hace que se entienda a qué se está jugando
- * antes de darle a empezar.
+ * It is laid over the Canvas instead of replacing it, so that the table is seen
+ * in the background while choosing: it is what makes it clear what is being
+ * played before pressing start.
  *
- * Su equivalente dentro del visor es `<XRMenu>`, que es geometría. Los dos
- * tocan el mismo estado, así que elegir el nivel aquí se ve allí. Y siguen la
- * misma plantilla (`lib/plantillaDelMenu.ts`): el nombre de la cabina, el modo
- * con el reto primero y lo demás —las opciones de la práctica, el decorado y el
- * confort— detrás de «Más opciones», plegado cada vez que se abre.
+ * Its equivalent inside the headset is `<XRMenu>`, which is geometry. Both
+ * touch the same state, so choosing the level here shows there. And they follow
+ * the same template (`lib/menuTemplate.ts`): the name of the cabinet, the mode
+ * with the challenge first and the rest —the options of practice, the scenery
+ * and the comfort— behind «Más opciones», folded every time it is opened.
  */
 
-/** Botón de opción de un grupo: el elegido se marca por forma, no solo color. */
+/** Option button of a group: the chosen one is marked by shape, not only colour. */
 function OptionButton({
   selected,
   onClick,
@@ -58,7 +58,7 @@ function OptionButton({
   selected: boolean
   onClick: () => void
   children: React.ReactNode
-  /** Lo que anuncia el lector de pantalla si el dibujo no basta. */
+  /** What the screen reader announces if the drawing is not enough. */
   label?: string
   accent?: string
 }) {
@@ -68,9 +68,9 @@ function OptionButton({
       onClick={onClick}
       aria-pressed={selected}
       aria-label={label}
-      // El relleno lateral es el mínimo y no la medida: las fichas viven en
-      // rejillas que reparten el ancho, así que un `px-4` no las separa más,
-      // solo estrecha el hueco del texto hasta que «Imposible» se sale.
+      // The side padding is the minimum and not the measure: the chips live in
+      // grids that share out the width, so a `px-4` does not separate them more,
+      // it only narrows the room for the text until «Imposible» runs off.
       className={`min-h-11 rounded-lg border px-2 py-2.5 text-sm font-semibold transition disabled:pointer-events-none sm:px-3 ${
         selected
           ? 'border-white/60 bg-white/15 text-white shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-foreground)_25%,transparent)]'
@@ -83,7 +83,7 @@ function OptionButton({
   )
 }
 
-/** Título de un grupo de opciones. */
+/** Title of a group of options. */
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/40">
@@ -93,7 +93,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 export function StartScreen() {
-  const [confort, setConfort] = useComfort()
+  const [comfort, setComfort] = useComfort()
   const {
     gameMode,
     setGameMode,
@@ -112,30 +112,31 @@ export function StartScreen() {
     bestPoints,
     startGame,
     immersive: inSession,
-    goal: objetivo,
+    goal: hallGoal,
   } = useGame()
   const exit = useExit()
   const immersive = useImmersiveSupport()
 
-  // **Solo la práctica pregunta.** En reto y en niveles la escalera reparte nivel y goles, así
-  // que la partida ya está hecha: se elige el modo y se le da a Jugar. Sus filas no se
-  // enseñan ni apagadas, que eran dos filas de opciones que no se podían tocar.
+  // **Only practice asks.** In challenge and in levels the ladder deals out level and goals, so
+  // the match is already made: the mode is chosen and Jugar is pressed. Their rows are not
+  // shown, not even dimmed, which were two rows of options that could not be touched.
   const lang = useLang()
   const t = translator(lang)
-  // Lo plegado es de la interfaz y no se guarda: la portada se monta de nuevo al volver al menú.
-  const [masOpciones, setMasOpciones] = useState(false)
-  const { rows: filas, foldable: plegable } = modeRows(gameMode, masOpciones)
-  const practice = filas.has('machine')
+  // What is folded belongs to the interface and is not saved: the start screen is mounted again
+  // on returning to the menu.
+  const [moreOptions, setMoreOptions] = useState(false)
+  const { rows: shown, foldable: canFold } = modeRows(gameMode, moreOptions)
+  const practice = shown.has('machine')
   const levels = gameMode === 'levels'
-  // Lo que lleva la pareja que está delante, en el duelo; con ninguno jugado no se dice nada.
+  // The tally of the pair standing in front, in the duel; with none played nothing is said.
   const tally = useDuelTally()
-  const duelos = tally.wins[0] + tally.wins[1] + tally.ties
+  const duels = tally.wins[0] + tally.wins[1] + tally.ties
 
   return (
     <main className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-y-auto p-4">
       <div className="pointer-events-auto animate-fade-slide-up w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_88%,transparent)] p-6 shadow-2xl backdrop-blur-sm sm:p-8">
         <header className="mb-6">
-          {/* El nombre de la cabina (`plantillaDelMenu.ts`): no pasa por el traductor, se lee igual en los dos idiomas. */}
+          {/* The name of the cabinet (`menuTemplate.ts`): it does not go through the translator, it reads the same in both languages. */}
           <h1 className="text-glow-primary text-3xl font-bold tracking-tight sm:text-4xl">
             {gameName()}
           </h1>
@@ -150,7 +151,7 @@ export function StartScreen() {
           <fieldset className="flex flex-col gap-2">
             <legend className="sr-only">{t('Game mode')}</legend>
             <FieldLabel>{t(MENU_EN.mode)}</FieldLabel>
-            {/* Cuatro en fila no caben en un móvil con «Práctica» dentro: dos filas de dos. */}
+            {/* Four in a row do not fit on a phone with «Práctica» inside: two rows of two. */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {MENU_MODE_ORDER.map((mode) => (
                 <OptionButton
@@ -159,8 +160,8 @@ export function StartScreen() {
                   onClick={() => setGameMode(mode)}
                 >
                   {t(GAME_MODE_LABELS[mode])}
-                  {/* El modo que da medalla lleva su marca, además de decirlo abajo con letras. */}
-                  {givesMedal(objetivo, mode) ? (
+                  {/* The mode that gives a medal carries its mark, besides saying so below in words. */}
+                  {givesMedal(hallGoal, mode) ? (
                     <span aria-hidden className="ml-1.5" style={{ color: COMMON_PALETTE.gold }}>
                       ●
                     </span>
@@ -169,20 +170,20 @@ export function StartScreen() {
               ))}
             </div>
             <p className="text-xs text-white/45">
-              {t(GAME_MODE_HINTS[gameMode])} {t(medalPhrase(objetivo, gameMode))}.
+              {t(GAME_MODE_HINTS[gameMode])} {t(medalPhrase(hallGoal, gameMode))}.
             </p>
           </fieldset>
 
-          {/* Las opciones de la práctica: el nivel de la máquina y a cuántos goles. */}
+          {/* The options of practice: the level of the machine and how many goals to play to. */}
           {practice ? (
             <>
               <fieldset className="flex flex-col gap-2">
                 <legend className="sr-only">{t('Machine level')}</legend>
                 <FieldLabel>{t('Machine level')}</FieldLabel>
-                {/* Cinco columnas no caben en un móvil: con «Imposible» dentro, la
-                    ficha se queda en veinte píxeles de ancho y el nombre se sale
-                    por encima de la de al lado. Se parte en dos filas y el orden de
-                    lectura sigue siendo el de la escalera. */}
+                {/* Five columns do not fit on a phone: with «Imposible» inside, the
+                    chip is left twenty pixels wide and the name runs over the one
+                    next to it. It is split into two rows and the reading order is
+                    still that of the ladder. */}
                 <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
                   {DIFFICULTY_ORDER.map((level, index) => (
                     <OptionButton
@@ -193,8 +194,8 @@ export function StartScreen() {
                       label={t(DIFFICULTY_LABELS[level])}
                     >
                       <span className="flex flex-col items-center gap-1">
-                        {/* Barras crecientes además del color: el nivel no puede
-                            depender solo de verde-a-rojo. */}
+                        {/* Growing bars besides the colour: the level cannot
+                            depend only on green-to-red. */}
                         <span
                           aria-hidden
                           className="block h-1.5 rounded-full"
@@ -219,8 +220,8 @@ export function StartScreen() {
                     {t('Goals')} {endless ? t('· endless') : `· ${goalTarget}`}
                   </label>
                 </FieldLabel>
-                {/* A tantos goles, o sin fin: la partida no se acaba hasta que el
-                    jugador la termina, y el récord pasa a ser la racha. */}
+                {/* To so many goals, or endless: the match does not end until the
+                    player ends it, and the record becomes the streak. */}
                 <div className="grid grid-cols-2 gap-2">
                   <OptionButton
                     selected={!endless}
@@ -252,8 +253,8 @@ export function StartScreen() {
             </>
           ) : null}
 
-          {/* El nivel que se va a jugar: los desbloqueados se eligen, el resto se
-              ve con candado. Lo que da cada uno lo dice la escalera. */}
+          {/* The level that is going to be played: the unlocked ones are chosen, the
+              rest is seen with a padlock. What each one gives is said by the ladder. */}
           {levels ? (
             <fieldset className="flex flex-col gap-2">
               <legend className="sr-only">{t('Level')}</legend>
@@ -267,17 +268,17 @@ export function StartScreen() {
               </FieldLabel>
               <div className="grid grid-cols-5 gap-1.5">
                 {Array.from({ length: LEVEL_COUNT }, (_, i) => i + 1).map((n) => {
-                  const bloqueado = n > unlockedLevel
+                  const locked = n > unlockedLevel
                   const stars = levelStars[n - 1] ?? 0
                   return (
                     <button
                       key={n}
                       type="button"
                       onClick={() => setLevel(n)}
-                      disabled={bloqueado}
+                      disabled={locked}
                       aria-pressed={n === activeLevel}
                       aria-label={
-                        bloqueado
+                        locked
                           ? t('Level {level}, locked', { level: n })
                           : t(
                               stars === 1
@@ -292,8 +293,8 @@ export function StartScreen() {
                           : 'border-white/10 bg-white/[0.03] text-white/60 hover:border-white/30 hover:text-white'
                       }`}
                     >
-                      <span>{bloqueado ? '🔒' : n}</span>
-                      {!bloqueado ? (
+                      <span>{locked ? '🔒' : n}</span>
+                      {!locked ? (
                         <span aria-hidden className="text-[0.6rem] tracking-[0.15em]" style={{ color: COMMON_PALETTE.gold }}>
                           {'★'.repeat(stars)}
                           <span className="text-white/20">{'★'.repeat(3 - stars)}</span>
@@ -306,11 +307,11 @@ export function StartScreen() {
             </fieldset>
           ) : null}
 
-          {/* Lo que se pinta alrededor: tampoco es de la partida y se recuerda
-              entre visitas. Aquí se deja elegido; donde de verdad se usa es
-              dentro del visor, cambiándolo sin salir de la sesión. Con el
-              confort, detrás de «Más opciones». */}
-          {filas.has('settings') ? (
+          {/* What is painted around: it does not belong to the match either and is
+              remembered between visits. Here it is left chosen; where it is really
+              used is inside the headset, changing it without leaving the session.
+              With the comfort, behind «Más opciones». */}
+          {shown.has('settings') ? (
             <>
               <fieldset className="flex flex-col gap-2">
                 <legend className="sr-only">{t('What you see around you')}</legend>
@@ -329,15 +330,15 @@ export function StartScreen() {
                 <p className="text-xs text-white/50">{t(SCENERY_HINTS[scenery])}</p>
               </fieldset>
 
-              {/* Cuánto se nota un gol en contra: la viñeta, la sacudida de la sala, la
-                  cámara lenta, el oído tapado y la vibración (`lib/golpeRecibido.ts`).
-                  Es un ajuste de confort, y se recuerda entre visitas. */}
+              {/* How much a goal against is felt: the vignette, the shake of the room, the
+                  slow motion, the muffled ear and the vibration (`lib/hitFeedback.ts`).
+                  It is a comfort setting, and it is remembered between visits. */}
               <fieldset className="flex flex-col gap-2">
                 <legend className="sr-only">{t(COMFORT_LEGEND)}</legend>
                 <FieldLabel>{t(COMFORT_LEGEND)}</FieldLabel>
                 <div className="grid grid-cols-3 gap-2">
                   {COMFORT_LEVELS.map((option) => (
-                    <OptionButton key={option} selected={confort === option} onClick={() => setConfort(option)}>
+                    <OptionButton key={option} selected={comfort === option} onClick={() => setComfort(option)}>
                       {t(COMFORT_LABELS[option])}
                     </OptionButton>
                   ))}
@@ -346,22 +347,22 @@ export function StartScreen() {
             </>
           ) : null}
 
-          {/* Lo que no es del modo, plegado: las opciones de la práctica, el decorado y el confort.
-              Con el reto elegido no hay botón, que es una partida fija. */}
-          {plegable ? (
+          {/* What does not belong to the mode, folded: the options of practice, the scenery and
+              the comfort. With the challenge chosen there is no button, as it is a fixed match. */}
+          {canFold ? (
             <button
               type="button"
-              aria-expanded={masOpciones}
-              onClick={() => setMasOpciones(!masOpciones)}
+              aria-expanded={moreOptions}
+              onClick={() => setMoreOptions(!moreOptions)}
               className="min-h-11 self-start rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white/75 transition hover:border-white/40 hover:text-white"
             >
-              {t(masOpciones ? MENU_EN.fewerOptions : MENU_EN.moreOptions)}
+              {t(moreOptions ? MENU_EN.fewerOptions : MENU_EN.moreOptions)}
             </button>
           ) : null}
         </div>
 
         {gameMode === 'duel' ? (
-          duelos > 0 ? (
+          duels > 0 ? (
             <p className="mt-5 text-sm text-white/55">
               {t('Duels won: {one}–{two} · tied: {ties}', {
                 one: tally.wins[0],
@@ -415,26 +416,26 @@ export function StartScreen() {
               <button
                 type="button"
                 onClick={() =>
-                  // Se entra en realidad mixta cuando el visor la ofrece: así la
-                  // mesa se planta en la habitación del jugador, que es donde
-                  // mejor se entiende su tamaño.
+                  // Mixed reality is entered when the headset offers it: that way the
+                  // table is planted in the player's room, which is where its size
+                  // is best understood.
                   immersive.ar ? getXrStore().enterAR() : getXrStore().enterVR()
                 }
                 className="min-h-11 w-full rounded-xl border border-white/15 px-6 py-2.5 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
               >
                 {t('Play in the headset')}
               </button>
-              {/* La salida común de todos los juegos, que en la web propia pone `AroDeSalir`. */}
+              {/* The common exit of every game, which on the game's own website `ExitRing` puts there. */}
               <p className="text-center text-xs text-white/50">{t('Hold B or Y to exit')}</p>
             </>
           ) : null}
 
-          {/* Salir solo cuando hay de dónde salir. En este menú —que es DOM, o
-              sea, escritorio— salir significa cerrar la sesión inmersiva (ver
-              `game/exit.tsx`), así que sin sesión el botón no haría nada al
-              pulsarlo. Su gemelo del visor (`XRMenu`) sí tiene sentido siempre:
-              allí hay sesión, y dentro del salón de xrcade es lo que devuelve al
-              jugador al arco de cabinas. */}
+          {/* Exit only when there is somewhere to exit from. In this menu —which is
+              DOM, that is, desktop— exiting means closing the immersive session (see
+              `game/exit.tsx`), so without a session the button would do nothing when
+              pressed. Its twin in the headset (`XRMenu`) does always make sense:
+              there is a session there, and inside the xrcade hall it is what takes
+              the player back to the arc of cabinets. */}
           {inSession ? (
             <button
               type="button"

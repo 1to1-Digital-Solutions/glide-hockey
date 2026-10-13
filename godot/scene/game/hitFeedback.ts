@@ -1,24 +1,25 @@
 /**
- * El golpe que recibe el cuerpo, en Godot: lo que en la web es `components/xr/GolpeRecibido.tsx`,
- * con las curvas y las cifras de `lib/golpeRecibido.ts`, que es puro y entra tal cual.
+ * The hit the body takes, in Godot: what on the web is `components/xr/HitFeedback.tsx`, with the
+ * curves and the figures of `lib/hitFeedback.ts`, which is pure and goes in as it is.
  *
- * En Glide Hockey lo dispara **el gol en contra** (`lib/golEnContra.ts`): la mesa es un plano y
- * nada sale volando hacia el cuerpo, así que lo más parecido a «me han dado» es que te metan un
- * gol, y con poca fuerza, porque nadie te ha tocado. Cinco capas, cada una opcional como en la web:
+ * In Glide Hockey it is triggered by **the goal against** (`lib/goalAgainst.ts`): the table is a
+ * plane and nothing flies out toward the body, so the closest thing to «I got hit» is conceding a
+ * goal, and with little strength, because nobody has touched you. Five layers, each optional as on
+ * the web:
  *
- * - **La viñeta**: un plano delante de los ojos que **sigue** a la cabeza porque cuelga de la
- *   cámara, sin moverla nunca; rojo muy oscuro en el marco, más del lado del golpe, el centro
- *   limpio. El sombreador es el de la web, pasado al lenguaje de Godot.
- * - **La sacudida**: mueve el decorado (la sala), nunca la cámara ni la mesa, que el mazo va en la
- *   mano y se despegaría de ella.
- * - **La cámara lenta**: la escena la lee (`escalaDelReloj`) y frena con ella el reloj de la mesa.
- * - **El filtro**: un paso bajo en el bus del juego, que tapa el oído un instante.
- * - **El háptico**: los pulsos de la receta común, por la vibración del jugador.
+ * - **The vignette**: a plane in front of the eyes that **follows** the head because it hangs from
+ *   the camera, without ever moving it; very dark red on the frame, more on the side of the hit,
+ *   the centre clean. The shader is the web's, ported to Godot's language.
+ * - **The shake**: it moves the scenery (the room), never the camera or the table, since the
+ *   mallet goes in the hand and would come unstuck from it.
+ * - **The slow motion**: the scene reads it (`timeScale`) and slows the table's clock with it.
+ * - **The filter**: a low-pass on the game's bus, which muffles the ear for an instant.
+ * - **The haptic**: the pulses of the shared recipe, through the player's vibration.
  *
- * El confort de quien juega manda (`capasDelGolpe`). El reloj es el de los fotogramas **sin
- * frenar** (lo que en la web es la hora de pared): la cámara lenta no puede frenar su propia vuelta.
- * Y es el del motor y no el del sistema para que, con `--fixed-fps`, una partida automática dure lo
- * mismo en una máquina rápida que en una lenta.
+ * The comfort of whoever plays rules (`layersForHit`). The clock is that of the frames **without
+ * slowing** (what on the web is wall-clock time): the slow motion cannot slow its own way back.
+ * And it is the engine's and not the system's so that, with `--fixed-fps`, an automatic match
+ * lasts the same on a fast machine as on a slow one.
  */
 import {
   AudioEffectLowPassFilter,
@@ -49,122 +50,124 @@ import {
 } from '@/lib/hitFeedback'
 import type { HandPulse } from '@/lib/hapticFeedback'
 
-/** A qué distancia de los ojos va la viñeta y lo que mide: de sobra para el visor (`PLANO`). */
-const PLANO = { distancia: 0.2, lado: 1.1 } as const
+/**
+ * How far from the eyes the vignette goes and its size: more than enough for the headset (`PLANE`).
+ */
+const PLANE = { distance: 0.2, side: 1.1 } as const
 
-/** El oscurecido de la web (`vinetaOscura`), con las mismas cuentas. */
-const SOMBREADOR = `
+/** The web's darkening (`darkVignette`), with the same sums. */
+const VIGNETTE_SHADER = `
 shader_type spatial;
 render_mode unshaded, blend_mix, depth_test_disabled, depth_draw_never, cull_disabled;
-uniform float intensidad = 0.0;
-uniform vec2 lado = vec2(0.0);
-varying vec2 pantalla;
+uniform float intensity = 0.0;
+uniform vec2 side = vec2(0.0);
+varying vec2 screen;
 void vertex() {
   vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
-  pantalla = clip.xy / clip.w;
+  screen = clip.xy / clip.w;
 }
 void fragment() {
-  vec2 p = abs(pantalla);
+  vec2 p = abs(screen);
   float r = pow(pow(p.x, 4.0) + pow(p.y, 4.0), 0.25);
-  float hacia = dot(normalize(pantalla + vec2(1e-5)), lado);
-  float frontera = mix(1.2, 0.7, intensidad) - 0.2 * hacia * intensidad;
-  float sombra = smoothstep(frontera, frontera + 0.35, r);
+  float toward = dot(normalize(screen + vec2(1e-5)), side);
+  float boundary = mix(1.2, 0.7, intensity) - 0.2 * toward * intensity;
+  float shade = smoothstep(boundary, boundary + 0.35, r);
   ALBEDO = vec3(0.3, 0.0, 0.02);
-  ALPHA = sombra * intensidad;
+  ALPHA = shade * intensity;
 }
 `
 
-export interface OpcionesDelGolpe {
-  /** El reloj, en segundos: lo que llevan los fotogramas, sin la cámara lenta. */
-  reloj: () => number
-  /** Lo que se sacude: el decorado. */
-  sacudido: Node3D | null
-  /** La cámara de la que cuelga la viñeta (la del visor o la de plano). */
-  camara: Camera3D | null
-  /** El confort de ahora, leído a cada golpe. */
-  confort: () => Comfort
-  /** Los pulsos, por la vibración del jugador. Sin visor, nada. */
-  vibrar?: (pulsos: readonly HandPulse[]) => void
-  /** El bus de audio al que se le pone el paso bajo. Sin bus, sin filtro. */
+export interface HitFeedbackOptions {
+  /** The clock, in seconds: what the frames add up to, without the slow motion. */
+  clock: () => number
+  /** What is shaken: the scenery. */
+  shaken: Node3D | null
+  /** The camera the vignette hangs from (the headset's or the flat-screen one). */
+  camera: Camera3D | null
+  /** The comfort of the moment, read at every hit. */
+  comfort: () => Comfort
+  /** The pulses, through the player's vibration. With no headset, nothing. */
+  vibrate?: (pulses: readonly HandPulse[]) => void
+  /** The audio bus the low-pass is put on. With no bus, no filter. */
   bus?: string
 }
 
-export class GolpeRecibido {
-  private golpes: readonly Hit[] = []
-  private readonly vineta: MeshInstance3D | null = null
+export class HitFeedback {
+  private hits: readonly Hit[] = []
+  private readonly vignette: MeshInstance3D | null = null
   private readonly material: ShaderMaterial | null = null
-  private readonly filtro: AudioEffectLowPassFilter | null = null
-  private ultimoCorte: number = HIT.filter.open
-  /** Cuántos golpes se han dado: lo que cuenta un test. */
-  dados = 0
+  private readonly filter: AudioEffectLowPassFilter | null = null
+  private lastCutoff: number = HIT.filter.open
+  /** How many hits have been dealt: what a test counts. */
+  dealt = 0
 
-  constructor(private readonly opciones: OpcionesDelGolpe) {
-    const { camara, bus } = opciones
-    if (camara != null) {
+  constructor(private readonly options: HitFeedbackOptions) {
+    const { camera, bus } = options
+    if (camera != null) {
       const shader = new Shader()
-      shader.code = SOMBREADOR
+      shader.code = VIGNETTE_SHADER
       this.material = new ShaderMaterial()
       this.material.shader = shader
       this.material.render_priority = 127
       const quad = new QuadMesh()
-      quad.size = new Vector2(PLANO.lado, PLANO.lado)
-      this.vineta = new MeshInstance3D()
-      this.vineta.set_name('GolpeVineta')
-      this.vineta.mesh = quad
-      this.vineta.material_override = this.material
-      this.vineta.position = new Vector3(0, 0, -PLANO.distancia)
-      this.vineta.visible = false
-      camara.add_child(this.vineta)
+      quad.size = new Vector2(PLANE.side, PLANE.side)
+      this.vignette = new MeshInstance3D()
+      this.vignette.set_name('HitVignette')
+      this.vignette.mesh = quad
+      this.vignette.material_override = this.material
+      this.vignette.position = new Vector3(0, 0, -PLANE.distance)
+      this.vignette.visible = false
+      camera.add_child(this.vignette)
     }
     if (bus != null) {
-      const indice = AudioServer.get_bus_index(bus)
-      if (indice >= 0) {
-        this.filtro = new AudioEffectLowPassFilter()
-        this.filtro.cutoff_hz = HIT.filter.open
-        AudioServer.add_bus_effect(indice, this.filtro)
+      const index = AudioServer.get_bus_index(bus)
+      if (index >= 0) {
+        this.filter = new AudioEffectLowPassFilter()
+        this.filter.cutoff_hz = HIT.filter.open
+        AudioServer.add_bus_effect(index, this.filter)
       }
     }
   }
 
   /**
-   * Le han dado a quien juega: `fuerza` de 0 a 1 y `direccion` hacia donde viene el golpe desde
-   * quien juega, en el espacio global.
+   * Whoever plays has been hit: `strength` from 0 to 1 and `direction` toward where the hit comes
+   * from as seen by whoever plays, in global space.
    */
-  golpe(fuerza: number, direccion: Point3 | null): void {
-    const capas = layersForHit(fuerza, this.opciones.confort())
-    const hacia = unitVector(direccion)
-    // Por qué lado de la vista: la dirección, llevada al espacio de la cabeza.
-    let lado = { x: 0, y: 0 }
-    const camara = this.opciones.camara
-    if (direccion != null && camara != null) {
-      const enLaCabeza = Basis.MULTIPLY(camara.global_basis.inverse(), new Vector3(hacia.x, hacia.y, hacia.z))
-      lado = sideInView({ x: enLaCabeza.x, y: enLaCabeza.y, z: enLaCabeza.z })
+  hit(strength: number, direction: Point3 | null): void {
+    const layers = layersForHit(strength, this.options.comfort())
+    const toward = unitVector(direction)
+    // On which side of the view: the direction, taken to the head's space.
+    let side = { x: 0, y: 0 }
+    const camera = this.options.camera
+    if (direction != null && camera != null) {
+      const inHeadSpace = Basis.MULTIPLY(camera.global_basis.inverse(), new Vector3(toward.x, toward.y, toward.z))
+      side = sideInView({ x: inHeadSpace.x, y: inHeadSpace.y, z: inHeadSpace.z })
     }
-    this.golpes = addHit(this.golpes, { start: this.opciones.reloj(), layers: capas, direction: hacia, side: lado })
-    this.dados++
-    // El háptico sale en el mismo fotograma que el golpe; los retardos los lleva la cola del kit.
-    this.opciones.vibrar?.(hitPulses(capas))
+    this.hits = addHit(this.hits, { start: this.options.clock(), layers, direction: toward, side })
+    this.dealt++
+    // The haptic goes out in the same frame as the hit; the delays are handled by the kit's queue.
+    this.options.vibrate?.(hitPulses(layers))
   }
 
-  /** A qué ritmo tiene que correr ahora el reloj de la mesa: 1 es el normal. */
-  escalaDelReloj(): number {
-    return hitState(this.golpes, this.opciones.reloj()).timeScale
+  /** At what rate the table's clock has to run now: 1 is the normal one. */
+  timeScale(): number {
+    return hitState(this.hits, this.options.clock()).timeScale
   }
 
-  /** Un fotograma: la sacudida, el filtro y la viñeta. */
-  actualizar(): void {
-    const estado = hitState(this.golpes, this.opciones.reloj())
-    this.golpes = estado === AT_REST ? [] : estado.live
-    const { sacudido } = this.opciones
-    if (sacudido != null) sacudido.position = new Vector3(estado.shake.x, estado.shake.y, estado.shake.z)
-    if (this.filtro != null && estado.cutoff !== this.ultimoCorte) {
-      this.ultimoCorte = estado.cutoff
-      this.filtro.cutoff_hz = estado.cutoff
+  /** One frame: the shake, the filter and the vignette. */
+  update(): void {
+    const state = hitState(this.hits, this.options.clock())
+    this.hits = state === AT_REST ? [] : state.live
+    const { shaken } = this.options
+    if (shaken != null) shaken.position = new Vector3(state.shake.x, state.shake.y, state.shake.z)
+    if (this.filter != null && state.cutoff !== this.lastCutoff) {
+      this.lastCutoff = state.cutoff
+      this.filter.cutoff_hz = state.cutoff
     }
-    if (this.vineta != null && this.material != null) {
-      this.vineta.visible = estado.vignette > 0
-      this.material.set_shader_parameter('intensidad', estado.vignette)
-      this.material.set_shader_parameter('lado', new Vector2(estado.side.x, estado.side.y))
+    if (this.vignette != null && this.material != null) {
+      this.vignette.visible = state.vignette > 0
+      this.material.set_shader_parameter('intensity', state.vignette)
+      this.material.set_shader_parameter('side', new Vector2(state.side.x, state.side.y))
     }
   }
 }

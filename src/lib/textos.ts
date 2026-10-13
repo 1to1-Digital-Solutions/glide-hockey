@@ -1,22 +1,23 @@
 /**
- * Lo que el juego dice, en español.
+ * What the game says, in Spanish.
  *
- * **La clave es el propio texto en inglés.** No hay ids inventados (`hud.puntos`) por dos
- * motivos. El primero es que se lee: en el componente pone `t('Back to the menu')`, y
- * quien pasa por ahí sabe qué se pinta sin ir a buscar el diccionario. El segundo es que
- * TypeScript lo vigila solo: `TextKey` sale de las claves de este objeto, así que cambiar
- * la frase en el componente y olvidarse de aquí **no compila**, en vez de dejar una clave
- * huérfana que solo se nota cuando alguien pone el juego en español.
+ * **The key is the English text itself.** There are no invented ids (`hud.points`) for two
+ * reasons. The first is that it reads: the component says `t('Back to the menu')`, and
+ * whoever passes by knows what gets painted without going to look up the dictionary. The
+ * second is that TypeScript watches it on its own: `TextKey` comes from the keys of this
+ * object, so changing the phrase in the component and forgetting about here **does not
+ * compile**, instead of leaving an orphan key that only shows when someone puts the game in
+ * Spanish.
  *
- * El inglés no se guarda dos veces: si el idioma es inglés, `texto` devuelve la clave.
- * Este fichero solo tiene la traducción.
+ * English is not stored twice: if the language is English, `texto` returns the key.
+ * This file only has the translation.
  *
- * **Lo que NO entra aquí.** Los comentarios, los identificadores y los errores de
- * programador siguen en español porque son para quien mantiene el repo. Las claves de
- * almacenamiento tampoco se tocan nunca: traducirlas borraría los récords de quien juega.
+ * **What does NOT go in here.** Comments, identifiers and programmer errors are in English
+ * because they are for whoever maintains the repo. The storage keys are never touched
+ * either: translating them would wipe the records of whoever plays.
  *
- * El idioma lo elige quien juega una sola vez, en el menú de xrcade, y llega aquí por la
- * cookie del arcade (ver `ajustes.ts`).
+ * The language is chosen by the player just once, in the xrcade menu, and it gets here
+ * through the hall's cookie (see `settings.ts`).
  */
 
 import type { Lang } from './settings'
@@ -24,25 +25,25 @@ import { GOAL_ES } from './goal'
 import { MENU_ES } from './menuWords'
 
 const ES = {
-  // El cartel del objetivo, común a todos los juegos del salón. Lo primero, para que lo que el
-  // juego ya decía por su cuenta no choque.
+  // The goal sign, common to every game of the hall. First, so that what the game already
+  // said on its own does not clash.
   ...GOAL_ES,
-  // Los botones y estados comunes del salón (`palabras.ts`), dichos igual en todos los juegos.
+  // The hall's common buttons and states (`menuWords.ts`), said the same in every game.
   ...MENU_ES,
-  // Y lo que este juego le da: la misión del reto y lo que queda (`cartelDelMarcador.ts`).
+  // And what this game gives it: the challenge's mission and what remains (`scoreboardSign.ts`).
   'Win games until you lose one': 'Gana partidos hasta perder uno',
   'Round {round} · to {goals} goals · goal +{points}': 'Ronda {round} · a {goals} goles · gol +{points}',
-  // Lo que el menú dice de cada modo («Cuenta para medalla» es la común de `MENU_ES`).
+  // What the menu says about each mode («Cuenta para medalla» is the common one of `MENU_ES`).
   'Does not count for a medal': 'No cuenta para medalla',
 
-  // Lo que dice la pestaña y lo que se lee al compartir el enlace. El nombre se queda en
-  // inglés a propósito: es el del producto, el mismo que rotula la cabina del salón y el
-  // que irá en la ficha de la tienda. Lo que se traduce es lo que va detrás.
+  // What the tab says and what is read when sharing the link. The name stays in English on
+  // purpose: it is the product's, the same one lettered on the hall's cabinet and the one
+  // that will go on the store page. What gets translated is what comes after it.
   '{name} — you against the machine': '{name} — tú contra la máquina',
   '{name} against the machine: choose the level and the goals to play to, and put the puck in its net. Play in the browser or in mixed reality (VR/AR).':
     '{name} contra la máquina: elige el nivel y los goles a los que jugar, y mete el disco en su portería. Juega en el navegador o en realidad mixta (VR/AR).',
 
-  // Portada
+  // Cover
   'You against the machine. Move the mallet with the mouse and put the puck in its goal. In the headset, take it with the grip button and the mallet follows your hand.':
     'Tú contra la máquina. Mueve el mazo con el ratón y mete el disco en su portería. Con el visor, cógelo con el botón de agarre y el mazo sigue a tu mano.',
   'Game mode': 'Modo de juego',
@@ -53,14 +54,14 @@ const ES = {
   Level: 'Nivel',
   'What you see around you': 'Lo que ves a tu alrededor',
   'Around you': 'A tu alrededor',
-  // El golpe recibido (`lib/confort.ts`): cuánto se nota un gol en contra.
+  // The hit taken (`lib/comfort.ts`): how much a goal against is felt.
   'When hit': 'Al recibir',
   Off: 'Apagado',
   Gentle: 'Suave',
   Full: 'Normal',
   'Play in the headset': 'Jugar con el visor',
 
-  // Modos, dificultades y escenario
+  // Modes, difficulties and scenery
   Practice: 'Práctica',
   Levels: 'Niveles',
   'You choose the level and the goals. Losing costs nothing.':
@@ -82,7 +83,7 @@ const ES = {
   'Headset and augmented reality only: the table stands in your own room.':
     'Solo con visor y realidad aumentada: la mesa se planta en tu propia habitación.',
 
-  // Lo que la escalera decide por ti
+  // What the ladder decides for you
   '· endless': '· sin fin',
   'Level · {level} of {total} · {difficulty}, to {goals} goals':
     'Nivel · {level} de {total} · {difficulty}, a {goals} goles',
@@ -90,19 +91,19 @@ const ES = {
   'Level {level}, {stars} star': 'Nivel {level}, {stars} estrella',
   'Level {level}, {stars} stars': 'Nivel {level}, {stars} estrellas',
 
-  // Marcador
+  // Scoreboard
   You: 'Tú',
   Machine: 'Máquina',
   Points: 'Puntos',
   Streak: 'Racha',
   '· round {round}': '· ronda {round}',
-  // Solo sale pasada la ronda quince: la vuelta por la que va y lo que multiplica.
+  // It only shows past round fifteen: the lap it is on and what it multiplies by.
   '· lap {lap} ×{multiplier}': '· vuelta {lap} ×{multiplier}',
   '· level {level}': '· nivel {level}',
   endless: 'sin fin',
   'to {goals} goals': 'a {goals} goles',
 
-  // Final de partida
+  // End of the match
   'Game over': 'Fin de la partida',
   'Level {level} cleared': 'Nivel {level} superado',
   'Level {level} not cleared': 'Nivel {level} no superado',
@@ -125,7 +126,7 @@ const ES = {
   'Best streak': 'Mejor racha',
   Again: 'Otra vez',
 
-  // El duelo
+  // The duel
   'Player 1': 'Jugador 1',
   'Player 2': 'Jugador 2',
   '{player}: {scored}–{conceded}': '{player}: {scored}–{conceded}',
@@ -137,16 +138,16 @@ const ES = {
   'Duels won: {one}–{two} · tied: {ties}': 'Duelos ganados: {one}–{two} · empatados: {ties}',
   'New duel': 'Nuevo duelo',
 
-  // Progreso, en la portada
+  // Progress, on the cover
   'Levels cleared:': 'Niveles superados:',
   'of {total}': 'de {total}',
   'Your best endless streak:': 'Tu mejor racha sin fin:',
-  // La racha, con su plural (`plural` de `palabras.ts`): «1 gol», «2 goles».
+  // The streak, with its plural (`plural` of `menuWords.ts`): «1 gol», «2 goles».
   '{n} goal': '{n} gol',
   '{n} goals': '{n} goles',
   'Your record on {mode}:': 'Tu récord en {mode}:',
 
-  // Mientras se juega
+  // While playing
   'End run': 'Terminar tanda',
   'Leave the game': 'Dejar la partida',
   Stage: 'Fase',
@@ -156,7 +157,7 @@ const ES = {
   Leave: 'Salir',
   'Setting up the table…': 'Montando la mesa…',
 
-  // Lo que pide el tutorial en cada paso, y sus dos salidas.
+  // What the tutorial asks for at each step, and its two ways out.
   'Close your hand on the mallet to pick it up':
     'Cierra la mano sobre el mazo para cogerlo',
   'Push the puck with it':
@@ -169,93 +170,96 @@ const ES = {
   'Skip tutorial': 'Saltar tutorial',
 } as const
 
-/** Cada frase que el juego sabe decir, escrita como se dice en inglés. */
+/** Every phrase the game knows how to say, written the way it is said in English. */
 export type TextKey = keyof typeof ES
 
 /**
- * Todas las frases que el juego sabe decir.
+ * All the phrases the game knows how to say.
  *
- * Está para que un test pueda comprobar que ninguna se ha quedado huérfana: una frase
- * cambia en el componente y la vieja se queda aquí traducida para siempre —no rompe nada,
- * y por eso nadie la quita nunca—.
+ * It is there so that a test can check that none has been left orphaned: a phrase changes
+ * in the component and the old one stays here translated forever —it breaks nothing, and
+ * that is why nobody ever removes it—.
  */
 export const TEXT_KEYS = Object.keys(ES) as readonly TextKey[]
 
 /**
- * Una frase en el idioma que se pida.
+ * A phrase in the language asked for.
  *
- * En inglés devuelve la clave, que ya es la frase: guardar el original dos veces sería
- * tener dos sitios donde cambiarlo y uno donde olvidarse.
+ * In English it returns the key, which already is the phrase: storing the original twice
+ * would be having two places to change it and one to forget about.
  */
 export function texto(lang: Lang, key: TextKey): string {
   return lang === 'es' ? ES[key] : key
 }
 
 /**
- * Rellena los huecos de una frase.
+ * Fills the gaps of a phrase.
  *
- * Las frases con hueco llevan `{algo}` y no se parten en trozos para concatenarlos: el
- * orden de las palabras cambia de un idioma a otro, y concatenar obliga al español a
- * fingir la sintaxis inglesa.
+ * Phrases with a gap carry `{something}` and are not split into pieces to concatenate them:
+ * the word order changes from one language to another, and concatenating forces Spanish to
+ * fake English syntax.
  */
-export function formatText(plantilla: string, valores: Record<string, string | number>): string {
-  return plantilla.replace(/\{(\w+)\}/g, (hueco, nombre: string) =>
-    nombre in valores ? String(valores[nombre]) : hueco,
+export function formatText(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (gap, name: string) =>
+    name in values ? String(values[name]) : gap,
   )
 }
 
-/** Un traductor que acepta cualquier frase: el del cartel del objetivo (`Traducir` de `objetivo.ts`). */
-export type Translator = (clave: string, valores?: Record<string, string | number>) => string
+/** A translator that accepts any phrase: the goal sign's one (`Translate` of `goal.ts`). */
+export type Translator = (key: string, values?: Record<string, string | number>) => string
 
 /**
- * El traductor que no exige que la frase esté en el diccionario: la que no está sale tal cual.
+ * The translator that does not require the phrase to be in the dictionary: one that is not
+ * there comes out as is.
  *
- * Es el que recibe el cartel del objetivo, que traduce sus frases y además lo que le llega ya
- * dicho de fuera —la unidad del récord, que el salón pasa en el idioma de quien juega—.
+ * It is the one the goal sign receives, which translates its phrases and also what reaches it
+ * already said from outside —the unit of the record, which the hall passes in the language of
+ * whoever plays—.
  */
 export function softTranslator(lang: Lang): Translator {
-  return (frase, valores) => {
-    // Con `hasOwnProperty` y no con `in`: una unidad que se llamara como algo de `Object` no es una frase.
-    const dicho = lang === 'es' && Object.prototype.hasOwnProperty.call(ES, frase) ? ES[frase as TextKey] : frase
-    return valores === undefined ? dicho : formatText(dicho, valores)
+  return (phrase, values) => {
+    // With `hasOwnProperty` and not with `in`: a unit named like something of `Object` is not a phrase.
+    const said = lang === 'es' && Object.prototype.hasOwnProperty.call(ES, phrase) ? ES[phrase as TextKey] : phrase
+    return values === undefined ? said : formatText(said, values)
   }
 }
 
 /**
- * El traductor de un idioma, para no repetirlo en cada línea.
+ * The translator of a language, so as not to repeat it on every line.
  *
- * Se pide una vez arriba del componente —`const t = traductor(useLang())`— y se usa como
- * `t('Back to the menu')`, o con huecos: `t('· round {round}', { round })`.
+ * It is asked for once at the top of the component —`const t = translator(useLang())`— and
+ * used as `t('Back to the menu')`, or with gaps: `t('· round {round}', { round })`.
  */
 export function translator(lang: Lang) {
-  return (key: TextKey, valores?: Record<string, string | number>): string => {
-    const frase = texto(lang, key)
-    return valores === undefined ? frase : formatText(frase, valores)
+  return (key: TextKey, values?: Record<string, string | number>): string => {
+    const phrase = texto(lang, key)
+    return values === undefined ? phrase : formatText(phrase, values)
   }
 }
 
 /**
- * Una cifra con sus miles separados como se escriben en ese idioma: «12.400» y «12,400».
+ * A figure with its thousands separated the way they are written in that language: «12.400»
+ * and «12,400».
  *
- * El inglés agrupa con coma desde las cuatro cifras («2,100») y el español con punto y **desde
- * las cinco** («2100», «12.400»): es la regla de la RAE y de CLDR, y la misma del cartel de
- * objetivo (`ESCRITURA`, en `objetivo.ts`), para que el marcador y el cartel escriban igual.
+ * English groups with a comma from four digits on («2,100») and Spanish with a dot and **from
+ * five** («2100», «12.400»): it is the rule of the RAE and of CLDR, and the same as the goal
+ * sign's (`NOTATION`, in `goal.ts`), so that the scoreboard and the sign write alike.
  *
- * A mano y no con `toLocaleString`: lo que devuelve depende de los datos de idioma que traiga
- * el navegador —el del visor no trae todos—, y con `'en-GB'` fijo la versión española decía
- * «8,068». Es la cuenta de Gloop Pop.
+ * By hand and not with `toLocaleString`: what it returns depends on the language data the
+ * browser carries —the headset's does not carry all of it—, and with a fixed `'en-GB'` the
+ * Spanish version said «8,068». It is Gloop Pop's arithmetic.
  */
 export function formatFigure(n: number, lang: Lang): string {
   if (!Number.isFinite(n)) return '0'
-  const { separador, desde } = lang === 'es' ? { separador: '.', desde: 5 } : { separador: ',', desde: 4 }
-  const redondeado = Math.round(n)
-  let resto = String(Math.abs(redondeado))
-  let miles = ''
-  // Se decide una vez, con la cifra entera: o se agrupa toda o no se agrupa.
-  const seAgrupa = resto.length >= desde
-  while (seAgrupa && resto.length > 3) {
-    miles = `${separador}${resto.slice(-3)}${miles}`
-    resto = resto.slice(0, -3)
+  const { separator, from } = lang === 'es' ? { separator: '.', from: 5 } : { separator: ',', from: 4 }
+  const rounded = Math.round(n)
+  let rest = String(Math.abs(rounded))
+  let thousands = ''
+  // It is decided once, with the whole figure: either all of it is grouped or it is not grouped.
+  const grouped = rest.length >= from
+  while (grouped && rest.length > 3) {
+    thousands = `${separator}${rest.slice(-3)}${thousands}`
+    rest = rest.slice(0, -3)
   }
-  return `${redondeado < 0 ? '-' : ''}${resto}${miles}`
+  return `${rounded < 0 ? '-' : ''}${rest}${thousands}`
 }

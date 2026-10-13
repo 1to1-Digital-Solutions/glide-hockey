@@ -24,74 +24,75 @@ import { RealController } from './RealController'
 import { NO_RAYCAST } from '../raycast'
 
 /**
- * Cómo se tira, dentro del visor y solo la primera vez.
+ * How to throw, inside the headset and only the first time.
  *
- * **Se aprende haciendo, no mirando.** Cada paso se supera cuando quien juega lo hace: el
- * mazo aparece en la mano, sale volando, se clava. El juego **no se para** mientras tanto —el
- * mazo se coge de verdad—, y el tutorial espera sin reloj hasta que pasa lo que tiene que
- * pasar. Antes era un pase de diapositivas con un monigote y el juego parado: se podía mirar
- * sin hacer nada y al acabar el tiempo se daba por aprendido.
+ * **It is learned by doing, not by watching.** Each step is passed when whoever is playing does
+ * it: the mallet appears in the hand, flies off, sticks. The game **does not stop** meanwhile
+ * —the mallet is really picked up—, and the tutorial waits with no clock until what has to
+ * happen happens. Before, it was a slide show with a stick figure and the game stopped: you
+ * could watch without doing anything and when the time ran out it was taken as learned.
  *
- * **Y se enseña el mando.** Un paso que pide el botón de agarre dibuja un mando con ese botón
- * resaltado (`mandoDibujado.ts`): con el visor puesto, lo que hay en la mano tiene cinco
- * botones y ninguno con su nombre escrito.
+ * **And the controller is shown.** A step that asks for the grab button draws a controller with
+ * that button highlighted (`drawnController.ts`): with the headset on, what is in the hand has
+ * five buttons and none with its name written on it.
  *
- * **Siempre hay salida**: siguiente y saltar. Un paso que no se consiga —porque el mazo no se
- * clava— dejaría a alguien encerrado en él.
+ * **There is always a way out**: next and skip. A step that cannot be achieved —because the
+ * mallet does not stick— would leave someone locked inside it.
  *
- * El guion vive en `lib/tutorial.ts`, probado sin navegador; aquí solo se pinta y se escucha.
+ * The script lives in `lib/tutorial.ts`, tested without a browser; here it is only painted and
+ * listened to.
  */
 
 /**
- * Medidas del panel, en metros. Como el del menú de ancho, y bastante más alto: lleva
- * contador, frase, el mando dibujado y dos botones, y la frase ocupa **tres líneas en
- * español donde ocupa dos en inglés**.
+ * Measurements of the panel, in metres. As wide as the menu's, and quite a bit taller: it
+ * carries a counter, a phrase, the drawn controller and two buttons, and the phrase takes
+ * **three lines in Spanish where it takes two in English**.
  */
 export const PANEL_WIDTH = 0.78
 export const PANEL_HEIGHT = 0.62
 
 /**
- * Dónde se planta, **cuando el juego no lo dice**.
+ * Where it is planted, **when the game does not say**.
  *
- * Este valor viene de darts —«algo a la derecha de la diana»— y se copió tal cual a los
- * doce. Los juegos que saben dónde va su panel se lo pasan y este no se usa: aparecer en un
- * sitio distinto de donde estaba el menú obliga a buscarlo, y quien acaba de entrar es
- * justamente quien no sabe dónde mirar.
+ * This value comes from darts —«a little to the right of the dartboard»— and was copied as is
+ * to all twelve. The games that know where their panel goes pass it in and this one is not
+ * used: appearing somewhere other than where the menu was forces the player to look for it,
+ * and whoever has just come in is precisely the one who does not know where to look.
  */
 const POSITION: [number, number, number] = [0.68, 1.5, -1.05]
 const ROTATION: [number, number, number] = [0, -0.57, 0]
 
 /**
- * A qué tamaño se escribe cada cosa del panel, en metros de alto de letra.
+ * At what size each thing on the panel is written, in metres of letter height.
  *
- * Una sola lista para quien pinta y para quien mide (`tutorial.legible.test.ts`). El contador y
- * los botones iban a 30 y 32 mm y «Saltar tutorial» se encogía a 29 para caber: con el panel a
- * metro y medio, se quedaban en 1°.
+ * A single list for whoever paints and for whoever measures (`tutorial.legible.test.ts`). The
+ * counter and the buttons were at 30 and 32 mm and «Saltar tutorial» shrank to 29 to fit: with
+ * the panel at a metre and a half, they ended up at 1°.
  */
 export const TUTORIAL_TEXT = { counter: 0.036, phrase: 0.042, button: 0.036 } as const
 
 /**
- * Los dos botones, abajo del panel: lo bastante anchos para que «Saltar tutorial» quepa entero a
- * su tamaño, con dos centímetros entre ellos.
+ * The two buttons, at the bottom of the panel: wide enough for «Saltar tutorial» to fit whole
+ * at its size, with two centimetres between them.
  */
 export const BUTTON = { width: 0.37, height: 0.09, y: -PANEL_HEIGHT / 2 + 0.08 }
 
-export const BOTONES = [
+export const PANEL_BUTTONS = [
   { id: 'next' as const, x: 0.195, text: 'Next' as TextKey },
   { id: 'skip' as const, x: -0.195, text: 'Skip tutorial' as TextKey },
 ]
 
-/** Lo que se pide en cada paso. */
-export const FRASES: Record<TutorialStepKey, TextKey> = {
+/** What is asked for in each step. */
+export const PHRASES: Record<TutorialStepKey, TextKey> = {
   grab: 'Close your hand on the mallet to pick it up',
   hit: 'Push the puck with it',
   goal: 'Score a goal',
 }
 
 /**
- * Y con **un toque** en vez de manteniendo (ver `lib/agarre.ts`). El tutorial es la única
- * pantalla que explica el gesto: enseñar el de mantener a quien no puede mantener nada sería
- * explicarle el juego al revés.
+ * And with **one tap** instead of holding (see `lib/grab.ts`). The tutorial is the only screen
+ * that explains the gesture: teaching the holding one to someone who cannot hold anything
+ * would be explaining the game to them backwards.
  */
 export const PHRASES_WITH_ONE_TAP: Record<TutorialStepKey, TextKey> = {
   grab: 'Press the grip button on the mallet to pick it up',
@@ -99,40 +100,40 @@ export const PHRASES_WITH_ONE_TAP: Record<TutorialStepKey, TextKey> = {
   goal: 'Score a goal',
 }
 
-/** Cómo se llama la frase, para medirla igual que se pinta. */
-const FRASE = { size: TUTORIAL_TEXT.phrase, maxWidth: PANEL_WIDTH - 0.1 }
+/** What the phrase is like, to measure it the same way it is painted. */
+const PHRASE = { size: TUTORIAL_TEXT.phrase, maxWidth: PANEL_WIDTH - 0.1 }
 
 /**
- * Dónde cae cada cosa en el panel de un paso.
+ * Where each thing falls on the panel of a step.
  *
- * Se calcula y no se escribe a mano porque **la frase no ocupa lo mismo en los dos
- * idiomas**: la misma línea son dos renglones en inglés y tres en español, y el mando
- * dibujado tiene que bajar con ella. Sale de aquí y no de dentro del dibujo para que
- * el test pueda comprobar los mismos números que se pintan, y no una copia suya.
+ * It is calculated and not written by hand because **the phrase does not take up the same
+ * in both languages**: the same line is two rows in English and three in Spanish, and the
+ * drawn controller has to move down with it. It comes out of here and not from inside the
+ * drawing so that the test can check the same numbers that are painted, and not a copy of them.
  */
 export function stepLayout(
   ctx: CanvasRenderingContext2D,
   step: TutorialStepKey,
-  frases: Record<TutorialStepKey, TextKey>,
-  t: (clave: TextKey) => string,
+  phrases: Record<TutorialStepKey, TextKey>,
+  t: (key: TextKey) => string,
 ): { phraseTop: number; phraseBottom: number; controller: number } {
   const phraseTop = PANEL_HEIGHT / 2 - 0.13
-  const phraseBottom = phraseTop - paragraphHeight(ctx, t(frases[step]), FRASE)
-  const techoDeLosBotones = BUTTON.y + BUTTON.height / 2
-  return { phraseTop: phraseTop, phraseBottom: phraseBottom, controller: (phraseBottom + techoDeLosBotones) / 2 }
+  const phraseBottom = phraseTop - paragraphHeight(ctx, t(phrases[step]), PHRASE)
+  const buttonsTop = BUTTON.y + BUTTON.height / 2
+  return { phraseTop: phraseTop, phraseBottom: phraseBottom, controller: (phraseBottom + buttonsTop) / 2 }
 }
 
 /**
- * El panel del tutorial: el paso por el que va, lo que pide, el botón del mando que
- * lo hace y los dos botones de abajo. Sale del componente para que un test lo pueda
- * medir con un lienzo de mentira —`legibilidad.ts`—: es texto que nadie ha visto aún
- * con el visor puesto, y la frase larga en español es donde se sale.
+ * The tutorial panel: the step it is on, what it asks for, the controller button that
+ * does it and the two buttons at the bottom. It comes out of the component so that a test
+ * can measure it with a fake canvas —`legibility.ts`—: it is text nobody has seen yet
+ * with the headset on, and the long phrase in Spanish is where it overflows.
  */
 export function drawStep(
   ctx: CanvasRenderingContext2D,
   step: TutorialStepKey | null,
-  frases: Record<TutorialStepKey, TextKey>,
-  t: (clave: TextKey) => string,
+  phrases: Record<TutorialStepKey, TextKey>,
+  t: (key: TextKey) => string,
 ): void {
   roundedRect(ctx, 0, 0, PANEL_WIDTH, PANEL_HEIGHT, 0.02)
   ctx.fillStyle = PALETTE.background
@@ -140,35 +141,35 @@ export function drawStep(
 
   if (step == null) return
 
-  // Por cuál se va, que es lo que dice cuánto queda.
+  // Which one it is on, which is what says how much is left.
   drawText(ctx, `${TUTORIAL_STEPS.indexOf(step) + 1}/${TUTORIAL_STEPS.length}`, 0, PANEL_HEIGHT / 2 - 0.05, {
     size: TUTORIAL_TEXT.counter,
     color: DIM_COLOR,
   })
 
-  // En párrafo y no en una línea: encogida hasta caber de una, la frase quedaba en letra
-  // de dos centímetros y con el visor puesto no se entendía nada.
+  // In a paragraph and not on one line: shrunk until it fitted on one, the phrase ended up in
+  // two-centimetre letters and with the headset on nothing could be understood.
   //
-  // **Anclado por arriba**, no centrado: centrado, la frase que pasa de dos líneas a tres
-  // crece hacia arriba y se mete debajo del contador. El español las tiene casi siempre.
-  const reparto = stepLayout(ctx, step, frases, t)
-  drawParagraph(ctx, t(frases[step]), 0, reparto.phraseTop, {
-    ...FRASE,
+  // **Anchored at the top**, not centred: centred, the phrase that goes from two lines to three
+  // grows upwards and slides under the counter. Spanish has them almost always.
+  const layout = stepLayout(ctx, step, phrases, t)
+  drawParagraph(ctx, t(phrases[step]), 0, layout.phraseTop, {
+    ...PHRASE,
     color: PALETTE.foreground,
     weight: '600',
     anchor: 'top',
   })
 
-  drawController(ctx, 0, reparto.controller, TUTORIAL_BUTTONS[step], {
+  drawController(ctx, 0, layout.controller, TUTORIAL_BUTTONS[step], {
     body: DIM_COLOR,
     highlight: PALETTE.foreground,
   })
 
-  for (const boton of BOTONES) {
-    roundedRect(ctx, boton.x, BUTTON.y, BUTTON.width, BUTTON.height, 0.016)
+  for (const button of PANEL_BUTTONS) {
+    roundedRect(ctx, button.x, BUTTON.y, BUTTON.width, BUTTON.height, 0.016)
     ctx.fillStyle = DIM_COLOR
     ctx.fill()
-    drawText(ctx, t(boton.text), boton.x, BUTTON.y, {
+    drawText(ctx, t(button.text), button.x, BUTTON.y, {
       size: TUTORIAL_TEXT.button,
       color: PALETTE.background,
       weight: '700',
@@ -181,104 +182,105 @@ export function XRTutorial({
   position = POSITION,
   rotation = ROTATION,
 }: {
-  /** Dónde lo pone el juego. Sin esto se coloca solo, donde nació (ver `POSITION`). */
+  /** Where the game puts it. Without this it places itself, where it was born (see `POSITION`). */
   position?: [number, number, number]
-  /** Como el `rotation` de three: con el orden, si no es `'XYZ'`. */
+  /** Like three's `rotation`: with the order, if it is not `'XYZ'`. */
   rotation?: [number, number, number] | [number, number, number, 'YXZ']
 } = {}) {
-  const { gameState, gameMode, milestones: hitos, setTutorialRunning, setLearning: setAprendiendo, finishLesson: acabarLaLeccion, inChallenge: enReto } = useGame()
+  const { gameState, gameMode, milestones: reachedMilestones, setTutorialRunning, setLearning: setTeaching, finishLesson: endLesson, inChallenge: isChallenge } = useGame()
   const t = translator(useLang())
-  const frases = useGrabMode() === 'toggle' ? PHRASES_WITH_ONE_TAP : FRASES
-  const enSesion = useXR((state) => state.mode != null)
+  const phrases = useGrabMode() === 'toggle' ? PHRASES_WITH_ONE_TAP : PHRASES
+  const inSession = useXR((state) => state.mode != null)
 
-  // Se decide una sola vez al montar: leerlo en cada render lo apagaría a mitad, en cuanto se
-  // marca como visto.
-  const [pendiente] = useState(() => !tutorialSeen())
-  /** Cuántos pasos se ha saltado con el botón. Lo único que este panel recuerda. */
-  const [saltados, setSaltados] = useState(0)
-  // Apuntado y pulsado, que es lo que el botón tiene que contestar (`buttonHighlight.tsx`).
+  // It is decided only once on mount: reading it on every render would switch it off halfway,
+  // as soon as it is marked as seen.
+  const [pending] = useState(() => !tutorialSeen())
+  /** How many steps have been skipped with the button. The only thing this panel remembers. */
+  const [skipped, setSkipped] = useState(0)
+  // Pointed at and pressed, which is what the button has to answer (`buttonHighlight.tsx`).
   const { stateOf, handlersFor } = useButtonFeedback()
 
-  // **El paso se calcula, no se guarda.** Sale de lo que ya ha hecho quien juega (`hitos`) y
-  // de lo que se haya saltado a botón: un tutorial que llevara su propia cuenta acabaría
-  // discrepando de la partida, y aquí lo que manda es la partida.
-  const step = tutorialStep(hitos, saltados)
-  // **En el reto del salón no hay tutorial**: es la misma partida para todos, y la
-  // demostración retrasa el saque solo a quien no lo ha hecho. **Ni en el duelo**: las dos
-  // partidas tienen que ser iguales, y el tutorial solo le saldría a quien no lo ha hecho.
-  const activo = enSesion && pendiente && gameState === 'playing' && step !== null && !enReto && gameMode !== 'duel'
+  // **The step is calculated, not stored.** It comes from what whoever is playing has already
+  // done (`milestones`) and from whatever has been skipped by button: a tutorial that kept its
+  // own count would end up disagreeing with the match, and here the match is what rules.
+  const step = tutorialStep(reachedMilestones, skipped)
+  // **In the hall's challenge there is no tutorial**: it is the same match for everyone, and
+  // the demonstration delays the serve only for whoever has not done it. **Nor in the duel**:
+  // the two matches have to be equal, and the tutorial would only come up for whoever has not
+  // done it.
+  const active = inSession && pending && gameState === 'playing' && step !== null && !isChallenge && gameMode !== 'duel'
 
-  // Mientras se enseña, en el reto no cuenta lo que mete la máquina (`aprendiendo`).
+  // While it is being taught, in the challenge what the machine scores does not count (`learning`).
   useEffect(() => {
-    setAprendiendo(activo)
-  }, [activo, setAprendiendo])
-  useEffect(() => () => setAprendiendo(false), [setAprendiendo])
+    setTeaching(active)
+  }, [active, setTeaching])
+  useEffect(() => () => setTeaching(false), [setTeaching])
 
-  // Y al cerrarse con la partida en marcha —por sus pasos, por «Siguiente» o por «Saltar»—, el
-  // reto empieza desde cero y el cartel avisa de que ahora cuenta (`acabarLaLeccion`). Que se
-  // acabe la partida o se salga del visor no es cerrarlo.
-  const ensenaba = useRef(false)
+  // And when it closes with the match under way —through its steps, through «Siguiente» or
+  // through «Saltar»—, the challenge starts from zero and the sign announces that now it counts
+  // (`finishLesson`). The match ending or leaving the headset is not closing it.
+  const wasTeaching = useRef(false)
   useEffect(() => {
-    if (activo) {
-      ensenaba.current = true
+    if (active) {
+      wasTeaching.current = true
       return
     }
-    if (ensenaba.current && step === null && gameState === 'playing') acabarLaLeccion()
-    ensenaba.current = false
-  }, [activo, step, gameState, acabarLaLeccion])
+    if (wasTeaching.current && step === null && gameState === 'playing') endLesson()
+    wasTeaching.current = false
+  }, [active, step, gameState, endLesson])
 
-  const siguiente = useCallback(() => setSaltados((n) => n + 1), [])
-  const saltar = useCallback(() => setSaltados(TUTORIAL_STEPS.length), [])
+  const next = useCallback(() => setSkipped((n) => n + 1), [])
+  const skip = useCallback(() => setSkipped(TUTORIAL_STEPS.length), [])
 
-  // Marcar que ya se ha visto **sí** es un efecto: escribe fuera de React y no toca estado.
+  // Marking that it has been seen **is** an effect: it writes outside React and touches no state.
   useEffect(() => {
-    if (step === null && pendiente) markTutorialSeen()
-  }, [step, pendiente])
+    if (step === null && pending) markTutorialSeen()
+  }, [step, pending])
 
-  // **El juego no espera.** Antes se paraba para explicar; ahora la explicación es jugar.
+  // **The game does not wait.** Before, it stopped to explain; now the explanation is playing.
   useEffect(() => {
     setTutorialRunning(false)
     return () => setTutorialRunning(false)
   }, [setTutorialRunning])
 
   const draw = useCallback(
-    (ctx: CanvasRenderingContext2D) => drawStep(ctx, step, frases, t),
-    [step, frases, t],
+    (ctx: CanvasRenderingContext2D) => drawStep(ctx, step, phrases, t),
+    [step, phrases, t],
   )
 
-  if (!activo) return null
+  if (!active) return null
 
   return (
     <>
-      {/* Fuera del grupo del panel a propósito: esto no vive en el panel, vive en la mano.
-          Se coloca solo, deshaciendo lo que le pongan sus padres. En las dos manos porque
-          aquí vale cualquiera de ellas: encender solo una sería decir que la otra no sirve. */}
+      {/* Outside the panel's group on purpose: this does not live on the panel, it lives in the
+          hand. It places itself, undoing whatever its parents put on it. On both hands because
+          here either of them will do: lighting only one would be saying the other is no use. */}
       <RealController hand="left" button={TUTORIAL_BUTTONS[step]} />
       <RealController hand="right" button={TUTORIAL_BUTTONS[step]} />
       <group position={position} rotation={rotation}>
         <CanvasPanel width={PANEL_WIDTH} height={PANEL_HEIGHT} draw={draw} fallbackColor={PALETTE.background} />
-        {BOTONES.map((boton) => (
-          <group key={boton.id} position={[boton.x, BUTTON.y, 0.002]}>
+        {PANEL_BUTTONS.map((button) => (
+          <group key={button.id} position={[button.x, BUTTON.y, 0.002]}>
             <mesh
-              onClick={boton.id === 'next' ? siguiente : saltar}
-              {...handlersFor(boton.id)}
+              onClick={button.id === 'next' ? next : skip}
+              {...handlersFor(button.id)}
             >
               <planeGeometry args={[BUTTON.width, BUTTON.height]} />
               <meshBasicMaterial transparent opacity={0} depthWrite={false} />
             </mesh>
-            {/* **Encenderse al apuntar es lo que dice que el botón responde.** El resto de
-                paneles del juego ya lo hacen y estos no, así que con el visor puesto el
-                tutorial parecía un cartel: «los botones no se marcan cuando se apuntan». */}
+            {/* **Lighting up when pointed at is what says the button responds.** The rest of
+                the game's panels already do it and these did not, so with the headset on the
+                tutorial looked like a sign: «the buttons are not marked when pointed at». */}
             <ButtonHighlight
               width={BUTTON.width}
               height={BUTTON.height}
-              state={stateOf(boton.id)}
+              state={stateOf(button.id)}
               glow={COMMON_PALETTE.accent}
               ink={PALETTE.background}
             />
           </group>
         ))}
-        {/* El panel no se puede pulsar entero: solo sus botones. */}
+        {/* The panel cannot be pressed as a whole: only its buttons. */}
         <mesh position={[0, 0, -0.001]} raycast={NO_RAYCAST}>
           <planeGeometry args={[PANEL_WIDTH, PANEL_HEIGHT]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />

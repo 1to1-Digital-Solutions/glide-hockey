@@ -1,22 +1,23 @@
 /**
- * El confort del golpe recibido: el único ajuste de la interfaz que es de Glide Hockey. El idioma y
- * los volúmenes del salón los lee el kit (`@kit/runtime/settings`).
+ * The comfort of the hit taken: the only setting of the interface that belongs to Glide Hockey. The
+ * language and the hall's volumes are read by the kit (`@kit/runtime/settings`).
  *
- * **El confort sí se elige aquí**, en la fila de arriba del menú, como en el menú del visor de la
- * web: es con el visor puesto cuando se sabe si marea. Se guarda con la misma clave y el mismo
- * formato que la web (`lib/confort.ts`, que no entra en el motor porque es un hook de React).
+ * **The comfort is chosen here**, in the top row of the menu, as in the web's headset menu: it is
+ * with the headset on that one knows whether it makes one dizzy. It is stored with the same key and
+ * the same format as the web (`lib/comfort.ts`, which does not go into the engine because it is a
+ * React hook).
  */
 import { writeComfort, readComfort, type Comfort } from '@/lib/hitFeedback'
 import { gameStorage } from '@/lib/storage'
 
-/** La clave del confort del golpe recibido: la de la web (`CONFORT_KEY` de `lib/confort.ts`). */
-export const CLAVE_DEL_CONFORT = 'glide-hockey:confort'
+/** The key of the comfort of the hit taken: the web's (`COMFORT_KEY` of `lib/comfort.ts`). */
+export const COMFORT_KEY = 'glide-hockey:confort'
 
-/** Cuánto se nota un gol en contra: apagado, suave o normal. */
-export function confort(): Comfort {
-  return readComfort(gameStorage(), CLAVE_DEL_CONFORT)
+/** How much a goal against is felt: off, gentle or normal. */
+export function currentComfort(): Comfort {
+  return readComfort(gameStorage(), COMFORT_KEY)
 }
 
-export function elegirConfort(valor: Comfort): void {
-  writeComfort(gameStorage(), CLAVE_DEL_CONFORT, valor)
+export function chooseComfort(value: Comfort): void {
+  writeComfort(gameStorage(), COMFORT_KEY, value)
 }

@@ -2,38 +2,39 @@ import type { Player } from './duel'
 import { createStoredPreference } from './storage'
 
 /**
- * Cuántos duelos ha ganado cada uno, guardado en el navegador.
+ * How many duels each one has won, stored in the browser.
  *
- * Jugar contra alguien es el momento más memorable de una sesión, y un duelo que se cierra y se
- * borra no deja nada: lo que cuenta entre dos es quién gana, y se apunta. Es lo mismo que hacen
- * minigolf y table-tennis, con el mismo formato.
+ * Playing against someone is the most memorable moment of a session, and a duel that closes and
+ * is erased leaves nothing: what counts between two is who wins, and it is recorded. It is the
+ * same thing minigolf and table-tennis do, with the same format.
  *
- * El récord no lo toca a propósito: los goles de un duelo son de dos personas y no dicen nada de
- * la marca de ninguna. Y esto no viaja al salón: el salón enseña la mejor marca de una persona, y
- * esto es de la pareja que esté delante. Tampoco identifica a nadie: son tres números.
+ * It does not touch the record on purpose: the goals of a duel belong to two people and say
+ * nothing about the best of either. And this does not travel to the hall: the hall shows one
+ * person's best, and this belongs to the pair standing there. Nor does it identify anyone: it is
+ * three numbers.
  *
- * Sin React, para que el port de Godot lo guarde con estas mismas funciones; lo que la web pinta
- * suscrito vive en `useDuelTally.ts`.
+ * Without React, so that the Godot port stores it with these same functions; what the web draws
+ * subscribed lives in `useDuelTally.ts`.
  */
 
-/** Los duelos ganados por cada uno, en orden de jugador, y los empatados. */
+/** The duels won by each one, in player order, and the tied ones. */
 export interface DuelTally {
   readonly wins: readonly [number, number]
   readonly ties: number
 }
 
-/** Dónde se recuerda. Con prefijo, como los récords, para no chocar con nada. */
+/** Where it is remembered. With a prefix, like the records, so as not to clash with anything. */
 export const DUEL_TALLY_KEY = 'glide-hockey:duel-tally'
 
 const EMPTY: DuelTally = { wins: [0, 0], ties: 0 }
 
-/** Un contador entero y no negativo, o cero: es entrada externa. */
+/** A whole, non-negative counter, or zero: it is external input. */
 function count(value: unknown): number {
   const number = Number(value)
   return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0
 }
 
-/** Interpreta lo leído del almacenamiento. */
+/** Parses what was read from storage. */
 export function parseDuelTally(raw: string | null): DuelTally {
   if (raw == null) return EMPTY
   try {
@@ -41,63 +42,63 @@ export function parseDuelTally(raw: string | null): DuelTally {
     const wins = Array.isArray(value?.wins) ? value.wins : []
     return { wins: [count(wins[0]), count(wins[1])], ties: count(value?.ties) }
   } catch {
-    // Lo escribió otra versión, o alguien a mano desde las herramientas del navegador.
+    // Another version wrote it, or someone by hand from the browser tools.
     return EMPTY
   }
 }
 
 /**
- * El marcador, guardado como el texto que se escribió.
+ * The tally, stored as the text that was written.
  *
- * Se guarda **el texto y no el objeto** a propósito: `createStoredPreference` vuelve a leer y
- * a interpretar en cada lectura, y `useSyncExternalStore` compara dos lecturas seguidas con
- * `Object.is`. Un objeto nuevo cada vez dejaría a React repintando sin parar; un texto no.
+ * **The text and not the object** is stored on purpose: `createStoredPreference` reads and
+ * parses again on every read, and `useSyncExternalStore` compares two reads in a row with
+ * `Object.is`. A new object every time would leave React repainting non-stop; a text would not.
  */
-const guardado = createStoredPreference<string>({
+const stored = createStoredPreference<string>({
   key: DUEL_TALLY_KEY,
   parse: (raw) => raw ?? '',
   serialize: (value) => value,
 })
 
 /**
- * El marcador tal y como está guardado, para quien se suscribe a él (`useDuelTally.ts`): el texto
- * y no el objeto, por lo que se cuenta arriba.
+ * The tally just as it is stored, for whoever subscribes to it (`useDuelTally.ts`): the text and
+ * not the object, for the reason given above.
  */
 export const storedTally = {
-  subscribe: guardado.subscribe,
-  get: guardado.get,
-  getServer: guardado.getServer,
+  subscribe: stored.subscribe,
+  get: stored.get,
+  getServer: stored.getServer,
 }
 
-/** Interpreta el texto guardado: vacío es que todavía no hay nada apuntado. */
-export function tallyFromText(texto: string): DuelTally {
-  return parseDuelTally(texto === '' ? null : texto)
+/** Parses the stored text: empty means nothing has been recorded yet. */
+export function tallyFromText(text: string): DuelTally {
+  return parseDuelTally(text === '' ? null : text)
 }
 
-/** Lo que llevan ahora mismo, sin suscribirse a nada. */
+/** What they have right now, without subscribing to anything. */
 export function getDuelTally(): DuelTally {
-  return tallyFromText(guardado.get())
+  return tallyFromText(stored.get())
 }
 
 /**
- * Apunta cómo acabó un duelo: quién lo ganó, o `null` si fue empate.
+ * Records how a duel ended: who won it, or `null` if it was a tie.
  *
- * No devuelve nada: quien lo mire está suscrito (`useDuelTally`) y se entera solo. Devolver
- * el marcador invitaría a guardarlo en estado de React, y entonces habría dos copias de lo
- * mismo que pueden discrepar.
+ * It returns nothing: whoever looks at it is subscribed (`useDuelTally`) and finds out on their
+ * own. Returning the tally would invite storing it in React state, and then there would be two
+ * copies of the same thing that can disagree.
  */
 export function saveDuelResult(winner: Player | null): void {
-  const antes = getDuelTally()
+  const before = getDuelTally()
   const tally: DuelTally =
     winner == null
-      ? { wins: antes.wins, ties: antes.ties + 1 }
+      ? { wins: before.wins, ties: before.ties + 1 }
       : {
           wins:
             winner === 0
-              ? [antes.wins[0] + 1, antes.wins[1]]
-              : [antes.wins[0], antes.wins[1] + 1],
-          ties: antes.ties,
+              ? [before.wins[0] + 1, before.wins[1]]
+              : [before.wins[0], before.wins[1] + 1],
+          ties: before.ties,
         }
 
-  guardado.save(JSON.stringify(tally))
+  stored.save(JSON.stringify(tally))
 }

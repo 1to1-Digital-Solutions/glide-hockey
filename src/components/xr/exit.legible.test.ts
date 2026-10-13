@@ -21,63 +21,64 @@ import {
 } from '../game/GameWorld'
 
 /**
- * El aviso de dejar la partida, medido en vez de mirado, en los dos idiomas y desde donde se
- * juega: en el sitio del menú (`XR_UI.panel`), girado como él y a tres alturas de ojos.
+ * The notice about leaving the match, measured instead of looked at, in both languages and from
+ * where the game is played: at the menu's place (`XR_UI.panel`), rotated like it and at three
+ * eye heights.
  */
 
-const IDIOMAS = ['en', 'es'] as const
-const VISTAS = panelViews(XR_UI.panel, XR_UI_ROTATION.panel)
+const LANGUAGES = ['en', 'es'] as const
+const VIEWS = panelViews(XR_UI.panel, XR_UI_ROTATION.panel)
 
-function medir(lang: (typeof IDIOMAS)[number]): DrawnText[] {
-  const { ctx, drawnTexts: escritos } = recordingCanvas()
+function measure(lang: (typeof LANGUAGES)[number]): DrawnText[] {
+  const { ctx, drawnTexts: texts } = recordingCanvas()
   drawExitNotice(ctx, translator(lang))
-  return escritos
+  return texts
 }
 
-describe('el aviso de dejar la partida', () => {
-  it('se lee en los dos idiomas', () => {
-    for (const lang of IDIOMAS) {
-      const escritos = atColumnScale(medir(lang))
-      expect(escritos.length, 'no se ha medido nada').toBeGreaterThan(0)
+describe('the notice about leaving the match', () => {
+  it('reads in both languages', () => {
+    for (const lang of LANGUAGES) {
+      const texts = atColumnScale(measure(lang))
+      expect(texts.length, 'nothing was measured').toBeGreaterThan(0)
       const panel = { width: CONFIRM_SIZE[0] * COLUMN_SCALE, height: CONFIRM_SIZE[1] * COLUMN_SCALE }
-      const distancia = Math.max(...VISTAS.map(({ pose, eyes: ojos }) => worstReadingDistance(escritos, pose, ojos, LINE_HEIGHT)))
-      expect(legibilityProblems(escritos, { panel, distance: distancia }), lang).toEqual([])
+      const readingDistance = Math.max(...VIEWS.map(({ pose, eyes: eyePoint }) => worstReadingDistance(texts, pose, eyePoint, LINE_HEIGHT)))
+      expect(legibilityProblems(texts, { panel, distance: readingDistance }), lang).toEqual([])
     }
   })
 })
 
-describe('cada letra del aviso se lee de un vistazo', () => {
-  it(`ninguna baja de ${MIN_READING_DEGREES}°, en los dos idiomas y a cualquier altura de ojos`, () => {
-    for (const lang of IDIOMAS) {
-      for (const vista of VISTAS) {
-        expect(unreadableTexts(atColumnScale(medir(lang)), vista.pose, vista.eyes, LINE_HEIGHT), `${lang}, ${vista.where}`).toEqual([])
+describe('every letter of the notice reads at a glance', () => {
+  it(`none drops below ${MIN_READING_DEGREES}°, in both languages and at any eye height`, () => {
+    for (const lang of LANGUAGES) {
+      for (const view of VIEWS) {
+        expect(unreadableTexts(atColumnScale(measure(lang)), view.pose, view.eyes, LINE_HEIGHT), `${lang}, ${view.where}`).toEqual([])
       }
     }
   })
 
-  it('y todas se escriben con un tamaño de la lista, sin encogerse', () => {
-    // «Back to the menu» no cabía en su botón y se encogía a 25 mm.
-    for (const lang of IDIOMAS) {
-      expect(sizesOffList(medir(lang), LINE_HEIGHT, Object.values(CONFIRM_TEXT)), lang).toEqual([])
+  it('and all of them are written at a size from the list, without shrinking', () => {
+    // «Back to the menu» did not fit in its button and shrank to 25 mm.
+    for (const lang of LANGUAGES) {
+      expect(sizesOffList(measure(lang), LINE_HEIGHT, Object.values(CONFIRM_TEXT)), lang).toEqual([])
     }
   })
 
-  it('y la pregunta no se mete en los botones, ni la etiqueta de uno en otro', () => {
-    const botones = Object.values(CONFIRM_BOXES).map(({ position, size }) => ({
+  it('and the question does not get into the buttons, nor the label of one into another', () => {
+    const buttons = Object.values(CONFIRM_BOXES).map(({ position, size }) => ({
       x: position[0],
       y: position[1],
       width: size[0],
       height: size[1],
     }))
-    for (const lang of IDIOMAS) {
-      expect(textsOnButtons(medir(lang), botones), lang).toEqual([])
+    for (const lang of LANGUAGES) {
+      expect(textsOnButtons(measure(lang), buttons), lang).toEqual([])
     }
   })
 
-  it('el control: «Back to the menu» encogida y con el panel a 1,45 m no llegaba', () => {
-    const volver = medir('en').find((e) => e.text === 'Back to the menu')!
+  it('the control: «Back to the menu» shrunk and with the panel at 1.45 m did not make it', () => {
+    const back = measure('en').find((e) => e.text === 'Back to the menu')!
     const [x, y] = fromPlayerSpace([0, 0.52, -0.25])
-    const comoEstaba = { position: [x, y, -1.45] as const, rotation: [-0.2, 0, 0] as const }
-    expect(unreadableTexts([{ ...volver, height: 0.0252 * LINE_HEIGHT }], comoEstaba, eyesAt(1.6), LINE_HEIGHT)).toHaveLength(1)
+    const asItWas = { position: [x, y, -1.45] as const, rotation: [-0.2, 0, 0] as const }
+    expect(unreadableTexts([{ ...back, height: 0.0252 * LINE_HEIGHT }], asItWas, eyesAt(1.6), LINE_HEIGHT)).toHaveLength(1)
   })
 })

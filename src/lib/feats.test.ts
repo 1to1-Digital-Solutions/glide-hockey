@@ -17,65 +17,65 @@ import { advanceTable, startTable, type TableState } from './matchLoop'
 import { gameStorage } from './storage'
 
 /**
- * Las hazañas de Glide Hockey: cada una se provoca desde la lógica y otra jugada la roza sin
- * llegar; lo conseguido se guarda y no se vuelve a contar. Sin `vi` ni el navegador: corre también
- * en el motor de Godot, con su guardado.
+ * The feats of Glide Hockey: each one is triggered from the logic and another possession comes
+ * close without getting there; what is achieved is stored and is not told again. Without `vi` or
+ * the browser: it also runs in the Godot engine, with its save.
  */
 
 beforeEach(() => gameStorage()?.clear())
 
-/** Una jugada contada toque a toque: quién y con el disco dónde. */
-function jugada(...toques: ['player' | 'opponent', number][]): Possession {
-  return toques.reduce((antes, [quien, z]) => touch(antes, quien, z), NEW_POSSESSION)
+/** A possession told touch by touch: who and with the puck where. */
+function played(...touches: ['player' | 'opponent', number][]): Possession {
+  return touches.reduce((before, [who, z]) => touch(before, who, z), NEW_POSSESSION)
 }
 
-describe('ganar sin encajar (GH_SHUTOUT)', () => {
-  it('un partido ganado sin un gol en contra', () => {
-    expect(matchFeats({ won: true, conceded: 0, sinFin: false })).toEqual(['GH_SHUTOUT'])
+describe('winning without conceding (GH_SHUTOUT)', () => {
+  it('a match won without a goal against', () => {
+    expect(matchFeats({ won: true, conceded: 0, endless: false })).toEqual(['GH_SHUTOUT'])
   })
 
-  it('con uno encajado no, ni perdiendo, ni en la partida sin fin que se cierra a voluntad', () => {
-    expect(matchFeats({ won: true, conceded: 1, sinFin: false })).toEqual([])
-    expect(matchFeats({ won: false, conceded: 0, sinFin: false })).toEqual([])
-    expect(matchFeats({ won: true, conceded: 0, sinFin: true })).toEqual([])
+  it('not with one conceded, nor losing, nor in the endless match that is closed at will', () => {
+    expect(matchFeats({ won: true, conceded: 1, endless: false })).toEqual([])
+    expect(matchFeats({ won: false, conceded: 0, endless: false })).toEqual([])
+    expect(matchFeats({ won: true, conceded: 0, endless: true })).toEqual([])
   })
 })
 
-describe('un solo toque desde el fondo (GH_LONG_SHOT)', () => {
-  it('un toque con el disco en el fondo del campo propio y gol, sin que nadie más lo toque', () => {
-    expect(goalFeat(jugada(['opponent', -0.5], ['player', BACK_OF_OWN_HALF]), 'player')).toBe('GH_LONG_SHOT')
+describe('a single touch from the back (GH_LONG_SHOT)', () => {
+  it('one touch with the puck at the back of their own half and a goal, with nobody else touching it', () => {
+    expect(goalFeat(played(['opponent', -0.5], ['player', BACK_OF_OWN_HALF]), 'player')).toBe('GH_LONG_SHOT')
   })
 
-  it('casi: desde un poco más adelante, con dos toques, o desviado por la máquina', () => {
-    expect(goalFeat(jugada(['player', BACK_OF_OWN_HALF - 0.01]), 'player')).toBeNull()
-    expect(goalFeat(jugada(['player', 0.8], ['player', 0.6]), 'player')).toBeNull()
-    expect(goalFeat(jugada(['player', 0.8], ['opponent', -0.3]), 'player')).toBeNull()
+  it('almost: from a bit further forward, with two touches, or deflected by the machine', () => {
+    expect(goalFeat(played(['player', BACK_OF_OWN_HALF - 0.01]), 'player')).toBeNull()
+    expect(goalFeat(played(['player', 0.8], ['player', 0.6]), 'player')).toBeNull()
+    expect(goalFeat(played(['player', 0.8], ['opponent', -0.3]), 'player')).toBeNull()
   })
 
-  it('un gol sin que el jugador toque el disco no es suyo de ningún modo', () => {
+  it('a goal without the player touching the puck is not theirs in any way', () => {
     expect(goalFeat(NEW_POSSESSION, 'player')).toBeNull()
   })
 })
 
-describe('marcar en propia puerta (GH_OWN_GOAL)', () => {
-  it('el gol en contra con el último toque del jugador', () => {
-    expect(goalFeat(jugada(['opponent', -0.4], ['player', 0.3]), 'opponent')).toBe('GH_OWN_GOAL')
+describe('scoring an own goal (GH_OWN_GOAL)', () => {
+  it('the goal against with the last touch by the player', () => {
+    expect(goalFeat(played(['opponent', -0.4], ['player', 0.3]), 'opponent')).toBe('GH_OWN_GOAL')
   })
 
-  it('casi: el último toque fue de la máquina', () => {
-    expect(goalFeat(jugada(['player', 0.3], ['opponent', -0.4]), 'opponent')).toBeNull()
+  it('almost: the last touch was by the machine', () => {
+    expect(goalFeat(played(['player', 0.3], ['opponent', -0.4]), 'opponent')).toBeNull()
   })
 
-  it('sale de la mesa: el disco que el propio mazo mete en su portería', () => {
+  it('it comes out of the table: the puck that their own mallet puts into their goal', () => {
     const skill = OPPONENT_SKILLS.easy
     let table: TableState = {
       ...startTable({ skill, lastScorer: null }),
       puck: { position: { x: 0, z: 0.7 }, velocity: { x: 0, z: 0 } },
       player: { position: { x: 0, z: 0.5 }, velocity: { x: 0, z: 0 } },
     }
-    const hazanas: string[] = []
-    const goles: string[] = []
-    // La mano empuja hacia su propia portería a 3 m/s, fotograma a fotograma.
+    const feats: string[] = []
+    const goals: string[] = []
+    // The hand pushes towards its own goal at 3 m/s, frame by frame.
     for (let i = 1; i <= 40; i++) {
       const frame = advanceTable(table, {
         delta: 1 / 60,
@@ -85,18 +85,18 @@ describe('marcar en propia puerta (GH_OWN_GOAL)', () => {
         playing: true,
       })
       table = frame.table
-      hazanas.push(...frame.feats)
-      goles.push(...frame.goals)
+      feats.push(...frame.feats)
+      goals.push(...frame.goals)
     }
-    expect(goles).toEqual(['opponent'])
-    expect(hazanas).toEqual(['GH_OWN_GOAL'])
-    // Y la jugada siguiente empieza de cero.
+    expect(goals).toEqual(['opponent'])
+    expect(feats).toEqual(['GH_OWN_GOAL'])
+    // And the next possession starts from zero.
     expect(table.possession).toEqual(NEW_POSSESSION)
   })
 })
 
-describe('lo que se guarda y lo que se cuenta al salón', () => {
-  it('la primera vez se estrena y se guarda; la segunda ya no se cuenta', () => {
+describe('what is stored and what is told to the hall', () => {
+  it('the first time it is earned and stored; the second time it is no longer told', () => {
     expect(earnFeats(['GH_OWN_GOAL', 'GH_SHUTOUT'])).toEqual(['GH_SHUTOUT', 'GH_OWN_GOAL'])
     expect(gameStorage()?.getItem(FEATS_KEY)).toBe('GH_SHUTOUT,GH_OWN_GOAL')
     expect(earnFeats(['GH_SHUTOUT'])).toEqual([])
@@ -104,19 +104,19 @@ describe('lo que se guarda y lo que se cuenta al salón', () => {
     expect(storedFeats()).toEqual(['GH_SHUTOUT', 'GH_LONG_SHOT', 'GH_OWN_GOAL'])
   })
 
-  it('sin nada nuevo no escribe', () => {
+  it('with nothing new it does not write', () => {
     expect(earnFeats([])).toEqual([])
     expect(gameStorage()?.getItem(FEATS_KEY)).toBeNull()
   })
 
-  it('lo guardado es entrada externa: lo que no es una hazaña del juego se ignora', () => {
+  it('what is stored is external input: whatever is not a feat of the game is ignored', () => {
     expect(readFeats(null)).toEqual([])
-    expect(readFeats('GH_OWN_GOAL,xx,GH_OWN_GOAL,AX_ALGO')).toEqual(['GH_OWN_GOAL'])
+    expect(readFeats('GH_OWN_GOAL,xx,GH_OWN_GOAL,AX_SOMETHING')).toEqual(['GH_OWN_GOAL'])
   })
 
-  it('el resultado solo lleva el campo cuando se estrena alguna', () => {
-    const resultado = { mode: 'practice', points: 300, challenge: false }
-    expect(withFeats(resultado, [])).toEqual(resultado)
-    expect(withFeats(resultado, ['GH_SHUTOUT'])).toEqual({ ...resultado, feats: ['GH_SHUTOUT'] })
+  it('the result only carries the field when one is earned for the first time', () => {
+    const result = { mode: 'practice', points: 300, challenge: false }
+    expect(withFeats(result, [])).toEqual(result)
+    expect(withFeats(result, ['GH_SHUTOUT'])).toEqual({ ...result, feats: ['GH_SHUTOUT'] })
   })
 })

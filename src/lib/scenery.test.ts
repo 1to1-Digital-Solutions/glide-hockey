@@ -4,30 +4,30 @@ import { SCENERIES, readScenery } from './settings'
 import { OWN_SCENERY_KEY, SCENERY_HINTS, SCENERY_LABELS, forgetOwnScenery } from './scenery'
 
 /**
- * Cómo se ofrece el escenario del arcade en este juego.
+ * How the hall's scenery is offered in this game.
  *
- * La preferencia y la regla del decorado se prueban con el puente (`ajustes.test.ts` y
- * `ajustesCliente.test.tsx`). Lo que queda aquí es lo que es de glide-hockey: que la clave propia
- * del juego no mande y desaparezca.
+ * The preference and the rule of the backdrop are tested with the bridge (`settings.test.ts` and
+ * `settingsClient.test.tsx`). What is left here is what belongs to glide-hockey: that the game's
+ * own key does not rule and goes away.
  */
 
 afterEach(() => {
   window.localStorage.clear()
 })
 
-describe('la clave propia del juego', () => {
-  it('es la del juego, escrita a mano', () => {
-    // Si se apartara, se quedaría sin borrar la de verdad y se borraría una que no existe.
+describe('the game\'s own key', () => {
+  it('is the game\'s, written by hand', () => {
+    // If it drifted, the real one would be left undeleted and one that does not exist would be deleted.
     expect(OWN_SCENERY_KEY).toBe('glide-hockey:scenery')
   })
 
-  it('no manda: con ella a «habitación» y la del arcade sin poner, se ve la sala', () => {
+  it('does not rule: with it set to «your room» and the hall\'s one unset, the arcade room is seen', () => {
     window.localStorage.setItem(OWN_SCENERY_KEY, 'room')
 
     expect(readScenery(window.localStorage)).toBe('place')
   })
 
-  it('se borra sin trasladarla a la del arcade', () => {
+  it('is deleted without moving it to the hall\'s one', () => {
     window.localStorage.setItem(OWN_SCENERY_KEY, 'room')
 
     forgetOwnScenery(window.localStorage)
@@ -36,7 +36,7 @@ describe('la clave propia del juego', () => {
     expect(window.localStorage.getItem('xrcade:scenery')).toBeNull()
   })
 
-  it('no toca lo que se eligió en el salón', () => {
+  it('does not touch what was chosen in the hall', () => {
     window.localStorage.setItem(OWN_SCENERY_KEY, 'place')
     window.localStorage.setItem('xrcade:scenery', 'room')
 
@@ -45,29 +45,29 @@ describe('la clave propia del juego', () => {
     expect(readScenery(window.localStorage)).toBe('room')
   })
 
-  it('sin almacenamiento, o con uno que lanza, no revienta', () => {
-    const roto = {
+  it('without storage, or with one that throws, it does not blow up', () => {
+    const broken = {
       removeItem() {
-        throw new Error('almacenamiento capado')
+        throw new Error('storage blocked')
       },
     }
 
     expect(() => forgetOwnScenery(null)).not.toThrow()
-    expect(() => forgetOwnScenery(roto)).not.toThrow()
+    expect(() => forgetOwnScenery(broken)).not.toThrow()
   })
 })
 
-describe('cómo se ofrece', () => {
-  it('los dos sitios tienen nombre y explicación', () => {
+describe('how it is offered', () => {
+  it('both places have a name and an explanation', () => {
     for (const scenery of SCENERIES) {
       expect(SCENERY_LABELS[scenery]).not.toBe('')
       expect(SCENERY_HINTS[scenery]).not.toBe('')
     }
   })
 
-  it('avisa de que la habitación solo se ve con el visor', () => {
-    // En el navegador la opción está y no hace nada: sin decirlo, se lee como
-    // que el juego está roto.
+  it('warns that your own room is only seen with the headset', () => {
+    // In the browser the option is there and does nothing: without saying so, it
+    // reads as the game being broken.
     expect(SCENERY_HINTS.room).toMatch(/[Hh]eadset/)
   })
 })

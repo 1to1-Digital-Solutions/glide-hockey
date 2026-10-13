@@ -2,9 +2,9 @@
 @import "../game/styles.css";
 
 /*
- * Estilos de la página que envuelve al juego. Lo que es del juego —sus colores,
- * su tipografía y las animaciones de sus pantallas— vive en `game/styles.css`,
- * que es lo que se lleva consigo al montarse dentro de otra aplicación.
+ * Styles of the page that wraps the game. What belongs to the game —its colours,
+ * its typography and the animations of its screens— lives in `game/styles.css`,
+ * which is what it takes with it when it is mounted inside another application.
  */
 
 html,
@@ -13,8 +13,8 @@ body {
 }
 
 body {
-  /* Los colores no están aquí: el fondo y el texto de la página los pone el
-     layout desde `lib/palette.ts`, para que no se desvíen de los del juego. */
+  /* The colours are not here: the page's background and text are set by the
+     layout from `lib/palette.ts`, so that they do not drift from the game's. */
   margin: 0;
   overflow: hidden;
 }

@@ -20,46 +20,46 @@ import {
 import { pressCounts, pressTime } from '../../lib/xrPress'
 
 /**
- * Piezas de interfaz para las sesiones inmersivas.
+ * Interface pieces for the immersive sessions.
  *
- * En VR/AR no hay DOM, así que menú, marcador y botones son geometría. Todo lo
- * de aquí es local: ni fuentes, ni texturas, ni nada que salga a la red (ver
- * `lib/xrDigits.ts` para el porqué de los números dibujados a mano).
+ * In VR/AR there is no DOM, so menu, scoreboard and buttons are geometry.
+ * Everything here is local: no fonts, no textures, nothing that goes out to the
+ * network (see `lib/xrDigits.ts` for the why of the hand-drawn numbers).
  */
 
 /**
- * El realce del botón apuntado: el acento del salón, el mismo en todos los juegos, para que el
- * gesto de apuntar se aprenda una vez.
+ * The highlight of the button being pointed at: the hall's accent, the same in every game, so
+ * that the gesture of pointing is learned once.
  */
 const HIGHLIGHT_COLOR = COMMON_PALETTE.accent
 
 /**
- * Y con el que se enciende al apretarlo, que es otra cosa que apuntarlo.
+ * And the one it lights up with when pressed, which is something other than pointing at it.
  *
- * El botón **se hunde y cambia de color** en vez de desaparecer: encoge por debajo de su
- * tamaño de reposo —que a un metro se lee como que se mete hacia dentro— y el halo pasa del
- * acento al blanco del texto y sube de intensidad. Reportado con el visor puesto: «cuando se pulsa el
- * botón, el botón debería de seguir ahí (reaccionar bien, como hundiéndose, cambiando de
- * color y eso bien, pero no desapareciendo)».
+ * The button **sinks and changes colour** instead of disappearing: it shrinks below its
+ * resting size —which at one metre reads as going inwards— and the halo goes from the accent
+ * to the white of the text and rises in intensity. Reported with the headset on: «when the
+ * button is pressed, the button should still be there (react well, as if sinking, changing
+ * colour and all that is fine, but not disappearing)».
  */
 const PRESSED_COLOR = COMMON_PALETTE.text
 
-/** Lo que encoge un botón apretado, desde el 1,08 que crece al apuntarlo. */
+/** How much a pressed button shrinks, from the 1.08 it grows to when pointed at. */
 const PRESSED_SCALE = 0.98
-/** Lo que está apagado o es secundario: el neutro suave de los paneles del salón. */
+/** What is switched off or secondary: the soft neutral of the hall's panels. */
 export const DIM_COLOR = COMMON_PALETTE.mutedText
 
-/** Dónde está un botón y cuánto ocupa su zona sensible. */
+/** Where a button is and how much its sensitive area takes up. */
 export interface XrHitBox {
   position: [number, number, number]
   size: [number, number, number]
 }
 
 /**
- * Panel de fondo. En AR es lo que despega la interfaz de la habitación.
+ * Background panel. In AR it is what lifts the interface off the room.
  *
- * Del color del juego y translúcido: es el mismo fondo, dejando ver lo que hay
- * detrás.
+ * In the game's colour and translucent: it is the same background, letting what
+ * is behind show through.
  */
 export function XRPanel({
   width,
@@ -74,11 +74,11 @@ export function XRPanel({
 }) {
   return (
     /*
-      **Sin escribir profundidad, y con su sitio en el orden.** Es un plano transparente de
-      un panel, y a milímetros de los botones que lleva encima la ordenación por profundidad
-      no decide nada fiable: basta inclinar la cabeza hacia un botón del borde para que el
-      fondo se pinte DESPUÉS de él y, escribiendo profundidad, se lo lleve por delante
-      (ver `buttonHighlight.tsx`).
+      **Without writing depth, and with its place in the order.** It is a transparent plane
+      of a panel, and millimetres away from the buttons it carries on top the depth sorting
+      decides nothing reliable: tilting the head towards a button at the edge is enough for
+      the background to be painted AFTER it and, writing depth, to wipe it out
+      (see `buttonHighlight.tsx`).
     */
     <mesh position={[0, 0, -0.02]} renderOrder={PANEL_ORDER.back}>
       <planeGeometry args={[width, height]} />
@@ -94,22 +94,22 @@ export function XRPanel({
 }
 
 /**
- * Botón 3D.
+ * 3D button.
  *
- * Tres decisiones que vienen de cómo se apunta un botón en el visor:
+ * Three decisions that come from how a button is pointed at in the headset:
  *
- * - **Se resuelve al pulsar, no al soltar.** `onClick` exige pulsar y soltar
- *   sobre el mismo objeto; apuntando a pulso a un metro, el rayo se sale del
- *   botón entre una cosa y la otra y la pulsación se pierde.
- * - **Un doble roce es una sola pulsación**, que aquí un botón recibe más de un
- *   puntero. Quién cuenta lo decide `lib/xrPress.ts`.
- * - **El foco se ve.** El botón apuntado crece *y* se enciende con un halo:
- *   forma y color, nunca solo color.
+ * - **It resolves on press, not on release.** `onClick` requires pressing and
+ *   releasing over the same object; pointing freehand at one metre, the ray
+ *   leaves the button between one thing and the other and the press is lost.
+ * - **A double brush is a single press**, since here a button receives more
+ *   than one pointer. Who counts is decided by `lib/xrPress.ts`.
+ * - **The focus is visible.** The button pointed at grows *and* lights up with
+ *   a halo: shape and colour, never colour alone.
  *
- * La zona sensible es una caja invisible mayor que el dibujo: apuntando en el
- * aire, un objetivo del tamaño exacto del icono se falla constantemente. Que
- * sea invisible no la excluye del raycasting — los punteros miran si hay
- * listeners, no si se ve.
+ * The sensitive area is an invisible box larger than the drawing: pointing in
+ * the air, a target of the exact size of the icon is missed constantly. Being
+ * invisible does not exclude it from raycasting — the pointers look at whether
+ * there are listeners, not at whether it is seen.
  */
 export function XRPressable({
   box,
@@ -128,16 +128,17 @@ export function XRPressable({
 
   const handle = (event: ThreeEvent<PointerEvent>) => {
     setPressed(true)
-    // El evento se para también con el botón apagado: si no, atravesaría hasta
-    // lo que haya detrás del panel.
+    // The event is stopped with the button switched off too: otherwise it would
+    // go through to whatever is behind the panel.
     event.stopPropagation()
 
     const now = pressTime()
     if (!pressCounts(now, lastPress.current, disabled)) return
     lastPress.current = now
 
-    // El mando que ha pulsado contesta. Dentro del visor no se dibuja, así que este toque es
-    // lo único que dice que el botón ha oído; con el ratón no hay mando y no pasa nada.
+    // The controller that pressed answers. Inside the headset it is not drawn, so this tap is
+    // the only thing that says the button has heard; with the mouse there is no controller and
+    // nothing happens.
     pulsePressed(event)
 
     onSelect()
@@ -163,15 +164,15 @@ export function XRPressable({
     >
       {children}
 
-      {/* Halo de foco: por detrás del dibujo, para enmarcarlo sin taparlo.
-          **Sin escribir profundidad y con su sitio en el orden.** Un plano transparente
-          de un panel sí apunta su profundidad salvo que se le diga que no, y a
-          milímetros de sus vecinos la ordenación por profundidad se da la vuelta en
-          cuanto se inclina la cabeza hacia un botón del borde: entonces el halo se
-          pintaba antes que el fondo del panel y lo borraba, y el botón se veía como un
-          agujero a la escena. El porqué entero, en `buttonHighlight.tsx`.
-          Apretado se enciende más y cambia de color: es lo único que dice, desde
-          dentro, que el botón ha oído. */}
+      {/* Focus halo: behind the drawing, to frame it without covering it.
+          **Without writing depth and with its place in the order.** A transparent plane
+          of a panel does record its depth unless it is told not to, and millimetres
+          away from its neighbours the depth sorting flips over as soon as the head
+          is tilted towards a button at the edge: then the halo was painted before the
+          panel's background and erased it, and the button looked like a hole into the
+          scene. The whole why, in `buttonHighlight.tsx`.
+          Pressed, it lights up more and changes colour: it is the only thing that says,
+          from inside, that the button has heard. */}
       <mesh position={[0, 0, -0.014]} visible={active || pressed} renderOrder={PANEL_ORDER.behind}>
         <planeGeometry args={[hitWidth * 0.98, hitHeight * 0.94]} />
         <meshBasicMaterial
@@ -191,10 +192,11 @@ export function XRPressable({
 }
 
 /**
- * Un número, en segmentos.
+ * A number, in segments.
  *
- * `size` es la altura de una cifra en metros; el ancho y el grosor salen de
- * ella, así que el conjunto escala sin descuadrarse (ver `lib/xrDigits.ts`).
+ * `size` is the height of a digit in metres; the width and the thickness come
+ * from it, so the whole thing scales without going out of square (see
+ * `lib/xrDigits.ts`).
  */
 export function XRNumber({
   value,
@@ -234,7 +236,7 @@ export function XRNumber({
   )
 }
 
-/** Una placa de botón: el fondo sobre el que va el icono. */
+/** A button plate: the background the icon goes on. */
 export function XRPlate({
   width,
   height,
@@ -247,8 +249,8 @@ export function XRPlate({
   opacity?: number
 }) {
   return (
-    // Por delante del fondo del panel y del halo, y sin escribir profundidad: las capas de
-    // un panel se declaran, no se deducen (ver `buttonHighlight.tsx`).
+    // In front of the panel's background and of the halo, and without writing depth: the
+    // layers of a panel are declared, not deduced (see `buttonHighlight.tsx`).
     <mesh position={[0, 0, -0.006]} renderOrder={PANEL_ORDER.face}>
       <planeGeometry args={[width, height]} />
       <meshBasicMaterial
@@ -263,47 +265,47 @@ export function XRPlate({
 }
 
 /**
- * Triángulo de «jugar», apuntando a la derecha.
+ * «Play» triangle, pointing to the right.
  *
- * Sin girarlo: `CircleGeometry` pone su primer vértice en el ángulo 0, que es
- * la derecha. Girado −90° ese vértice acababa abajo y el botón se leía como
- * «descargar», no como «play».
+ * Without rotating it: `CircleGeometry` puts its first vertex at angle 0, which
+ * is the right. Rotated −90° that vertex ended up at the bottom and the button
+ * read as «download», not as «play».
  */
 export function XRPlayIcon({ size = 0.06 }: { size?: number }) {
   return (
     <mesh>
-      {/* Un círculo de tres lados es un triángulo, y ahorra una geometría
-          propia para la única forma que no es un rectángulo. */}
+      {/* A circle with three sides is a triangle, and it saves a geometry of
+          its own for the only shape that is not a rectangle. */}
       <circleGeometry args={[size, 3]} />
       <meshBasicMaterial color={PALETTE.primaryInk} toneMapped={false} />
     </mesh>
   )
 }
 
-/** La flecha de salir, como forma plana: la misma que se pinta en los lienzos. */
-const FORMA_DE_SALIR = (() => {
-  const { tip: punta, shaft: cuerpo, thickness: grosor, elbow: codo, wings: alas } = EXIT_ARROW
-  const forma = new Shape()
-  forma.moveTo(punta, 0)
-  forma.lineTo(codo, alas)
-  forma.lineTo(codo, grosor / 2)
-  forma.lineTo(cuerpo, grosor / 2)
-  forma.lineTo(cuerpo, -grosor / 2)
-  forma.lineTo(codo, -grosor / 2)
-  forma.lineTo(codo, -alas)
-  forma.closePath()
-  return forma
+/** The exit arrow, as a flat shape: the same one that is painted on the canvases. */
+const EXIT_SHAPE = (() => {
+  const { tip: arrowTip, shaft: arrowShaft, thickness: arrowThickness, elbow: arrowElbow, wings: arrowWings } = EXIT_ARROW
+  const shape = new Shape()
+  shape.moveTo(arrowTip, 0)
+  shape.lineTo(arrowElbow, arrowWings)
+  shape.lineTo(arrowElbow, arrowThickness / 2)
+  shape.lineTo(arrowShaft, arrowThickness / 2)
+  shape.lineTo(arrowShaft, -arrowThickness / 2)
+  shape.lineTo(arrowElbow, -arrowThickness / 2)
+  shape.lineTo(arrowElbow, -arrowWings)
+  shape.closePath()
+  return shape
 })()
 
 /**
- * La flecha de **salir del juego**: volver al arcade.
+ * The arrow for **leaving the game**: going back to the hall.
  *
- * **Una sola forma para los trece.** Cada juego decía «salir» a su manera —la palabra
- * «Exit», un aspa, una puerta, una puerta con flecha— y el aspa, además, significa «cerrar
- * esto» en varios paneles. Reportado con el visor puesto: «no se entiende cuál es el botón de
- * salir del juego: a veces aparece un cuadrado, otras veces pone "leave"… habría que
- * unificarlo». La forma sale de `FLECHA_DE_SALIR`, la misma que pintan en su lienzo los
- * juegos que dibujan el menú con texto.
+ * **A single shape for all thirteen.** Each game said «exit» in its own way —the word
+ * «Exit», a cross, a door, a door with an arrow— and the cross, besides, means «close
+ * this» in several panels. Reported with the headset on: «it is not clear which one is the
+ * button to leave the game: sometimes a square appears, other times it says "leave"… it
+ * should be unified». The shape comes from `EXIT_ARROW`, the same one that the games which
+ * draw the menu with text paint on their canvas.
  */
 export function XRExitIcon({
   size = 0.05,
@@ -314,13 +316,13 @@ export function XRExitIcon({
 }) {
   return (
     <mesh scale={size} raycast={NO_RAYCAST}>
-      <shapeGeometry args={[FORMA_DE_SALIR]} />
+      <shapeGeometry args={[EXIT_SHAPE]} />
       <meshBasicMaterial color={color} toneMapped={false} />
     </mesh>
   )
 }
 
-/** Tres barras: «volver al menú». */
+/** Three bars: «back to the menu». */
 export function XRMenuIcon({
   size = 0.05,
   color = PALETTE.foreground,
@@ -341,16 +343,16 @@ export function XRMenuIcon({
 }
 
 /**
- * Altavoz con o sin ondas: el interruptor de sonido del visor.
+ * Speaker with or without waves: the headset's sound switch.
  *
- * El estado se lee **por forma antes que por color** —las ondas están o no
- * están, y callado se tacha con una barra— porque el menú se mira a un metro y
- * con el visor puesto, donde un cian y un gris se parecen bastante.
+ * The state is read **by shape before colour** —the waves are there or they are
+ * not, and muted it is struck through with a bar— because the menu is looked at
+ * from one metre and with the headset on, where a cyan and a grey look quite alike.
  */
 /**
- * Una nota musical: la cabeza y su plica. Dice si la música de fondo suena o
- * está apagada, con el mismo tachón en diagonal que el altavoz callado, para
- * que los dos interruptores se lean igual sin leer nada.
+ * A musical note: the head and its stem. It says whether the background music
+ * is playing or switched off, with the same diagonal strike-through as the
+ * muted speaker, so that the two switches read the same without reading anything.
  */
 export function XRMusicIcon({
   playing,
@@ -363,17 +365,17 @@ export function XRMusicIcon({
 
   return (
     <group>
-      {/* La cabeza de la nota, ovalada por estar algo tumbada. */}
+      {/* The head of the note, oval because it lies somewhat tilted. */}
       <mesh position={[-size * 0.18, -size * 0.3, 0]} rotation={[0, 0, -0.35]} scale={[1.3, 1, 1]}>
         <circleGeometry args={[size * 0.22, 16]} />
         <meshBasicMaterial color={color} toneMapped={false} />
       </mesh>
-      {/* La plica, subiendo por la derecha de la cabeza. */}
+      {/* The stem, going up on the right of the head. */}
       <mesh position={[-size * 0.02, size * 0.05, 0]}>
         <planeGeometry args={[size * 0.09, size * 0.75]} />
         <meshBasicMaterial color={color} toneMapped={false} />
       </mesh>
-      {/* Y el corchete, doblando hacia la derecha arriba del todo. */}
+      {/* And the flag, bending to the right at the very top. */}
       <mesh position={[size * 0.14, size * 0.34, 0]} rotation={[0, 0, -0.5]}>
         <planeGeometry args={[size * 0.34, size * 0.09]} />
         <meshBasicMaterial color={color} toneMapped={false} />
@@ -400,9 +402,9 @@ export function XRSoundIcon({
 
   return (
     <group position={[-size * 0.12, 0, 0]}>
-      {/* Cuerpo y campana del altavoz, mirando a la derecha. Un círculo de
-          tres lados es un triángulo, y girado media vuelta deja el vértice a la
-          izquierda: es la campana abriéndose hacia donde sale el sonido. */}
+      {/* Body and bell of the speaker, facing right. A circle with three
+          sides is a triangle, and rotated half a turn it leaves the vertex on the
+          left: it is the bell opening towards where the sound comes out. */}
       <mesh position={[-size * 0.46, 0, 0]}>
         <planeGeometry args={[size * 0.3, size * 0.42]} />
         <meshBasicMaterial color={color} toneMapped={false} />
@@ -412,8 +414,8 @@ export function XRSoundIcon({
         <meshBasicMaterial color={color} toneMapped={false} />
       </mesh>
 
-      {/* Sonando, dos ondas saliendo de la campana; callado, un tachón en
-          diagonal donde estarían. */}
+      {/* Playing, two waves coming out of the bell; muted, a diagonal
+          strike-through where they would be. */}
       {muted ? (
         <mesh position={[size * 0.42, 0, 0]} rotation={[0, 0, -Math.PI / 4]}>
           <planeGeometry args={[size * 0.62, size * 0.11]} />
@@ -432,11 +434,11 @@ export function XRSoundIcon({
 }
 
 /**
- * Lo que se pinta alrededor, dicho con un dibujo: con la sala, cuatro paredes
- * cerradas; con la habitación, el marco de una ventana abierta.
+ * What is painted around, said with a drawing: with the game's room, four
+ * closed walls; with the player's own room, the frame of an open window.
  *
- * Cambia la **forma** y no solo el color, que dentro del visor cambia con la
- * luz de la escena y no puede ser la única señal (WCAG 1.4.1).
+ * The **shape** changes and not only the colour, which inside the headset
+ * changes with the light of the scene and cannot be the only signal (WCAG 1.4.1).
  */
 export function XRSceneryIcon({
   room,
@@ -448,33 +450,33 @@ export function XRSceneryIcon({
   size?: number
 }) {
   const color = lit ? PALETTE.foreground : DIM_COLOR
-  const grosor = size * 0.12
+  const thickness = size * 0.12
 
   return (
     <group>
-      {/* El marco, siempre. */}
+      {/* The frame, always. */}
       {[
-        [0, size * 0.34, size * 0.8, grosor],
-        [0, -size * 0.34, size * 0.8, grosor],
-        [-size * 0.34, 0, grosor, size * 0.8],
-        [size * 0.34, 0, grosor, size * 0.8],
-      ].map(([x, y, ancho, alto], index) => (
+        [0, size * 0.34, size * 0.8, thickness],
+        [0, -size * 0.34, size * 0.8, thickness],
+        [-size * 0.34, 0, thickness, size * 0.8],
+        [size * 0.34, 0, thickness, size * 0.8],
+      ].map(([x, y, barWidth, barHeight], index) => (
         <mesh key={index} position={[x, y, 0]}>
-          <planeGeometry args={[ancho, alto]} />
+          <planeGeometry args={[barWidth, barHeight]} />
           <meshBasicMaterial color={color} toneMapped={false} />
         </mesh>
       ))}
 
-      {/* Cerrado, el interior lleno; abierto, solo el travesaño de la ventana. */}
+      {/* Closed, the inside filled; open, only the crossbar of the window. */}
       <mesh position={[0, 0, 0]}>
-        <planeGeometry args={room ? [size * 0.68, grosor] : [size * 0.56, size * 0.56]} />
+        <planeGeometry args={room ? [size * 0.68, thickness] : [size * 0.56, size * 0.56]} />
         <meshBasicMaterial color={color} toneMapped={false} />
       </mesh>
     </group>
   )
 }
 
-/** Signo de más o de menos, para los selectores de cantidad. */
+/** Plus or minus sign, for the quantity selectors. */
 export function XRSignIcon({
   sign,
   size = 0.05,

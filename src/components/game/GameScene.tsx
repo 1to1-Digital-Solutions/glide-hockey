@@ -8,20 +8,20 @@ import { StartScreen } from '../ui/StartScreen'
 import { useLang } from '../../lib/settingsClient'
 import { translator } from '../../lib/textos'
 
-// El Canvas de R3F depende de WebGL y de `window`, así que se carga aparte y
-// solo en cliente. Con `lazy` de React y no con `next/dynamic`: el juego se
-// monta también dentro de otras aplicaciones, que no tienen por qué ser Next.
+// R3F's Canvas depends on WebGL and on `window`, so it is loaded separately
+// and only on the client. With React's `lazy` and not with `next/dynamic`: the
+// game is also mounted inside other applications, which need not be Next.
 const GameCanvas = lazy(() =>
   import('./GameCanvas').then((mod) => ({ default: mod.GameCanvas })),
 )
 
 /**
- * Si el juego ya se está pintando en el navegador.
+ * Whether the game is already being rendered in the browser.
  *
- * Es una suscripción a algo que nunca cambia porque lo que distingue los dos
- * valores es *quién* pregunta: en un render de servidor no hay WebGL con el que
- * montar el Canvas, y pintar en la hidratación lo mismo que se prerenderizó es
- * lo que evita el aviso de desajuste.
+ * It is a subscription to something that never changes because what tells the
+ * two values apart is *who* asks: in a server render there is no WebGL to mount
+ * the Canvas with, and rendering on hydration the same thing that was
+ * prerendered is what avoids the mismatch warning.
  */
 const NEVER_CHANGES = () => () => {}
 const useOnClient = () =>
@@ -44,12 +44,12 @@ function SceneLoading() {
 }
 
 /**
- * La pantalla de juego de escritorio: el Canvas siempre montado y, encima, el
- * menú o el marcador según toque.
+ * The desktop game screen: the Canvas always mounted and, on top, the menu or
+ * the scoreboard as appropriate.
  *
- * El Canvas no se desmonta al volver al menú a propósito: la sesión inmersiva
- * se pide desde el DOM y necesita encontrar la escena ya en el árbol, o al
- * ponerse el visor no se ve nada.
+ * The Canvas is not unmounted on going back to the menu on purpose: the
+ * immersive session is requested from the DOM and needs to find the scene
+ * already in the tree, or on putting the headset on nothing is seen.
  */
 export function GameScene() {
   const { gameState } = useGame()
@@ -57,15 +57,15 @@ export function GameScene() {
 
   return (
     <div
-      // Durante la partida el cursor lleva el mazo: una flecha de escritorio
-      // encima de la mesa distrae de dónde está de verdad.
+      // During the match the cursor carries the mallet: a desktop arrow on top
+      // of the table distracts from where it really is.
       className={`glide-hockey relative h-full w-full ${
         gameState === 'playing' ? 'cursor-none' : ''
       }`}
-      // La paleta, aquí y no en `styles.css`: así el CSS, la escena y la
-      // interfaz del visor leen los mismos literales sin ningún paso de build
-      // (ver `lib/palette.ts`). Y en este elemento, que es el que lleva la
-      // clase `.glide-hockey`: las variables no salen del juego.
+      // The palette, here and not in `styles.css`: that way the CSS, the scene
+      // and the headset interface read the same literals with no build step
+      // (see `lib/palette.ts`). And on this element, which is the one carrying
+      // the `.glide-hockey` class: the variables do not leave the game.
       style={GLIDE_HOCKEY_CSS_VARIABLES}
     >
       {onClient ? (

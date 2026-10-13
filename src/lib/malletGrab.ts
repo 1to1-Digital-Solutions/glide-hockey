@@ -1,74 +1,74 @@
 /**
- * Coger el mazo con la mano, con el visor puesto.
+ * Grabbing the mallet with the hand, with the headset on.
  *
- * **Por qué no vale el rayo.** El mazo se movía apuntándole con el rayo del mando, y eso
- * se siente como manejar un cursor: la mano está quieta en el aire y la ficha se desliza
- * sola dos metros más allá. En una mesa de air hockey lo que se hace es **agarrar** el
- * mazo y empujarlo, que es lo que hace el palo de stick-rush y por eso aquel se entiende
- * sin explicación.
+ * **Why the ray will not do.** The mallet used to be moved by aiming at it with the
+ * controller ray, and that feels like driving a cursor: the hand is still in the air and
+ * the piece slides by itself two metres further on. On an air hockey table what one does
+ * is **grab** the mallet and push it, which is what the stick of stick-rush does and that
+ * is why that one is understood without explanation.
  *
- * La regla vive aquí y no en la escena para poder probarla sin visor y sin three: lo que
- * decide es cuándo se coge, cuándo se suelta y a dónde va el mazo mientras se sostiene,
- * que es donde están los errores que se sienten al jugar.
+ * The rule lives here and not in the scene so that it can be tested without a headset and
+ * without three: what it decides is when it is grabbed, when it is let go and where the
+ * mallet goes while it is held, which is where the mistakes felt while playing are.
  *
- * **Se coge por proximidad, no por apuntar.** Hay que llevar la mano hasta el mazo y
- * apretar; apretar desde lejos no lo teletransporta a la mano, que es lo que volvería a
- * convertirlo en un cursor. Y una vez cogido no se suelta por alejarse: solo al soltar el
- * botón, porque en pleno intercambio la mano se sale de cualquier radio que se ponga.
+ * **It is grabbed by proximity, not by aiming.** The hand has to be brought to the mallet
+ * and squeezed; squeezing from far away does not teleport it to the hand, which is what
+ * would turn it into a cursor again. And once grabbed it is not let go by moving away: only
+ * on releasing the button, because mid-exchange the hand leaves any radius one could set.
  */
 
 import type { Vec2 } from './puckPhysics'
 import { MALLET_RADIUS } from './gameConfig'
 
 /**
- * Hasta dónde llega la mano para coger el mazo, en metros desde su centro.
+ * How far the hand reaches to grab the mallet, in metres from its centre.
  *
- * Un poco más que el propio mazo: con el visor puesto la mano nunca cae exactamente
- * encima, y exigir precisión de milímetros convierte cogerlo en un minijuego aparte.
+ * A little more than the mallet itself: with the headset on the hand never lands exactly
+ * on top, and demanding millimetre precision turns grabbing it into a separate minigame.
  */
 export const GRAB_REACH = MALLET_RADIUS + 0.12
 
-/** Lo que la mano y el botón dicen en este fotograma. */
+/** What the hand and the button say in this frame. */
 export interface HandOnTable {
-  /** Dónde está la mano, en coordenadas de la mesa. */
+  /** Where the hand is, in table coordinates. */
   position: Vec2
-  /** Si el botón de agarre está apretado ahora mismo. */
+  /** Whether the grab button is squeezed right now. */
   grabbing: boolean
 }
 
-/** Lo que el mazo sabe de sí mismo entre fotogramas. */
+/** What the mallet knows about itself between frames. */
 export interface MalletGrab {
-  /** Si el mazo va en la mano ahora mismo. */
+  /** Whether the mallet is in the hand right now. */
   held: boolean
-  /** A dónde va el mazo. Sin mano que lo lleve, se queda donde estaba. */
+  /** Where the mallet goes. With no hand carrying it, it stays where it was. */
   target: Vec2
 }
 
-/** A qué distancia está la mano del mazo. */
-function distancia(a: Vec2, b: Vec2): number {
+/** How far the hand is from the mallet. */
+function distance(a: Vec2, b: Vec2): number {
   return Math.hypot(a.x - b.x, a.z - b.z)
 }
 
 /**
- * El agarre del fotograma siguiente.
+ * The grab of the next frame.
  *
- * @param previo    Cómo estaba el mazo hasta ahora.
- * @param mano      Lo que dice la mano, o `null` si no hay ninguna en la mesa: sin mando,
- *                  fuera de sesión, o con el mando apuntando a otra parte.
+ * @param previous  How the mallet was until now.
+ * @param hand      What the hand says, or `null` if there is none on the table: no
+ *                  controller, out of session, or with the controller aiming elsewhere.
  */
-export function nextGrab(previo: MalletGrab, mano: HandOnTable | null): MalletGrab {
-  // Sin mano no se suelta lo que se llevaba: un mando que desaparece un fotograma —se
-  // pierde el seguimiento al salir del campo de visión— dejaría el mazo tirado en medio
-  // de una jugada.
-  if (mano === null) return previo
+export function nextGrab(previous: MalletGrab, hand: HandOnTable | null): MalletGrab {
+  // With no hand, what was being carried is not let go: a controller that disappears for
+  // one frame —tracking is lost on leaving the field of view— would leave the mallet lying
+  // in the middle of a rally.
+  if (hand === null) return previous
 
-  if (!mano.grabbing) return { held: false, target: previo.target }
+  if (!hand.grabbing) return { held: false, target: previous.target }
 
-  // Ya cogido, sigue a la mano vaya donde vaya: soltar por distancia lo perdería justo
-  // en el golpe, que es cuando más rápido va.
-  if (previo.held) return { held: true, target: mano.position }
+  // Already grabbed, it follows the hand wherever it goes: letting go by distance would lose
+  // it right on the hit, which is when it goes fastest.
+  if (previous.held) return { held: true, target: hand.position }
 
-  // Recién apretado: solo se coge si la mano está encima. Apretar desde lejos no hace nada.
-  const alAlcance = distancia(mano.position, previo.target) <= GRAB_REACH
-  return alAlcance ? { held: true, target: mano.position } : { held: false, target: previo.target }
+  // Just squeezed: it is only grabbed if the hand is on top. Squeezing from far away does nothing.
+  const withinReach = distance(hand.position, previous.target) <= GRAB_REACH
+  return withinReach ? { held: true, target: hand.position } : { held: false, target: previous.target }
 }

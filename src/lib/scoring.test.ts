@@ -11,72 +11,72 @@ import {
   streakMultiplier,
 } from './scoring'
 
-describe('el multiplicador de racha', () => {
-  it('no multiplica nada en el primer gol', () => {
+describe('the streak multiplier', () => {
+  it('multiplies nothing on the first goal', () => {
     expect(streakMultiplier(1)).toBe(1)
   })
 
-  it('crece con cada gol encadenado', () => {
+  it('grows with each chained goal', () => {
     expect(streakMultiplier(3)).toBeGreaterThan(streakMultiplier(2))
   })
 
-  it('tiene un tope, para que durar no gane a jugar bien', () => {
+  it('has a cap, so that lasting does not beat playing well', () => {
     expect(streakMultiplier(1000)).toBe(MAX_STREAK_MULTIPLIER)
   })
 
-  it('trata un valor imposible como si no hubiera racha', () => {
+  it('treats an impossible value as if there were no streak', () => {
     expect(streakMultiplier(Number.NaN)).toBe(1)
     expect(streakMultiplier(-4)).toBe(1)
   })
 })
 
-describe('los puntos de un gol', () => {
-  it('valen la base en el nivel más fácil y sin racha', () => {
+describe('the points of a goal', () => {
+  it('are worth the base at the easiest level and with no streak', () => {
     expect(goalPoints({ difficulty: 'easy', streak: 1 })).toBe(BASE_GOAL_POINTS)
   })
 
-  it('valen más cuanto más alto es el nivel', () => {
-    const porNivel = DIFFICULTY_ORDER.map((difficulty) =>
+  it('are worth more the higher the level', () => {
+    const perLevel = DIFFICULTY_ORDER.map((difficulty) =>
       goalPoints({ difficulty, streak: 1 }),
     )
 
-    const creciente = porNivel.every(
-      (points, index) => index === 0 || points > porNivel[index - 1],
+    const increasing = perLevel.every(
+      (points, index) => index === 0 || points > perLevel[index - 1],
     )
-    expect(creciente).toBe(true)
+    expect(increasing).toBe(true)
   })
 
-  it('son siempre enteros', () => {
+  it('are always integers', () => {
     expect(Number.isInteger(goalPoints({ difficulty: 'hard', streak: 3 }))).toBe(
       true,
     )
   })
 })
 
-describe('la puntuación de una partida', () => {
-  it('sube al marcar', () => {
+describe('the score of a match', () => {
+  it('goes up on scoring', () => {
     expect(scoreGoal(0, { difficulty: 'easy', streak: 1 })).toBe(
       BASE_GOAL_POINTS,
     )
   })
 
-  it('baja al encajar', () => {
+  it('goes down on conceding', () => {
     expect(scoreConceded(500)).toBe(500 - CONCEDED_PENALTY)
   })
 
-  it('no baja de cero por muchos goles que te metan', () => {
+  it('does not drop below zero however many goals are scored against you', () => {
     expect(scoreConceded(scoreConceded(10))).toBe(0)
   })
 })
 
-describe('lo que cuesta encajar en el reto', () => {
-  it('en la primera ronda, nada: perderla 1–3 con un gol marcado deja los puntos del gol', () => {
-    let puntos = scoreGoal(0, { difficulty: 'easy', streak: 1 })
-    for (let gol = 0; gol < 3; gol += 1) puntos = scoreConceded(puntos, concededPenalty(1))
-    expect(puntos).toBe(100)
+describe('what conceding costs in the challenge', () => {
+  it('in the first round, nothing: losing it 1–3 with one goal scored leaves the points of the goal', () => {
+    let points = scoreGoal(0, { difficulty: 'easy', streak: 1 })
+    for (let goal = 0; goal < 3; goal += 1) points = scoreConceded(points, concededPenalty(1))
+    expect(points).toBe(100)
   })
 
-  it('desde la segunda, y fuera del reto, lo de siempre', () => {
+  it('from the second, and outside the challenge, the usual', () => {
     expect(concededPenalty(2)).toBe(CONCEDED_PENALTY)
     expect(concededPenalty(16)).toBe(CONCEDED_PENALTY)
     expect(concededPenalty(null)).toBe(CONCEDED_PENALTY)
@@ -84,32 +84,33 @@ describe('lo que cuesta encajar en el reto', () => {
 })
 
 /**
- * La vuelta del reto. Es el único multiplicador que no se elige: se llega a él
- * aguantando quince rondas sin perder, y lo que hace es que seguir jugando
- * después de la última ronda valga más que repetirla (ver `challenge.ts`).
+ * The lap of the challenge. It is the only multiplier that is not chosen: one
+ * gets to it by holding out fifteen rounds without losing, and what it does is
+ * make carrying on after the last round worth more than repeating it (see
+ * `challenge.ts`).
  */
-describe('el multiplicador de la vuelta', () => {
-  it('la primera vuelta —y no estar en el reto— no multiplican nada', () => {
-    const suelto = goalPoints({ difficulty: 'hard', streak: 1 })
-    expect(goalPoints({ difficulty: 'hard', streak: 1, lap: 1 })).toBe(suelto)
+describe('the lap multiplier', () => {
+  it('the first lap —and not being in the challenge— multiply nothing', () => {
+    const plain = goalPoints({ difficulty: 'hard', streak: 1 })
+    expect(goalPoints({ difficulty: 'hard', streak: 1, lap: 1 })).toBe(plain)
   })
 
-  it('cada vuelta vale más que la anterior', () => {
-    const primera = goalPoints({ difficulty: 'hard', streak: 1, lap: 1 })
-    const segunda = goalPoints({ difficulty: 'hard', streak: 1, lap: 1.5 })
+  it('each lap is worth more than the previous one', () => {
+    const first = goalPoints({ difficulty: 'hard', streak: 1, lap: 1 })
+    const second = goalPoints({ difficulty: 'hard', streak: 1, lap: 1.5 })
 
-    expect(segunda).toBeGreaterThan(primera)
-    expect(segunda).toBe(Math.round(primera * 1.5))
+    expect(second).toBeGreaterThan(first)
+    expect(second).toBe(Math.round(first * 1.5))
   })
 
-  it('un multiplicador que llegara roto o por debajo de uno no descuenta puntos', () => {
-    const entero = goalPoints({ difficulty: 'easy', streak: 1, lap: 1 })
+  it('a multiplier that arrived broken or below one does not deduct points', () => {
+    const whole = goalPoints({ difficulty: 'easy', streak: 1, lap: 1 })
     for (const lap of [0, -2, Number.NaN]) {
-      expect(goalPoints({ difficulty: 'easy', streak: 1, lap }), String(lap)).toBe(entero)
+      expect(goalPoints({ difficulty: 'easy', streak: 1, lap }), String(lap)).toBe(whole)
     }
   })
 
-  it('llega a la puntuación de la partida, no solo a la cuenta de un gol', () => {
+  it('reaches the score of the match, not only the calculation of one goal', () => {
     expect(scoreGoal(0, { difficulty: 'easy', streak: 1, lap: 2 })).toBe(BASE_GOAL_POINTS * 2)
   })
 })

@@ -6,35 +6,37 @@ import { useGame } from '../../lib/gameStore'
 import type { Medal } from '../../lib/goal'
 
 /**
- * Dónde cuelga el cartel, con las medidas del cartel de verdad: encima del marcador del fondo
- * (`sitioDelCartel`). Fuera del componente para que los tests lo midan donde queda.
+ * Where the sign hangs, with the measurements of the real sign: above the back scoreboard
+ * (`signPlacement`). Outside the component so that the tests measure it where it ends up.
  */
 export const SIGN_PLACEMENT = signPlacement(signAspect())
 
 /**
- * El cartel del objetivo, colgado encima del marcador del fondo.
+ * The goal sign, hung above the back scoreboard.
  *
- * Aquí solo se junta lo de cada lado: qué dice sale del store (`cartel`), dónde va lo decide
- * `sitioDelCartel` y lo pinta el componente común a todos los juegos del salón.
+ * Here only what comes from each side is put together: what it says comes from the store
+ * (`sign`), where it goes is decided by `signPlacement` and it is drawn by the component common
+ * to all the games of the hall.
  *
- * Cuelga de la interfaz, junto al marcador: sube y baja con los ojos de quien juega igual que él
- * (`XRUiHeight`), así que sigue quedando justo encima y a la altura de la vista.
+ * It hangs from the interface, next to the scoreboard: it goes up and down with the eyes of
+ * whoever plays just as the scoreboard does (`XRUiHeight`), so it still ends up right above it
+ * and at eye level.
  *
- * @param alCelebrar Lo que el juego hace al cruzar un listón: el golpe en la mano del mazo. El
- *   sonido lo pone la escena, que lo oye también quien juega sin visor.
+ * @param onCelebrate What the game does on crossing a threshold: the hit in the mallet hand. The
+ *   sound is provided by the scene, which is also heard by whoever plays without a headset.
  */
-export function ScoreboardSign({ alCelebrar: onCelebrate }: { alCelebrar?: (medalla: Medal) => void }) {
-  const { sign: cartel, medal: medalla } = useGame()
+export function ScoreboardSign({ onCelebrate }: { onCelebrate?: (medal: Medal) => void }) {
+  const { sign, medal } = useGame()
 
-  if (cartel == null) return null
+  if (sign == null) return null
 
   return (
     <GoalSign
-      view={cartel}
+      view={sign}
       position={SIGN_PLACEMENT.position}
       rotation={SIGN_PLACEMENT.rotation}
       distance={SIGN_PLACEMENT.distance}
-      celebrate={medalla}
+      celebrate={medal}
       onCelebrate={onCelebrate}
     />
   )

@@ -1,17 +1,19 @@
 /**
- * El marcador y la cuenta atrás de Glide Hockey en Godot: `XRScoreboard` y `XRCountdown` de la web
- * (`components/xr/XRHud.tsx`), con sus medidas.
+ * The scoreboard and the countdown of Glide Hockey in Godot: the web's `XRScoreboard` and
+ * `XRCountdown` (`components/xr/XRHud.tsx`), with their measures.
  *
- * **El marcador va al fondo, sobre la portería de la máquina**: es donde se mira jugando, así que
- * se lee sin apartar la vista del disco. Tres filas: los goles de cada uno en su color (el cian del
- * jugador, el rojo de la máquina), los puntos en el naranja del disco y, en el reto, la ronda —en
- * los niveles, el nivel—. **Menos lo que ya dice el cartel que tiene encima** (`cartel.ts`): en el
- * reto los puntos y la ronda se leen ahí, con letras, y aquí quedan los goles, en medio. Pasada la primera vuelta a la escalera del reto sale además un aspa y el
- * número de vuelta, en el color de los puntos: lo que dice es que **lo que se meta ahora vale más**.
+ * **The scoreboard goes at the back, over the machine's goal**: it is where one looks while
+ * playing, so it is read without taking the eyes off the puck. Three rows: each one's goals in
+ * their colour (the player's cyan, the machine's red), the points in the puck's orange and, in the
+ * challenge, the round —in the levels, the level—. **Minus what the sign above it already says**
+ * (`sign.ts`): in the challenge the points and the round are read there, in letters, and here the
+ * goals are left, in the middle. Past the first lap of the challenge's ladder there is also a cross
+ * and the lap number, in the colour of the points: what it says is that **what is scored now is
+ * worth more**.
  *
- * **La cuenta atrás flota sobre el punto de saque**, y en su último segundo, si el mazo no está en
- * la mano, se para y dice por qué (`esperandoElMazo`): sin eso, desde dentro del visor parecía que
- * el juego se había colgado en el 1.
+ * **The countdown floats over the serve spot**, and in its last second, if the mallet is not in
+ * the hand, it stops and says why (`waitingForMallet`): without that, from inside the headset it
+ * looked as if the game had hung on the 1.
  */
 import { Node3D, Vector3 } from 'godot'
 
@@ -23,130 +25,130 @@ import type { Lang } from '@/lib/settings'
 import { PALETTE } from '@/lib/palette'
 import { translator, type TextKey } from '@/lib/textos'
 
-import { Cifras } from './digits'
+import { Digits } from './digits'
 import { DIM } from './menu'
-import { AVISO_DEL_MAZO, CIFRAS_DEL_MARCADOR, CIFRA_DE_LA_CUENTA, FILAS_DEL_MARCADOR, LETRA_DEL_AVISO, MARCADOR } from './layout'
+import { MALLET_NOTICE, SCOREBOARD_DIGITS, COUNTDOWN_DIGIT, SCOREBOARD_ROWS, MALLET_TEXT, SCOREBOARD_SIZE } from './layout'
 
-/** Lo que cuenta el marcador. */
-export interface EstadoDelMarcador {
-  jugador: number
-  maquina: number
-  /** Los puntos, o `null` si ya los dice el cartel de encima. */
-  puntos: number | null
-  /** La ronda del reto, el nivel o el jugador del duelo que tiene el mando; `null` en la práctica. */
-  fila: number | null
-  /** La vuelta a la escalera del reto, solo pasada la primera. */
-  vuelta: number | null
-  /** A qué altura van los goles (`filaDeLosGoles`): en su fila, o en medio si debajo no queda nada. */
-  goles: number
+/** What the scoreboard tells. */
+export interface ScoreboardState {
+  player: number
+  opponent: number
+  /** The points, or `null` if the sign above already says them. */
+  points: number | null
+  /** The round of the challenge, the level or the player of the duel who has the controller; `null` in practice. */
+  rowNumber: number | null
+  /** The lap of the challenge's ladder, only past the first. */
+  lap: number | null
+  /** At what height the goals go (`goalsRow`): in their row, or in the middle if nothing is left below. */
+  goalsRow: number
 }
 
-/** Un cuadrado de `lado` metros centrado en `(x, y)`. */
-function cuadrado(x: number, y: number, ancho: number, alto = ancho): Point2[] {
+/** A square of `width` metres centred on `(x, y)`. */
+function square(x: number, y: number, width: number, height = width): Point2[] {
   return [
-    [x - ancho / 2, y - alto / 2], [x + ancho / 2, y - alto / 2], [x + ancho / 2, y + alto / 2],
-    [x - ancho / 2, y - alto / 2], [x + ancho / 2, y + alto / 2], [x - ancho / 2, y + alto / 2],
+    [x - width / 2, y - height / 2], [x + width / 2, y - height / 2], [x + width / 2, y + height / 2],
+    [x - width / 2, y - height / 2], [x + width / 2, y + height / 2], [x - width / 2, y + height / 2],
   ]
 }
 
-/** Un aspa: dos rayas cruzadas, que aquí no hay letra en el marcador, hay segmentos. */
-function triangulosDelAspa(largo: number, grueso: number): Point2[] {
-  const puntos: Point2[] = []
-  for (const giro of [1, -1]) {
-    const a = (giro * Math.PI) / 4
+/** A cross: two crossed strokes, since here there is no font on the scoreboard, there are segments. */
+function crossTriangles(length: number, thickness: number): Point2[] {
+  const points: Point2[] = []
+  for (const turn of [1, -1]) {
+    const a = (turn * Math.PI) / 4
     const c = Math.cos(a)
     const s = Math.sin(a)
-    for (const [x, y] of cuadrado(0, 0, largo, grueso)) puntos.push([x * c - y * s, x * s + y * c])
+    for (const [x, y] of square(0, 0, length, thickness)) points.push([x * c - y * s, x * s + y * c])
   }
-  return puntos
+  return points
 }
 
-export class Marcador {
+export class Scoreboard {
   readonly panel: Panel
-  readonly nodo: Node3D
-  readonly jugador = new Cifras(CIFRAS_DEL_MARCADOR.goals, PALETTE.primary)
-  readonly maquina = new Cifras(CIFRAS_DEL_MARCADOR.goals, PALETTE.rival)
-  readonly puntos = new Cifras(CIFRAS_DEL_MARCADOR.points, PALETTE.puck)
-  readonly fila = new Cifras(CIFRAS_DEL_MARCADOR.round, DIM)
-  readonly vuelta = new Cifras(CIFRAS_DEL_MARCADOR.round, PALETTE.puck)
-  private readonly nodoDeLaVuelta = new Node3D()
-  private readonly dosPuntos = shape([...cuadrado(0, -0.03, 0.016), ...cuadrado(0, 0.03, 0.016)], DIM)
-  private pintado = ''
+  readonly node: Node3D
+  readonly player = new Digits(SCOREBOARD_DIGITS.goals, PALETTE.primary)
+  readonly opponent = new Digits(SCOREBOARD_DIGITS.goals, PALETTE.rival)
+  readonly points = new Digits(SCOREBOARD_DIGITS.points, PALETTE.puck)
+  readonly rowNumber = new Digits(SCOREBOARD_DIGITS.round, DIM)
+  readonly lap = new Digits(SCOREBOARD_DIGITS.round, PALETTE.puck)
+  private readonly lapNode = new Node3D()
+  private readonly colon = shape([...square(0, -0.03, 0.016), ...square(0, 0.03, 0.016)], DIM)
+  private painted = ''
 
   constructor() {
-    this.panel = new Panel({ ancho: MARCADOR.width, alto: MARCADOR.height, fondo: PALETTE.background, opacidad: 0.7 })
-    this.nodo = this.panel.nodo
-    const colgar = (nodo: Node3D, x: number, y: number, padre: Node3D = this.nodo) => {
-      nodo.position = new Vector3(x, y, 0.004)
-      padre.add_child(nodo)
+    this.panel = new Panel({ ancho: SCOREBOARD_SIZE.width, alto: SCOREBOARD_SIZE.height, fondo: PALETTE.background, opacidad: 0.7 })
+    this.node = this.panel.nodo
+    const hang = (node: Node3D, x: number, y: number, parent: Node3D = this.node) => {
+      node.position = new Vector3(x, y, 0.004)
+      parent.add_child(node)
     }
-    colgar(this.jugador.nodo, -0.12, FILAS_DEL_MARCADOR.goals)
-    colgar(this.maquina.nodo, 0.12, FILAS_DEL_MARCADOR.goals)
-    // Los dos puntos entre los goles: es lo que se lee como «a».
-    colgar(this.dosPuntos, 0, FILAS_DEL_MARCADOR.goals)
-    colgar(this.puntos.nodo, 0, FILAS_DEL_MARCADOR.points)
-    colgar(this.fila.nodo, 0, FILAS_DEL_MARCADOR.round)
-    colgar(this.nodoDeLaVuelta, 0.05, FILAS_DEL_MARCADOR.round)
-    colgar(shape(triangulosDelAspa(0.026, 0.005), PALETTE.puck), -0.028, 0, this.nodoDeLaVuelta)
-    colgar(this.vuelta.nodo, 0.008, 0, this.nodoDeLaVuelta)
+    hang(this.player.node, -0.12, SCOREBOARD_ROWS.goals)
+    hang(this.opponent.node, 0.12, SCOREBOARD_ROWS.goals)
+    // The colon between the goals: it is what is read as «a».
+    hang(this.colon, 0, SCOREBOARD_ROWS.goals)
+    hang(this.points.node, 0, SCOREBOARD_ROWS.points)
+    hang(this.rowNumber.node, 0, SCOREBOARD_ROWS.round)
+    hang(this.lapNode, 0.05, SCOREBOARD_ROWS.round)
+    hang(shape(crossTriangles(0.026, 0.005), PALETTE.puck), -0.028, 0, this.lapNode)
+    hang(this.lap.node, 0.008, 0, this.lapNode)
   }
 
-  pintar(estado: EstadoDelMarcador): void {
-    const clave = JSON.stringify(estado)
-    if (clave === this.pintado) return
-    this.pintado = clave
-    this.jugador.pintar(estado.jugador)
-    this.maquina.pintar(estado.maquina)
-    for (const [nodo, x] of [[this.jugador.nodo, -0.12], [this.maquina.nodo, 0.12], [this.dosPuntos, 0]] as const) {
-      nodo.position = new Vector3(x, estado.goles, 0.004)
+  paint(state: ScoreboardState): void {
+    const key = JSON.stringify(state)
+    if (key === this.painted) return
+    this.painted = key
+    this.player.paint(state.player)
+    this.opponent.paint(state.opponent)
+    for (const [node, x] of [[this.player.node, -0.12], [this.opponent.node, 0.12], [this.colon, 0]] as const) {
+      node.position = new Vector3(x, state.goalsRow, 0.004)
     }
-    this.puntos.nodo.visible = estado.puntos != null
-    if (estado.puntos != null) this.puntos.pintar(estado.puntos)
-    this.fila.nodo.visible = estado.fila != null
-    if (estado.fila != null) this.fila.pintar(estado.fila)
-    // Con vuelta, la ronda se corre a la izquierda para dejarle sitio.
-    this.fila.nodo.position = new Vector3(estado.vuelta != null ? -0.05 : 0, FILAS_DEL_MARCADOR.round, 0.004)
-    this.nodoDeLaVuelta.visible = estado.vuelta != null
-    if (estado.vuelta != null) this.vuelta.pintar(estado.vuelta)
+    this.points.node.visible = state.points != null
+    if (state.points != null) this.points.paint(state.points)
+    this.rowNumber.node.visible = state.rowNumber != null
+    if (state.rowNumber != null) this.rowNumber.paint(state.rowNumber)
+    // With a lap, the round moves to the left to make room for it.
+    this.rowNumber.node.position = new Vector3(state.lap != null ? -0.05 : 0, SCOREBOARD_ROWS.round, 0.004)
+    this.lapNode.visible = state.lap != null
+    if (state.lap != null) this.lap.paint(state.lap)
   }
 }
 
-/** Lo que dice el aviso del mazo, con un toque o manteniendo (`dibujarElAvisoDelMazo`). */
-export function fraseDelMazo(conUnToque: boolean): TextKey {
-  return conUnToque ? 'Press the grip button on the mallet to pick it up' : 'Close your hand on the mallet to pick it up'
+/** What the mallet notice says, with one tap or holding (`drawMalletNotice`). */
+export function malletPhrase(withOneTap: boolean): TextKey {
+  return withOneTap ? 'Press the grip button on the mallet to pick it up' : 'Close your hand on the mallet to pick it up'
 }
 
-/** La cuenta atrás, o el aviso de coger el mazo en su lugar. */
-export class CuentaAtras {
-  readonly nodo = new Node3D()
-  readonly cifra = new Cifras(CIFRA_DE_LA_CUENTA, PALETTE.primaryBright)
-  readonly aviso: Panel
-  private pintado = ''
+/** The countdown, or the notice to pick up the mallet in its place. */
+export class Countdown {
+  readonly node = new Node3D()
+  readonly digit = new Digits(COUNTDOWN_DIGIT, PALETTE.primaryBright)
+  readonly notice: Panel
+  private painted = ''
 
   constructor() {
-    this.nodo.add_child(this.cifra.nodo)
-    this.aviso = new Panel({ ancho: AVISO_DEL_MAZO[0], alto: AVISO_DEL_MAZO[1], fondo: PALETTE.background, opacidad: 0.86 })
-    this.nodo.add_child(this.aviso.nodo)
+    this.node.add_child(this.digit.node)
+    this.notice = new Panel({ ancho: MALLET_NOTICE[0], alto: MALLET_NOTICE[1], fondo: PALETTE.background, opacidad: 0.86 })
+    this.node.add_child(this.notice.nodo)
   }
 
-  /** `null` la esconde; si no, la cifra, o el aviso si se está esperando el mazo. */
-  pintar(estado: { cuenta: number; esperandoElMazo: boolean; conUnToque: boolean; lang: Lang } | null): void {
-    this.nodo.visible = estado != null
-    if (estado == null) return
-    this.cifra.nodo.visible = !estado.esperandoElMazo
-    this.aviso.nodo.visible = estado.esperandoElMazo
-    if (!estado.esperandoElMazo) {
-      this.cifra.pintar(estado.cuenta)
+  /** `null` hides it; otherwise, the digit, or the notice if the mallet is being waited for. */
+  paint(state: { count: number; waitingForMallet: boolean; withOneTap: boolean; lang: Lang } | null): void {
+    this.node.visible = state != null
+    if (state == null) return
+    this.digit.node.visible = !state.waitingForMallet
+    this.notice.nodo.visible = state.waitingForMallet
+    if (!state.waitingForMallet) {
+      this.digit.paint(state.count)
       return
     }
-    const clave = `${estado.lang}:${estado.conUnToque}`
-    if (clave === this.pintado) return
-    this.pintado = clave
-    this.aviso.borrarTextos()
-    this.aviso.parrafo(translator(estado.lang)(fraseDelMazo(estado.conUnToque)), 0, 0, {
-      alto: LETRA_DEL_AVISO.phrase,
+    const key = `${state.lang}:${state.withOneTap}`
+    if (key === this.painted) return
+    this.painted = key
+    this.notice.borrarTextos()
+    this.notice.parrafo(translator(state.lang)(malletPhrase(state.withOneTap)), 0, 0, {
+      alto: MALLET_TEXT.phrase,
       color: PALETTE.foreground,
-      anchoMax: AVISO_DEL_MAZO[0] - 0.06,
+      anchoMax: MALLET_NOTICE[0] - 0.06,
     })
   }
 }

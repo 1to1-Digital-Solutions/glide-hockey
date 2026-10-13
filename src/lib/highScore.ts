@@ -2,40 +2,40 @@ import { type GameMode } from './gameMode'
 import { createStoredPreference } from './storage'
 
 /**
- * La mejor puntuación, guardada entre visitas.
+ * The best score, stored between visits.
  *
- * Un entero por modo en `localStorage`, sin identificadores ni nada que
- * describa a quien juega: un récord que se borra al recargar no es un récord.
+ * One integer per mode in `localStorage`, with no identifiers nor anything that
+ * describes whoever plays: a record that is erased on reload is not a record.
  *
- * **Un récord por modo** y no uno global: un reto se corta con la primera
- * partida perdida y una prueba la elige el jugador, así que las dos cifras no
- * miden lo mismo. Con una sola marca, uno de los dos modos no la batiría jamás.
+ * **One record per mode** and not a global one: a challenge is cut short by the
+ * first match lost and a practice one is chosen by the player, so the two
+ * figures do not measure the same. With a single score, one of the two modes
+ * would never beat it.
  */
 
-/** Clave del récord de cada modo, con prefijo para no chocar con nada más. */
+/** Key of each mode's record, with a prefix so as not to clash with anything else. */
 export const HIGH_SCORE_KEYS: Record<GameMode, string> = {
   practice: 'glide-hockey:best-points',
   levels: 'glide-hockey:best-points:levels',
   challenge: 'glide-hockey:best-points:challenge',
-  // En el duelo no se guarda récord —los goles son de dos personas y no dicen nada de la marca
-  // de ninguna—, pero el modo existe y la lectura del récord se hace por modo.
+  // In the duel no record is stored —the goals belong to two people and say nothing about the
+  // score of either—, but the mode exists and the record is read per mode.
   duel: 'glide-hockey:best-points:duel',
 }
 
 /**
- * La partida sin fin no tiene récord de puntos —crecen sin tope con el tiempo—,
- * así que su marca es la mejor racha de goles seguidos. Clave aparte para que
- * no se mezcle con la prueba normal, que sí mide el total.
+ * The endless match has no points record —they grow without a cap over time—,
+ * so its score is the best streak of goals in a row. A separate key so that it
+ * does not get mixed with normal practice, which does measure the total.
  */
 export const ENDLESS_STREAK_KEY = 'glide-hockey:best-streak:endless'
 
 /**
- * Interpreta lo leído del almacenamiento.
+ * Interprets what was read from storage.
  *
- * Es entrada externa —cualquiera puede editarla desde las herramientas del
- * navegador—, así que solo se acepta un entero no negativo y exacto. Cualquier
- * otra cosa cuenta como «todavía no hay récord» en vez de propagar un `NaN` a
- * la puntuación.
+ * It is external input —anyone can edit it from the browser's tools—, so only
+ * an exact, non-negative integer is accepted. Anything else counts as «there
+ * is no record yet» instead of propagating a `NaN` to the score.
  */
 export function parseBestPoints(raw: string | null): number {
   if (raw == null || raw.trim() === '') return 0
@@ -57,9 +57,9 @@ export const {
 } = bestPoints
 
 /**
- * Guarda la puntuación si mejora el récord de ese modo, y avisa a quien lo esté
- * mirando. Lo que la lectura fuera a descartar no llega a escribirse, para no
- * dejar en el navegador algo que ya no cuenta como récord.
+ * Saves the score if it improves that mode's record, and notifies whoever is
+ * watching it. What the read would discard never gets written, so as not to
+ * leave in the browser something that no longer counts as a record.
  */
 export function saveBestPoints(mode: GameMode, points: number): void {
   if (!Number.isSafeInteger(points) || points <= getBestPoints(mode)) return
@@ -78,7 +78,7 @@ export const {
   subscribe: subscribeBestEndlessStreak,
 } = endlessStreak
 
-/** Guarda la racha de una partida sin fin si mejora la marca. */
+/** Saves the streak of an endless match if it improves the score. */
 export function saveBestEndlessStreak(streak: number): void {
   if (!Number.isSafeInteger(streak) || streak <= getBestEndlessStreak()) return
   endlessStreak.save(streak)

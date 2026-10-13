@@ -3,33 +3,34 @@ import { describe, expect, it } from 'vitest'
 import { PINCH_CLOSE, PINCH_OPEN, isPinching } from './pinch'
 
 /**
- * Agarrar con la mano desnuda.
+ * Grabbing with the bare hand.
  *
- * Se prueba aquí porque es un umbral, y los umbrales sin histéresis se notan tarde: con uno
- * solo, una mano temblando justo en él suelta y coge el objeto varias veces por segundo.
+ * It is tested here because it is a threshold, and thresholds without hysteresis are noticed
+ * late: with only one, a hand trembling right on it lets go of and grabs the object several
+ * times a second.
  */
-describe('el pellizco', () => {
-  it('con las yemas juntas, agarra', () => {
+describe('the pinch', () => {
+  it('with the fingertips together, it grabs', () => {
     expect(isPinching(0.01, false)).toBe(true)
   })
 
-  it('con la mano abierta, no', () => {
+  it('with the hand open, it does not', () => {
     expect(isPinching(0.09, false)).toBe(false)
   })
 
-  it('aguanta el pulso: soltar cuesta más que agarrar', () => {
-    // Justo entre los dos umbrales: si ya agarraba, sigue agarrando; si no, no empieza.
-    const entre = (PINCH_CLOSE + PINCH_OPEN) / 2
+  it('holds through the tremor: letting go takes more than grabbing', () => {
+    // Right between the two thresholds: if it was already grabbing, it keeps on; if not, it does not start.
+    const between = (PINCH_CLOSE + PINCH_OPEN) / 2
 
-    expect(isPinching(entre, true)).toBe(true)
-    expect(isPinching(entre, false)).toBe(false)
+    expect(isPinching(between, true)).toBe(true)
+    expect(isPinching(between, false)).toBe(false)
   })
 
-  it('separar del todo suelta', () => {
+  it('spreading all the way lets go', () => {
     expect(isPinching(PINCH_OPEN + 0.01, true)).toBe(false)
   })
 
-  it('sin articulaciones no agarra: eso es un mando, y lo dice su botón', () => {
+  it('without joints it does not grab: that is a controller, and its button says so', () => {
     expect(isPinching(null, false)).toBe(false)
     expect(isPinching(null, true)).toBe(false)
     expect(isPinching(Number.NaN, true)).toBe(false)

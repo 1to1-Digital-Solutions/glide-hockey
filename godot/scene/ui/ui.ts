@@ -1,21 +1,21 @@
 /**
- * La interfaz de Glide Hockey en Godot, entera: el menú casi de frente, el final y el aviso de salir
- * en la columna;
- * el marcador al fondo de la mesa y, encima de él, el cartel del objetivo; la cuenta atrás sobre el
- * saque; el botón de parar; el tutorial; y la puntería que los hace pulsables.
+ * The interface of Glide Hockey in Godot, whole: the menu almost head-on, the end and the exit notice
+ * in the column;
+ * the scoreboard at the back of the table and, above it, the goal sign; the countdown over the
+ * serve; the stop button; the tutorial; and the aim that makes them pressable.
  *
- * **Dónde va cada cosa es lo de la web** (`reparto.ts`): con el visor, el menú a metro y medio y
- * casi de frente (a 30° o menos, la plantilla común), y la columna a la misma distancia y 55° a la
- * izquierda, agrandada y mirando a los ojos, fuera de la mesa; el marcador sobre la
- * portería de la máquina; el botón de parar donde la columna, que mientras se juega está vacía. **En
- * plano** —donde la web pone su menú en DOM— la columna va a la izquierda de la mesa, de cara a la
- * cámara, y el botón de parar junto al marcador: la cámara de plano no ve lo que hay a 55°.
+ * **Where each thing goes is the web's** (`layout.ts`): with the headset, the menu a metre and a half
+ * away and almost head-on (at 30° or less, the common template), and the column at the same distance
+ * and 55° to the left, enlarged and facing the eyes, off the table; the scoreboard over the
+ * machine's goal; the stop button where the column is, which while playing is empty. **Flat**
+ * —where the web puts its menu in the DOM— the column goes to the left of the table, facing the
+ * camera, and the stop button next to the scoreboard: the flat camera does not see what is at 55°.
  *
- * **Todo cuelga de la raíz** (`raiz`): el espacio de la mesa subido con los ojos de quien juega, como
- * el `XRUiHeight` de la web, que la escena mueve; la mesa no sube con ella.
+ * **Everything hangs from the root** (`root`): the table's space raised with the eyes of whoever
+ * plays, like the web's `XRUiHeight`, which the scene moves; the table does not rise with it.
  *
- * **Nunca dos paneles llenos a la vez en la columna**: el menú, el final y el aviso se turnan, y la
- * fase la decide la partida (`partida.ts`), no la interfaz.
+ * **Never two full panels at once in the column**: the menu, the end and the notice take turns, and
+ * the phase is decided by the match (`match.ts`), not by the interface.
  */
 import { Node3D, Transform3D, Vector3, type Camera3D, type InputEvent } from 'godot'
 
@@ -31,309 +31,309 @@ import { isEndless } from '@/lib/gameMode'
 import type { Medal } from '@/lib/goal'
 
 import { onLangChange, currentLang } from '@kit/runtime/settings'
-import { confort, elegirConfort } from './comfort'
-import { AvisoDeSalir, BotonesDeParar } from './notice'
-import { Cartel } from './sign'
-import { FinalDeLaPartida } from './gameOver'
-import { CuentaAtras, Marcador } from './scoreboard'
-import { MenuDelJuego, type EstadoDelMenu } from './menu'
-import type { Partida } from './match'
+import { currentComfort, chooseComfort } from './comfort'
+import { ExitNotice, StopButtons } from './notice'
+import { SignPanel } from './sign'
+import { GameOverPanel } from './gameOver'
+import { Countdown, Scoreboard } from './scoreboard'
+import { GameMenu, type MenuState } from './menu'
+import type { Match } from './match'
 import {
-  ESCALA_DEL_BOTON,
-  ESCALA_DE_LA_COLUMNA,
-  INCLINACION_DEL_MARCADOR,
-  SITIO_DEL_CARTEL,
-  filaDeLosGoles,
+  BUTTON_SCALE,
+  COLUMN_SCALE,
+  SCOREBOARD_TILT,
+  SIGN_PLACEMENT,
+  goalsRow,
   XR_QUIT,
-  TUTORIAL_EN_PLANO,
+  FLAT_TUTORIAL,
   XR_UI,
   XR_UI_ROTATION,
   type Triple,
 } from './layout'
-import { TutorialDelJuego } from './tutorial'
+import { GameTutorial } from './tutorial'
 
-/** Lo que la interfaz le pide a la escena, además de lo que le pide a la partida. */
-export interface EscenaDelJuego {
-  /** Volver al salón, o cerrar el juego. */
-  salir(): void
+/** What the interface asks of the scene, besides what it asks of the match. */
+export interface GameSceneHost {
+  /** Go back to the hall, or close the game. */
+  exit(): void
 }
 
-/** El escenario del salón, visto desde el menú: qué hay elegido, si se puede cambiar y cómo. */
-export interface EscenarioDelMenu {
+/** The hall's scenery, seen from the menu: what is chosen, whether it can be changed and how. */
+export interface MenuScenery {
   readonly elegido: Scenery
-  /** Si hay habitación que enseñar (realidad aumentada): sin ella, el botón se apaga. */
+  /** Whether there is a room to show (augmented reality): without it, the button is dimmed. */
   readonly hayHabitacion: boolean
   alternar(): void
 }
 
-export interface OpcionesDeLaInterfaz {
+export interface UiOptions {
   /**
-   * De donde cuelga todo: el espacio de la mesa (su centro, a la altura del tablero), subido con los
-   * ojos de quien juega (`XRUiHeight` de la web). En plano, el de la mesa tal cual.
+   * What everything hangs from: the table's space (its centre, at the height of the board), raised
+   * with the eyes of whoever plays (the web's `XRUiHeight`). Flat, the table's as it is.
    */
-  raiz: Node3D
-  /** La cámara de plano, de la que sale el rayo del ratón. Con visor, `null`. */
-  camara: Camera3D | null
-  /** Los punteros del visor (`XRPlayer.punteros()`), además del ratón. */
-  punteros?: readonly Pointer[]
-  visor: boolean
-  /** Idioma forzado por la línea de órdenes (`--lang=es`), para mirar sin tocar el guardado. */
+  root: Node3D
+  /** The flat camera, which the mouse's ray comes from. With a headset, `null`. */
+  camera: Camera3D | null
+  /** The headset's pointers (`XRPlayer.punteros()`), besides the mouse. */
+  pointers?: readonly Pointer[]
+  headset: boolean
+  /** Language forced from the command line (`--lang=es`), to look without touching what is stored. */
   lang?: string | null
-  /** Enseñar el tutorial también en plano (`--tutorial`). */
+  /** Show the tutorial flat as well (`--tutorial`). */
   tutorial?: boolean
-  /** El mando de verdad de cada mano, para el tutorial (`MandoDeVerdad` del kit). */
-  manos?: readonly MandoEnLaMano[]
-  /** El escenario del salón; sin él, la sala y el botón apagado. */
-  escenario?: EscenarioDelMenu
+  /** The real controller of each hand, for the tutorial (the kit's `RealController`). */
+  hands?: readonly MandoEnLaMano[]
+  /** The hall's scenery; without it, the room and the button dimmed. */
+  scenery?: MenuScenery
 }
 
 /**
- * Dónde va la columna en plano, en el espacio de la mesa: a la izquierda de la mesa y sobre el
- * suelo oscuro de la sala. Encima de la mesa, el tablero blanco se veía a través de los paneles,
- * que son translúcidos como en el visor, y las cifras blancas no se leían.
+ * Where the column goes when flat, in the table's space: to the left of the table and over the
+ * room's dark floor. Above the table, the white board showed through the panels, which are
+ * translucent as in the headset, and the white digits could not be read.
  */
-export const COLUMNA_EN_PLANO: Triple = [-1.05, 0.5, 0.35]
-/** Y el botón de parar en plano: a la izquierda del marcador, que es donde se mira jugando. */
-export const PARAR_EN_PLANO: Triple = [-0.48, XR_UI.scoreboard[1], XR_UI.scoreboard[2]]
+export const FLAT_COLUMN: Triple = [-1.05, 0.5, 0.35]
+/** And the stop button when flat: to the left of the scoreboard, which is where one looks while playing. */
+export const FLAT_STOP: Triple = [-0.48, XR_UI.scoreboard[1], XR_UI.scoreboard[2]]
 
-function colocar(nodo: Node3D, donde: readonly [number, number, number], giro: readonly [number, number, number, string] | null, escala = 1): void {
-  nodo.position = new Vector3(donde[0], donde[1], donde[2])
-  // `Node3D` gira en orden YXZ, el mismo que las rotaciones de la web (`panelRotation`).
-  if (giro != null) nodo.rotation = new Vector3(giro[0], giro[1], giro[2])
-  nodo.scale = new Vector3(escala, escala, escala)
+function place(node: Node3D, where: readonly [number, number, number], rotation: readonly [number, number, number, string] | null, scale = 1): void {
+  node.position = new Vector3(where[0], where[1], where[2])
+  // `Node3D` rotates in YXZ order, the same as the web's rotations (`panelRotation`).
+  if (rotation != null) node.rotation = new Vector3(rotation[0], rotation[1], rotation[2])
+  node.scale = new Vector3(scale, scale, scale)
 }
 
-export class InterfazDelJuego {
-  readonly punteria: PointerAim
-  readonly raton: MousePointer | null
-  readonly columna = new Node3D()
-  /** Donde nace el menú con el visor: casi de frente, a la distancia de la columna. */
-  readonly sitioDelMenu = new Node3D()
-  readonly menu: MenuDelJuego
-  readonly final: FinalDeLaPartida
-  readonly aviso: AvisoDeSalir
-  readonly parar: BotonesDeParar
-  readonly marcador: Marcador
-  /** El cartel del objetivo, encima del marcador. */
-  readonly cartel: Cartel
+export class GameUi {
+  readonly aim: PointerAim
+  readonly mouse: MousePointer | null
+  readonly column = new Node3D()
+  /** Where the menu is born with the headset: almost head-on, at the column's distance. */
+  readonly menuAnchor = new Node3D()
+  readonly menu: GameMenu
+  readonly gameOver: GameOverPanel
+  readonly exitNotice: ExitNotice
+  readonly stopButtons: StopButtons
+  readonly scoreboard: Scoreboard
+  /** The goal sign, above the scoreboard. */
+  readonly sign: SignPanel
   /**
-   * El listón de medalla que se ha cruzado en el último fotograma, o `null`: la escena lo hace
-   * sonar y sentir, que el color y el pulso ya son del cartel.
+   * The medal threshold that was crossed in the last frame, or `null`: the scene makes it sound
+   * and be felt, since the colour and the pulse already belong to the sign.
    */
-  liston: Medal | null = null
-  readonly cuenta: CuentaAtras
-  readonly tutorial: TutorialDelJuego
-  private pintado = ''
-  /** «Más opciones», desplegado o no: de la interfaz, se pliega cada vez que se vuelve al menú. */
-  private masOpciones = false
-  private faseAnterior: string | null = null
-  private readonly langForzado: string | null
-  private readonly tutorialEnPlano: boolean
-  private readonly visor: boolean
-  private readonly escenario: EscenarioDelMenu | null
-  private readonly dejarDeEscuchar: () => void
+  threshold: Medal | null = null
+  readonly countdown: Countdown
+  readonly tutorial: GameTutorial
+  private painted = ''
+  /** «Más opciones», unfolded or not: the interface's own, it folds every time the menu is returned to. */
+  private moreOptions = false
+  private previousPhase: string | null = null
+  private readonly forcedLang: string | null
+  private readonly flatTutorial: boolean
+  private readonly headset: boolean
+  private readonly scenery: MenuScenery | null
+  private readonly stopListening: () => void
 
   constructor(
-    private readonly partida: Partida,
-    private readonly escena: EscenaDelJuego,
-    opciones: OpcionesDeLaInterfaz,
+    private readonly match: Match,
+    private readonly scene: GameSceneHost,
+    options: UiOptions,
   ) {
-    this.visor = opciones.visor
-    this.langForzado = opciones.lang ?? null
-    this.tutorialEnPlano = opciones.tutorial ?? false
-    this.escenario = opciones.escenario ?? null
-    this.raton = opciones.camara == null ? null : new MousePointer(opciones.camara)
-    this.punteria = new PointerAim([...(this.raton == null ? [] : [this.raton]), ...(opciones.punteros ?? [])])
-    const mesa = opciones.raiz
+    this.headset = options.headset
+    this.forcedLang = options.lang ?? null
+    this.flatTutorial = options.tutorial ?? false
+    this.scenery = options.scenery ?? null
+    this.mouse = options.camera == null ? null : new MousePointer(options.camera)
+    this.aim = new PointerAim([...(this.mouse == null ? [] : [this.mouse]), ...(options.pointers ?? [])])
+    const root = options.root
 
-    this.columna.set_name('Columna')
-    mesa.add_child(this.columna)
-    if (this.visor) colocar(this.columna, XR_UI.panel, XR_UI_ROTATION.panel, ESCALA_DE_LA_COLUMNA)
+    this.column.set_name('Column')
+    root.add_child(this.column)
+    if (this.headset) place(this.column, XR_UI.panel, XR_UI_ROTATION.panel, COLUMN_SCALE)
     else {
-      // Paralela a la pantalla: girada hacia la cámara como un panel del visor (`panelRotation`),
-      // a un lado de la imagen se veía torcida, porque la cámara de plano mira hacia abajo.
-      const camara = opciones.camara!
-      this.columna.global_transform = new Transform3D(camara.global_basis, mesa.to_global(new Vector3(...COLUMNA_EN_PLANO)))
+      // Parallel to the screen: turned towards the camera like a headset panel (`panelRotation`),
+      // to one side of the picture it looked crooked, because the flat camera looks down.
+      const camera = options.camera!
+      this.column.global_transform = new Transform3D(camera.global_basis, root.to_global(new Vector3(...FLAT_COLUMN)))
     }
 
-    this.menu = new MenuDelJuego(
+    this.menu = new GameMenu(
       {
-        elegirModo: (modo) => partida.setGameMode(modo),
-        elegirDificultad: (d) => partida.setDifficulty(d),
-        elegirConfort: (c) => elegirConfort(c),
-        mover: (signo) => (partida.levels ? partida.setLevel(partida.activeLevel + signo) : partida.setGoalTarget(partida.goalTarget + signo)),
-        sinFin: () => partida.setEndless(!partida.endless),
-        alternarEscenario: () => this.escenario?.alternar(),
-        masOpciones: () => (this.masOpciones = !this.masOpciones),
-        jugar: () => partida.startGame(),
-        salir: () => escena.salir(),
+        chooseMode: (mode) => match.setGameMode(mode),
+        chooseDifficulty: (d) => match.setDifficulty(d),
+        chooseComfort: (c) => chooseComfort(c),
+        step: (sign) => (match.levels ? match.setLevel(match.activeLevel + sign) : match.setGoalTarget(match.goalTarget + sign)),
+        endless: () => match.setEndless(!match.endless),
+        toggleScenery: () => this.scenery?.alternar(),
+        moreOptions: () => (this.moreOptions = !this.moreOptions),
+        play: () => match.startGame(),
+        exit: () => scene.exit(),
       },
-      this.punteria,
+      this.aim,
     )
-    // Con el visor, el menú nace casi de frente (`XR_UI.menu`, la plantilla común) y se aparta al
-    // empezar; en plano va en la columna, que la cámara ya ve de frente.
-    if (this.visor) {
-      this.sitioDelMenu.set_name('Menu')
-      colocar(this.sitioDelMenu, XR_UI.menu, XR_UI_ROTATION.menu, ESCALA_DE_LA_COLUMNA)
-      mesa.add_child(this.sitioDelMenu)
-      this.sitioDelMenu.add_child(this.menu.nodo)
-    } else this.columna.add_child(this.menu.nodo)
+    // With the headset, the menu is born almost head-on (`XR_UI.menu`, the common template) and moves
+    // away on starting; flat it goes in the column, which the camera already sees head-on.
+    if (this.headset) {
+      this.menuAnchor.set_name('Menu')
+      place(this.menuAnchor, XR_UI.menu, XR_UI_ROTATION.menu, COLUMN_SCALE)
+      root.add_child(this.menuAnchor)
+      this.menuAnchor.add_child(this.menu.node)
+    } else this.column.add_child(this.menu.node)
 
-    this.final = new FinalDeLaPartida({ otraVez: () => partida.startGame(), menu: () => partida.resetGame(), salir: () => escena.salir() }, this.punteria)
-    this.columna.add_child(this.final.nodo)
+    this.gameOver = new GameOverPanel({ again: () => match.startGame(), menu: () => match.resetGame(), exit: () => scene.exit() }, this.aim)
+    this.column.add_child(this.gameOver.node)
 
-    // Delante de todo lo de la columna: sale encima de la partida parada.
-    this.aviso = new AvisoDeSalir({ seguir: () => partida.keepPlaying(), menu: () => partida.resetGame(), dejar: () => escena.salir() }, this.punteria)
-    this.aviso.nodo.position = new Vector3(0, 0, 0.03)
-    this.columna.add_child(this.aviso.nodo)
+    // In front of everything in the column: it comes up over the stopped match.
+    this.exitNotice = new ExitNotice({ stay: () => match.keepPlaying(), menu: () => match.resetGame(), leave: () => scene.exit() }, this.aim)
+    this.exitNotice.node.position = new Vector3(0, 0, 0.03)
+    this.column.add_child(this.exitNotice.node)
 
-    this.parar = new BotonesDeParar({ parar: () => partida.askToQuit(), terminar: () => partida.endRun() }, this.punteria)
-    if (this.visor) colocar(this.parar.nodo, XR_QUIT, XR_UI_ROTATION.quit, ESCALA_DEL_BOTON)
-    else colocar(this.parar.nodo, PARAR_EN_PLANO, [INCLINACION_DEL_MARCADOR, 0, 0, 'YXZ'], ESCALA_DE_LA_COLUMNA)
-    mesa.add_child(this.parar.nodo)
+    this.stopButtons = new StopButtons({ stop: () => match.askToQuit(), end: () => match.endRun() }, this.aim)
+    if (this.headset) place(this.stopButtons.node, XR_QUIT, XR_UI_ROTATION.quit, BUTTON_SCALE)
+    else place(this.stopButtons.node, FLAT_STOP, [SCOREBOARD_TILT, 0, 0, 'YXZ'], COLUMN_SCALE)
+    root.add_child(this.stopButtons.node)
 
-    this.marcador = new Marcador()
-    colocar(this.marcador.nodo, XR_UI.scoreboard, [INCLINACION_DEL_MARCADOR, 0, 0, 'YXZ'])
-    mesa.add_child(this.marcador.nodo)
+    this.scoreboard = new Scoreboard()
+    place(this.scoreboard.node, XR_UI.scoreboard, [SCOREBOARD_TILT, 0, 0, 'YXZ'])
+    root.add_child(this.scoreboard.node)
 
-    // Qué hay que superar, de frente: encima del marcador, que es donde ya se mira. Cuelga de la
-    // misma raíz, así que sube con los ojos igual que él.
-    this.cartel = new Cartel()
-    this.cartel.colocar(SITIO_DEL_CARTEL)
-    mesa.add_child(this.cartel.nodo)
+    // What has to be beaten, head-on: above the scoreboard, which is where one already looks. It
+    // hangs from the same root, so it rises with the eyes just like it does.
+    this.sign = new SignPanel()
+    this.sign.place(SIGN_PLACEMENT)
+    root.add_child(this.sign.node)
 
-    this.cuenta = new CuentaAtras()
-    colocar(this.cuenta.nodo, XR_UI.countdown, null)
-    mesa.add_child(this.cuenta.nodo)
+    this.countdown = new Countdown()
+    place(this.countdown.node, XR_UI.countdown, null)
+    root.add_child(this.countdown.node)
 
-    this.tutorial = new TutorialDelJuego(this.punteria, opciones.manos)
-    if (this.tutorialEnPlano) this.tutorial.forzar()
-    if (this.visor) colocar(this.tutorial.vista.nodo, XR_UI.tutorial, XR_UI_ROTATION.tutorial)
-    else colocar(this.tutorial.vista.nodo, TUTORIAL_EN_PLANO, XR_UI_ROTATION.tutorialEnPlano)
-    mesa.add_child(this.tutorial.vista.nodo)
+    this.tutorial = new GameTutorial(this.aim, options.hands)
+    if (this.flatTutorial) this.tutorial.force()
+    if (this.headset) place(this.tutorial.view.nodo, XR_UI.tutorial, XR_UI_ROTATION.tutorial)
+    else place(this.tutorial.view.nodo, FLAT_TUTORIAL, XR_UI_ROTATION.flatTutorial)
+    root.add_child(this.tutorial.view.nodo)
 
-    // Si el salón cambia el idioma con el juego abierto, se repinta al siguiente fotograma.
-    this.dejarDeEscuchar = onLangChange(() => (this.pintado = ''))
-    this.pintarFase()
+    // If the hall changes the language with the game open, it is repainted on the next frame.
+    this.stopListening = onLangChange(() => (this.painted = ''))
+    this.paintPhase()
   }
 
   get lang(): Lang {
-    return currentLang(this.langForzado)
+    return currentLang(this.forcedLang)
   }
 
   /**
-   * Escape en plano, o B/Y y el botón de menú con visor: en el menú sale del juego; en la partida
-   * pregunta (o deja de preguntar); en el final vuelve al menú.
+   * Escape when flat, or B/Y and the menu button with a headset: in the menu it leaves the game; in
+   * the match it asks (or stops asking); at the end it goes back to the menu.
    */
   escape(): void {
-    const fase = this.partida.gameState
-    if (fase === 'menu') this.escena.salir()
-    else if (fase === 'finished') this.partida.resetGame()
-    else if (this.partida.prompt != null) this.partida.keepPlaying()
-    else this.partida.askToQuit()
+    const phase = this.match.gameState
+    if (phase === 'menu') this.scene.exit()
+    else if (phase === 'finished') this.match.resetGame()
+    else if (this.match.prompt != null) this.match.keepPlaying()
+    else this.match.askToQuit()
   }
 
-  /** Un evento de entrada: el ratón lo lleva la puntería. */
-  recibir(evento: InputEvent): boolean {
-    return this.raton?.recibir(evento) ?? false
+  /** An input event: the mouse is carried by the aim. */
+  receive(event: InputEvent): boolean {
+    return this.mouse?.recibir(event) ?? false
   }
 
-  /** Si algún puntero está sobre un botón. */
-  apuntaAUnBoton(): boolean {
-    return this.punteria.punteros.some((p) => this.punteria.apuntando(p.id) != null)
+  /** Whether any pointer is over a button. */
+  pointsAtButton(): boolean {
+    return this.aim.punteros.some((p) => this.aim.apuntando(p.id) != null)
   }
 
-  /** Lo que enseña el menú ahora mismo. */
-  estadoDelMenu(): EstadoDelMenu {
-    const p = this.partida
+  /** What the menu shows right now. */
+  menuState(): MenuState {
+    const p = this.match
     return {
       lang: this.lang,
-      modo: p.gameMode,
-      dificultad: p.difficulty,
-      goles: p.goalTarget,
-      sinFin: p.endless,
-      nivel: p.activeLevel,
-      abierto: p.unlockedLevel,
-      estrellas: p.levelStars,
+      mode: p.gameMode,
+      difficulty: p.difficulty,
+      goals: p.goalTarget,
+      endless: p.endless,
+      level: p.activeLevel,
+      unlocked: p.unlockedLevel,
+      stars: p.levelStars,
       record: p.bestPoints,
-      objetivo: p.objetivo,
-      confort: confort(),
-      habitacion: this.escenario?.hayHabitacion ?? false,
-      escenario: this.escenario?.elegido ?? 'place',
-      masOpciones: this.masOpciones,
+      goal: p.goal,
+      comfort: currentComfort(),
+      hasRoom: this.scenery?.hayHabitacion ?? false,
+      scenery: this.scenery?.elegido ?? 'place',
+      moreOptions: this.moreOptions,
     }
   }
 
-  /** Un fotograma: la puntería (que puede cambiar la fase) y luego pintar lo que toca. */
-  actualizar(delta: number, { agarre = 'hold' as GrabMode } = {}): void {
-    this.punteria.actualizar()
-    this.pintarFase()
-    const p = this.partida
-    const fase = p.gameState
+  /** A frame: the aim (which may change the phase) and then painting what applies. */
+  update(delta: number, { grab = 'hold' as GrabMode } = {}): void {
+    this.aim.actualizar()
+    this.paintPhase()
+    const p = this.match
+    const phase = p.gameState
     const lang = this.lang
-    if (fase === 'menu') {
-      const estado = this.estadoDelMenu()
-      const clave = JSON.stringify(estado)
-      if (clave !== this.pintado) {
-        this.menu.pintar(estado)
-        this.pintado = clave
+    if (phase === 'menu') {
+      const state = this.menuState()
+      const key = JSON.stringify(state)
+      if (key !== this.painted) {
+        this.menu.paint(state)
+        this.painted = key
       }
-    } else this.pintado = ''
-    if (fase !== 'menu') {
-      // Sin lo que ya dice el cartel de encima: en el reto, los puntos y —mientras se juega— la ronda.
-      const callado = p.callado
-      this.marcador.pintar({
-        jugador: p.playerGoals,
-        maquina: p.opponentGoals,
-        puntos: callado.points ? null : p.points,
-        // En el duelo, el número de quien tiene el mando: sin letras, es lo que dice de quién es el cian.
-        fila: callado.round ? null : (p.round ?? (p.levels ? p.activeLevel : p.duelView != null ? p.duelView.player + 1 : null)),
-        vuelta: !callado.round && p.lap != null && p.lap > 1 ? p.lap : null,
-        goles: filaDeLosGoles(callado),
+    } else this.painted = ''
+    if (phase !== 'menu') {
+      // Without what the sign above already says: in the challenge, the points and —while playing— the round.
+      const omitted = p.omitted
+      this.scoreboard.paint({
+        player: p.playerGoals,
+        opponent: p.opponentGoals,
+        points: omitted.points ? null : p.points,
+        // In the duel, the number of whoever has the controller: without letters, it is what says whose the cyan is.
+        rowNumber: omitted.round ? null : (p.round ?? (p.levels ? p.activeLevel : p.duelView != null ? p.duelView.player + 1 : null)),
+        lap: !omitted.round && p.lap != null && p.lap > 1 ? p.lap : null,
+        goalsRow: goalsRow(omitted),
       })
     }
-    this.liston = this.cartel.actualizar(p.cartel(lang), p.medalla, lang, delta)
-    this.cuenta.pintar(fase === 'countdown' ? { cuenta: p.cuenta, esperandoElMazo: p.esperandoElMazo, conUnToque: agarre === 'toggle', lang } : null)
-    if (fase === 'finished') {
-      const nivel = p.levelResult
-      const duelo = p.duelView
-      this.final.pintar({
+    this.threshold = this.sign.update(p.sign(lang), p.medal, lang, delta)
+    this.countdown.paint(phase === 'countdown' ? { count: p.count, waitingForMallet: p.waitingForMallet, withOneTap: grab === 'toggle', lang } : null)
+    if (phase === 'finished') {
+      const level = p.levelResult
+      const duel = p.duelView
+      this.gameOver.paint({
         lang,
         outcome: p.outcome!,
-        puntos: p.points,
-        esRecord: p.isRecord,
-        nivel: nivel == null ? null : { nivel: p.activeLevel, stars: nivel.stars, passed: nivel.passed },
-        duelo: duelo == null ? null : { vista: duelo, marcador: { scored: p.playerGoals, conceded: p.opponentGoals }, pareja: getDuelTally() },
+        points: p.points,
+        isRecord: p.isRecord,
+        level: level == null ? null : { level: p.activeLevel, stars: level.stars, passed: level.passed },
+        duel: duel == null ? null : { view: duel, score: { scored: p.playerGoals, conceded: p.opponentGoals }, tally: getDuelTally() },
       })
     }
-    if (p.prompt != null) this.aviso.escribir(lang)
-    // Ni en el reto del salón ni en el duelo: tienen que ser la misma partida para todos.
-    const tutorial = fase === 'playing' && (this.visor || this.tutorialEnPlano) && !p.enReto && !p.duel
-    const { ensenando, cerrado } = this.tutorial.actualizar(tutorial, p.hitos, lang, agarre, delta)
-    p.aprendiendo = ensenando
-    if (cerrado) p.acabarLaLeccion()
+    if (p.prompt != null) this.exitNotice.write(lang)
+    // Neither in the hall's challenge nor in the duel: they have to be the same match for everyone.
+    const tutorial = phase === 'playing' && (this.headset || this.flatTutorial) && !p.inChallenge && !p.duel
+    const { teaching, closed } = this.tutorial.update(tutorial, p.milestones, lang, grab, delta)
+    p.learning = teaching
+    if (closed) p.finishLesson()
   }
 
-  /** Enseña los paneles de la fase, ya: un botón que aparece tiene que poder pulsarse enseguida. */
-  private pintarFase(): void {
-    const p = this.partida
-    const fase = p.gameState
-    const enPartida = fase === 'countdown' || fase === 'playing'
-    // Lo desplegado no se guarda: al volver al menú, «Más opciones» vuelve a estar plegado.
-    if (fase === 'menu' && this.faseAnterior !== 'menu') this.masOpciones = false
-    this.faseAnterior = fase
-    this.menu.nodo.visible = fase === 'menu'
-    this.final.nodo.visible = fase === 'finished'
-    this.aviso.nodo.visible = enPartida && p.prompt != null
-    this.marcador.nodo.visible = fase !== 'menu'
-    this.parar.mostrar(enPartida && p.prompt == null, isEndless(p.activeGoalTarget) && fase === 'playing')
+  /** Shows the panels of the phase, now: a button that appears has to be pressable straight away. */
+  private paintPhase(): void {
+    const p = this.match
+    const phase = p.gameState
+    const inMatch = phase === 'countdown' || phase === 'playing'
+    // What is unfolded is not stored: on going back to the menu, «Más opciones» is folded again.
+    if (phase === 'menu' && this.previousPhase !== 'menu') this.moreOptions = false
+    this.previousPhase = phase
+    this.menu.node.visible = phase === 'menu'
+    this.gameOver.node.visible = phase === 'finished'
+    this.exitNotice.node.visible = inMatch && p.prompt != null
+    this.scoreboard.node.visible = phase !== 'menu'
+    this.stopButtons.show(inMatch && p.prompt == null, isEndless(p.activeGoalTarget) && phase === 'playing')
   }
 
-  /** Deja de escuchar el guardado: al salir de la escena. */
-  soltar(): void {
-    this.dejarDeEscuchar()
+  /** Stops listening to what is stored: on leaving the scene. */
+  release(): void {
+    this.stopListening()
   }
 }
 
-/** Dónde está la mesa en el espacio de quien juega: de ahí cuelga todo lo de aquí. */
-export const MESA = new Vector3(0, TABLE_HEIGHT, TABLE_CENTER_Z)
+/** Where the table is in the space of whoever plays: everything here hangs from there. */
+export const TABLE = new Vector3(0, TABLE_HEIGHT, TABLE_CENTER_Z)

@@ -19,17 +19,17 @@ const inter = Inter({
 })
 
 /**
- * Lo que dice la pestaña y lo que se lee al compartir el enlace, en el idioma del arcade.
+ * What the tab says and what is read when the link is shared, in the hall's language.
  *
- * Es una función y no una constante porque el idioma llega en la cookie de la petición
- * (ver `lib/ajustes.ts`), y eso solo se puede leer aquí dentro.
+ * It is a function and not a constant because the language arrives in the request's cookie
+ * (see `lib/settings.ts`), and that can only be read in here.
  */
 export async function generateMetadata(): Promise<Metadata> {
   const t = translator(await requestLang())
 
   return {
-    // El nombre no se traduce —es el de la cabina (`nombreDelJuego`), el mismo en el salón y en
-    // la tienda—; lo que le sigue sí, que es lo que dice de qué va.
+    // The name is not translated —it is the cabinet's (`gameName`), the same in the hall and in
+    // the store—; what follows it is, since that is what says what the game is about.
     title: t('{name} — you against the machine', { name: gameName() }),
     description: t(
       '{name} against the machine: choose the level and the goals to play to, and put the puck in its net. Play in the browser or in mixed reality (VR/AR).',
@@ -43,8 +43,8 @@ export const viewport: Viewport = {
   themeColor: PALETTE.background,
   width: 'device-width',
   initialScale: 1,
-  // Sin `maximumScale`: bloquear el zoom incumple WCAG 1.4.4 y deja fuera a
-  // quien necesita ampliar para leer el menú.
+  // No `maximumScale`: blocking zoom breaks WCAG 1.4.4 and shuts out anyone
+  // who needs to zoom in to read the menu.
 }
 
 export default async function RootLayout({
@@ -52,15 +52,15 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  // El idioma sale de la cookie que pone el menú del arcade: el `lang` del
-  // documento es lo que usan los lectores de pantalla para elegir voz, así
-  // que tiene que decir en qué idioma está lo que hay dentro.
+  // The language comes from the cookie the hall's menu sets: the document's
+  // `lang` is what screen readers use to pick a voice, so it has to say
+  // which language its contents are in.
   const lang = await requestLang()
 
   return (
     <html lang={lang} className={`${orbitron.variable} ${inter.variable}`}>
-      {/* El azul oscuro del juego desde el primer píxel: sin él la página
-          destella en blanco mientras se monta la escena. */}
+      {/* The game's dark blue from the first pixel: without it the page
+          flashes white while the scene mounts. */}
       <body
         style={{ background: PALETTE.background, color: PALETTE.foreground }}
       >

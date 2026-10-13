@@ -1,20 +1,21 @@
 /**
- * La sesión de Glide Hockey en Godot: lo que en la web es `lib/gameStore.ts`, sin React.
+ * The session of Glide Hockey in Godot: what on the web is `lib/gameStore.ts`, without React.
  *
- * El store de la web es un hook (`useState`, `useEffect`, `useSyncExternalStore`) y el motor no
- * tiene React, así que aquí se escribe la misma máquina como una clase que la escena avanza a cada
- * fotograma. **Las reglas no se reescriben**: el marcador y el final salen de `gameMode.ts`
- * (`runOutcome`), los puntos de `scoring.ts`, la escalera del reto de `challenge.ts`, los niveles
- * y sus estrellas de `levels.ts`, el duelo por turnos de `duel.ts`, lo guardado de `highScore.ts`,
- * `progress.ts` y `duelTally.ts`, y la semilla de la máquina de `opponent.ts` (`semillaDeLaMesa`). Lo que queda aquí es lo que en la web hacen los
- * `useState`: qué se ha elegido, en qué fase se está y el marcador de la partida en curso.
+ * The web's store is a hook (`useState`, `useEffect`, `useSyncExternalStore`) and the engine has no
+ * React, so here the same machine is written as a class that the scene advances every frame. **The
+ * rules are not rewritten**: the score and the end come from `gameMode.ts` (`runOutcome`), the
+ * points from `scoring.ts`, the ladder of the challenge from `challenge.ts`, the levels and their
+ * stars from `levels.ts`, the turn-based duel from `duel.ts`, what is stored from `highScore.ts`,
+ * `progress.ts` and `duelTally.ts`, and the machine's seed from `opponent.ts` (`tableSeed`). What
+ * is left here is what on the web the `useState`s do: what has been chosen, which phase it is in
+ * and the score of the match in progress.
  *
- * Igual que en la web, **casi todo se deriva**: la fase sale de si hay partida, de la cuenta atrás
- * y del marcador, y el final del marcador y del modo. Lo que no se deriva es lo que la web guarda
- * en estado, con los mismos nombres donde se puede.
+ * As on the web, **almost everything is derived**: the phase comes from whether there is a match,
+ * from the countdown and from the score, and the end from the score and the mode. What is not
+ * derived is what the web keeps in state, with the same names where possible.
  *
- * No toca el motor (ni `godot` ni nodos), así que se prueba entera en `partida.motor.test.ts` sin
- * montar la escena.
+ * It does not touch the engine (neither `godot` nor nodes), so it is tested whole in
+ * `match.engine.test.ts` without mounting the scene.
  */
 import { goalWithPlayed } from '@kit/lib/gameBase'
 
@@ -27,7 +28,7 @@ import { COUNTDOWN_SECONDS, DEFAULT_GOALS, MAX_GOALS, MIN_GOALS, type Difficulty
 import { ENDLESS, isEndless, runOutcome, type GameMode, type RunOutcome } from '@/lib/gameMode'
 import { getBestEndlessStreak, getBestPoints, saveBestEndlessStreak, saveBestPoints } from '@/lib/highScore'
 import { LEVEL_COUNT, clampLevel, levelPassed, levelSpec, levelStars, type Stars } from '@/lib/levels'
-import { goalSign, medalToCelebrate, type Medal, type Goal, type Run as PartidaDelObjetivo, type GoalSignView } from '@/lib/goal'
+import { goalSign, medalToCelebrate, type Medal, type Goal, type Run as GoalRun, type GoalSignView } from '@/lib/goal'
 import { tableSeed } from '@/lib/opponent'
 import { getStarsList, getUnlockedLevel, saveLevelResult } from '@/lib/progress'
 import type { Scorer } from '@/lib/puckPhysics'
@@ -37,76 +38,76 @@ import type { GameResult, Challenge } from '@/lib/seed'
 import { softTranslator } from '@/lib/textos'
 import { NO_MILESTONES, recordMilestone, type TutorialMilestones, type TutorialStepKey } from '@/lib/tutorial'
 
-/** Las fases de la web (`GameState`), más la pregunta de salir, que allí es `prompt`. */
-export type FaseDeLaPartida = 'menu' | 'countdown' | 'playing' | 'finished'
+/** The web's phases (`GameState`), plus the question of leaving, which there is `prompt`. */
+export type MatchPhase = 'menu' | 'countdown' | 'playing' | 'finished'
 
-/** El modo con el que se juega el `reto` del salón: el del récord de la cabina (`MODO_DEL_RETO`). */
-export const MODO_DEL_RETO: GameMode = 'challenge'
+/** The mode the hall's `challenge` is played with: that of the cabinet's record (`CHALLENGE_MODE`). */
+export const CHALLENGE_MODE: GameMode = 'challenge'
 
-/** Cómo acabó un nivel: lo que enseña el final (`levelResult` de la web). */
-export interface ResultadoDelNivel {
+/** How a level ended: what the end shows (the web's `levelResult`). */
+export interface LevelResult {
   stars: Stars
   passed: boolean
-  /** El nivel que abre esta partida, si abre alguno. */
+  /** The level this match unlocks, if it unlocks any. */
   unlocked: number | null
 }
 
-/** Restringe los goles de una partida al rango permitido (`clampGoalTarget`). */
-export function acotarGoles(goles: number): number {
-  if (Number.isNaN(goles)) return DEFAULT_GOALS
-  return Math.min(MAX_GOALS, Math.max(MIN_GOALS, Math.round(goles)))
+/** Clamps the goals of a match to the allowed range (`clampGoalTarget`). */
+export function clampGoals(goals: number): number {
+  if (Number.isNaN(goals)) return DEFAULT_GOALS
+  return Math.min(MAX_GOALS, Math.max(MIN_GOALS, Math.round(goals)))
 }
 
-/** Cómo va el duelo, visto desde la pantalla (`DuelView` de la web). */
-export interface VistaDelDuelo {
-  /** De quién es la partida que está en pantalla, o la que va a empezar. */
+/** How the duel is going, seen from the screen (the web's `DuelView`). */
+export interface DuelView {
+  /** Whose match is the one on screen, or the one about to start. */
   player: Player
-  /** Las dos partidas, contando la que acaba de terminar. */
+  /** The two matches, counting the one that has just ended. */
   matches: Duel['matches']
-  /** A quién le toca después, o `null` si ya han jugado los dos. */
+  /** Whose turn it is next, or `null` if both have already played. */
   next: Player | null
   over: boolean
-  /** Quién ha ganado, o `null` si no ha acabado o es empate. */
+  /** Who has won, or `null` if it has not ended or it is a tie. */
   winner: Player | null
 }
 
-export interface OpcionesDeLaPartida {
-  /** Jugar este reto: se entra directamente en una partida del reto con su semilla. */
-  reto?: Challenge | null
-  /** Se llama una vez al acabar cada partida con puntuación (no al dejarla a medias). */
-  alTerminar?: (resultado: GameResult) => void
+export interface MatchOptions {
+  /** Play this challenge: it goes straight into a match of the challenge with its seed. */
+  challenge?: Challenge | null
+  /** Called once when each match ends with a score (not when it is left halfway). */
+  onFinish?: (result: GameResult) => void
   /**
-   * Los listones de medalla del juego y la marca de quien juega, para el cartel de encima del
-   * marcador (`objetivo.ts`). Sin él, el cartel dice la misión y el récord guardado aquí.
+   * The game's medal thresholds and the best mark of whoever plays, for the sign above the
+   * scoreboard (`goal.ts`). Without it, the sign says the mission and the record stored here.
    */
-  objetivo?: Goal | null
+  goal?: Goal | null
 }
 
-export class Partida {
-  // Lo que se elige en el menú.
+export class Match {
+  // What is chosen in the menu.
   goalTarget = DEFAULT_GOALS
   difficulty: Difficulty = 'easy'
   /**
-   * El menú abre **siempre** en el reto, con salón o sin él, y no recuerda el último modo: es el
-   * del récord y el de las medallas, así que jugar sin tocar nada es jugar a lo que cuenta. La
-   * práctica queda a un toque.
+   * The menu **always** opens on the challenge, with a hall or without one, and does not remember
+   * the last mode: it is the one of the record and of the medals, so playing without touching
+   * anything is playing what counts. Practice is one tap away.
    */
-  gameMode: GameMode = MODO_DEL_RETO
+  gameMode: GameMode = CHALLENGE_MODE
   endless = false
-  /** Nivel elegido en Niveles, o `null` = el más alto desbloqueado. */
+  /** Level chosen in Levels, or `null` = the highest unlocked. */
   level: number | null = null
 
-  // La partida en curso.
+  // The match in progress.
   running = false
-  /** Segundos que quedan de cuenta atrás, con decimales: se enseña redondeado hacia arriba. */
+  /** Seconds left of the countdown, with decimals: it is shown rounded up. */
   countdown = 0
   prompt: 'quit' | null = null
-  /** Si el mazo va en la mano (con visor): la cuenta atrás lo espera en su último segundo. */
+  /** Whether the mallet is in the hand (with a headset): the countdown waits for it in its last second. */
   malletHeld = false
-  /** Si se juega con visor: sin él no hay mazo que esperar. */
+  /** Whether it is played with a headset: without one there is no mallet to wait for. */
   immersive = false
   runId = 0
-  enReto = false
+  inChallenge = false
   playerGoals = 0
   opponentGoals = 0
   previousPlayerGoals = 0
@@ -116,54 +117,55 @@ export class Partida {
   streak = 0
   bestStreak = 0
   challengeRoundNumber = 1
-  /** Lo que quien juega ya ha hecho, para el tutorial: se acumula y no se deshace. */
-  hitos: TutorialMilestones = NO_MILESTONES
+  /** What whoever plays has already done, for the tutorial: it accumulates and is not undone. */
+  milestones: TutorialMilestones = NO_MILESTONES
   /**
-   * Si el tutorial se está enseñando ahora mismo; lo dice la interfaz. En el reto, aprendiendo,
-   * los goles de la máquina no cuentan (`aprendiendo` de la web).
+   * Whether the tutorial is being shown right now; the interface says so. In the challenge, while
+   * learning, the machine's goals do not count (the web's `learning`).
    */
-  aprendiendo = false
-  /** Segundos que le quedan al aviso de que ya cuenta (`conElAvisoDeQueCuenta`). */
-  private avisoQueCuenta = 0
-  /** Las partidas del duelo ya cerradas y su semilla; la recién terminada se apunta al empezar la siguiente. */
-  duelo: Duel = newDuel(0)
+  learning = false
+  /** Seconds left for the notice that it now counts (`withNowItCountsNotice`). */
+  private nowItCountsLeft = 0
+  /** The matches of the duel already closed and its seed; the one just ended is recorded when the next one starts. */
+  duelSoFar: Duel = newDuel(0)
   private endedByPlayer = false
   private recordToBeat = 0
   private unlockedAtStart = 1
   private levelAtStart = 1
-  private readonly semillaDelReto: number | null
+  private readonly challengeSeed: number | null
   /**
-   * El objetivo de la partida en curso, o `null` con el juego abierto suelto: el que pasó el salón
-   * con el récord subido por lo que ya se le ha contado (`objetivoConLoJugado`). Se relee al
-   * empezar cada partida —el metadato `goal` no cambia hasta volver al salón— y no durante ella:
-   * el final compara con la marca que había al empezar, como la web (`salonAlEmpezar`).
+   * The goal of the match in progress, or `null` with the game opened on its own: the one the hall
+   * passed with the record raised by what has already been reported to it (`goalWithPlayed`). It is
+   * read again when each match starts —the `goal` metadata does not change until going back to the
+   * hall— and not during it: the end compares with the mark there was at the start, like the web
+   * (`hallRecordAtStart`).
    */
-  objetivo: Goal | null
-  /** Lo que pasó el salón al montar el juego. */
-  private readonly objetivoDelSalon: Goal | null
-  /** Lo que se le ha contado al salón desde que se montó: de ahí sube el récord del objetivo. */
-  private readonly contadas: GameResult[] = []
-  private readonly alTerminar: ((resultado: GameResult) => void) | undefined
-  /** Las hazañas de esta partida (en el reto, de todas sus rondas): se estrenan al cerrarla. */
-  private hazanas = new Set<Feat>()
-  /** La partida (su `runId`) cuyo final ya se guardó y se contó al salón. */
-  private cerrada = 0
-  /** Lo que dejó el final: si fue récord y cómo acabó el nivel. Se calcula una vez, al cerrar. */
+  goal: Goal | null
+  /** What the hall passed when mounting the game. */
+  private readonly hallGoal: Goal | null
+  /** What has been reported to the hall since it was mounted: the goal's record rises from there. */
+  private readonly reported: GameResult[] = []
+  private readonly onFinish: ((result: GameResult) => void) | undefined
+  /** The feats of this match (in the challenge, of all its rounds): they are earned when it closes. */
+  private feats = new Set<Feat>()
+  /** The match (its `runId`) whose end was already saved and reported to the hall. */
+  private closedRun = 0
+  /** What the end left: whether it was a record and how the level ended. Worked out once, on closing. */
   private _isRecord = false
-  private _levelResult: ResultadoDelNivel | null = null
+  private _levelResult: LevelResult | null = null
 
-  constructor({ reto = null, alTerminar, objetivo = null }: OpcionesDeLaPartida = {}) {
-    this.objetivoDelSalon = objetivo
-    this.objetivo = objetivo
-    this.semillaDelReto = reto?.seed ?? null
-    this.alTerminar = alTerminar
-    if (reto != null) {
-      // Con el reto del salón se entra directamente a jugar, como en la web.
+  constructor({ challenge = null, onFinish, goal = null }: MatchOptions = {}) {
+    this.hallGoal = goal
+    this.goal = goal
+    this.challengeSeed = challenge?.seed ?? null
+    this.onFinish = onFinish
+    if (challenge != null) {
+      // With the hall's challenge it goes straight into playing, as on the web.
       this.running = true
       this.countdown = COUNTDOWN_SECONDS
       this.runId = 1
-      this.enReto = true
-      this.recordToBeat = getBestPoints(MODO_DEL_RETO)
+      this.inChallenge = true
+      this.recordToBeat = getBestPoints(CHALLENGE_MODE)
     }
   }
 
@@ -179,12 +181,12 @@ export class Partida {
     return this.gameMode === 'duel'
   }
 
-  /** Ronda del reto, o `null` en un modo que no las tiene. */
+  /** Round of the challenge, or `null` in a mode that has none. */
   get round(): number | null {
     return this.challenge ? this.challengeRoundNumber : null
   }
 
-  /** Por qué vuelta a la escalera va el reto, o `null` fuera de él. */
+  /** Which lap of the ladder the challenge is on, or `null` outside it. */
   get lap(): number | null {
     return this.challenge ? challengeRound(this.challengeRoundNumber).lap : null
   }
@@ -197,20 +199,20 @@ export class Partida {
     return getUnlockedLevel()
   }
 
-  /** Las estrellas de cada nivel, del primero al último. */
+  /** The stars of each level, from the first to the last. */
   get levelStars(): Stars[] {
     return getStarsList().split(',').map((s) => Number(s) as Stars)
   }
 
-  /** El nivel que se juega: el elegido, o el más alto desbloqueado; en partida, el de al empezar. */
+  /** The level being played: the chosen one, or the highest unlocked; in a match, the one at the start. */
   get activeLevel(): number {
     if (this.running) return this.levelAtStart
     return this.selectedLevel
   }
 
   private get selectedLevel(): number {
-    const abierto = getUnlockedLevel()
-    return clampLevel(Math.min(this.level ?? abierto, abierto))
+    const unlocked = getUnlockedLevel()
+    return clampLevel(Math.min(this.level ?? unlocked, unlocked))
   }
 
   get activeDifficulty(): Difficulty {
@@ -235,18 +237,18 @@ export class Partida {
     return this.previousOpponentGoals + this.opponentGoals
   }
 
-  /** Con qué semilla elige sus tiros la máquina en la mesa de ahora: en el duelo, la de los dos. */
+  /** Which seed the machine picks its shots with on the table of now: in the duel, the same for both. */
   get seed(): number {
-    if (this.duel) return this.duelo.seed
-    return tableSeed(this.enReto ? this.semillaDelReto : null, this.runId, this.challengeRoundNumber)
+    if (this.duel) return this.duelSoFar.seed
+    return tableSeed(this.inChallenge ? this.challengeSeed : null, this.runId, this.challengeRoundNumber)
   }
 
-  /** Cómo acaba la partida en curso por el marcador, sin mirar el modo. */
+  /** How the match in progress ends by the score, without looking at the mode. */
   private get matchOutcome(): RunOutcome | null {
     return this.running ? runOutcome({ playerGoals: this.playerGoals, opponentGoals: this.opponentGoals, goalTarget: this.activeGoalTarget }) : null
   }
 
-  /** Cómo acabó, o `null` mientras sigue: en el reto, ganar no acaba nada, pasa de ronda. */
+  /** How it ended, or `null` while it goes on: in the challenge, winning ends nothing, it moves to the next round. */
   get outcome(): RunOutcome | null {
     const match = this.matchOutcome
     if (match === 'won' && this.challenge) return null
@@ -256,47 +258,47 @@ export class Partida {
     return match
   }
 
-  get gameState(): FaseDeLaPartida {
+  get gameState(): MatchPhase {
     if (!this.running) return 'menu'
     if (this.countdown > 0) return 'countdown'
     if (this.outcome != null) return 'finished'
     return 'playing'
   }
 
-  /** La cuenta atrás está parada esperando a que se coja el mazo (`esperandoElMazo`). */
-  get esperandoElMazo(): boolean {
+  /** The countdown is stopped waiting for the mallet to be picked up (`waitingForMallet`). */
+  get waitingForMallet(): boolean {
     return this.immersive && !this.malletHeld && this.running && this.countdown > 0 && this.countdown <= 1
   }
 
-  /** La cifra de la cuenta atrás: 3, 2, 1. */
-  get cuenta(): number {
+  /** The digit of the countdown: 3, 2, 1. */
+  get count(): number {
     return Math.ceil(this.countdown)
   }
 
-  /** La partida recién terminada ha batido el récord del modo (o la racha sin fin). */
+  /** The match just ended has beaten the mode's record (or the endless streak). */
   get isRecord(): boolean {
     return this.gameState === 'finished' && this._isRecord
   }
 
-  get levelResult(): ResultadoDelNivel | null {
+  get levelResult(): LevelResult | null {
     return this.gameState === 'finished' ? this._levelResult : null
   }
 
-  /** El récord del modo elegido que enseña el menú (`bestPoints` de la web). */
+  /** The record of the chosen mode that the menu shows (the web's `bestPoints`). */
   get bestPoints(): number {
     if (this.gameMode === 'practice' && this.endless) return getBestEndlessStreak()
     return this.levels || this.duel ? 0 : getBestPoints(this.gameMode)
   }
 
-  /** La partida tal y como se le cuenta al cartel del objetivo (`partidaDelCartel` de la web). */
-  private paraElCartel(lang: Lang): PartidaDelObjetivo | null {
+  /** The match as it is told to the goal sign (the web's `signRun`). */
+  private forSign(lang: Lang): GoalRun | null {
     return signRun(
       {
-        goal: this.objetivo,
+        goal: this.goal,
         gameMode: this.gameMode,
         gameState: this.gameState,
         round: this.challengeRoundNumber,
-        goles: this.totalPlayerGoals + this.totalOpponentGoals,
+        goals: this.totalPlayerGoals + this.totalOpponentGoals,
         points: this.points,
         streak: this.streak,
         record: this.recordToBeat,
@@ -306,67 +308,67 @@ export class Partida {
   }
 
   /**
-   * Lo que dice el cartel de encima del marcador, en ese idioma, o `null` si no hay nada que
-   * colgar: en el menú, y fuera del reto con el juego abierto suelto.
+   * What the sign above the scoreboard says, in that language, or `null` if there is nothing to
+   * hang: in the menu, and outside the challenge with the game opened on its own.
    */
-  cartel(lang: Lang): GoalSignView | null {
-    const partida = this.paraElCartel(lang)
-    if (partida == null) return null
+  sign(lang: Lang): GoalSignView | null {
+    const run = this.forSign(lang)
+    if (run == null) return null
     const t = softTranslator(lang)
-    return withNowItCountsNotice(goalSign(partida, t), this.gameMode, this.avisoQueCuenta > 0, t)
+    return withNowItCountsNotice(goalSign(run, t), this.gameMode, this.nowItCountsLeft > 0, t)
   }
 
-  /** La medalla que ya es de quien juega en esta partida: cuando sube, se celebra el listón. */
-  get medalla(): Medal | null {
-    const partida = this.paraElCartel('en')
-    return partida == null ? null : medalToCelebrate(partida)
+  /** The medal that already belongs to whoever plays in this match: when it rises, the threshold is celebrated. */
+  get medal(): Medal | null {
+    const run = this.forSign('en')
+    return run == null ? null : medalToCelebrate(run)
   }
 
-  /** Lo que el marcador del fondo calla porque ya lo dice el cartel (`loQueCallaElMarcador`). */
-  get callado(): { points: boolean; round: boolean } {
-    return scoreboardOmits(this.paraElCartel('en'))
+  /** What the back scoreboard leaves out because the sign already says it (`scoreboardOmits`). */
+  get omitted(): { points: boolean; round: boolean } {
+    return scoreboardOmits(this.forSign('en'))
   }
 
-  /** El duelo con la partida recién terminada ya contada (`duelNow` de la web). */
-  private get dueloAhora(): Duel {
+  /** The duel with the match just ended already counted (the web's `duelNow`). */
+  private get duelNow(): Duel {
     return this.duel && this.gameState === 'finished'
-      ? recordMatch(this.duelo, { scored: this.playerGoals, conceded: this.opponentGoals })
-      : this.duelo
+      ? recordMatch(this.duelSoFar, { scored: this.playerGoals, conceded: this.opponentGoals })
+      : this.duelSoFar
   }
 
-  /** Cómo va el duelo, o `null` fuera de ese modo. */
-  get duelView(): VistaDelDuelo | null {
+  /** How the duel is going, or `null` outside that mode. */
+  get duelView(): DuelView | null {
     if (!this.duel) return null
-    const ahora = this.dueloAhora
+    const now = this.duelNow
     return {
-      player: controllerHolder(this.duelo),
-      matches: ahora.matches,
-      next: duelTurn(ahora),
-      over: duelOver(ahora),
-      winner: duelWinner(ahora),
+      player: controllerHolder(this.duelSoFar),
+      matches: now.matches,
+      next: duelTurn(now),
+      over: duelOver(now),
+      winner: duelWinner(now),
     }
   }
 
-  // Lo que se elige entre partidas: con una en marcha no cambia nada, como en la web.
+  // What is chosen between matches: with one running nothing changes, as on the web.
 
-  setGoalTarget(goles: number): void {
-    if (!this.running) this.goalTarget = acotarGoles(goles)
+  setGoalTarget(goals: number): void {
+    if (!this.running) this.goalTarget = clampGoals(goals)
   }
 
-  setEndless(sinFin: boolean): void {
-    if (!this.running) this.endless = sinFin
+  setEndless(endless: boolean): void {
+    if (!this.running) this.endless = endless
   }
 
-  setGameMode(modo: GameMode): void {
-    if (!this.running) this.gameMode = modo
+  setGameMode(mode: GameMode): void {
+    if (!this.running) this.gameMode = mode
   }
 
-  setDifficulty(nivel: Difficulty): void {
-    if (!this.running) this.difficulty = nivel
+  setDifficulty(difficulty: Difficulty): void {
+    if (!this.running) this.difficulty = difficulty
   }
 
-  setLevel(nivel: number): void {
-    if (!this.running) this.level = clampLevel(Math.min(nivel, getUnlockedLevel()))
+  setLevel(level: number): void {
+    if (!this.running) this.level = clampLevel(Math.min(level, getUnlockedLevel()))
   }
 
   private clearRun(): void {
@@ -381,24 +383,24 @@ export class Partida {
     this.challengeRoundNumber = 1
     this._isRecord = false
     this._levelResult = null
-    this.hazanas = new Set()
-    this.avisoQueCuenta = 0
+    this.feats = new Set()
+    this.nowItCountsLeft = 0
   }
 
-  /** Empieza una partida con lo elegido: el botón de jugar, y el de otra vez. */
+  /** Starts a match with what was chosen: the play button, and the play-again one. */
   startGame(): void {
-    this.enReto = false
+    this.inChallenge = false
     this.prompt = null
-    // En el duelo, empezar tras la partida del primero es el turno del segundo: se apunta la que
-    // acaba de terminar y la semilla sigue. Con los dos jugados, o desde el menú, es un duelo nuevo
-    // con la semilla de esta partida.
+    // In the duel, starting after the first player's match is the second's turn: the one that has
+    // just ended is recorded and the seed carries on. With both played, or from the menu, it is a
+    // new duel with the seed of this match.
     if (this.duel) {
-      const ahora = this.dueloAhora
-      this.duelo = this.gameState === 'finished' && !duelOver(ahora) ? ahora : newDuel(this.runId + 1)
+      const now = this.duelNow
+      this.duelSoFar = this.gameState === 'finished' && !duelOver(now) ? now : newDuel(this.runId + 1)
     }
     this.clearRun()
     this.endedByPlayer = false
-    this.objetivo = goalWithPlayed(this.objetivoDelSalon, this.contadas)
+    this.goal = goalWithPlayed(this.hallGoal, this.reported)
     this.recordToBeat = this.gameMode === 'practice' && this.endless ? getBestEndlessStreak() : getBestPoints(this.gameMode)
     this.unlockedAtStart = getUnlockedLevel()
     this.levelAtStart = this.selectedLevel
@@ -407,26 +409,26 @@ export class Partida {
     this.running = true
   }
 
-  /** Vuelve al menú sin guardar nada: dejar la partida, o volver desde el final. */
+  /** Goes back to the menu without saving anything: leaving the match, or going back from the end. */
   resetGame(): void {
-    this.enReto = false
+    this.inChallenge = false
     this.prompt = null
-    // Volver al menú deja el duelo: el turno del otro ya no tiene contra qué compararse.
-    this.duelo = newDuel(0)
+    // Going back to the menu leaves the duel: the other's turn no longer has anything to compare with.
+    this.duelSoFar = newDuel(0)
     this.clearRun()
     this.countdown = 0
     this.endedByPlayer = false
     this.running = false
   }
 
-  /** Termina la partida sin fin a voluntad: es su única salida con resumen. */
+  /** Ends the endless match at will: it is its only way out with a summary. */
   endRun(): void {
     this.endedByPlayer = true
-    this.alCambiar()
+    this.onChange()
   }
 
-  apuntarHito(hito: TutorialStepKey): void {
-    this.hitos = recordMilestone(this.hitos, hito)
+  recordMilestone(milestone: TutorialStepKey): void {
+    this.milestones = recordMilestone(this.milestones, milestone)
   }
 
   askToQuit(): void {
@@ -437,77 +439,77 @@ export class Partida {
     this.prompt = null
   }
 
-  private get enJuego(): boolean {
+  private get inPlay(): boolean {
     return this.gameState === 'playing' && this.matchOutcome === null
   }
 
-  /** Gol del jugador: suma puntos y alarga la racha. Con la partida decidida no cuenta. */
+  /** Goal by the player: it adds points and lengthens the streak. With the match decided it does not count. */
   scorePlayer(): void {
-    if (!this.enJuego) return
-    this.apuntarHito('goal')
+    if (!this.inPlay) return
+    this.recordMilestone('goal')
     this.playerGoals++
     this.lastScorer = 'player'
     this.streak++
     this.bestStreak = Math.max(this.bestStreak, this.streak)
     this.points = scoreGoal(this.points, { difficulty: this.activeDifficulty, streak: this.streak, lap: this.lapMultiplier })
-    this.alCambiar()
+    this.onChange()
   }
 
   /**
-   * Gol de la máquina: descuenta puntos y corta la racha. Aprendiendo en el reto no cuenta, y en
-   * su primera ronda no resta (`concededPenalty`).
+   * Goal by the machine: it takes points away and cuts the streak. While learning in the challenge
+   * it does not count, and in its first round it subtracts nothing (`concededPenalty`).
    */
   scoreOpponent(): void {
-    if (!this.enJuego || (this.aprendiendo && this.challenge)) return
+    if (!this.inPlay || (this.learning && this.challenge)) return
     this.opponentGoals++
     this.lastScorer = 'opponent'
     this.streak = 0
     this.points = scoreConceded(this.points, concededPenalty(this.round))
-    this.alCambiar()
+    this.onChange()
   }
 
   /**
-   * El tutorial se ha cerrado con la partida en marcha (`acabarLaLeccion` de la web): en el reto,
-   * la partida vuelve a empezar desde cero, con su cuenta atrás, y el cartel avisa de que ya cuenta.
+   * The tutorial has been closed with the match running (the web's `finishLesson`): in the challenge,
+   * the match starts again from scratch, with its countdown, and the sign warns that it now counts.
    */
-  acabarLaLeccion(): void {
+  finishLesson(): void {
     if (!this.challenge || !this.running) return
     this.clearRun()
     this.endedByPlayer = false
     this.runId++
     this.countdown = COUNTDOWN_SECONDS
-    this.avisoQueCuenta = NOW_IT_COUNTS_MS / 1000
+    this.nowItCountsLeft = NOW_IT_COUNTS_MS / 1000
   }
 
   /**
-   * Una hazaña de la mesa (`FrameResult.hazanas`), apuntada a la partida. Va **antes** que el gol
-   * que la trae: el último gol cierra la partida en el acto y se la dejaría fuera. Con la partida
-   * decidida no cuenta.
+   * A feat of the table (`FrameResult.feats`), recorded on the match. It goes **before** the goal
+   * that brings it: the last goal closes the match on the spot and would leave it out. With the
+   * match decided it does not count.
    */
-  apuntarHazana(hazana: Feat): void {
-    if (this.enJuego) this.hazanas.add(hazana)
+  recordFeat(feat: Feat): void {
+    if (this.inPlay) this.feats.add(feat)
   }
 
   /**
-   * Un fotograma de reloj: la cuenta atrás baja, salvo con la pregunta delante o esperando el
-   * mazo en el último segundo, que es lo que en la web hace el `setTimeout` de un segundo.
+   * A frame of clock: the countdown goes down, except with the question in front or waiting for the
+   * mallet in the last second, which is what on the web the one-second `setTimeout` does.
    */
   tick(delta: number): void {
-    this.avisoQueCuenta = Math.max(0, this.avisoQueCuenta - Math.max(0, delta))
+    this.nowItCountsLeft = Math.max(0, this.nowItCountsLeft - Math.max(0, delta))
     if (!this.running || this.countdown <= 0 || this.prompt !== null) return
-    if (this.esperandoElMazo) return
-    // Con el mazo sin coger, la cuenta se queda en el último segundo en vez de pasarlo.
-    const suelo = this.immersive && !this.malletHeld ? Math.min(this.countdown, 1) : 0
-    this.countdown = Math.max(suelo, this.countdown - Math.max(0, delta))
+    if (this.waitingForMallet) return
+    // With the mallet not picked up, the countdown stays in the last second instead of passing it.
+    const floor = this.immersive && !this.malletHeld ? Math.min(this.countdown, 1) : 0
+    this.countdown = Math.max(floor, this.countdown - Math.max(0, delta))
   }
 
   /**
-   * Lo que en la web hacen los efectos al cambiar el marcador: pasar de ronda en el reto al ganar
-   * una, y al acabar, guardar y contárselo al salón una sola vez por partida.
+   * What on the web the effects do when the score changes: moving to the next round in the challenge
+   * on winning one, and on ending, saving and reporting it to the hall only once per match.
    */
-  private alCambiar(): void {
+  private onChange(): void {
     if (this.running && this.challenge && this.matchOutcome === 'won') {
-      for (const hazana of matchFeats({ won: true, conceded: this.opponentGoals, sinFin: false })) this.hazanas.add(hazana)
+      for (const feat of matchFeats({ won: true, conceded: this.opponentGoals, endless: false })) this.feats.add(feat)
       this.previousPlayerGoals += this.playerGoals
       this.previousOpponentGoals += this.opponentGoals
       this.playerGoals = 0
@@ -518,23 +520,23 @@ export class Partida {
       this.runId++
       return
     }
-    if (this.gameState !== 'finished' || this.cerrada === this.runId) return
-    this.cerrada = this.runId
-    // En el duelo no hay récord ni se avisa al salón: los goles son de dos personas. Lo que se
-    // apunta, con los dos jugados, es quién ganó en el marcador de la pareja.
+    if (this.gameState !== 'finished' || this.closedRun === this.runId) return
+    this.closedRun = this.runId
+    // In the duel there is no record and the hall is not told: the goals belong to two people. What
+    // is recorded, with both played, is who won in the pair's tally.
     if (this.duel) {
-      const ahora = this.dueloAhora
-      if (duelOver(ahora)) saveDuelResult(duelWinner(ahora))
+      const now = this.duelNow
+      if (duelOver(now)) saveDuelResult(duelWinner(now))
       return
     }
     const endlessRun = isEndless(this.activeGoalTarget)
     if (this.levels) {
       const stars = levelStars(this.outcome === 'won', this.playerGoals, this.opponentGoals)
       const passed = levelPassed(stars)
-      const nivel = this.activeLevel
-      const abre = passed && nivel + 1 > this.unlockedAtStart && nivel < LEVEL_COUNT
-      this._levelResult = { stars, passed, unlocked: abre ? nivel + 1 : null }
-      saveLevelResult(nivel, stars)
+      const level = this.activeLevel
+      const unlocks = passed && level + 1 > this.unlockedAtStart && level < LEVEL_COUNT
+      this._levelResult = { stars, passed, unlocked: unlocks ? level + 1 : null }
+      saveLevelResult(level, stars)
     } else if (endlessRun) {
       saveBestEndlessStreak(this.bestStreak)
       this._isRecord = this.bestStreak > this.recordToBeat && getBestEndlessStreak() === this.bestStreak
@@ -542,11 +544,11 @@ export class Partida {
       saveBestPoints(this.gameMode, this.points)
       this._isRecord = this.points > this.recordToBeat && getBestPoints(this.gameMode) === this.points
     }
-    for (const hazana of matchFeats({ won: this.outcome === 'won', conceded: this.opponentGoals, sinFin: endlessRun })) {
-      this.hazanas.add(hazana)
+    for (const feat of matchFeats({ won: this.outcome === 'won', conceded: this.opponentGoals, endless: endlessRun })) {
+      this.feats.add(feat)
     }
-    const resultado = withFeats({ mode: this.gameMode, points: this.points, challenge: this.enReto }, earnFeats(this.hazanas))
-    this.contadas.push(resultado)
-    this.alTerminar?.(resultado)
+    const result = withFeats({ mode: this.gameMode, points: this.points, challenge: this.inChallenge }, earnFeats(this.feats))
+    this.reported.push(result)
+    this.onFinish?.(result)
   }
 }

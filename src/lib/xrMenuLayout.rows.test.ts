@@ -9,49 +9,49 @@ import {
 } from './xrMenuLayout'
 
 /**
- * Que el menú del visor se pueda leer.
+ * That the headset menu can be read.
  *
- * Es lo que **no se ve en ninguna pantalla**: con el ratón el panel se mira de frente y de
- * cerca, y con el visor puesto se lee a medio metro y a pulso. El fallo que esto vigila se
- * reportó así: «he abierto el menú de la config y todas las letras se ven solapadas, por lo
- * que no me ayuda». El nombre de una fila se pintaba dentro de la fila de arriba.
+ * It is what **cannot be seen on any screen**: with the mouse the panel is looked at head-on and
+ * up close, and with the headset on it is read at half a metre and freehand. The failure this
+ * watches for was reported like this: «I opened the settings menu and all the letters look
+ * overlapped, so it is no help to me». The name of a row was being drawn inside the row above.
  */
 
-type Banda = { nombre: string; abajo: number; arriba: number }
+type Band = { name: string; bottom: number; top: number }
 
-/** Cada fila con sus botones, y el nombre de la fila como su propia banda. */
-function bandas(): Banda[] {
-  const lista: Banda[] = []
-  for (const [nombre, y] of Object.entries(MENU_ROW)) {
-    const alto = MENU_ROW_HEIGHT[nombre as keyof typeof MENU_ROW]
-    lista.push({ nombre, abajo: y - alto / 2, arriba: y + alto / 2 })
-    // La banda del récord no lleva nombre: no hay nada que explicar. Y la del confort y la de
-    // arriba («Más opciones») lo llevan en su misma línea: esos los mide `menu.legible.test.ts`
-    // contra las cajas, que es donde se podrían pisar.
-    if (nombre === 'record' || nombre === 'comfort' || nombre === 'title') continue
-    const centro = y + MENU_ROW_LABEL_RISE
-    lista.push({
-      nombre: `nombre de ${nombre}`,
-      abajo: centro - MENU_ROW_LABEL_SIZE / 2,
-      arriba: centro + MENU_ROW_LABEL_SIZE / 2,
+/** Each row with its buttons, and the name of the row as its own band. */
+function bands(): Band[] {
+  const list: Band[] = []
+  for (const [name, y] of Object.entries(MENU_ROW)) {
+    const height = MENU_ROW_HEIGHT[name as keyof typeof MENU_ROW]
+    list.push({ name, bottom: y - height / 2, top: y + height / 2 })
+    // The record band has no name: there is nothing to explain. And the comfort one and the
+    // top one («Más opciones») have it on their same line: those are measured by
+    // `menu.legible.test.ts` against the boxes, which is where they could overlap.
+    if (name === 'record' || name === 'comfort' || name === 'title') continue
+    const center = y + MENU_ROW_LABEL_RISE
+    list.push({
+      name: `name of ${name}`,
+      bottom: center - MENU_ROW_LABEL_SIZE / 2,
+      top: center + MENU_ROW_LABEL_SIZE / 2,
     })
   }
-  return lista.sort((a, b) => b.arriba - a.arriba)
+  return list.sort((a, b) => b.top - a.top)
 }
 
-describe('las filas del menú del visor', () => {
-  it('no se pisan unas a otras', () => {
-    const lista = bandas()
-    for (let i = 1; i < lista.length; i++) {
-      expect(lista[i].arriba, `${lista[i].nombre} se mete en ${lista[i - 1].nombre}`)
-        .toBeLessThanOrEqual(lista[i - 1].abajo)
+describe('the rows of the headset menu', () => {
+  it('do not overlap one another', () => {
+    const list = bands()
+    for (let i = 1; i < list.length; i++) {
+      expect(list[i].top, `${list[i].name} runs into ${list[i - 1].name}`)
+        .toBeLessThanOrEqual(list[i - 1].bottom)
     }
   })
 
-  it('caben todas dentro del panel', () => {
-    for (const banda of bandas()) {
-      expect(Math.abs(banda.arriba), banda.nombre).toBeLessThanOrEqual(MENU_PANEL.height / 2)
-      expect(Math.abs(banda.abajo), banda.nombre).toBeLessThanOrEqual(MENU_PANEL.height / 2)
+  it('all fit inside the panel', () => {
+    for (const band of bands()) {
+      expect(Math.abs(band.top), band.name).toBeLessThanOrEqual(MENU_PANEL.height / 2)
+      expect(Math.abs(band.bottom), band.name).toBeLessThanOrEqual(MENU_PANEL.height / 2)
     }
   })
 })

@@ -16,20 +16,21 @@ import {
 } from './uiHeight'
 
 /**
- * La interfaz a la altura de quien juega.
+ * The interface at the height of whoever plays.
  *
- * Estaba clavada a una cota fija: a alguien bajo le quedaba por encima de la vista y a
- * alguien alto, a la altura del pecho —y ahí están los ajustes y el botón de salir—. Esto se
- * prueba aquí porque es aritmética; que se lea cómodo ya es de ponerse el visor.
+ * It was nailed to a fixed height: for someone short it ended up above eye level and for
+ * someone tall, at chest height —and that is where the settings and the exit button are—.
+ * This is tested here because it is arithmetic; whether it reads comfortably is a matter of
+ * putting the headset on.
  */
-describe('qué cota se da por buena', () => {
-  it('la de unos ojos, de pie o sentado', () => {
+describe('which height is taken as good', () => {
+  it('that of a pair of eyes, standing or seated', () => {
     expect(isPlausibleEyeHeight(1.6)).toBe(true)
     expect(isPlausibleEyeHeight(MIN_EYE_HEIGHT)).toBe(true)
     expect(isPlausibleEyeHeight(MAX_EYE_HEIGHT)).toBe(true)
   })
 
-  it('y no la del visor en una mesa ni la de nadie de tres metros', () => {
+  it('and not that of the headset on a table nor that of anyone three metres tall', () => {
     expect(isPlausibleEyeHeight(0.4)).toBe(false)
     expect(isPlausibleEyeHeight(3)).toBe(false)
     expect(isPlausibleEyeHeight(null)).toBe(false)
@@ -37,118 +38,118 @@ describe('qué cota se da por buena', () => {
   })
 })
 
-describe('cuánto sube la interfaz', () => {
-  it('con la estatura de referencia se queda exactamente donde estaba', () => {
+describe('how much the interface rises', () => {
+  it('with the reference stature it stays exactly where it was', () => {
     expect(uiRise(REFERENCE_EYE_HEIGHT)).toBe(0)
   })
 
-  it('sube con quien es más alto y baja con quien es más bajo', () => {
+  it('it rises with whoever is taller and drops with whoever is shorter', () => {
     expect(uiRise(1.8)).toBeCloseTo(0.2, 6)
     expect(uiRise(1.4)).toBeCloseTo(-0.2, 6)
   })
 
-  it('sin cota buena no se inventa nada', () => {
+  it('with no good height nothing is made up', () => {
     expect(uiRise(null)).toBe(0)
     expect(uiRise(0.2)).toBe(0)
   })
 })
 
-describe('si la sesión mide desde el suelo', () => {
-  it('con `local-floor` o `bounded-floor`, sí', () => {
+describe('whether the session measures from the floor', () => {
+  it('with `local-floor` or `bounded-floor`, yes', () => {
     expect(hasFloorReference(['local-floor'])).toBe(true)
     expect(hasFloorReference(['bounded-floor'])).toBe(true)
   })
 
-  it('sin lista se da por buena: hay navegadores que no la publican', () => {
+  it('with no list it is taken as good: there are browsers that do not publish it', () => {
     expect(hasFloorReference(undefined)).toBe(true)
   })
 
-  it('con lista y sin suelo, no', () => {
+  it('with a list and no floor, no', () => {
     expect(hasFloorReference(['local'])).toBe(false)
   })
 })
 
-describe('cuándo se vuelve a medir', () => {
-  const paso = (state: ReturnType<typeof startTracking>, cota: number | null, segundos = 1 / 72) =>
-    trackHeight(state, cota, 1, segundos)
+describe('when it is measured again', () => {
+  const step = (state: ReturnType<typeof startTracking>, height: number | null, seconds = 1 / 72) =>
+    trackHeight(state, height, 1, seconds)
 
-  it('la primera medida buena se usa tal cual', () => {
-    // Entrar y ver el menú a la altura de los ojos, no un panel subiendo despacio.
-    expect(paso(startTracking(), 1.75).held).toBeCloseTo(1.75, 6)
+  it('the first good measurement is used as is', () => {
+    // Coming in and seeing the menu at eye height, not a panel rising slowly.
+    expect(step(startTracking(), 1.75).held).toBeCloseTo(1.75, 6)
   })
 
-  it('sin medida buena no se toca nada', () => {
-    const inicial = startTracking()
+  it('with no good measurement nothing is touched', () => {
+    const initial = startTracking()
 
-    expect(paso(inicial, null)).toBe(inicial)
-    expect(paso(inicial, 0.3)).toBe(inicial)
+    expect(step(initial, null)).toBe(initial)
+    expect(step(initial, 0.3)).toBe(initial)
   })
 
-  it('moverse mientras se juega no mueve la interfaz', () => {
-    // Ponerse de puntillas o agacharse a por algo: la interfaz se queda quieta, que si no
-    // el botón se escapa justo al ir a apuntarlo.
-    let state = paso(startTracking(), 1.7)
-    for (let t = 0; t < 2; t += 1 / 72) state = paso(state, 1.7 + RETAKE_DELTA * 0.8)
+  it('moving while playing does not move the interface', () => {
+    // Standing on tiptoe or crouching to reach something: the interface stays still, otherwise
+    // the button slips away just as one goes to aim at it.
+    let state = step(startTracking(), 1.7)
+    for (let t = 0; t < 2; t += 1 / 72) state = step(state, 1.7 + RETAKE_DELTA * 0.8)
 
     expect(state.held).toBeCloseTo(1.7, 6)
   })
 
-  it('un cambio grande y corto tampoco', () => {
-    let state = paso(startTracking(), 1.7)
-    for (let t = 0; t < RETAKE_SECONDS / 2; t += 1 / 72) state = paso(state, 1.2)
+  it('nor does a big, short change', () => {
+    let state = step(startTracking(), 1.7)
+    for (let t = 0; t < RETAKE_SECONDS / 2; t += 1 / 72) state = step(state, 1.2)
 
     expect(state.held).toBeCloseTo(1.7, 6)
   })
 
-  it('pero sentarse a media partida sí', () => {
-    let state = paso(startTracking(), 1.7)
-    for (let t = 0; t < RETAKE_SECONDS * 2; t += 1 / 72) state = paso(state, 1.2)
+  it('but sitting down halfway through a match does', () => {
+    let state = step(startTracking(), 1.7)
+    for (let t = 0; t < RETAKE_SECONDS * 2; t += 1 / 72) state = step(state, 1.2)
 
     expect(state.held).toBeCloseTo(1.2, 6)
   })
 })
 
-describe('el mundo a la altura de quien juega', () => {
-  it('de pie no se mueve nada, mida lo que mida', () => {
-    // Es lo que ve quien no ha pedido nada, que son casi todos: la escena
-    // exactamente donde ha estado siempre.
+describe('the world at the height of whoever plays', () => {
+  it('standing, nothing moves, however tall they are', () => {
+    // It is what whoever has asked for nothing sees, which is nearly everyone: the
+    // scene exactly where it has always been.
     expect(worldRise(1.2, false)).toBe(0)
     expect(worldRise(1.6, false)).toBe(0)
     expect(worldRise(2.0, false)).toBe(0)
   })
 
-  it('sentado, el mundo baja hasta los ojos', () => {
-    // Un jugador sentado mide sobre metro veinte de ojos: el mundo tiene que
-    // bajar los cuarenta centímetros que le faltan para alcanzarlo.
+  it('seated, the world drops down to the eyes', () => {
+    // A seated player measures about one metre twenty at the eyes: the world has
+    // to drop the forty centimetres it is short of reaching them.
     expect(worldRise(1.2, true)).toBeCloseTo(-0.4, 10)
   })
 
-  it('a quien es más alto le sube, por lo mismo', () => {
+  it('for whoever is taller it rises, for the same reason', () => {
     expect(worldRise(1.8, true)).toBeCloseTo(0.2, 10)
   })
 
-  it('sin medida buena no se inventa nada', () => {
-    // Sin suelo en el espacio de referencia, o con el visor sobre la mesa, la
-    // cota no es una estatura: se juega con la escena donde estaba.
-    for (const cota of [null, undefined, Number.NaN, 0, 5]) {
-      expect(worldRise(cota, true)).toBe(0)
+  it('with no good measurement nothing is made up', () => {
+    // With no floor in the reference space, or with the headset on the table, the
+    // height is not a stature: one plays with the scene where it was.
+    for (const height of [null, undefined, Number.NaN, 0, 5]) {
+      expect(worldRise(height, true)).toBe(0)
     }
   })
 })
 
-describe('la interfaz cuando el mundo ya se ha movido', () => {
-  it('con el mundo quieto, la interfaz se coloca ella sola', () => {
+describe('the interface when the world has already moved', () => {
+  it('with the world still, the interface places itself', () => {
     expect(uiRiseOverWorld(1.4, false)).toBeCloseTo(uiRise(1.4), 10)
   })
 
-  it('con el mundo bajado, no se corrige otra vez', () => {
-    // Sumar las dos correcciones dejaba el menú a la altura de las rodillas,
-    // justo para quien menos puede agacharse a buscarlo.
+  it('with the world lowered, it is not corrected again', () => {
+    // Adding the two corrections left the menu at knee height, precisely for
+    // whoever is least able to crouch to look for it.
     expect(uiRiseOverWorld(1.2, true)).toBe(0)
     expect(uiRiseOverWorld(1.9, true)).toBe(0)
   })
 
-  it('sin medida buena no se mueve nada, se pida lo que se pida', () => {
+  it('with no good measurement nothing moves, whatever is asked for', () => {
     expect(uiRiseOverWorld(null, true)).toBe(0)
     expect(uiRiseOverWorld(null, false)).toBe(0)
   })

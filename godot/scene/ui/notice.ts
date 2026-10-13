@@ -1,15 +1,16 @@
 /**
- * Dejar la partida a medias: el botón de parar, el de terminar la partida sin fin, y el aviso que
- * pregunta antes (`XRQuitButton` y `XRQuitConfirm` de `components/xr/XRHud.tsx`), con sus cotas.
+ * Leaving the match halfway: the stop button, the one to end the endless match, and the notice that
+ * asks first (`XRQuitButton` and `XRQuitConfirm` of `components/xr/XRHud.tsx`), with their dimensions.
  *
- * - **El botón va en la columna**, que mientras se juega está vacía, y agrandado: se mira de reojo
- *   a metro y medio. Del azul del juego y opaco: el gris se perdía contra la sala.
- * - **No se sale de golpe**: el botón se pulsa sin querer y salir pierde los goles. Se para la
- *   mesa y se pregunta; mientras se pregunta el disco no corre. Seguir jugando va arriba y más
- *   grande, que es la respuesta que no pierde nada; debajo, volver al menú y salir del juego, que
- *   son cosas distintas y llevan cada una su nombre.
- * - **La partida sin fin** tiene al lado su botón de terminar (un cuadrado, el símbolo de parar):
- *   es su única salida con resumen.
+ * - **The button goes in the column**, which while playing is empty, and enlarged: it is looked at
+ *   out of the corner of the eye from a metre and a half. In the game's blue and opaque: the grey
+ *   got lost against the room.
+ * - **There is no leaving at once**: the button gets pressed by accident and leaving loses the
+ *   goals. The table stops and it asks; while it asks the puck does not run. Keep playing goes on
+ *   top and bigger, since it is the answer that loses nothing; below, back to the menu and leaving
+ *   the game, which are different things and each carries its name.
+ * - **The endless match** has its end button beside it (a square, the stop symbol): it is its only
+ *   way out with a summary.
  */
 import { Node3D } from 'godot'
 
@@ -23,64 +24,64 @@ import { PALETTE } from '@/lib/palette'
 import { translator } from '@/lib/textos'
 
 import { DIM } from './menu'
-import { triangulosDelMenu } from './gameOver'
-import { AVISO, CAJAS_DEL_AVISO, CAJAS_DE_PARAR, LETRA_DEL_AVISO_DE_SALIR } from './layout'
+import { menuIconTriangles } from './gameOver'
+import { CONFIRM_SIZE, CONFIRM_BOXES, STOP_BOXES, CONFIRM_TEXT } from './layout'
 
-export class BotonesDeParar {
-  readonly nodo = new Node3D()
-  readonly parar: Button
-  readonly terminar: Button
+export class StopButtons {
+  readonly node = new Node3D()
+  readonly stop: Button
+  readonly end: Button
 
-  constructor(acciones: { parar(): void; terminar(): void }, punteria: PointerAim) {
-    this.parar = new Button({ id: 'quit', caja: CAJAS_DE_PARAR.quit, z: 0, color: PALETTE.primaryDeep, opacidad: 0.95, alPulsar: () => acciones.parar() })
-    this.parar.dibujo(shape(triangulosDelMenu(), PALETTE.foreground), PALETTE.foreground)
-    this.terminar = new Button({ id: 'end', caja: CAJAS_DE_PARAR.end, z: 0, color: PALETTE.primaryDeep, opacidad: 0.9, alPulsar: () => acciones.terminar() })
-    this.terminar.dibujo(plate(0.036, 0.036, PALETTE.foreground, 1, 1), PALETTE.foreground)
-    this.nodo.add_child(this.parar.nodo)
-    this.nodo.add_child(this.terminar.nodo)
-    punteria.anadir(this.parar, this.terminar)
+  constructor(actions: { stop(): void; end(): void }, aim: PointerAim) {
+    this.stop = new Button({ id: 'quit', caja: STOP_BOXES.quit, z: 0, color: PALETTE.primaryDeep, opacidad: 0.95, alPulsar: () => actions.stop() })
+    this.stop.dibujo(shape(menuIconTriangles(), PALETTE.foreground), PALETTE.foreground)
+    this.end = new Button({ id: 'end', caja: STOP_BOXES.end, z: 0, color: PALETTE.primaryDeep, opacidad: 0.9, alPulsar: () => actions.end() })
+    this.end.dibujo(plate(0.036, 0.036, PALETTE.foreground, 1, 1), PALETTE.foreground)
+    this.node.add_child(this.stop.nodo)
+    this.node.add_child(this.end.nodo)
+    aim.anadir(this.stop, this.end)
   }
 
-  /** Qué se enseña: nada, solo parar, o parar y terminar (la partida sin fin, ya en juego). */
-  mostrar(parar: boolean, terminar: boolean): void {
-    this.nodo.visible = parar
-    this.parar.nodo.visible = parar
-    this.terminar.nodo.visible = parar && terminar
+  /** What is shown: nothing, only stop, or stop and end (the endless match, already in play). */
+  show(stop: boolean, end: boolean): void {
+    this.node.visible = stop
+    this.stop.nodo.visible = stop
+    this.end.nodo.visible = stop && end
   }
 }
 
-export class AvisoDeSalir {
+export class ExitNotice {
   readonly panel: Panel
-  readonly nodo: Node3D
-  readonly seguir: Button
+  readonly node: Node3D
+  readonly stay: Button
   readonly menu: Button
-  readonly dejar: Button
-  private pintado: Lang | null = null
+  readonly leave: Button
+  private painted: Lang | null = null
 
-  constructor(acciones: { seguir(): void; menu(): void; dejar(): void }, punteria: PointerAim) {
-    this.panel = new Panel({ ancho: AVISO[0], alto: AVISO[1], fondo: PALETTE.background, opacidad: 0.96 })
-    this.nodo = this.panel.nodo
-    this.menu = this.panel.boton(new Button({ id: 'confirm:menu', caja: CAJAS_DEL_AVISO.menu, color: PALETTE.rail, opacidad: 0.9, alPulsar: () => acciones.menu() }))
-    this.dejar = this.panel.boton(new Button({ id: 'confirm:leave', caja: CAJAS_DEL_AVISO.leave, color: PALETTE.rail, opacidad: 0.9, alPulsar: () => acciones.dejar() }))
-    this.seguir = this.panel.boton(new Button({ id: 'confirm:stay', caja: CAJAS_DEL_AVISO.stay, color: PALETTE.primary, alPulsar: () => acciones.seguir() }))
-    punteria.anadir(this.seguir, this.menu, this.dejar)
-    this.nodo.visible = false
+  constructor(actions: { stay(): void; menu(): void; leave(): void }, aim: PointerAim) {
+    this.panel = new Panel({ ancho: CONFIRM_SIZE[0], alto: CONFIRM_SIZE[1], fondo: PALETTE.background, opacidad: 0.96 })
+    this.node = this.panel.nodo
+    this.menu = this.panel.boton(new Button({ id: 'confirm:menu', caja: CONFIRM_BOXES.menu, color: PALETTE.rail, opacidad: 0.9, alPulsar: () => actions.menu() }))
+    this.leave = this.panel.boton(new Button({ id: 'confirm:leave', caja: CONFIRM_BOXES.leave, color: PALETTE.rail, opacidad: 0.9, alPulsar: () => actions.leave() }))
+    this.stay = this.panel.boton(new Button({ id: 'confirm:stay', caja: CONFIRM_BOXES.stay, color: PALETTE.primary, alPulsar: () => actions.stay() }))
+    aim.anadir(this.stay, this.menu, this.leave)
+    this.node.visible = false
   }
 
-  /** Lo escribe en un idioma: el `dibujarElAviso` de la web. */
-  escribir(lang: Lang): void {
-    if (this.pintado === lang) return
-    this.pintado = lang
+  /** Writes it in a language: the web's `drawExitNotice`. */
+  write(lang: Lang): void {
+    if (this.painted === lang) return
+    this.painted = lang
     const t = translator(lang)
     const { panel } = this
-    const ancho = AVISO[0] - 0.08
+    const width = CONFIRM_SIZE[0] - 0.08
     panel.borrarTextos()
-    panel.parrafo(t('Leave the game?'), 0, 0.15, { alto: LETRA_DEL_AVISO_DE_SALIR.title, color: PALETTE.foreground, anchoMax: ancho })
-    panel.parrafo(t('You lose the goals you have scored.'), 0, 0.075, { alto: LETRA_DEL_AVISO_DE_SALIR.body, color: DIM, anchoMax: ancho })
-    const rotulo = (b: Button, texto: string, color: string) =>
-      panel.escribir(texto, b.caja.x, b.caja.y, { alto: LETRA_DEL_AVISO_DE_SALIR.button, color, anchoMax: b.caja.width - 0.03, en: b })
-    rotulo(this.seguir, t('Keep playing'), PALETTE.background)
-    rotulo(this.menu, t('Back to the menu'), PALETTE.foreground)
-    rotulo(this.dejar, t('Leave'), PALETTE.foreground)
+    panel.parrafo(t('Leave the game?'), 0, 0.15, { alto: CONFIRM_TEXT.title, color: PALETTE.foreground, anchoMax: width })
+    panel.parrafo(t('You lose the goals you have scored.'), 0, 0.075, { alto: CONFIRM_TEXT.body, color: DIM, anchoMax: width })
+    const label = (b: Button, text: string, color: string) =>
+      panel.escribir(text, b.caja.x, b.caja.y, { alto: CONFIRM_TEXT.button, color, anchoMax: b.caja.width - 0.03, en: b })
+    label(this.stay, t('Keep playing'), PALETTE.background)
+    label(this.menu, t('Back to the menu'), PALETTE.foreground)
+    label(this.leave, t('Leave'), PALETTE.foreground)
   }
 }

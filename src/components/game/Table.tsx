@@ -11,29 +11,29 @@ import { type Texture } from 'three'
 import { PALETTE } from '../../lib/palette'
 import { HALF_LENGTH, HALF_WIDTH } from '../../lib/puckPhysics'
 /**
- * La mesa: el tablero, las bandas que lo rodean, las dos porterías y las
- * marcas de la pista.
+ * The table: the table top, the rails around it, the two goals and the
+ * markings of the rink.
  *
- * Es decorado y nada más —no se mueve ni sabe de la partida—, así que va en su
- * propio componente y se pinta una vez. Las medidas son las de `gameConfig.ts`,
- * las mismas con las que rebota el disco: si la mesa se ensancha aquí sin
- * ensancharse allí, el disco rebotaría en el aire.
+ * It is scenery and nothing else —it does not move or know about the match—,
+ * so it goes in its own component and is drawn once. The measurements are those
+ * of `gameConfig.ts`, the same ones the puck bounces with: if the table widens
+ * here without widening there, the puck would bounce in mid-air.
  *
- * Coordenadas locales, con el centro del tablero en el origen y su superficie
- * en `y = 0`. Quien la monta la sube a la altura que toca (ver `Rink`).
+ * Local coordinates, with the centre of the table top at the origin and its
+ * surface at `y = 0`. Whoever mounts it raises it to the right height (see `Rink`).
  */
 
-/** Grosor del tablero y de las bandas que lo rodean. */
+/** Thickness of the table top and of the rails around it. */
 const TOP_THICKNESS = 0.05
 const RAIL_THICKNESS = 0.04
 
-/** Ancho de cada trozo de banda del fondo, a los lados de la portería. */
+/** Width of each piece of end rail, on either side of the goal. */
 const END_RAIL_WIDTH = (TABLE_WIDTH - GOAL_WIDTH) / 2
 
-/** Las marcas se pintan pegadas al tablero, lo justo para no calarse en él. */
+/** The markings are painted flush with the table top, just enough not to sink into it. */
 const MARKING_Y = 0.001
 
-/** Colores propios del decorado, que fuera de la mesa no significan nada. */
+/** Colours of the scenery itself, which mean nothing outside the table. */
 const LEG_COLOR = '#0d1626'
 const MARKING_COLOR = '#9db4cc'
 const GOAL_MOUTH_COLOR = '#050a12'
@@ -63,7 +63,7 @@ function Rails() {
         </mesh>
       ))}
 
-      {/* Los fondos van partidos en dos: en medio está la portería. */}
+      {/* The ends are split in two: the goal is in the middle. */}
       {[-1, 1].map((end) =>
         [-1, 1].map((side) => (
           <mesh
@@ -83,12 +83,12 @@ function Rails() {
 }
 
 /**
- * La boca de una portería: el hueco por el que entra el disco.
+ * The mouth of a goal: the gap through which the puck goes in.
  *
- * El fondo es oscuro —es un hueco, y cualquier reflejo lo delataría como tapa—
- * pero el marco lleva el color de su dueño. Sin eso, sobre una mesa blanca y
- * dos bandas azul marino, las dos porterías son la misma mancha negra y no hay
- * forma de saber a cuál se tira.
+ * The back is dark —it is a gap, and any reflection would give it away as a
+ * cover— but the frame carries its owner's colour. Without that, on a white
+ * table and two navy blue rails, the two goals are the same black stain and
+ * there is no way to know which one to shoot at.
  */
 function GoalMouth({ end, color }: { end: 1 | -1; color: string }) {
   const z = end * (HALF_LENGTH + RAIL_THICKNESS / 2)
@@ -104,7 +104,7 @@ function GoalMouth({ end, color }: { end: 1 | -1; color: string }) {
         />
       </mesh>
 
-      {/* Umbral encendido, ya sobre el tablero: es lo que se ve desde arriba. */}
+      {/* Lit threshold, already on the table top: it is what is seen from above. */}
       <mesh
         position={[0, MARKING_Y, end * (HALF_LENGTH - 0.02)]}
         rotation={[-Math.PI / 2, 0, 0]}
@@ -119,21 +119,21 @@ function GoalMouth({ end, color }: { end: 1 | -1; color: string }) {
 function Markings() {
   return (
     <group position={[0, MARKING_Y, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-      {/* Línea de medio campo: hasta dónde llega cada mazo. */}
+      {/* Halfway line: how far each mallet reaches. */}
       <mesh>
         <planeGeometry args={[TABLE_WIDTH, 0.012]} />
         <meshBasicMaterial color={MARKING_COLOR} toneMapped={false} />
       </mesh>
 
-      {/* Círculo central, donde se saca. */}
+      {/* Centre circle, where the serve is taken. */}
       <mesh>
         <ringGeometry args={[0.16, 0.172, 48]} />
         <meshBasicMaterial color={MARKING_COLOR} toneMapped={false} />
       </mesh>
 
-      {/* Área de cada portería: media circunferencia abierta hacia el centro.
-          El grupo está tumbado, así que el eje Y de aquí es el −Z de la mesa y
-          los signos van al revés de lo que parece. */}
+      {/* Area of each goal: a half circle open towards the centre. The group
+          is lying flat, so the Y axis here is the table's −Z and the signs go
+          the opposite way to what it seems. */}
       {[-1, 1].map((end) => (
         <mesh key={end} position={[0, -end * (HALF_LENGTH - 0.001), 0]}>
           <ringGeometry
@@ -174,9 +174,10 @@ function Legs() {
 export function Table({ environment }: { environment?: Texture }) {
   return (
     <group>
-      {/* El tablero refleja la sala (`useRoomEnvironment`): es lo que le da el
-          brillo de una mesa de verdad y lo que hace que el disco se lea sobre
-          él al moverse, porque el reflejo se mueve con la cabeza y el disco no. */}
+      {/* The table top reflects the room (`useRoomEnvironment`): it is what
+          gives it the shine of a real table and what makes the puck readable
+          on it as it moves, because the reflection moves with the head and the
+          puck does not. */}
       <mesh position={[0, -TOP_THICKNESS / 2, 0]} receiveShadow>
         <boxGeometry args={[TABLE_WIDTH, TOP_THICKNESS, TABLE_LENGTH]} />
         <meshStandardMaterial
@@ -189,7 +190,7 @@ export function Table({ environment }: { environment?: Texture }) {
       </mesh>
       <Markings />
       <Rails />
-      {/* La del jugador está en Z positivo, que es el lado que tiene delante. */}
+      {/* The player's is at positive Z, which is the side they have in front. */}
       <GoalMouth end={1} color={PALETTE.primary} />
       <GoalMouth end={-1} color={PALETTE.rival} />
       <Legs />

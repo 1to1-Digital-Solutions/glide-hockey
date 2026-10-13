@@ -16,20 +16,20 @@ beforeEach(() => {
   window.localStorage.clear()
 })
 
-describe('el progreso de Niveles', () => {
-  it('sin nada guardado se empieza por el primero, sin estrellas', () => {
+describe('the progress of Levels', () => {
+  it('with nothing stored one starts at the first, with no stars', () => {
     expect(getUnlockedLevel()).toBe(1)
     expect(parseUnlockedLevel(null)).toBe(1)
     expect(parseStarsList(null).split(',')).toHaveLength(LEVEL_COUNT)
   })
 
-  it('lo raro del almacenamiento no abre niveles que no existen', () => {
+  it('odd things in storage do not open levels that do not exist', () => {
     expect(parseUnlockedLevel('99')).toBe(LEVEL_COUNT)
-    expect(parseUnlockedLevel('tres')).toBe(1)
+    expect(parseUnlockedLevel('three')).toBe(1)
     expect(starsFromList(parseStarsList('3,7,x'), 2)).toBe(0)
   })
 
-  it('superar el más alto abre el siguiente y apunta las estrellas, que solo suben', () => {
+  it('passing the highest opens the next and records the stars, which only go up', () => {
     expect(saveLevelResult(1, 2)).toBe(2)
     expect(window.localStorage.getItem(UNLOCKED_LEVEL_KEY)).toBe('2')
     saveLevelResult(1, 1)
@@ -39,18 +39,18 @@ describe('el progreso de Niveles', () => {
   })
 })
 
-describe('lo que no se guarda', () => {
-  it('repetir un nivel con menos estrellas no borra las que ya tenía', () => {
-    // Las estrellas son la marca de lo mejor que se ha hecho: si bajaran al
-    // volver a jugar, repetir un nivel castigaría en vez de premiar.
+describe('what is not stored', () => {
+  it('repeating a level with fewer stars does not erase the ones it already had', () => {
+    // The stars are the mark of the best that has been done: if they went down
+    // on playing again, repeating a level would punish instead of rewarding.
     saveLevelResult(1, 3)
     saveLevelResult(1, 1)
 
     expect(starsFromList(getStarsList(), 1)).toBe(3)
   })
 
-  it('una lista de estrellas manipulada se lee como cero', () => {
-    // Se edita a mano desde las herramientas del navegador en dos clics.
+  it('a tampered list of stars is read as zero', () => {
+    // It is edited by hand from the browser's tools in two clicks.
     expect(starsFromList('9,x,-1', 1)).toBe(0)
     expect(starsFromList('9,x,-1', 2)).toBe(0)
     expect(starsFromList('9,x,-1', 3)).toBe(0)

@@ -13,19 +13,19 @@ import { formatFigure, translator } from '../../lib/textos'
 import { useDuelTally } from '../../lib/useDuelTally'
 
 /**
- * Lo que se ve encima de la mesa mientras se juega en escritorio: el marcador,
- * la puntuación y, al acabar, el resumen.
+ * What is seen over the table while playing on desktop: the scoreboard, the
+ * score and, on finishing, the summary.
  *
- * Su equivalente dentro del visor es `<XRScoreboard>` y `<XRGameOver>`, que son
- * geometría porque dentro de un Canvas no cabe DOM. Los dos leen el mismo
- * estado.
+ * Its equivalent inside the headset is `<XRScoreboard>` and `<XRGameOver>`,
+ * which are geometry because no DOM fits inside a Canvas. Both read the same
+ * state.
  *
- * Casi todo es `pointer-events-none`: por debajo está la mesa, y un marcador
- * que se coma el movimiento del ratón deja el mazo clavado. Solo los botones
- * recuperan el puntero.
+ * Almost everything is `pointer-events-none`: underneath is the table, and a
+ * scoreboard that swallows the mouse movement leaves the mallet stuck. Only
+ * the buttons take the pointer back.
  */
 
-/** Un dato del marcador, con su etiqueta encima. */
+/** One figure of the scoreboard, with its label above. */
 function Stat({
   label,
   value,
@@ -66,22 +66,22 @@ function Scoreboard() {
     activeLevel,
     gameMode,
     duel,
-    sign: cartel,
+    sign: goalSign,
   } = useGame()
   const endless = isEndless(activeGoalTarget)
   const lang = useLang()
   const t = translator(lang)
-  // En el duelo, el marcador de la izquierda es de quien tiene el mando: con dos personas
-  // delante, «Tú» no dice a cuál de las dos.
-  const quien = duel ? t(PLAYER_LABELS[duel.player]) : null
+  // In the duel, the scoreboard on the left belongs to whoever holds the controller: with two
+  // people in front, «Tú» does not say which of the two.
+  const who = duel ? t(PLAYER_LABELS[duel.player]) : null
   return (
     <header className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-2 p-4">
       <div className="flex items-center gap-5 rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_82%,transparent)] px-5 py-3 backdrop-blur-sm">
-        {/* El marcador se anuncia al cambiar: quien no ve la mesa se entera
-            igual de que ha habido gol. */}
+        {/* The scoreboard is announced when it changes: whoever cannot see the
+            table finds out all the same that there has been a goal. */}
         <div className="flex items-center gap-4" aria-live="polite">
           <Stat
-            label={quien ?? t('You')}
+            label={who ?? t('You')}
             value={String(playerGoals)}
             color="var(--color-primary)"
             large
@@ -108,13 +108,13 @@ function Scoreboard() {
           <span>
             {t(GAME_MODE_LABELS[gameMode])}
             {round != null ? ` ${t('· round {round}', { round })}` : null}
-            {/* La vuelta solo cuando hay más de una: en la primera no dice nada
-                que la ronda no diga ya (ver `challenge.ts`). */}
+            {/* The lap only when there is more than one: on the first it says
+                nothing the round does not already say (see `challenge.ts`). */}
             {lap != null && lap > 1
               ? ` ${t('· lap {lap} ×{multiplier}', { lap, multiplier: lapMultiplier })}`
               : null}
             {gameMode === 'levels' ? ` ${t('· level {level}', { level: activeLevel })}` : null}
-            {quien != null ? ` · ${quien}` : null}
+            {who != null ? ` · ${who}` : null}
           </span>
           <span>
             {t(DIFFICULTY_LABELS[activeDifficulty])} ·{' '}
@@ -122,18 +122,19 @@ function Scoreboard() {
           </span>
         </div>
       </div>
-      {/* Lo que dice el cartel del objetivo del visor (`CartelDelMarcador`), aquí con letras de
-          verdad: la misión y los listones, el que falta y lo que queda, o lo que faltó. Sin
-          región viva propia: los goles ya se anuncian arriba, y dos avisos por gol estorban. */}
-      {cartel != null ? (
+      {/* What the headset's goal sign says (`ScoreboardSign`), here in real letters: the
+          mission and the thresholds, the one still missing and what remains, or what was
+          missing. With no live region of its own: the goals are already announced above, and
+          two announcements per goal get in the way. */}
+      {goalSign != null ? (
         <p
-          data-objetivo
+          data-goal
           className={`rounded-xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_82%,transparent)] px-4 py-1.5 text-center text-sm backdrop-blur-sm ${
-            cartel.subdued ? 'text-white/45' : 'font-semibold text-white'
+            goalSign.subdued ? 'text-white/45' : 'font-semibold text-white'
           }`}
         >
-          {cartel.title}
-          {cartel.detail != null ? <span className="font-normal text-white/60"> — {cartel.detail}</span> : null}
+          {goalSign.title}
+          {goalSign.detail != null ? <span className="font-normal text-white/60"> — {goalSign.detail}</span> : null}
         </p>
       ) : null}
     </header>
@@ -177,8 +178,8 @@ function GameOver() {
   } = useGame()
 
   const won = outcome === 'won'
-  // El reto acaba y se repite con las palabras comunes del salón (`palabras.ts`).
-  const reto = gameMode === 'challenge'
+  // The challenge ends and is repeated with the hall's common words (`menuWords.ts`).
+  const challenge = gameMode === 'challenge'
   const endless = isEndless(activeGoalTarget)
   const lang = useLang()
   const t = translator(lang)
@@ -187,13 +188,13 @@ function GameOver() {
       <div className="pointer-events-auto animate-fade-slide-up w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_92%,transparent)] p-6 text-center shadow-2xl backdrop-blur-sm">
         <h2
           className="text-2xl font-bold"
-          // Ganada o perdida, en el verde y el rojo comunes del salón: el cian y el rojo de la
-          // mesa dicen de quién es cada cosa, no si ha salido bien.
+          // Won or lost, in the hall's common green and red: the cyan and the red of the
+          // table say whose each thing is, not whether it went well.
           style={{ color: won ? COMMON_PALETTE.hit : COMMON_PALETTE.miss }}
         >
           {endless
             ? t('Game over')
-            : reto
+            : challenge
               ? t(MENU_EN.challengeOver)
               : levelResult
                 ? levelResult.passed
@@ -280,7 +281,7 @@ function GameOver() {
             onClick={startGame}
             className="cta-gradient min-h-12 w-full rounded-xl px-6 py-3 text-base font-bold transition"
           >
-            {t(reto ? MENU_EN.anotherChallenge : 'Again')}
+            {t(challenge ? MENU_EN.anotherChallenge : 'Again')}
           </button>
           <button
             type="button"
@@ -296,27 +297,27 @@ function GameOver() {
 }
 
 /**
- * El final de una partida del duelo.
+ * The end of a match of the duel.
  *
- * Tras la del primero es **el traspaso**: cómo le ha ido y a quién pasarle el mando, con el botón
- * que empieza la partida del otro. Tras la del segundo, quién gana y por cuánto, y lo que llevan
- * entre los dos. La marca de puntos no sale: en el duelo lo que cuenta es la ventaja sobre la
- * máquina (ver `lib/duel.ts`).
+ * After the first player's it is **the handover**: how it went and who to pass the controller
+ * to, with the button that starts the other's match. After the second's, who wins and by how
+ * much, and the tally between the two. The points best does not appear: in the duel what counts
+ * is the margin over the machine (see `lib/duel.ts`).
  */
 function DuelOver() {
   const t = translator(useLang())
   const { duel, playerGoals, opponentGoals, outcome, startGame, resetGame } = useGame()
   const tally = useDuelTally()
-  // `DuelOver` solo se pinta en el duelo; el tipo no lo sabe.
+  // `DuelOver` is only painted in the duel; the type does not know it.
   if (duel == null) return null
 
-  const nombre = (player: Player) => t(PLAYER_LABELS[player])
-  const titulo = duel.over
+  const playerName = (player: Player) => t(PLAYER_LABELS[player])
+  const title = duel.over
     ? duel.winner != null
-      ? t('{player} wins', { player: nombre(duel.winner) })
+      ? t('{player} wins', { player: playerName(duel.winner) })
       : t('Tie')
     : t('{player}: {scored}–{conceded}', {
-        player: nombre(duel.player),
+        player: playerName(duel.player),
         scored: playerGoals,
         conceded: opponentGoals,
       })
@@ -326,33 +327,33 @@ function DuelOver() {
       <div className="pointer-events-auto animate-fade-slide-up w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_92%,transparent)] p-6 text-center shadow-2xl backdrop-blur-sm">
         <h2
           className="text-2xl font-bold"
-          // El final del duelo lo gana alguien de los que están delante: va en el verde de
-          // acierto. El traspaso, en el color de cómo le fue contra la máquina.
+          // The end of the duel is won by one of those standing in front: it goes in the hit
+          // green. The handover, in the colour of how it went against the machine.
           style={{ color: duel.over || outcome === 'won' ? COMMON_PALETTE.hit : COMMON_PALETTE.miss }}
         >
-          {titulo}
+          {title}
         </h2>
 
         {duel.next != null ? (
           <p className="mt-2 text-base text-white/80">
-            {t('Pass the controller to {player}.', { player: nombre(duel.next) })}
+            {t('Pass the controller to {player}.', { player: playerName(duel.next) })}
           </p>
         ) : (
           <>
             <ul className="mt-4 flex flex-col gap-1 text-base tabular-nums">
               {([0, 1] as const).map((player) => {
-                const partida = duel.matches[player]
-                if (partida == null) return null
+                const match = duel.matches[player]
+                if (match == null) return null
                 return (
                   <li
                     key={player}
                     className={duel.winner === player ? 'font-bold text-white' : 'text-white/60'}
                   >
                     {t('{player}: {scored}–{conceded} ({margin})', {
-                      player: nombre(player),
-                      scored: partida.scored,
-                      conceded: partida.conceded,
-                      margin: formatMargin(margin(partida)),
+                      player: playerName(player),
+                      scored: match.scored,
+                      conceded: match.conceded,
+                      margin: formatMargin(margin(match)),
                     })}
                   </li>
                 )
@@ -374,7 +375,7 @@ function DuelOver() {
             onClick={startGame}
             className="cta-gradient min-h-12 w-full rounded-xl px-6 py-3 text-base font-bold transition"
           >
-            {duel.next != null ? t('{player} to play', { player: nombre(duel.next) }) : t('New duel')}
+            {duel.next != null ? t('{player} to play', { player: playerName(duel.next) }) : t('New duel')}
           </button>
           <button
             type="button"
@@ -389,7 +390,7 @@ function DuelOver() {
   )
 }
 
-/** Dejar la partida a medias, sin esperar al final. */
+/** Leaving the match halfway, without waiting for the end. */
 function QuitButton() {
   const { askToQuit, immersive, endRun, activeGoalTarget, gameState } = useGame()
   const exit = useExit()
@@ -397,8 +398,8 @@ function QuitButton() {
 
   return (
     <div className="pointer-events-none absolute right-4 bottom-4 flex gap-2">
-      {/* La partida sin fin solo la cierra el jugador: terminar sí pasa por el
-          resumen y guarda la racha; dejarla, no. */}
+      {/* The endless match is only closed by the player: ending it does go through
+          the summary and saves the streak; leaving it does not. */}
       {isEndless(activeGoalTarget) && gameState === 'playing' ? (
         <button
           type="button"
@@ -486,12 +487,12 @@ function useModalFocus(onDismiss: () => void): RefObject<HTMLDivElement | null> 
 }
 
 /**
- * El aviso antes de dejar la partida.
+ * The notice before leaving the match.
  *
- * **No se sale de golpe.** El botón se pulsa sin querer —con el visor puesto no se ve lo
- * que hay a los lados y el brazo pasa por donde pasa—, y salir pierde los goles que se
- * lleven. La mesa se para mientras se pregunta (ver `gameStore`), así que decidir no cuesta
- * goles.
+ * **There is no leaving at once.** The button gets pressed by accident —with the headset on
+ * you cannot see what is at the sides and the arm passes where it passes—, and leaving loses
+ * the goals scored so far. The table stops while it asks (see `gameStore`), so deciding costs
+ * no goals.
  */
 function QuitConfirm() {
   const { resetGame, keepPlaying } = useGame()

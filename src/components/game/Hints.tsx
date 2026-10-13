@@ -36,49 +36,52 @@ import { RealController } from '../xr/RealController'
 import { NO_RAYCAST } from '../raycast'
 
 /**
- * Las ayudas visuales: lo que hay que hacer, enseñado sin una sola letra.
+ * The visual hints: what has to be done, taught without a single letter.
  *
- * **Por qué existe.** El tutorial explica el juego y se queda como red de seguridad, pero lo
- * primero que hace alguien al entrar no es leer: es mirar alrededor. Si mirando alrededor no se
- * ve dónde ponerse, qué coger ni qué hacer con ello, el juego empieza con una pregunta — y lo
- * que se lee después ya llega tarde. Aquí están las respuestas, dibujadas: las huellas del
- * suelo, el mazo fantasma empujando hacia el disco, la marca de la portería contraria y el
- * mando de verdad con el botón de agarre encendido.
+ * **Why it exists.** The tutorial explains the game and stays as a safety net, but the first
+ * thing someone does on entering is not to read: it is to look around. If looking around does
+ * not show where to stand, what to grab or what to do with it, the game starts with a question
+ * — and what is read afterwards already arrives late. Here are the answers, drawn: the
+ * footprints on the floor, the ghost mallet pushing towards the puck, the mark of the opposing
+ * goal and the real controller with the grab button lit.
  *
- * **Y ninguna se queda puesta.** Cada una se apaga sola en cuanto el gesto se hace una vez, o
- * al agotarse su plazo; lo decide `lib/guionDeAyudas.ts` sobre el motor de `lib/ayudas.ts`, los
- * dos probados sin navegador. Aquí solo se pinta.
+ * **And none of them stays on.** Each one switches off by itself as soon as the gesture is made
+ * once, or when its deadline runs out; `lib/hintScript.ts` decides it on top of the engine of
+ * `lib/hints.ts`, both tested without a browser. Here it is only drawn.
  *
- * **Todo se monta de una vez y no se desmonta nunca**, aunque no se vea. Montar una malla nueva
- * a mitad de partida obliga a three a compilar su material, y compilar un shader bloquea el
- * hilo: con el visor puesto eso es un tirón, y justo en el momento en que la ayuda quiere que
- * se mire. Montado desde el principio lo compila `Calentar` con todo lo demás. Lo que se
- * enciende y se apaga es `visible` y la opacidad — y una ayuda apagada es invisible, así que
- * tampoco cuesta una llamada de dibujo.
+ * **Everything is mounted at once and never unmounted**, even if it is not seen. Mounting a new
+ * mesh halfway through a match forces three to compile its material, and compiling a shader
+ * blocks the thread: with the headset on that is a hitch, and right at the moment the hint wants
+ * to be looked at. Mounted from the start, `PrewarmShaders` compiles it with everything else.
+ * What switches on and off is `visible` and the opacity — and a hint that is off is invisible,
+ * so it does not cost a draw call either.
  *
- * **Los hitos no se escuchan, se deducen.** El mazo ya apunta cuándo se coge y la mesa cuándo
- * se golpea y cuándo se marca (`lib/gameStore.ts`), que es de donde bebe también el tutorial.
- * Así esta ayuda no se entera de nada ni le para el juego a nadie.
+ * **The milestones are not listened for, they are deduced.** The mallet already records when it
+ * is grabbed and the table when it is hit and when a goal is scored (`lib/gameStore.ts`), which
+ * is where the tutorial draws from too. That way this hint finds out about nothing and stops the
+ * game for nobody.
  *
- * **Solo dentro del visor.** Fuera de la sesión se juega con el ratón sobre una pantalla, y ahí
- * la web lo cuenta con letras, que se leen antes de empezar y sin tener las manos ocupadas.
+ * **Only inside the headset.** Outside the session one plays with the mouse on a screen, and
+ * there the website tells it with letters, which are read before starting and without having
+ * the hands busy.
  */
 
-/** Lo transparente que llega a ponerse cada ayuda encendida del todo. */
-const OPACIDAD = { floor: 0.75, gesture: 0.7, goal: 0.72 } as const
+/** How opaque each hint gets when fully lit. */
+const OPACITY = { floor: 0.75, gesture: 0.7, goal: 0.72 } as const
 
 /**
- * Lo pintado sobre una superficie se separa sesgando la profundidad al rasterizar y no
- * levantándolo un milímetro: el milímetro basta en el navegador y no basta con el visor puesto.
+ * What is painted on a surface is separated by biasing the depth when rasterising and not by
+ * raising it a millimetre: the millimetre is enough in the browser and not enough with the
+ * headset on.
  */
-const CALCO = {
+const DECAL = {
   polygonOffset: true,
   polygonOffsetFactor: -4,
   polygonOffsetUnits: -4,
 } as const
 
-/** Lo que llevan todos los materiales de una ayuda: ámbar, translúcido y sin tono. */
-const PINTURA = {
+/** What all the materials of a hint carry: amber, translucent and with no tone mapping. */
+const PAINT = {
   color: HINT_MARK_COLOR,
   transparent: true,
   opacity: 0,
@@ -87,192 +90,193 @@ const PINTURA = {
 } as const
 
 /**
- * Lo que mide el mazo fantasma.
+ * The measurements of the ghost mallet.
  *
- * El aro va al radio del mazo de verdad, que es lo que hace que se lea como «este de aquí» y no
- * como una mancha: puesto más gordo enseñaría un mazo que no existe. El mango es un apunte, lo
- * justo para que el aro no se lea como un agujero en la mesa.
+ * The ring goes at the radius of the real mallet, which is what makes it read as «this one
+ * here» and not as a stain: made fatter it would show a mallet that does not exist. The handle
+ * is a sketch, just enough for the ring not to read as a hole in the table.
  */
-const FANTASMA = { thickness: 0.008, handle: { radius: 0.02, height: 0.05 } } as const
+const GHOST = { thickness: 0.008, handle: { radius: 0.02, height: 0.05 } } as const
 
-/** Dónde va el mando de la ayuda: solo depende de la mano, así que se calcula una vez por mano. */
-function juntoAlMazo(mano: Hand) {
-  const { position: posicion, rotation: giro } = controllerBesideMallet(mano)
+/** Where the hint's controller goes: it only depends on the hand, so it is computed once per hand. */
+function besideMallet(hand: Hand) {
+  const { position, rotation } = controllerBesideMallet(hand)
   return {
-    position: [posicion.x, posicion.y, posicion.z] as const,
-    rotation: [0, giro, 0] as const,
+    position: [position.x, position.y, position.z] as const,
+    rotation: [0, rotation, 0] as const,
     scale: CONTROLLER_BESIDE_MALLET.scale,
   }
 }
 
-/** ¿Ha pedido quien juega que las cosas no se muevan solas? */
-function sinMovimiento(): boolean {
+/** Has whoever plays asked for things not to move by themselves? */
+function reducedMotion(): boolean {
   if (typeof window === 'undefined' || window.matchMedia == null) return false
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
 export function Hints() {
-  const enSesion = useXR((state) => state.mode != null)
-  const { gameState, milestones: hitos } = useGame()
+  const inSession = useXR((state) => state.mode != null)
+  const { gameState, milestones } = useGame()
 
-  const [quieto] = useState(sinMovimiento)
-  /** La mano buena del salón: su mando es el que se enseña, y de su lado del mazo. */
-  const mano = useHand()
-  const junto = useMemo(() => juntoAlMazo(mano), [mano])
+  const [still] = useState(reducedMotion)
+  /** The hall's preferred hand: its controller is the one shown, and on its side of the mallet. */
+  const hand = useHand()
+  const beside = useMemo(() => besideMallet(hand), [hand])
 
-  /** El reloj de cada ayuda y cuáles se enseñan, sin pasar por el estado de React. */
-  const estado = useRef(noHints())
+  /** The clock of each hint and which ones are shown, without going through React state. */
+  const hintState = useRef(noHints())
   /**
-   * Lo que el guion da por hecho. Se **muta** el mismo objeto en cada fotograma en vez de armar
-   * uno nuevo: noventa objetos por segundo son noventa objetos que recoger, y esto no sale de
-   * aquí.
+   * What the script takes as done. The same object is **mutated** on every frame instead of
+   * building a new one: ninety objects per second are ninety objects to collect, and this does
+   * not leave here.
    */
-  const hechos = useRef<Record<HintFact, boolean>>({
+  const facts = useRef<Record<HintFact, boolean>>({
     round: false,
     grab: false,
     hit: false,
     goal: false,
   })
-  /** Lo que se ve de cada una ahora mismo, de 0 a 1. */
-  const fuerza = useRef<Record<MalletHint, number>>({
+  /** How much of each one is seen right now, from 0 to 1. */
+  const strength = useRef<Record<MalletHint, number>>({
     floor: 0,
     controller: 0,
     gesture: 0,
     goal: 0,
   })
 
-  const huellas = useRef<(Mesh | null)[]>([])
-  const fantasma = useRef<Group>(null)
-  const pinturaDelFantasma = useRef<(MeshBasicMaterial | null)[]>([])
-  const porteria = useRef<Mesh>(null)
-  const mando = useRef<Group>(null)
+  const footprints = useRef<(Mesh | null)[]>([])
+  const ghost = useRef<Group>(null)
+  const ghostPaint = useRef<(MeshBasicMaterial | null)[]>([])
+  const goalMark = useRef<Mesh>(null)
+  const controller = useRef<Group>(null)
 
   useFrame(({ clock }, delta) => {
-    // Desde que se entra en la cabina, que es cuando ya se puede uno colocar; lo que necesita
-    // mazo o disco lo espera el propio guion con `tanda`.
-    const dando = enSesion
-    hechos.current.round = gameState !== 'menu'
-    hechos.current.grab = hitos.grab
-    hechos.current.hit = hitos.hit
-    hechos.current.goal = hitos.goal
-    const paso = advanceHints(HINT_SCRIPT, hechos.current, estado.current, dando ? delta : 0)
-    const reloj = clock.elapsedTime
-    const pulso = quieto ? 1 : throb(reloj, THROB.strength)
+    // From the moment the cabinet is entered, which is when one can already take position;
+    // whatever needs mallet or puck is waited for by the script itself with `round`.
+    const showing = inSession
+    facts.current.round = gameState !== 'menu'
+    facts.current.grab = milestones.grab
+    facts.current.hit = milestones.hit
+    facts.current.goal = milestones.goal
+    const step = advanceHints(HINT_SCRIPT, facts.current, hintState.current, showing ? delta : 0)
+    const now = clock.elapsedTime
+    const pulse = still ? 1 : throb(now, THROB.strength)
 
-    for (const ayuda of HINT_SCRIPT) {
-      const quiere = dando && paso.lit.has(ayuda.id) ? 1 : 0
-      fuerza.current[ayuda.id] = moveToward(fuerza.current[ayuda.id], quiere, delta)
+    for (const hint of HINT_SCRIPT) {
+      const wanted = showing && step.lit.has(hint.id) ? 1 : 0
+      strength.current[hint.id] = moveToward(strength.current[hint.id], wanted, delta)
     }
 
-    // Las huellas del suelo, latiendo: es lo que las separa de una mancha de la moqueta.
-    const enElSuelo = fuerza.current.floor
-    for (const pieza of huellas.current) {
-      if (pieza == null) continue
-      pieza.visible = enElSuelo > 0.004
-      ;(pieza.material as MeshBasicMaterial).opacity = enElSuelo * OPACIDAD.floor * pulso
+    // The footprints on the floor, throbbing: it is what sets them apart from a carpet stain.
+    const onFloor = strength.current.floor
+    for (const piece of footprints.current) {
+      if (piece == null) continue
+      piece.visible = onFloor > 0.004
+      ;(piece.material as MeshBasicMaterial).opacity = onFloor * OPACITY.floor * pulse
     }
 
-    // El mazo fantasma, dando su empujón: se recoge despacio y empuja deprisa hasta tocar el
-    // disco. Quieto en su sitio si se ha pedido que nada se mueva solo.
-    const conGesto = fuerza.current.gesture
-    const grupo = fantasma.current
-    if (grupo != null) {
-      grupo.visible = conGesto > 0.004
-      const avance = quieto ? 0 : sweepPhase(reloj, PUSH.period).progress
-      const donde = ghostMalletAt(avance)
-      grupo.position.set(donde.x, 0, donde.z)
+    // The ghost mallet, giving its push: it draws back slowly and pushes fast until it touches
+    // the puck. Still in its place if it has been asked that nothing moves by itself.
+    const withGesture = strength.current.gesture
+    const group = ghost.current
+    if (group != null) {
+      group.visible = withGesture > 0.004
+      const progress = still ? 0 : sweepPhase(now, PUSH.period).progress
+      const where = ghostMalletAt(progress)
+      group.position.set(where.x, 0, where.z)
     }
-    for (const material of pinturaDelFantasma.current) {
-      if (material != null) material.opacity = conGesto * OPACIDAD.gesture * pulso
-    }
-
-    // La marca de la portería contraria. **No late**: se queda puesta mientras se juega —va
-    // calcada en el fondo, donde no puede tapar nada—, y algo que palpita mientras el disco
-    // cruza la mesa roba la mirada justo cuando hace falta en otro sitio.
-    const enLaPorteria = fuerza.current.goal
-    if (porteria.current != null) {
-      porteria.current.visible = enLaPorteria > 0.004
-      ;(porteria.current.material as MeshBasicMaterial).opacity = enLaPorteria * OPACIDAD.goal
+    for (const material of ghostPaint.current) {
+      if (material != null) material.opacity = withGesture * OPACITY.gesture * pulse
     }
 
-    // El mando de verdad. Se apaga escondiendo el grupo y no desmontándolo: desmontarlo libera
-    // los materiales del modelo y volver a enseñarlo los recompilaría.
-    if (mando.current != null) mando.current.visible = fuerza.current.controller > 0.004
+    // The mark of the opposing goal. **It does not throb**: it stays on while playing —it is
+    // decalled on the back, where it cannot cover anything—, and something that pulsates while
+    // the puck crosses the table steals the gaze right when it is needed elsewhere.
+    const atGoal = strength.current.goal
+    if (goalMark.current != null) {
+      goalMark.current.visible = atGoal > 0.004
+      ;(goalMark.current.material as MeshBasicMaterial).opacity = atGoal * OPACITY.goal
+    }
+
+    // The real controller. It switches off by hiding the group and not by unmounting it:
+    // unmounting it releases the model's materials and showing it again would recompile them.
+    if (controller.current != null) controller.current.visible = strength.current.controller > 0.004
   })
 
   return (
-    <group name="ayudas">
-      {/* Las huellas, en el suelo y a los pies de quien entra: ahí es donde el anclaje lo deja.
-          A la par y de frente, que es la postura del air hockey. */}
-      {FOOTPRINTS.map((huella, indice) => (
+    <group name="hints">
+      {/* The footprints, on the floor and at the feet of whoever enters: that is where the
+          anchor leaves them. Side by side and facing forward, which is the air hockey stance. */}
+      {FOOTPRINTS.map((footprint, index) => (
         <mesh
-          key={indice}
-          ref={(pieza) => {
-            huellas.current[indice] = pieza
+          key={index}
+          ref={(piece) => {
+            footprints.current[index] = piece
           }}
           visible={false}
           raycast={NO_RAYCAST}
-          position={[huella.x, FOOTPRINTS_Y, huella.z]}
+          position={[footprint.x, FOOTPRINTS_Y, footprint.z]}
           rotation={[-Math.PI / 2, 0, 0]}
-          // Una huella es un óvalo: el círculo de doce lados estirado a lo largo del pie.
+          // A footprint is an oval: the twelve-sided circle stretched along the foot.
           scale={[FOOTPRINT.width / 2, FOOTPRINT.length / 2, 1]}
         >
           <circleGeometry args={[1, 12]} />
-          <meshBasicMaterial {...PINTURA} {...CALCO} />
+          <meshBasicMaterial {...PAINT} {...DECAL} />
         </mesh>
       ))}
 
-      {/* Lo que va sobre la mesa, en sus coordenadas: el mismo sitio en el que se plantan el
-          tablero y la partida (`GameWorld`), para que estas cotas sean las de `guionDeAyudas`
-          y no una traducción suya. */}
+      {/* What goes on the table, in its coordinates: the same place where the table top and
+          the match are planted (`GameWorld`), so that these measurements are those of
+          `hintScript` and not a translation of them. */}
       <group position={[0, TABLE_HEIGHT, TABLE_CENTER_Z]}>
-        {/* El mazo fantasma. El grupo se planta donde estaría el mazo, y el empujón lo lleva
-            de un lado a otro de la mitad del jugador. */}
-        <group ref={fantasma} visible={false}>
+        {/* The ghost mallet. The group is planted where the mallet would be, and the push takes
+            it from one side to the other of the player's half. */}
+        <group ref={ghost} visible={false}>
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, DECAL_Y, 0]} raycast={NO_RAYCAST}>
-            <torusGeometry args={[MALLET_RADIUS, FANTASMA.thickness, 8, 24]} />
+            <torusGeometry args={[MALLET_RADIUS, GHOST.thickness, 8, 24]} />
             <meshBasicMaterial
               ref={(material) => {
-                pinturaDelFantasma.current[0] = material
+                ghostPaint.current[0] = material
               }}
-              {...PINTURA}
+              {...PAINT}
             />
           </mesh>
-          {/* El mango, apuntado: sin él el aro se lee como un agujero en la mesa y no como
-              algo que se coge. */}
-          <mesh position={[0, FANTASMA.handle.height / 2, 0]} raycast={NO_RAYCAST}>
+          {/* The handle, sketched: without it the ring reads as a hole in the table and not as
+              something to grab. */}
+          <mesh position={[0, GHOST.handle.height / 2, 0]} raycast={NO_RAYCAST}>
             <cylinderGeometry
-              args={[FANTASMA.handle.radius, FANTASMA.handle.radius, FANTASMA.handle.height, 10]}
+              args={[GHOST.handle.radius, GHOST.handle.radius, GHOST.handle.height, 10]}
             />
             <meshBasicMaterial
               ref={(material) => {
-                pinturaDelFantasma.current[1] = material
+                ghostPaint.current[1] = material
               }}
-              {...PINTURA}
+              {...PAINT}
             />
           </mesh>
         </group>
 
-        {/* La marca de la portería contraria, calcada en el fondo: adónde va lo que se golpea.
-            Pintada y no levantada, que por ahí pasa el disco. */}
+        {/* The mark of the opposing goal, decalled on the back: where what is hit goes.
+            Painted and not raised, since the puck passes through there. */}
         <mesh
-          ref={porteria}
+          ref={goalMark}
           visible={false}
           raycast={NO_RAYCAST}
           position={[0, DECAL_Y, GOAL_MARK.z]}
           rotation={[-Math.PI / 2, 0, 0]}
         >
           <planeGeometry args={[GOAL_MARK.width, GOAL_MARK.depth]} />
-          <meshBasicMaterial {...PINTURA} {...CALCO} />
+          <meshBasicMaterial {...PAINT} {...DECAL} />
         </mesh>
       </group>
 
-      {/* El mando de verdad con el botón de agarre latiendo, **al lado del mazo fantasma** y no
-          sobre la mano: la mano la ocupa la copia del tutorial, y dos copias del mismo modelo en
-          el mismo sitio se pisan. Así sale desde la primera vez. Dentro de un grupo propio para
-          apagarlo sin desmontarlo, y en las coordenadas de la mesa (`mandoJuntoAlMazo`). */}
-      <group ref={mando} visible={false} position={[0, TABLE_HEIGHT, TABLE_CENTER_Z]}>
-        <RealController hand={mano} button="agarre" beside={junto} />
+      {/* The real controller with the grab button throbbing, **next to the ghost mallet** and
+          not on the hand: the hand is taken by the tutorial's copy, and two copies of the same
+          model in the same place overlap. This way it shows from the first time. Inside a
+          group of its own to switch it off without unmounting it, and in the table's
+          coordinates (`controllerBesideMallet`). */}
+      <group ref={controller} visible={false} position={[0, TABLE_HEIGHT, TABLE_CENTER_Z]}>
+        <RealController hand={hand} button="agarre" beside={beside} />
       </group>
     </group>
   )

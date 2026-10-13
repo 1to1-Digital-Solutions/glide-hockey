@@ -1,272 +1,278 @@
-## Una partida automática contra la máquina, entera y hasta el final, contando lo que pasa: que la
-## mesa de `src/lib` y la escena están cosidas (goles de los dos lados, el marcador y los puntos de
-## la web), que suena lo que toca y tantas veces como toca, que el gol en contra es un golpe
-## recibido, que el disco suena al deslizar y que al acabar se cuenta el resultado al salón. Sin audio de verdad: todo va a un bus
-## silenciado, que cuenta igual.
+## An automatic match against the machine, whole and to the end, counting what happens: that the
+## table of `src/lib` and the scene are stitched together (goals on both sides, the scoreboard and
+## the points of the web), that what should sound does, and as many times as it should, that the
+## goal against is a hit taken, that the puck sounds as it slides and that at the end the result is
+## told to the hall. With no real audio: everything goes to a muted bus, which counts the same.
 ##
-## Y el contrato del reto: con un salón que presta una semilla (`challenge_seed`), el juego entra
-## directo en el reto con los tiros de la máquina sacados de ella. Si además deja los listones de la
-## cabina (`goal`), el cartel de encima del marcador los dice; sin ellos, solo la misión.
+## And the challenge contract: with a hall that lends a seed (`challenge_seed`), the game goes
+## straight into the challenge with the machine's shots drawn from it. If it also leaves the
+## cabinet's thresholds (`goal`), the sign above the scoreboard says them; without them, only the
+## mission.
 ##
-## Y el duelo a dos, entero (`duel.ts`): el jugador automático juega la partida del primero, se queda
-## en el traspaso, le da a jugar la del segundo y acaba. Las dos contra la misma máquina —la misma
-## semilla y lo que manda `DUEL_SETUP`—, sin récord ni aviso al salón, con quien gana según la
-## ventaja, apuntado en el marcador de la pareja, y el final sonando a ganar.
+## And the two-player duel, whole (`duel.ts`): the automatic player plays the first one's match,
+## stays at the handover, presses play for the second one's and finishes. Both against the same
+## machine —the same seed and what `DUEL_SETUP` dictates—, with no record and no notice to the
+## hall, with whoever wins by margin, written down on the pair's tally, and the ending sounding
+## like a win.
 ##
-## Se lanza con `--fixed-fps 72`, como el jugador automático.
+## It is launched with `--fixed-fps 72`, like the automatic player.
 extends Node
 
 const MAIN := "res://games/glide-hockey/main.tscn"
 const SALON := preload("res://games/glide-hockey/tests/fake_salon.gd")
-## Los golpes y rebotes, a tres fuerzas cada uno; con ruido, así que con variantes.
-const CHOQUES := ["strike-suave", "strike-medio", "strike-fuerte", "bounce-suave", "bounce-medio", "bounce-fuerte"]
-const CIERRES := ["goal", "win", "loss", "record"]
-## La música de la web (`MUSIC_VOLUME`) por el ambiente de partida del salón (60 de 100).
+## The strikes and bounces, at three strengths each; with noise, so with variants.
+const IMPACTS := ["strike-suave", "strike-medio", "strike-fuerte", "bounce-suave", "bounce-medio", "bounce-fuerte"]
+const ENDINGS := ["goal", "win", "loss", "record"]
+## The web's music (`MUSIC_VOLUME`) times the hall's starting ambience (60 out of 100).
 const MUSIC_VOLUME := 0.22 * 0.6
-## La partida del jugador automático dura menos de un minuto de juego: con tres, algo se ha atascado.
+## The automatic player's match lasts under a minute of play: at three, something has got stuck.
 const MAX_FRAMES := 72 * 180
-## Una semilla cualquiera para el reto.
-const SEMILLA := 20260926
-## Lo que el salón deja en el metadato `goal` de su autoload: los listones de la cabina.
-const OBJETIVO := {"medallas": {"bronce": 111, "plata": 222, "oro": 333}, "mejorEs": "mas", "unidad": "points in the challenge", "record": null, "modo": "challenge"}
-## Las hazañas del juego, en el orden en que se cuentan (`HAZANAS` de `hazanas.ts`).
-const HAZANAS := ["GH_SHUTOUT", "GH_LONG_SHOT", "GH_OWN_GOAL"]
-## Lo que manda el duelo (`DUEL_SETUP` de `duel.ts`): a cuántos goles.
-const GOLES_DEL_DUELO := 7
+## Any seed for the challenge.
+const SEED := 20260926
+## What the hall leaves in the `goal` metadata of its autoload: the cabinet's thresholds.
+const GOAL := {"medallas": {"bronce": 111, "plata": 222, "oro": 333}, "mejorEs": "mas", "unidad": "points in the challenge", "record": null, "modo": "challenge"}
+## The game's feats, in the order they are told (`FEATS` of `feats.ts`).
+const FEATS := ["GH_SHUTOUT", "GH_LONG_SHOT", "GH_OWN_GOAL"]
+## What the duel dictates (`DUEL_SETUP` of `duel.ts`): up to how many goals.
+const DUEL_GOALS := 7
 
 var game: Node
 var salon: Node
 var frames := 0
-var fallos: Array[String] = []
-var fase := "partida"
+var failures: Array[String] = []
+var stage := "match"
 
 
 func _ready() -> void:
 	AudioServer.add_bus()
 	var bus := AudioServer.bus_count - 1
-	AudioServer.set_bus_name(bus, "Mudo")
+	AudioServer.set_bus_name(bus, "Muted")
 	AudioServer.set_bus_mute(bus, true)
-	montar()
+	mount()
 
 
-func montar(duelo := false) -> void:
+func mount(duel := false) -> void:
 	frames = 0
 	game = (load(MAIN) as PackedScene).instantiate()
 	game.set_meta("harness", true)
-	if duelo:
-		game.set_meta("duelo", true)
-	game.set_meta("sfx_bus", "Mudo")
+	if duel:
+		game.set_meta("duel", true)
+	game.set_meta("sfx_bus", "Muted")
 	add_child(game)
 
 
 func _process(_delta: float) -> void:
 	frames += 1
-	if fase == "partida":
+	if stage == "match":
 		if game.has_meta("result"):
-			comprobar(JSON.parse_string(game.get_meta("result")))
-			empezar_el_reto()
+			check(JSON.parse_string(game.get_meta("result")))
+			start_challenge()
 		elif frames > MAX_FRAMES:
-			fallos.append("la partida no ha acabado en %d fotogramas" % MAX_FRAMES)
-			terminar()
-	elif fase == "reto" and frames > 10:
-		comprobar_el_reto(false)
-		empezar_el_reto(true)
-	elif fase == "listones" and frames > 10:
-		comprobar_el_reto(true)
-		empezar_el_duelo()
-	elif fase == "duelo":
+			failures.append("the match has not ended in %d frames" % MAX_FRAMES)
+			finish()
+	elif stage == "challenge" and frames > 10:
+		check_challenge(false)
+		start_challenge(true)
+	elif stage == "thresholds" and frames > 10:
+		check_challenge(true)
+		start_duel()
+	elif stage == "duel":
 		if game.has_meta("result"):
-			comprobar_el_duelo(JSON.parse_string(game.get_meta("result")))
-			terminar()
+			check_duel(JSON.parse_string(game.get_meta("result")))
+			finish()
 		elif frames > MAX_FRAMES * 2:
-			fallos.append("el duelo no ha acabado en %d fotogramas" % (MAX_FRAMES * 2))
-			terminar()
+			failures.append("the duel has not ended in %d frames" % (MAX_FRAMES * 2))
+			finish()
 
 
-func cuenta(de: Dictionary, nombre: String) -> int:
-	return int(de.get(nombre, 0))
+func count(from: Dictionary, key: String) -> int:
+	return int(from.get(key, 0))
 
 
-func comprobar(r: Dictionary) -> void:
-	var pedidos: Dictionary = r.sfx.requested
-	var sonados: Dictionary = r.sfx.played
-	var jugador := int(r.playerGoals)
-	var maquina := int(r.opponentGoals)
+func check(r: Dictionary) -> void:
+	var requested: Dictionary = r.sfx.requested
+	var played: Dictionary = r.sfx.played
+	var player := int(r.playerGoals)
+	var opponent := int(r.opponentGoals)
 	if r.outcome == null:
-		fallos.append("la partida no ha acabado")
-	if jugador + maquina != int(r.goals):
-		fallos.append("el marcador %d–%d no cuenta los %d goles de la mesa" % [jugador, maquina, r.goals])
-	if jugador == 0 or maquina == 0:
-		fallos.append("hacen falta goles de los dos lados y ha acabado %d–%d" % [jugador, maquina])
-	if (r.outcome == "won") != (jugador > maquina):
-		fallos.append("acaba «%s» con %d–%d" % [r.outcome, jugador, maquina])
+		failures.append("the match has not ended")
+	if player + opponent != int(r.goals):
+		failures.append("the scoreboard %d–%d does not add up to the table's %d goals" % [player, opponent, r.goals])
+	if player == 0 or opponent == 0:
+		failures.append("goals are needed on both sides and it ended %d–%d" % [player, opponent])
+	if (r.outcome == "won") != (player > opponent):
+		failures.append("it ends «%s» with %d–%d" % [r.outcome, player, opponent])
 	if int(r.playerHits) == 0:
-		fallos.append("el mazo del jugador no ha tocado el disco")
+		failures.append("the player's mallet has not touched the puck")
 	if int(r.points) <= 0:
-		fallos.append("la partida acaba con %d puntos" % r.points)
+		failures.append("the match ends with %d points" % r.points)
 
-	for nombre in CHOQUES + CIERRES:
-		if int(r.variants[nombre]) < 1:
-			fallos.append("%s no tiene fichero" % nombre)
-		if cuenta(sonados, nombre) != cuenta(pedidos, nombre):
-			fallos.append("%s: pedido %d, sonado %d" % [nombre, cuenta(pedidos, nombre), cuenta(sonados, nombre)])
-	for nombre in CHOQUES:
-		if int(r.variants[nombre]) < 3:
-			fallos.append("%s tiene %d variantes y lleva ruido" % [nombre, r.variants[nombre]])
-	var golpes := 0
-	var rebotes := 0
-	for nombre in CHOQUES:
-		if nombre.begins_with("strike"):
-			golpes += cuenta(pedidos, nombre)
+	for key in IMPACTS + ENDINGS:
+		if int(r.variants[key]) < 1:
+			failures.append("%s has no file" % key)
+		if count(played, key) != count(requested, key):
+			failures.append("%s: requested %d, played %d" % [key, count(requested, key), count(played, key)])
+	for key in IMPACTS:
+		if int(r.variants[key]) < 3:
+			failures.append("%s has %d variants and it carries noise" % [key, r.variants[key]])
+	var strikes := 0
+	var bounces := 0
+	for key in IMPACTS:
+		if key.begins_with("strike"):
+			strikes += count(requested, key)
 		else:
-			rebotes += cuenta(pedidos, nombre)
-	if golpes == 0 or rebotes == 0:
-		fallos.append("no suenan golpes (%d) o rebotes (%d)" % [golpes, rebotes])
-	if cuenta(pedidos, "goal") != int(r.goals):
-		fallos.append("%d goles cantados para %d goles" % [cuenta(pedidos, "goal"), r.goals])
-	var cierre := "win" if jugador > maquina else "loss"
-	if cuenta(pedidos, cierre) != 1 or cuenta(pedidos, "win") + cuenta(pedidos, "loss") != 1:
-		fallos.append("el cierre no es un «%s»: %s" % [cierre, pedidos])
-	if cuenta(pedidos, "record") != (1 if r.record else 0):
-		fallos.append("la marca suena %d veces con record=%s" % [cuenta(pedidos, "record"), r.record])
+			bounces += count(requested, key)
+	if strikes == 0 or bounces == 0:
+		failures.append("no strikes (%d) or no bounces (%d) are heard" % [strikes, bounces])
+	if count(requested, "goal") != int(r.goals):
+		failures.append("%d goals called for %d goals" % [count(requested, "goal"), r.goals])
+	var ending := "win" if player > opponent else "loss"
+	if count(requested, ending) != 1 or count(requested, "win") + count(requested, "loss") != 1:
+		failures.append("the ending is not a «%s»: %s" % [ending, requested])
+	if count(requested, "record") != (1 if r.record else 0):
+		failures.append("the record sounds %d times with record=%s" % [count(requested, "record"), r.record])
 
-	# El gol en contra es un golpe recibido, con el confort de partida (entero).
-	if int(r.golpesRecibidos) != maquina:
-		fallos.append("%d golpes recibidos para %d goles en contra" % [r.golpesRecibidos, maquina])
-	# Y el resultado se le cuenta al salón una vez, sin ser el reto.
-	if r.resultados.size() != 1 or r.resultados[0].mode != "practice" or r.resultados[0].challenge:
-		fallos.append("al salón se le cuenta %s" % [r.resultados])
+	# The goal against is a hit taken, with the starting comfort (full).
+	if int(r.hitsTaken) != opponent:
+		failures.append("%d hits taken for %d goals against" % [r.hitsTaken, opponent])
+	# And the result is told to the hall once, without being the challenge.
+	if r.results.size() != 1 or r.results[0].mode != "practice" or r.results[0].challenge:
+		failures.append("the hall is told %s" % [r.results])
 	else:
-		# Con las hazañas de la partida (`hazanas.ts`): las que dio la mesa y, ganando sin encajar, la
-		# del partido. El guardado de la escena de test empieza vacío, así que todas se estrenan.
-		var esperadas: Array = []
-		for nombre in HAZANAS:
-			var de_la_mesa: bool = r.hazanasDeLaMesa.has(nombre)
-			var del_partido: bool = nombre == "GH_SHUTOUT" and r.outcome == "won" and maquina == 0
-			if de_la_mesa or del_partido:
-				esperadas.append(nombre)
-		var contadas: Array = r.resultados[0].get("feats", [])
-		if contadas != esperadas:
-			fallos.append("al salón se le cuentan las hazañas %s y la partida dio %s" % [contadas, esperadas])
-	# El roce del disco: suena mientras se juega, con el volumen y el tono de la velocidad. El bucle
-	# se renderizó a la velocidad máxima, así que ni el volumen ni el tono pasan de 1, y en una
-	# partida entera el disco va a varias velocidades, así que el tono se mueve.
-	var roce: Dictionary = r.roce
-	if int(roce.frames) < 72:
-		fallos.append("el disco apenas suena al deslizar: %s" % [roce])
-	if float(roce.maxVolume) < 0.2 or float(roce.maxVolume) > 1.0001:
-		fallos.append("el roce llega a un volumen de %.3f" % float(roce.maxVolume))
-	if float(roce.maxPitch) > 1.0001 or float(roce.minPitch) < 0.19 or float(roce.maxPitch) - float(roce.minPitch) < 0.1:
-		fallos.append("el tono del roce no sigue a la velocidad: %s" % [roce])
+		# With the match's feats (`feats.ts`): the ones the table gave and, winning without
+		# conceding, the match's own. The test scene's save starts empty, so all of them are
+		# earned for the first time.
+		var expected: Array = []
+		for key in FEATS:
+			var from_table: bool = r.tableFeats.has(key)
+			var from_match: bool = key == "GH_SHUTOUT" and r.outcome == "won" and opponent == 0
+			if from_table or from_match:
+				expected.append(key)
+		var reported: Array = r.results[0].get("feats", [])
+		if reported != expected:
+			failures.append("the hall is told the feats %s and the match gave %s" % [reported, expected])
+	# The puck's slide: it sounds while playing, with the volume and the pitch of the speed. The
+	# loop was rendered at top speed, so neither the volume nor the pitch goes above 1, and over
+	# a whole match the puck goes at several speeds, so the pitch moves.
+	var slide: Dictionary = r.slide
+	if int(slide.frames) < 72:
+		failures.append("the puck barely sounds as it slides: %s" % [slide])
+	if float(slide.maxVolume) < 0.2 or float(slide.maxVolume) > 1.0001:
+		failures.append("the slide reaches a volume of %.3f" % float(slide.maxVolume))
+	if float(slide.maxPitch) > 1.0001 or float(slide.minPitch) < 0.19 or float(slide.maxPitch) - float(slide.minPitch) < 0.1:
+		failures.append("the pitch of the slide does not follow the speed: %s" % [slide])
 	if not r.music.playing or absf(float(r.music.volume) - MUSIC_VOLUME) > 0.001:
-		fallos.append("la música no está sonando a %.3f: %s" % [MUSIC_VOLUME, r.music])
-	print("PARTIDA-AUTO %d–%d, %d toques, %d puntos, %d fotogramas, %d µs de media (%d de pico), hazañas %s" % [
-		jugador, maquina, r.playerHits, r.points, r.frames, r.logicUsecAvg, r.logicUsecMax, r.hazanasDeLaMesa,
+		failures.append("the music is not playing at %.3f: %s" % [MUSIC_VOLUME, r.music])
+	print("AUTO-RUN %d–%d, %d touches, %d points, %d frames, %d µs on average (%d at peak), feats %s" % [
+		player, opponent, r.playerHits, r.points, r.frames, r.logicUsecAvg, r.logicUsecMax, r.tableFeats,
 	])
 
 
-func empezar_el_reto(con_listones := false) -> void:
+func start_challenge(with_thresholds := false) -> void:
 	game.queue_free()
 	if salon != null:
-		# Fuera del árbol ya, no al final del fotograma: la escena nueva buscaría el salón viejo.
+		# Out of the tree right now, not at the end of the frame: the new scene would look for the
+		# old hall.
 		salon.get_parent().remove_child(salon)
 		salon.queue_free()
-	fase = "listones" if con_listones else "reto"
+	stage = "thresholds" if with_thresholds else "challenge"
 	salon = SALON.new()
 	salon.name = "XRcade"
-	salon.set_meta("challenge_seed", SEMILLA)
-	if con_listones:
-		salon.set_meta("goal", JSON.stringify(OBJETIVO))
+	salon.set_meta("challenge_seed", SEED)
+	if with_thresholds:
+		salon.set_meta("goal", JSON.stringify(GOAL))
 	get_tree().root.add_child(salon)
-	montar()
+	mount()
 
 
-func comprobar_el_reto(con_listones: bool) -> void:
-	# El cartel de encima del marcador: con los listones del salón los dice; sin ellos, solo la misión.
-	var cartel: String = game.cartel_dice()
-	var dice_los_listones := cartel.contains("111") and cartel.contains("222") and cartel.contains("333")
-	if cartel == "":
-		fallos.append("en el reto del salón no hay cartel del objetivo (listones: %s)" % con_listones)
-	elif con_listones and not dice_los_listones:
-		fallos.append("con el `goal` del salón el cartel no dice los listones: «%s»" % cartel)
-	elif not con_listones and dice_los_listones:
-		fallos.append("sin el `goal` del salón el cartel dice listones: «%s»" % cartel)
-	print("PARTIDA-AUTO reto %s: «%s»" % ["con listones" if con_listones else "sin listones", cartel])
-	if game.modo_de_la_partida() != "challenge":
-		fallos.append("con la semilla del salón se juega %s y no el reto" % game.modo_de_la_partida())
-	if not game.en_reto():
-		fallos.append("con la semilla del salón la partida no es el reto")
-	if game.fase() == "menu":
-		fallos.append("con el reto del salón se entra a jugar, no al menú")
+func check_challenge(with_thresholds: bool) -> void:
+	# The sign above the scoreboard: with the hall's thresholds it says them; without them, only the
+	# mission.
+	var sign_text: String = game.goal_sign()
+	var says_thresholds := sign_text.contains("111") and sign_text.contains("222") and sign_text.contains("333")
+	if sign_text == "":
+		failures.append("in the hall's challenge there is no goal sign (thresholds: %s)" % with_thresholds)
+	elif with_thresholds and not says_thresholds:
+		failures.append("with the hall's `goal` the sign does not say the thresholds: «%s»" % sign_text)
+	elif not with_thresholds and says_thresholds:
+		failures.append("without the hall's `goal` the sign says thresholds: «%s»" % sign_text)
+	print("AUTO-RUN challenge %s: «%s»" % ["with thresholds" if with_thresholds else "without thresholds", sign_text])
+	if game.match_mode() != "challenge":
+		failures.append("with the hall's seed %s is played and not the challenge" % game.match_mode())
+	if not game.in_challenge():
+		failures.append("with the hall's seed the match is not the challenge")
+	if game.phase() == "menu":
+		failures.append("with the hall's challenge you go straight into play, not to the menu")
 
 
-func empezar_el_duelo() -> void:
+func start_duel() -> void:
 	game.queue_free()
-	# Sin salón: el duelo no es un reto, y con la semilla del salón se entraría en el reto. Fuera
-	# del árbol ya, no al final del fotograma: la escena nueva lo buscaría antes.
+	# Without the hall: the duel is not a challenge, and with the hall's seed it would go into the
+	# challenge. Out of the tree right now, not at the end of the frame: the new scene would look
+	# for it first.
 	salon.get_parent().remove_child(salon)
 	salon.queue_free()
 	salon = null
-	fase = "duelo"
-	montar(true)
+	stage = "duel"
+	mount(true)
 
 
-func comprobar_el_duelo(r: Dictionary) -> void:
-	var duelo = r.duel
-	if duelo == null:
-		fallos.append("el duelo no se ha jugado como duelo: %s" % r.mode)
+func check_duel(r: Dictionary) -> void:
+	var duel = r.duel
+	if duel == null:
+		failures.append("the duel was not played as a duel: %s" % r.mode)
 		return
-	var partidas: Array = duelo.partidas
-	if partidas.size() != 2:
-		fallos.append("el duelo tiene %d partidas y no dos" % partidas.size())
+	var matches: Array = duel.playedMatches
+	if matches.size() != 2:
+		failures.append("the duel has %d matches and not two" % matches.size())
 		return
-	if not duelo.over or duelo.next != null:
-		fallos.append("el duelo no ha acabado: %s" % [duelo])
-	# Las dos contra la misma máquina: la misma semilla y a los goles del duelo.
-	if int(partidas[0].seed) != int(partidas[1].seed):
-		fallos.append("la máquina juega con otra semilla a cada uno: %s y %s" % [partidas[0].seed, partidas[1].seed])
+	if not duel.over or duel.next != null:
+		failures.append("the duel has not ended: %s" % [duel])
+	# Both against the same machine: the same seed and up to the duel's goals.
+	if int(matches[0].seed) != int(matches[1].seed):
+		failures.append("the machine plays each one with a different seed: %s and %s" % [matches[0].seed, matches[1].seed])
 	for i in 2:
-		var p: Dictionary = partidas[i]
-		if maxi(int(p.scored), int(p.conceded)) != GOLES_DEL_DUELO:
-			fallos.append("la partida %d acaba %d–%d y el duelo es a %d" % [i + 1, p.scored, p.conceded, GOLES_DEL_DUELO])
-		var apuntada: Dictionary = duelo.matches[i]
-		if int(apuntada.scored) != int(p.scored) or int(apuntada.conceded) != int(p.conceded):
-			fallos.append("la partida %d se apunta %s y acabó %s" % [i + 1, apuntada, p])
-	# El mismo jugador automático contra la misma máquina saca lo mismo: es lo que la semilla
-	# compartida promete (dentro de una plataforma; ver «Lo que se sabe» en el README).
-	if int(partidas[0].scored) != int(partidas[1].scored) or int(partidas[0].conceded) != int(partidas[1].conceded):
-		fallos.append("el mismo jugador contra la misma máquina acaba %s y %s" % [partidas[0], partidas[1]])
-	# Gana quien le saca más ventaja a la máquina; con la misma, empate.
-	var ventaja := func(p: Dictionary) -> int: return int(p.scored) - int(p.conceded)
-	var diferencia: int = ventaja.call(partidas[0]) - ventaja.call(partidas[1])
-	var ganador = null if diferencia == 0 else (0 if diferencia > 0 else 1)
-	if duelo.winner != ganador:
-		fallos.append("gana %s con ventajas %d y %d" % [duelo.winner, ventaja.call(partidas[0]), ventaja.call(partidas[1])])
-	var pareja: Dictionary = duelo.pareja
-	var esperada := [0, 0]
-	var empates := 0
-	if ganador == null:
-		empates = 1
+		var p: Dictionary = matches[i]
+		if maxi(int(p.scored), int(p.conceded)) != DUEL_GOALS:
+			failures.append("match %d ends %d–%d and the duel is up to %d" % [i + 1, p.scored, p.conceded, DUEL_GOALS])
+		var recorded: Dictionary = duel.matches[i]
+		if int(recorded.scored) != int(p.scored) or int(recorded.conceded) != int(p.conceded):
+			failures.append("match %d is written down as %s and it ended %s" % [i + 1, recorded, p])
+	# The same automatic player against the same machine gets the same: it is what the shared
+	# seed promises (within one platform; see «What is known» in the README).
+	if int(matches[0].scored) != int(matches[1].scored) or int(matches[0].conceded) != int(matches[1].conceded):
+		failures.append("the same player against the same machine ends %s and %s" % [matches[0], matches[1]])
+	# Whoever gets the bigger margin over the machine wins; with the same one, a tie.
+	var margin := func(p: Dictionary) -> int: return int(p.scored) - int(p.conceded)
+	var difference: int = margin.call(matches[0]) - margin.call(matches[1])
+	var winner = null if difference == 0 else (0 if difference > 0 else 1)
+	if duel.winner != winner:
+		failures.append("%s wins with margins %d and %d" % [duel.winner, margin.call(matches[0]), margin.call(matches[1])])
+	var tally: Dictionary = duel.tally
+	var expected_wins := [0, 0]
+	var ties := 0
+	if winner == null:
+		ties = 1
 	else:
-		esperada[ganador] = 1
-	if int(pareja.wins[0]) != esperada[0] or int(pareja.wins[1]) != esperada[1] or int(pareja.ties) != empates:
-		fallos.append("el marcador de la pareja queda %s" % [pareja])
-	# Ni récord ni aviso al salón: los goles son de dos personas.
-	if r.record or int(r.best) != 0 or not r.resultados.is_empty():
-		fallos.append("el duelo deja récord (%s, %s) o avisa al salón: %s" % [r.record, r.best, r.resultados])
-	# Dos finales: el del primero suena a cómo le fue, el del duelo a ganar.
-	var cierres: Array = r.cierres
-	var primero := "win" if int(partidas[0].scored) > int(partidas[0].conceded) else "loss"
-	if cierres != [primero, "win"]:
-		fallos.append("los cierres del duelo son %s y no [%s, win]" % [cierres, primero])
-	print("PARTIDA-AUTO duelo %d–%d y %d–%d, gana %s, semilla %d" % [
-		partidas[0].scored, partidas[0].conceded, partidas[1].scored, partidas[1].conceded, duelo.winner, partidas[0].seed,
+		expected_wins[winner] = 1
+	if int(tally.wins[0]) != expected_wins[0] or int(tally.wins[1]) != expected_wins[1] or int(tally.ties) != ties:
+		failures.append("the pair's tally ends up %s" % [tally])
+	# No record and no notice to the hall: the goals belong to two people.
+	if r.record or int(r.best) != 0 or not r.results.is_empty():
+		failures.append("the duel leaves a record (%s, %s) or notifies the hall: %s" % [r.record, r.best, r.results])
+	# Two endings: the first one's sounds like how it went, the duel's like a win.
+	var endings: Array = r.endings
+	var first := "win" if int(matches[0].scored) > int(matches[0].conceded) else "loss"
+	if endings != [first, "win"]:
+		failures.append("the duel's endings are %s and not [%s, win]" % [endings, first])
+	print("AUTO-RUN duel %d–%d and %d–%d, winner %s, seed %d" % [
+		matches[0].scored, matches[0].conceded, matches[1].scored, matches[1].conceded, duel.winner, matches[0].seed,
 	])
 
 
-func terminar() -> void:
+func finish() -> void:
 	set_process(false)
 	if salon != null:
 		salon.queue_free()
-	print("PARTIDA-AUTO %s %s" % ["ok" if fallos.is_empty() else "FAIL", ", ".join(fallos)])
-	get_tree().quit(0 if fallos.is_empty() else 1)
+	print("AUTO-RUN %s %s" % ["ok" if failures.is_empty() else "FAIL", ", ".join(failures)])
+	get_tree().quit(0 if failures.is_empty() else 1)

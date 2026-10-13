@@ -1,10 +1,11 @@
 /**
- * Lo que Glide Hockey ofrece a quien quiera montarlo: el juego y nada más.
+ * What Glide Hockey offers to whoever wants to mount it: the game and nothing
+ * else.
  *
- * Todo lo demás —rutas, layout, metadatos, despliegue— es de la web que lo
- * envuelve (`src/app`), y de eso este punto de entrada no sabe nada. El
- * contrato de montaje, con lo que hay que hacer para consumirlo desde otra
- * aplicación, está en `docs/mounting-the-game.md`.
+ * Everything else —routes, layout, metadata, deployment— belongs to the website
+ * that wraps it (`src/app`), and this entry point knows nothing about that. The
+ * mounting contract, with what has to be done to consume it from another
+ * application, is in `docs/mounting-the-game.md`.
  */
 
 export { GlideHockey, type GlideHockeyProps } from './GlideHockey'

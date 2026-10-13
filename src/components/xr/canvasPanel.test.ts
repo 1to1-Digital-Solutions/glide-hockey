@@ -4,31 +4,32 @@ import { describe, expect, it } from 'vitest'
 import { PANEL_PIXELS_PER_METER, drawParagraph, drawText, panelFont, wrapText } from './canvasPanel'
 
 /**
- * El texto de los paneles, que es lo único de aquí que se puede comprobar sin
- * un visor delante: dentro del Canvas no hay DOM que medir, así que una
- * etiqueta que se sale de su botón solo se ve con el casco puesto.
+ * The text of the panels, which is the only thing here that can be checked
+ * without a headset in front of you: inside the Canvas there is no DOM to
+ * measure, so a label that runs out of its button is only seen with the
+ * headset on.
  *
- * Lo que se asegura es el encogido. Con cuatro modos en la fila del menú los
- * botones miden doce centímetros y «301/501» no cabe a su tamaño; sin esto se
- * leería encima del botón de al lado.
+ * What is guaranteed is the shrinking. With four modes in the menu row the
+ * buttons measure twelve centimetres and «301/501» does not fit at its size;
+ * without this it would be read on top of the button next to it.
  */
 
-/** Lo ancho que es una letra respecto al alto, más o menos, en este lienzo. */
+/** How wide a letter is relative to its height, more or less, on this canvas. */
 const ADVANCE = 0.6
 
-/** El tamaño declarado en una fuente de canvas, en píxeles de la textura. */
+/** The size declared in a canvas font, in pixels of the texture. */
 function pixelsOf(font: string): number {
   return Number(font.match(/([\d.]+)px/)?.[1])
 }
 
-/** Y el mismo tamaño en metros del panel, que es en lo que se piden los textos. */
+/** And the same size in metres of the panel, which is what texts are asked for in. */
 function sizeOf(font: string): number {
   return pixelsOf(font) / PANEL_PIXELS_PER_METER
 }
 
-/** Un lienzo de mentira: mide como uno de verdad y apunta lo que se escribe. */
-function lienzo() {
-  const escrito: { texto: string; font: string; argumentos: number }[] = []
+/** A fake canvas: it measures like a real one and records what is written. */
+function canvas() {
+  const drawnText: { text: string; font: string; args: number }[] = []
 
   const ctx = {
     font: '',
@@ -40,123 +41,123 @@ function lienzo() {
     translate() {},
     scale() {},
     measureText(text: string) {
-      // Lo que mide depende de la letra que haya puesta, como en el navegador: en píxeles
-      // de la fuente, sin importar la escala del lienzo.
+      // What it measures depends on the font that is set, as in the browser: in pixels
+      // of the font, whatever the scale of the canvas.
       return { width: text.length * pixelsOf(ctx.font) * ADVANCE }
     },
     fillText(...args: unknown[]) {
-      escrito.push({ texto: String(args[0]), font: ctx.font, argumentos: args.length })
+      drawnText.push({ text: String(args[0]), font: ctx.font, args: args.length })
     },
   }
 
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, escrito }
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, drawnText }
 }
 
-const NEGRO = '#101419'
+const BLACK = '#101419'
 
 describe('drawText', () => {
-  it('escribe al tamaño pedido lo que cabe', () => {
-    const { ctx, escrito } = lienzo()
+  it('writes what fits at the size asked for', () => {
+    const { ctx, drawnText } = canvas()
 
-    drawText(ctx, 'Reloj', 0, 0, { size: 0.032, color: NEGRO, maxWidth: 0.2 })
+    drawText(ctx, 'Reloj', 0, 0, { size: 0.032, color: BLACK, maxWidth: 0.2 })
 
-    expect(escrito).toHaveLength(1)
-    expect(sizeOf(escrito[0].font)).toBeCloseTo(0.032, 9)
+    expect(drawnText).toHaveLength(1)
+    expect(sizeOf(drawnText[0].font)).toBeCloseTo(0.032, 9)
   })
 
-  it('pide la fuente en píxeles de verdad, no en metros', () => {
-    // Una letra de 0,03 px ampliada mil veces es lo que el navegador del visor pintaba con las
-    // letras amontonadas: a ese tamaño las medidas de cada letra no valen. Reportado con el
-    // visor puesto: «las letras están completamente pegadas, una sobre la otra».
-    const { ctx, escrito } = lienzo()
+  it('asks for the font in real pixels, not in metres', () => {
+    // A 0.03 px font enlarged a thousand times is what the headset's browser painted with the
+    // letters piled up: at that size the measurements of each letter are no good. Reported with
+    // the headset on: «the letters are completely stuck together, one on top of the other».
+    const { ctx, drawnText } = canvas()
 
-    drawText(ctx, 'Levels', 0, 0, { size: 0.03, color: NEGRO, maxWidth: 0.08 })
-    drawParagraph(ctx, 'Hold the trigger and the ball appears', 0, 0, { size: 0.03, color: NEGRO, maxWidth: 0.2 })
+    drawText(ctx, 'Levels', 0, 0, { size: 0.03, color: BLACK, maxWidth: 0.08 })
+    drawParagraph(ctx, 'Hold the trigger and the ball appears', 0, 0, { size: 0.03, color: BLACK, maxWidth: 0.2 })
 
-    for (const linea of escrito) expect(pixelsOf(linea.font), linea.texto).toBeGreaterThanOrEqual(8)
+    for (const line of drawnText) expect(pixelsOf(line.font), line.text).toBeGreaterThanOrEqual(8)
   })
 
-  it('encoge lo que no cabe hasta que quepa', () => {
-    // El hueco de un botón de la fila de modos, con el punto de elegido puesto.
+  it('shrinks what does not fit until it fits', () => {
+    // The room in a button of the mode row, with the chosen dot on it.
     const room = 0.081
-    const { ctx, escrito } = lienzo()
+    const { ctx, drawnText } = canvas()
 
-    drawText(ctx, '301/501', 0, 0, { size: 0.032, color: NEGRO, maxWidth: room })
+    drawText(ctx, '301/501', 0, 0, { size: 0.032, color: BLACK, maxWidth: room })
 
-    const size = sizeOf(escrito[0].font)
+    const size = sizeOf(drawnText[0].font)
     expect(size).toBeLessThan(0.032)
     expect('301/501'.length * size * ADVANCE).toBeLessThanOrEqual(room + 1e-9)
   })
 
-  it('encoge la letra, no la estrecha', () => {
-    // `fillText` sabe apretar el texto en el ancho que se le diga, pero un
-    // texto condensado en un panel a un brazo de distancia se lee mucho peor
-    // que el mismo texto un punto más pequeño.
-    const { ctx, escrito } = lienzo()
+  it('shrinks the font, does not narrow it', () => {
+    // `fillText` knows how to squeeze the text into the width it is told, but a
+    // condensed text on a panel at arm's length reads much worse than the same
+    // text one point smaller.
+    const { ctx, drawnText } = canvas()
 
-    drawText(ctx, '301/501', 0, 0, { size: 0.032, color: NEGRO, maxWidth: 0.081 })
+    drawText(ctx, '301/501', 0, 0, { size: 0.032, color: BLACK, maxWidth: 0.081 })
 
-    expect(escrito[0].argumentos).toBe(3)
+    expect(drawnText[0].args).toBe(3)
   })
 
-  it('sin máximo no toca el tamaño: es lo que hace el resto de los paneles', () => {
-    const { ctx, escrito } = lienzo()
+  it('without a maximum it does not touch the size: it is what the rest of the panels do', () => {
+    const { ctx, drawnText } = canvas()
 
-    drawText(ctx, 'Un título largo de los que no caben', 0, 0, { size: 0.055, color: NEGRO })
+    drawText(ctx, 'Un título largo de los que no caben', 0, 0, { size: 0.055, color: BLACK })
 
-    expect(sizeOf(escrito[0].font)).toBeCloseTo(0.055, 9)
+    expect(sizeOf(drawnText[0].font)).toBeCloseTo(0.055, 9)
   })
 })
 
 /**
- * El reparto en líneas.
+ * The layout into lines.
  *
- * **Es lo que hacía ilegibles los tutoriales.** Una frase de cuarenta caracteres encogida
- * hasta caber de una sola línea en un panel de sesenta centímetros acaba en letra de dos
- * centímetros: dentro del visor estaba escrito y no se entendía nada. Encoger vale para una
- * etiqueta de botón; para una frase hay que partirla.
+ * **It is what made the tutorials unreadable.** A forty-character phrase shrunk until it
+ * fits on a single line in a sixty-centimetre panel ends up in two-centimetre letters:
+ * inside the headset it was written and nothing could be understood. Shrinking is fine for
+ * a button label; a phrase has to be split.
  */
-describe('repartir un texto en líneas', () => {
-  it('mete en una línea lo que cabe', () => {
-    const { ctx } = lienzo()
+describe('laying a text out into lines', () => {
+  it('puts on one line what fits', () => {
+    const { ctx } = canvas()
     ctx.font = panelFont('600', 0.03)
 
     expect(wrapText(ctx, 'Dale al topo', 1)).toEqual(['Dale al topo'])
   })
 
-  it('parte por espacios lo que no cabe', () => {
-    const { ctx } = lienzo()
+  it('splits at spaces what does not fit', () => {
+    const { ctx } = canvas()
     ctx.font = panelFont('600', 0.03)
-    // Con este lienzo, cada letra mide 0,018 m: caben unas once por línea de 0,2.
-    const lineas = wrapText(ctx, 'Hold the trigger and the ball appears', 0.2)
+    // With this canvas, each letter measures 0.018 m: about eleven fit per 0.2 line.
+    const lines = wrapText(ctx, 'Hold the trigger and the ball appears', 0.2)
 
-    expect(lineas.length).toBeGreaterThan(1)
-    expect(lineas.join(' ')).toBe('Hold the trigger and the ball appears')
-    for (const linea of lineas) {
-      expect(ctx.measureText(linea).width / PANEL_PIXELS_PER_METER).toBeLessThanOrEqual(0.2)
+    expect(lines.length).toBeGreaterThan(1)
+    expect(lines.join(' ')).toBe('Hold the trigger and the ball appears')
+    for (const line of lines) {
+      expect(ctx.measureText(line).width / PANEL_PIXELS_PER_METER).toBeLessThanOrEqual(0.2)
     }
   })
 
-  it('deja entera una palabra que no cabe ella sola', () => {
-    // Partirla por la mitad se lee peor que dejarla asomar, y en un visor mucho peor.
-    const { ctx } = lienzo()
+  it('leaves whole a word that does not fit on its own', () => {
+    // Splitting it in half reads worse than letting it stick out, and in a headset much worse.
+    const { ctx } = canvas()
     ctx.font = panelFont('600', 0.03)
 
     expect(wrapText(ctx, 'incomprehensiblemente', 0.05)).toEqual(['incomprehensiblemente'])
   })
 
-  it('con un texto vacío no escribe nada', () => {
-    const { ctx } = lienzo()
+  it('with an empty text it writes nothing', () => {
+    const { ctx } = canvas()
     ctx.font = panelFont('600', 0.03)
 
     expect(wrapText(ctx, '   ', 1)).toEqual([])
   })
 })
 
-describe('escribir un párrafo', () => {
-  it('escribe una línea por trozo, todas del mismo tamaño', () => {
-    // Sin encoger: el tamaño que se pide es el que se lee, y lo que sobra baja de línea.
-    const { ctx, escrito } = lienzo()
+describe('writing a paragraph', () => {
+  it('writes one line per piece, all of the same size', () => {
+    // No shrinking: the size asked for is the one that is read, and what is left over drops a line.
+    const { ctx, drawnText } = canvas()
 
     drawParagraph(ctx, 'Hold the trigger and the ball appears', 0, 0, {
       size: 0.03,
@@ -164,58 +165,58 @@ describe('escribir un párrafo', () => {
       maxWidth: 0.2,
     })
 
-    expect(escrito.length).toBeGreaterThan(1)
-    expect(new Set(escrito.map((linea) => sizeOf(linea.font))).size).toBe(1)
-    expect(sizeOf(escrito[0].font)).toBeCloseTo(0.03, 6)
+    expect(drawnText.length).toBeGreaterThan(1)
+    expect(new Set(drawnText.map((line) => sizeOf(line.font))).size).toBe(1)
+    expect(sizeOf(drawnText[0].font)).toBeCloseTo(0.03, 6)
   })
 
-  it('centra el bloque en la altura que se le da', () => {
-    // `y` es el centro del bloque y no la primera línea: si no, una frase de dos líneas y
-    // otra de una quedarían en sitios distintos y el panel daría un salto entre tramos.
-    const { ctx, escrito } = lienzo()
-    const dosLineas = () => {
-      escrito.length = 0
+  it('centres the block on the height it is given', () => {
+    // `y` is the centre of the block and not the first line: otherwise a two-line phrase and
+    // a one-line one would end up in different places and the panel would jump between steps.
+    const { ctx, drawnText } = canvas()
+    const twoLines = () => {
+      drawnText.length = 0
       drawParagraph(ctx, 'Hold the trigger and the ball appears', 0, 0, {
         size: 0.03,
         color: '#fff',
         maxWidth: 0.2,
       })
-      return escrito.length
+      return drawnText.length
     }
 
-    const cuantas = dosLineas()
-    expect(cuantas).toBeGreaterThan(1)
-    // El bloque reparte sus líneas arriba y abajo del centro, así que la primera queda por
-    // encima de cero y la última por debajo.
-    expect(cuantas % 2 === 0 || cuantas > 1).toBe(true)
+    const howMany = twoLines()
+    expect(howMany).toBeGreaterThan(1)
+    // The block spreads its lines above and below the centre, so the first one ends up
+    // above zero and the last one below.
+    expect(howMany % 2 === 0 || howMany > 1).toBe(true)
   })
 
-  it('con un texto vacío no escribe nada', () => {
-    const { ctx, escrito } = lienzo()
+  it('with an empty text it writes nothing', () => {
+    const { ctx, drawnText } = canvas()
 
     drawParagraph(ctx, '', 0, 0, { size: 0.03, color: '#fff', maxWidth: 0.2 })
 
-    expect(escrito).toEqual([])
+    expect(drawnText).toEqual([])
   })
 })
 
 /**
- * Y lo único del componente que se puede comprobar sin montar la escena: que el lienzo **no
- * escribe profundidad**.
+ * And the only thing of the component that can be checked without mounting the scene: that
+ * the canvas **does not write depth**.
  *
- * Un material transparente apunta su profundidad salvo que se le diga que no, y este plano
- * va por delante de los botones del panel cubriéndolos enteros: con la profundidad puesta,
- * todo lo que quede detrás desaparece aunque el lienzo esté vacío ahí. Así es como el botón
- * de jugar de glide-hockey se quedó sin su placa azul —«no se ve en azul, está como
- * sombreado»— y con él las placas de los botones pequeños de varios juegos.
+ * A transparent material records its depth unless it is told not to, and this plane goes in
+ * front of the panel's buttons covering them whole: with depth on, everything left behind
+ * disappears even if the canvas is empty there. That is how the play button of glide-hockey
+ * lost its blue plate —«it does not look blue, it is as if shaded»— and with it the plates
+ * of the small buttons of several games.
  */
-describe('el plano del panel', () => {
-  const fuente = readFileSync(
+describe('the plane of the panel', () => {
+  const source = readFileSync(
     path.join(process.cwd(), 'src/components/xr/canvasPanel.tsx'),
     'utf8',
   )
 
-  it('no escribe profundidad: taparía lo que tenga detrás', () => {
-    expect(fuente).toContain('depthWrite={false}')
+  it('does not write depth: it would cover whatever it has behind', () => {
+    expect(source).toContain('depthWrite={false}')
   })
 })

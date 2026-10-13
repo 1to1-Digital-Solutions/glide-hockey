@@ -6,45 +6,46 @@ import { createStoredPreference } from './storage'
 import type { TextKey } from './textos'
 
 /**
- * Cuánto se nota el golpe recibido en esta cabina: apagado, suave o entero
- * (`lib/golpeRecibido.ts`).
+ * How much the hit feedback is felt in this cabinet: off, gentle or full
+ * (`lib/hitFeedback.ts`).
  *
- * **Es del juego y no del salón.** El arcade no guarda nada parecido, y un gol
- * en contra no pide lo mismo que una babosa en la cara: cada cabina lo recuerda
- * con su prefijo. Lo leen los dos menús, que lo cambian, y la escena, que lo
- * aplica; por eso vive en el navegador y se mira suscrito, como el récord: el
- * menú de la web y el del visor enseñan siempre lo mismo.
+ * **It belongs to the game and not to the hall.** The hall stores nothing like
+ * it, and a goal against does not call for the same as a slug in the face: each
+ * cabinet remembers it with its prefix. Both menus read it, and change it, and
+ * so does the scene, which applies it; that is why it lives in the browser and
+ * is watched by subscription, like the record: the web menu and the headset one
+ * always show the same.
  *
- * El movimiento reducido del sistema no pasa por aquí: lo mira el propio
- * `GolpeRecibido`, y manda por encima de lo que se elija.
+ * The system's reduced motion does not go through here: `HitFeedback` itself
+ * looks at it, and it overrides whatever is chosen.
  */
 export const COMFORT_KEY = 'glide-hockey:confort'
 
-const preferencia = createStoredPreference<Comfort>({
+const preference = createStoredPreference<Comfort>({
   key: COMFORT_KEY,
-  // Lo guardado es entrada externa: solo cuenta un valor que exista.
+  // What is stored is external input: only a value that exists counts.
   parse: parseComfort,
-  serialize: (valor) => valor,
+  serialize: (value) => value,
 })
 
-export const getComfort = preferencia.get
-export const saveComfort = preferencia.save
+export const getComfort = preference.get
+export const saveComfort = preference.save
 
-/** El confort elegido y cómo cambiarlo, visto desde React. */
-export function useComfort(): [Comfort, (valor: Comfort) => void] {
-  const confort = useSyncExternalStore(preferencia.subscribe, preferencia.get, preferencia.getServer)
-  const cambiar = useCallback((valor: Comfort) => preferencia.save(valor), [])
-  return [confort, cambiar]
+/** The chosen comfort and how to change it, seen from React. */
+export function useComfort(): [Comfort, (value: Comfort) => void] {
+  const comfort = useSyncExternalStore(preference.subscribe, preference.get, preference.getServer)
+  const change = useCallback((value: Comfort) => preference.save(value), [])
+  return [comfort, change]
 }
 
-/** Con qué se entra, para quien lo pinte antes de leer nada. */
+/** What one starts with, for whoever draws it before reading anything. */
 export const INITIAL_COMFORT: Comfort = DEFAULT_COMFORT
 
 /**
- * Cómo se llama la fila y cada opción, en los dos menús. «Full» y no «Normal» en
- * inglés: la clave del diccionario es el propio texto inglés, y una que se
- * tradujera a sí misma no la distinguiría el guardián de lo que falta traducir.
- * Lo mismo que en gloop-pop, para que las dos cabinas digan lo mismo.
+ * What the row and each option are called, in both menus. «Full» and not «Normal»
+ * in English: the dictionary key is the English text itself, and one that
+ * translated to itself could not be told apart, by the guard, from what is still
+ * left to translate. The same as in gloop-pop, so that both cabinets say the same.
  */
 export const COMFORT_LEGEND: TextKey = 'When hit'
 export const COMFORT_LABELS: Record<Comfort, TextKey> = { off: 'Off', gentle: 'Gentle', normal: 'Full' }

@@ -55,50 +55,50 @@ import {
 } from './XRUi'
 
 /**
- * El menú, dentro del visor.
+ * The menu, inside the headset.
  *
- * Es el equivalente inmersivo de `ui/StartScreen`: las mismas tres decisiones
- * —modo, nivel y a cuántos goles— y el mismo botón de empezar, pero en
- * geometría, porque dentro de un Canvas no cabe una etiqueta de DOM.
+ * It is the immersive equivalent of `ui/StartScreen`: the same three decisions
+ * —mode, level and how many goals to play to— and the same start button, but in
+ * geometry, because a DOM tag does not fit inside a Canvas.
  *
- * **Sin una sola letra**: las fuentes se descargan de un CDN y aquí no hay red
- * (ver `lib/xrDigits.ts`). Cada opción se dice con forma y color: el modo con
- * dos siluetas distintas, el nivel con una escalera de barras que además va del
- * verde al rojo, y los goles con cifras de siete segmentos.
+ * **Without a single letter**: fonts are downloaded from a CDN and here there
+ * is no network (see `lib/xrDigits.ts`). Each option is said with shape and
+ * colour: the mode with two different silhouettes, the level with a ladder of
+ * bars that also goes from green to red, and the goals with seven-segment digits.
  *
- * Sigue la plantilla común (`lib/plantillaDelMenu.ts`): el modo con el reto
- * primero, y lo que no es del modo —el nivel de la máquina y los goles de la
- * práctica, el decorado y el confort— detrás de «Más opciones», en la banda de
- * arriba, plegado cada vez que se abre el menú (`filasDelModo`). Con el reto
- * elegido no hay nada plegado ni botón: es una partida fija.
+ * It follows the common template (`lib/menuTemplate.ts`): the mode with the
+ * challenge first, and what does not belong to the mode —the machine's level and
+ * the goals of practice, the scenery and the comfort— behind «Más opciones», in
+ * the band at the top, folded every time the menu is opened (`modeRows`). With
+ * the challenge chosen there is nothing folded and no button: it is a fixed match.
  */
 
-/** Medidas del panel y de sus filas, en metros. */
+/** Measurements of the panel and of its rows, in metres. */
 const PANEL = MENU_PANEL
 const MODE_BUTTON = MENU_BUTTON.mode
 const SMALL_BUTTON = MENU_BUTTON.small
 const PLAY_BUTTON = MENU_BUTTON.play
 
 /**
- * Altura de cada fila dentro del panel.
+ * Height of each row inside the panel.
  *
- * El récord va arriba del todo y no entre el nivel y los goles: una cifra ocupa
- * `1,14 × size` contando el grosor de los segmentos, y ahí solo quedan cuatro
- * centímetros libres. Metido en ese hueco se dibujaba encima del número de
- * goles —dos planos en la misma z, parpadeando— en cuanto hubiera un récord que
- * enseñar, que es a partir de la primera partida.
+ * The record goes at the very top and not between the level and the goals: a
+ * digit takes up `1.14 × size` counting the thickness of the segments, and only
+ * four centimetres are left free there. Squeezed into that gap it was drawn on
+ * top of the number of goals —two planes at the same z, flickering— as soon as
+ * there was a record to show, which is from the first match on.
  */
 const ROW = MENU_ROW
 
 const ROW_LABEL_RISE = MENU_ROW_LABEL_RISE
 
-/** El radio de la marca del modo que da medalla, en metros. */
-const MARCA_DE_MEDALLA = 0.011
+/** The radius of the mark of the mode that gives a medal, in metres. */
+const MEDAL_MARK = 0.011
 
 
 
 
-/** Tres estrellas —rombos— por nivel: las ganadas, encendidas. */
+/** Three stars —diamonds— per level: the ones earned, lit. */
 function StarsRow({ lit, size = 0.02, color = COMMON_PALETTE.gold }: { lit: number; size?: number; color?: string }) {
   return (
     <group>
@@ -113,9 +113,9 @@ function StarsRow({ lit, size = 0.02, color = COMMON_PALETTE.gold }: { lit: numb
 }
 
 /**
- * Silueta de cada modo: un disco para la prueba, tres estrellas para los
- * niveles, una escalera para el reto y dos discos para el duelo, el mismo
- * dibujo que el duelo de table-tennis (dos pelotas): dos que juegan lo mismo.
+ * Silhouette of each mode: one puck for practice, three stars for the
+ * levels, a ladder for the challenge and two pucks for the duel, the same
+ * drawing as table-tennis's duel (two balls): two who play the same thing.
  */
 function ModeIcon({ mode, lit }: { mode: GameMode; lit: boolean }) {
   const color = lit ? PALETTE.primary : DIM_COLOR
@@ -158,12 +158,12 @@ function ModeIcon({ mode, lit }: { mode: GameMode; lit: boolean }) {
 }
 
 /**
- * El dibujo de cada confort, **por forma**: apagado es un aro tachado; suave, un punto con una
- * onda; entero, un punto con dos. Se cuentan las ondas sin distinguir colores.
+ * The drawing of each comfort, **by shape**: off is a struck-through ring; gentle, a dot with
+ * one wave; full, a dot with two. The waves are counted without telling colours apart.
  */
-function ConfortIcon({ confort: comfort, lit }: { confort: Comfort; lit: boolean }) {
+function ComfortIcon({ comfort: level, lit }: { comfort: Comfort; lit: boolean }) {
   const color = lit ? PALETTE.foreground : DIM_COLOR
-  if (comfort === 'off') {
+  if (level === 'off') {
     return (
       <group>
         <mesh>
@@ -177,14 +177,14 @@ function ConfortIcon({ confort: comfort, lit }: { confort: Comfort; lit: boolean
       </group>
     )
   }
-  const ondas = comfort === 'gentle' ? 1 : 2
+  const waves = level === 'gentle' ? 1 : 2
   return (
     <group>
       <mesh>
         <circleGeometry args={[0.01, 16]} />
         <meshBasicMaterial color={color} toneMapped={false} />
       </mesh>
-      {Array.from({ length: ondas }, (_, i) => (
+      {Array.from({ length: waves }, (_, i) => (
         <mesh key={i}>
           <ringGeometry args={[0.02 + i * 0.014, 0.026 + i * 0.014, 24]} />
           <meshBasicMaterial color={color} toneMapped={false} />
@@ -195,52 +195,53 @@ function ConfortIcon({ confort: comfort, lit }: { confort: Comfort; lit: boolean
 }
 
 /**
- * De qué es cada fila del menú, fuera del componente **para poder medirlo**.
+ * What each row of the menu is about, outside the component **so that it can be measured**.
  *
- * Los rótulos de este menú ya se pisaron una vez —«Modo» se pintaba encima del botón del
- * récord— y eso no se ve desde una pantalla. Sacado aquí, `legibilidad.test.ts` los escribe
- * en un lienzo que apunta y comprueba que ninguno se pisa con otro ni se sale del panel.
+ * The labels of this menu already overlapped once —«Modo» was painted on top of the record
+ * button— and that cannot be seen from a screen. Taken out here, `legibility.test.ts` writes
+ * them on a canvas that takes notes and checks that none overlaps another or leaves the panel.
  */
 export function drawRowNames(
   ctx: CanvasRenderingContext2D,
-  t: (clave: TextKey) => string,
+  t: (key: TextKey) => string,
   levels: boolean,
   gameMode: GameMode = 'practice',
   scenery: Scenery = 'place',
-  objetivo: Goal | null = null,
-  masOpciones = false,
+  hallGoal: Goal | null = null,
+  moreOptions = false,
 ): void {
-  // Solo la práctica pregunta el nivel de la máquina y los goles; en niveles, la fila de los
-  // goles pasa a ser la del nivel que se juega, y en el reto no queda ninguna de las dos. Lo que
-  // no es del modo, solo con «Más opciones» desplegado.
-  const { rows: hay, foldable: plegable } = modeRows(gameMode, masOpciones)
-  const filas: (readonly [number, string])[] = [
+  // Only practice asks for the machine's level and the goals; in levels, the goals row becomes
+  // that of the level being played, and in the challenge neither of the two is left. What does
+  // not belong to the mode, only with «Más opciones» unfolded.
+  const { rows: shown, foldable: canFold } = modeRows(gameMode, moreOptions)
+  const rowLabels: (readonly [number, string])[] = [
     [ROW.mode, t(MENU_EN.mode)],
-    ...(hay.has('machine') ? [[ROW.level, t('Level')] as const] : []),
-    ...(hay.has('goals') ? [[ROW.goals, levels ? t('Stage') : t('Goals')] as const] : []),
+    ...(shown.has('machine') ? [[ROW.level, t('Level')] as const] : []),
+    ...(shown.has('goals') ? [[ROW.goals, levels ? t('Stage') : t('Goals')] as const] : []),
   ]
-  // El nombre de la cabina, arriba a la izquierda, hasta el botón de «Más opciones»: es un nombre
-  // propio y no se traduce. Con él se reconoce el menú como el de las otras cabinas.
-  const izquierda = -PANEL.width / 2 + 0.05
-  const mas = MENU_BOXES['more options']
-  drawText(ctx, gameName(), izquierda, ROW.title, {
+  // The name of the cabinet, top left, up to the «Más opciones» button: it is a proper name and
+  // is not translated. With it the menu is recognised as that of the other cabinets.
+  const left = -PANEL.width / 2 + 0.05
+  const moreBox = MENU_BOXES['more options']
+  drawText(ctx, gameName(), left, ROW.title, {
     size: MENU_TEXT.title,
     color: PALETTE.foreground,
     align: 'left',
-    maxWidth: mas.position[0] - mas.size[0] / 2 - 0.02 - izquierda,
+    maxWidth: moreBox.position[0] - moreBox.size[0] / 2 - 0.02 - left,
   })
-  // «Más opciones» —o «Menos», desplegado— sobre su botón, si hay algo plegado en este modo.
-  if (plegable) {
-    const { position, size } = mas
-    drawText(ctx, t(masOpciones ? MENU_EN.fewerOptions : MENU_EN.moreOptions), position[0], ROW.title, {
+  // «Más opciones» —or «Menos», unfolded— over its button, if there is anything folded in this
+  // mode.
+  if (canFold) {
+    const { position, size } = moreBox
+    drawText(ctx, t(moreOptions ? MENU_EN.fewerOptions : MENU_EN.moreOptions), position[0], ROW.title, {
       size: MENU_TEXT.toggle,
       color: PALETTE.foreground,
       maxWidth: size[0] - 0.01,
     })
   }
-  // El confort lleva el nombre en su misma línea y a la izquierda de sus botones: encima está
-  // la banda de «Más opciones».
-  if (hay.has('settings')) {
+  // The comfort carries its name on its own line and to the left of its buttons: above it is
+  // the «Más opciones» band.
+  if (shown.has('settings')) {
     drawText(ctx, t(COMFORT_LEGEND), -PANEL.width / 2 + 0.05, ROW.comfort, {
       size: MENU_TEXT.comfort,
       color: DIM_COLOR,
@@ -248,8 +249,8 @@ export function drawRowNames(
       maxWidth: MENU_BOXES['comfort off'].position[0] - MENU_BUTTON.small[0] / 2 - 0.02 - (-PANEL.width / 2 + 0.05),
     })
   }
-  for (const [y, nombre] of filas) {
-    drawText(ctx, nombre, -PANEL.width / 2 + 0.05, y + ROW_LABEL_RISE, {
+  for (const [y, label] of rowLabels) {
+    drawText(ctx, label, -PANEL.width / 2 + 0.05, y + ROW_LABEL_RISE, {
       size: MENU_ROW_LABEL_SIZE,
       color: DIM_COLOR,
       align: 'left',
@@ -257,44 +258,45 @@ export function drawRowNames(
     })
   }
 
-  // El interruptor del decorado era **un icono y nada más**: con las gafas puestas no
-  // hay forma de saber qué hace hasta pulsarlo. Al lado va lo que está puesto ahora —a la
-  // derecha y no debajo: debajo caía justo encima del rótulo «Modo»—.
-  if (hay.has('settings')) {
-    const desde = MENU_BOXES.scenery.position[0] + MENU_BUTTON.small[0] / 2 + 0.02
-    drawText(ctx, t(SCENERY_LABELS[scenery]), desde, ROW.record, {
+  // The scenery switch was **an icon and nothing else**: with the goggles on there is no
+  // way of knowing what it does until it is pressed. Beside it goes what is set now —to the
+  // right and not underneath: underneath it fell right on top of the «Modo» label—.
+  if (shown.has('settings')) {
+    const startX = MENU_BOXES.scenery.position[0] + MENU_BUTTON.small[0] / 2 + 0.02
+    drawText(ctx, t(SCENERY_LABELS[scenery]), startX, ROW.record, {
       size: MENU_TEXT.scenery,
       color: DIM_COLOR,
       align: 'left',
-      // Hasta las cifras del récord, que van a su derecha (`MENU_RECORD_X`).
-      maxWidth: MENU_RECORD_X - 0.07 - desde,
+      // Up to the digits of the record, which go to its right (`MENU_RECORD_X`).
+      maxWidth: MENU_RECORD_X - 0.07 - startX,
     })
   }
 
-  // Si el modo elegido cuenta para medalla, en la línea del rótulo «Modo» y a su derecha: junto a
-  // los botones de los que habla. En dorado el que cuenta, que además lleva su marca en el botón.
-  drawText(ctx, t(medalPhrase(objetivo, gameMode)), PANEL.width / 2 - 0.05, ROW.mode + ROW_LABEL_RISE, {
+  // Whether the chosen mode counts for a medal, on the line of the «Modo» label and to its right:
+  // next to the buttons it talks about. In gold the one that counts, which also carries its mark
+  // on the button.
+  drawText(ctx, t(medalPhrase(hallGoal, gameMode)), PANEL.width / 2 - 0.05, ROW.mode + ROW_LABEL_RISE, {
     size: MENU_TEXT.medal,
-    color: givesMedal(objetivo, gameMode) ? COMMON_PALETTE.gold : DIM_COLOR,
+    color: givesMedal(hallGoal, gameMode) ? COMMON_PALETTE.gold : DIM_COLOR,
     align: 'right',
     maxWidth: MENU_MEDAL_WIDTH,
   })
 
-  // El nombre de cada modo, en la franja de abajo de su botón (`MENU_MODE_LABEL_DROP`): los iconos
-  // solos no dicen qué modo es cada uno. El elegido, en claro, como su icono.
-  for (const modo of MENU_MODE_ORDER) {
-    const [x, y] = MENU_BOXES[`mode ${modo}`].position
-    drawText(ctx, t(GAME_MODE_LABELS[modo]), x, y + MENU_MODE_LABEL_DROP, {
+  // The name of each mode, in the strip at the bottom of its button (`MENU_MODE_LABEL_DROP`): the
+  // icons alone do not say which mode each one is. The chosen one, in light, like its icon.
+  for (const mode of MENU_MODE_ORDER) {
+    const [x, y] = MENU_BOXES[`mode ${mode}`].position
+    drawText(ctx, t(GAME_MODE_LABELS[mode]), x, y + MENU_MODE_LABEL_DROP, {
       size: MENU_TEXT.mode,
-      color: modo === gameMode ? PALETTE.foreground : DIM_COLOR,
+      color: mode === gameMode ? PALETTE.foreground : DIM_COLOR,
       weight: '600',
       maxWidth: MENU_BUTTON.mode[0] - 0.004,
     })
   }
 
-  // Y qué es el modo elegido. Los tres se llamaban «Práctica», «Niveles» y «Reto» y
-  // nada más: lo que los distingue solo lo contaba la pantalla de la web, que con el
-  // visor puesto no se ve.
+  // And what the chosen mode is. The three were called «Práctica», «Niveles» and «Reto»
+  // and nothing else: what tells them apart was only told by the website's screen, which
+  // with the headset on cannot be seen.
   drawParagraph(ctx, t(GAME_MODE_HINTS[gameMode]), 0, MENU_HINT_Y, {
     size: MENU_TEXT.hint,
     color: DIM_COLOR,
@@ -304,15 +306,16 @@ export function drawRowNames(
 }
 
 /**
- * El menú, solo en su fase. Se monta de nuevo cada vez que se vuelve a él, y así abre siempre con
- * «Más opciones» plegado: lo desplegado es de la interfaz y no se guarda.
+ * The menu, only in its phase. It is mounted anew every time the player comes back to it, and so
+ * it always opens with «Más opciones» folded: what is unfolded belongs to the interface and is
+ * not stored.
  */
 export function XRMenu() {
   const gameState = useGame().gameState
-  return gameState === 'menu' ? <MenuAbierto /> : null
+  return gameState === 'menu' ? <OpenMenu /> : null
 }
 
-function MenuAbierto() {
+function OpenMenu() {
   const {
     gameMode,
     setGameMode,
@@ -330,72 +333,73 @@ function MenuAbierto() {
     setScenery,
     bestPoints,
     startGame,
-    goal: objetivo,
+    goal: hallGoal,
   } = useGame()
-  const [masOpciones, setMasOpciones] = useState(false)
+  const [moreOptions, setMoreOptions] = useState(false)
   const exit = useExit()
-  const [confort, setConfort] = useComfort()
-  // Fuera de una sesión de realidad aumentada no hay habitación que enseñar: el
-  // visor no entrega el passthrough en realidad virtual.
+  const [comfort, setComfort] = useComfort()
+  // Outside an augmented reality session there is no room to show: the
+  // headset does not deliver the passthrough in virtual reality.
   const passthroughAvailable = useXR((state) => state.mode) === 'immersive-ar'
   const t = translator(useLang())
 
-  // **Solo la práctica pregunta**: nivel y goles los manda la escalera en reto y en niveles, así
-  // que ahí la partida ya está hecha y sus filas no se pintan —ni apagadas—. Niveles conserva la
-  // suya, que es qué nivel desbloqueado se juega. Y lo que no es del modo, solo con «Más
-  // opciones» desplegado.
-  const { rows: hay, foldable: plegable } = modeRows(gameMode, masOpciones)
-  const practice = hay.has('machine')
+  // **Only practice asks**: level and goals are dictated by the ladder in the challenge and in
+  // levels, so there the match is already made and its rows are not painted —not even switched
+  // off—. Levels keeps its own, which is which unlocked level is played. And what does not
+  // belong to the mode, only with «Más opciones» unfolded.
+  const { rows: shown, foldable: canFold } = modeRows(gameMode, moreOptions)
+  const practice = shown.has('machine')
   const levels = gameMode === 'levels'
 
-  // Los nombres de las filas, en un lienzo aparte: el resto del panel es geometría y ahí no
-  // cabe una letra. La tercera fila cambia de pregunta con el modo, así que cambia de
-  // nombre con ella.
-  const nombrarFilas = useCallback(
-    (ctx: CanvasRenderingContext2D) => drawRowNames(ctx, t, levels, gameMode, scenery, objetivo, masOpciones),
-    [levels, t, gameMode, scenery, objetivo, masOpciones],
+  // The names of the rows, on a separate canvas: the rest of the panel is geometry and a
+  // letter does not fit there. The third row changes its question with the mode, so it
+  // changes its name with it.
+  const nameRows = useCallback(
+    (ctx: CanvasRenderingContext2D) => drawRowNames(ctx, t, levels, gameMode, scenery, hallGoal, moreOptions),
+    [levels, t, gameMode, scenery, hallGoal, moreOptions],
   )
 
   return (
     <group>
       <XRPanel width={PANEL.width} height={PANEL.height} />
 
-      {/* De qué es cada fila. Va encima de sus botones y no dentro: dentro habría que
-          elegir entre el nombre y el icono, y el icono es lo que se pulsa. */}
+      {/* What each row is about. It goes above its buttons and not inside: inside one would
+          have to choose between the name and the icon, and the icon is what is pressed. */}
       <group position={[0, 0, 0.004]}>
         <CanvasPanel
           width={PANEL.width}
           height={PANEL.height}
-          draw={nombrarFilas}
+          draw={nameRows}
           fallbackColor={PALETTE.background}
         />
       </group>
 
-      {/* «Más opciones» o «Menos opciones»: lo escrito va en el lienzo de los rótulos. */}
-      {plegable ? (
-        <XRPressable box={MENU_BOXES['more options']} onSelect={() => setMasOpciones(!masOpciones)}>
+      {/* «Más opciones» or «Menos opciones»: the writing goes on the canvas of the labels. */}
+      {canFold ? (
+        <XRPressable box={MENU_BOXES['more options']} onSelect={() => setMoreOptions(!moreOptions)}>
           <XRPlate
             width={MENU_BUTTON.toggle[0]}
             height={MENU_BUTTON.toggle[1]}
-            color={masOpciones ? PALETTE.primaryDeep : PALETTE.rail}
-            opacity={masOpciones ? 0.95 : 0.8}
+            color={moreOptions ? PALETTE.primaryDeep : PALETTE.rail}
+            opacity={moreOptions ? 0.95 : 0.8}
           />
         </XRPressable>
       ) : null}
 
-      {/* Cuánto se nota un gol en contra (`lib/golpeRecibido.ts`). Aquí y no solo en la web
-          porque es con el visor puesto cuando se sabe si marea. Detrás de «Más opciones». */}
-      {hay.has('settings') && COMFORT_LEVELS.map((opcion) => {
-        const selected = opcion === confort
+      {/* How much a goal against is felt (`lib/hitFeedback.ts`). Here and not only on the
+          website because it is with the headset on that one knows whether it causes dizziness.
+          Behind «Más opciones». */}
+      {shown.has('settings') && COMFORT_LEVELS.map((option) => {
+        const selected = option === comfort
         return (
-          <XRPressable key={opcion} box={MENU_BOXES[`comfort ${opcion}`]} onSelect={() => setConfort(opcion)}>
+          <XRPressable key={option} box={MENU_BOXES[`comfort ${option}`]} onSelect={() => setComfort(option)}>
             <XRPlate
               width={SMALL_BUTTON[0]}
               height={SMALL_BUTTON[1]}
               color={selected ? PALETTE.primaryDeep : PALETTE.rail}
               opacity={selected ? 0.95 : 0.7}
             />
-            <ConfortIcon confort={opcion} lit={selected} />
+            <ComfortIcon comfort={option} lit={selected} />
           </XRPressable>
         )
       })}
@@ -417,11 +421,11 @@ function MenuAbierto() {
             <group position={[0, MENU_MODE_ICON_RISE, 0]}>
               <ModeIcon mode={mode} lit={selected} />
             </group>
-            {/* El modo que da medalla lleva su marca en la esquina: un disco dorado, que se
-                distingue por estar o no estar, además de decirlo la frase de abajo. */}
-            {givesMedal(objetivo, mode) ? (
-              <mesh position={[MODE_BUTTON[0] / 2 - MARCA_DE_MEDALLA * 1.6, MODE_BUTTON[1] / 2 - MARCA_DE_MEDALLA * 1.6, 0.002]}>
-                <circleGeometry args={[MARCA_DE_MEDALLA, 20]} />
+            {/* The mode that gives a medal carries its mark in the corner: a gold disc, which
+                is told apart by being there or not, besides the phrase below saying so. */}
+            {givesMedal(hallGoal, mode) ? (
+              <mesh position={[MODE_BUTTON[0] / 2 - MEDAL_MARK * 1.6, MODE_BUTTON[1] / 2 - MEDAL_MARK * 1.6, 0.002]}>
+                <circleGeometry args={[MEDAL_MARK, 20]} />
                 <meshBasicMaterial color={COMMON_PALETTE.gold} toneMapped={false} />
               </mesh>
             ) : null}
@@ -429,8 +433,8 @@ function MenuAbierto() {
         )
       })}
 
-      {/* Escalera de nivel: la barra crece y el color va del verde al rojo, así
-          que el nivel se lee por forma y por color, no solo por color. */}
+      {/* Level ladder: the bar grows and the colour goes from green to red, so
+          the level is read by shape and by colour, not only by colour. */}
       {practice ? DIFFICULTY_ORDER.map((level, index) => {
         const selected = level === difficulty
         const height = levelBarHeight(index, DIFFICULTY_ORDER.length)
@@ -457,10 +461,10 @@ function MenuAbierto() {
         )
       }) : null}
 
-      {/* La fila de goles: a cuántos se juega en prueba, o el nivel en Niveles
-          (con sus estrellas debajo). Los mismos dos botones, otra pregunta. En el
-          reto no hay pregunta y no se pinta. */}
-      {hay.has('goals') ? (
+      {/* The goals row: how many to play to in practice, or the level in Levels
+          (with its stars underneath). The same two buttons, another question. In
+          the challenge there is no question and it is not painted. */}
+      {shown.has('goals') ? (
         <>
           <XRPressable
             box={MENU_BOXES.minus}
@@ -495,7 +499,7 @@ function MenuAbierto() {
               </group>
             </group>
           ) : endless ? (
-            // Sin fin: un anillo en vez de una cifra, que es «esto no se acaba».
+            // Endless: a ring instead of a digit, which is «this does not end».
             <mesh position={[0, ROW.goals, 0]}>
               <ringGeometry args={[0.03, 0.045, 32]} />
               <meshBasicMaterial color={PALETTE.foreground} toneMapped={false} />
@@ -525,8 +529,8 @@ function MenuAbierto() {
             <XRSignIcon sign="plus" />
           </XRPressable>
 
-          {/* Sin fin, al lado de los goles: la misma pregunta —cuánto— con la otra
-              respuesta. En reto y niveles no hay nada que elegir. */}
+          {/* Endless, beside the goals: the same question —how much— with the other
+              answer. In the challenge and levels there is nothing to choose. */}
           {practice ? (
             <XRPressable
               box={MENU_BOXES.endless}
@@ -547,8 +551,8 @@ function MenuAbierto() {
         </>
       ) : null}
 
-      {/* El récord del modo elegido, en pequeño y apagado: es un dato, no una
-          decisión. Solo se enseña si hay alguno que batir. */}
+      {/* The record of the chosen mode, small and dimmed: it is a fact, not a
+          decision. It is only shown if there is one to beat. */}
       {bestPoints > 0 && !levels ? (
         <XRNumber
           value={bestPoints}
@@ -558,13 +562,13 @@ function MenuAbierto() {
         />
       ) : null}
 
-      {/* Lo que se pinta alrededor, en la banda del récord, que es la única
-          con hueco. Está aquí y no solo en el menú de la web porque es aquí
-          donde sirve: con las gafas puestas se cambia sin salir de la sesión.
-          Fuera de una sesión de realidad aumentada no hay habitación que
-          enseñar, así que el botón se apaga en vez de prometerla. Escribe el
-          escenario del arcade: el panel del salón y este botón enseñan lo mismo. */}
-      {hay.has('settings') ? (
+      {/* What is painted around, in the record's band, which is the only one
+          with room. It is here and not only in the website's menu because this
+          is where it is useful: with the goggles on it is changed without
+          leaving the session. Outside an augmented reality session there is no
+          room to show, so the button switches off instead of promising it. It
+          writes the hall's scenery: the hall's panel and this button show the same. */}
+      {shown.has('settings') ? (
         <XRPressable
           box={MENU_BOXES.scenery}
           onSelect={() => setScenery(scenery === 'room' ? 'place' : 'room')}

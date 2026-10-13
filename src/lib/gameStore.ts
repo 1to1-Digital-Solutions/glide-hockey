@@ -561,7 +561,7 @@ export function useGameStoreValue({ challenge: hallChallenge, onFinish, goal }: 
     if (advancedRound.current === challengeRoundNumber) return
     advancedRound.current = challengeRoundNumber
     // Each round of the challenge is a match: winning it without conceding is already the feat.
-    for (const feat of matchFeats({ won: true, conceded: opponentGoals, sinFin: false })) {
+    for (const feat of matchFeats({ won: true, conceded: opponentGoals, endless: false })) {
       featsThisMatch.current.add(feat)
     }
 
@@ -662,7 +662,7 @@ export function useGameStoreValue({ challenge: hallChallenge, onFinish, goal }: 
     /* v8 ignore next */
     if (notifiedRun.current === runId) return
     notifiedRun.current = runId
-    for (const feat of matchFeats({ won: outcome === 'won', conceded: opponentGoals, sinFin: endlessRun })) {
+    for (const feat of matchFeats({ won: outcome === 'won', conceded: opponentGoals, endless: endlessRun })) {
       featsThisMatch.current.add(feat)
     }
     const newFeats = earnFeats(featsThisMatch.current)
@@ -682,7 +682,7 @@ export function useGameStoreValue({ challenge: hallChallenge, onFinish, goal }: 
           gameMode,
           gameState,
           round: challengeRoundNumber,
-          goles: goals,
+          goals,
           points,
           streak,
           record: recordToBeat,

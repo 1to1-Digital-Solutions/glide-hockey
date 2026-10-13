@@ -11,87 +11,91 @@ import { ExitProvider } from './exit'
 
 export interface GlideHockeySceneProps {
   /**
-   * De dónde cuelgan los ficheros estáticos del juego (los perfiles de mando de
-   * WebXR, que se copian de `public/`). Los sirve el anfitrión, bajo su propio
-   * prefijo: dos juegos en el mismo origen se pisarían.
+   * Where the game's static files hang from (the WebXR controller profiles,
+   * which are copied from `public/`). The host serves them, under its own
+   * prefix: two games on the same origin would overwrite each other.
    *
-   * Los perfiles los pide el store de WebXR, que aquí es del anfitrión: hay que
-   * crearlo con `baseAssetPath` apuntando a `<assetsBase>/webxr-profiles/` o el
-   * jugador se queda sin mandos (ver `docs/mounting-the-game.md`).
+   * The profiles are requested by the WebXR store, which here belongs to the
+   * host: it has to be created with `baseAssetPath` pointing at
+   * `<assetsBase>/webxr-profiles/` or the player is left with no controllers
+   * (see `docs/mounting-the-game.md`).
    */
   assetsBase?: string
   /**
-   * Dónde y con qué rumbo plantar el mundo del juego, si quien monta la escena
-   * lo sabe: el salón de xrcade presta el anclaje con el que tiene plantado su
-   * arco de cabinas.
+   * Where and with what heading to plant the game's world, if whoever mounts
+   * the scene knows it: the xrcade hall lends the anchor with which it has its
+   * arc of cabinets planted.
    *
-   * **Sin él, el mundo se planta delante de donde se mire al entrar**, que es
-   * lo único que se sabe en la web propia del juego. Dentro del salón eso
-   * descoloca: leer las cabinas de la izquierda obliga a girar la cabeza, y el
-   * juego salía girado hacia allí.
+   * **Without it, the world is planted in front of wherever one is looking on
+   * entering**, which is the only thing known on the game's own website. Inside
+   * the hall that throws things out of place: reading the cabinets on the left
+   * forces a turn of the head, and the game came out turned that way.
    */
   anchor?: HostAnchor
   /**
-   * Devolver al jugador a donde estaba. Lo llama el juego desde su interfaz
-   * inmersiva; qué significa volver lo decide quien monta.
+   * Returns the player to where they were. The game calls it from its
+   * immersive interface; what going back means is decided by whoever mounts.
    */
   onExit: () => void
   /**
-   * La partida que se juega, si es un reto (el del día, o el código de «reta mi
-   * puntuación»).
+   * The match that is played, if it is a challenge (the daily one, or the code
+   * of «reta mi puntuación»).
    *
-   * Con él la escena entra **ya jugando** el reto (`challenge`, el modo del
-   * récord), sin tutorial y con los tiros de la máquina sacados de la semilla:
-   * misma semilla, misma máquina en cada ronda. Sin él, el juego abre su menú y
-   * juega como siempre.
+   * With it the scene comes in **already playing** the challenge (`challenge`,
+   * the record's mode), with no tutorial and with the machine's shots drawn
+   * from the seed: same seed, same machine in every round. Without it, the game
+   * opens its menu and plays as always.
    */
   challenge?: Challenge
   /**
-   * Se llama una vez al acabar cada partida —no al dejarla a medias—, con el
-   * modo, los puntos aunque no sean récord, si era la partida del `reto` y, si se estrenó
-   * alguna, las hazañas (`hazanas`: nombres de API de los logros de Steam).
+   * Called once when each match ends —not when it is left halfway—, with the
+   * mode, the points even if they are not a record, whether it was the match of the `challenge`
+   * and, if any was earned for the first time, the feats (`feats`: API names of the Steam
+   * achievements).
    */
-  onFinish?: (resultado: GameResult) => void
+  onFinish?: (result: GameResult) => void
   /**
-   * Qué hay que superar: los tres listones de medalla del juego, la marca de quien juega y el
-   * modo en que cuentan. Con él, el cartel de encima del marcador dice qué listón falta y cuánto
-   * queda; sin él, la misión y el récord guardado en este navegador.
+   * What has to be beaten: the game's three medal thresholds, the mark of whoever plays and the
+   * mode in which they count. With it, the sign above the scoreboard says which threshold is
+   * missing and how much is left; without it, the mission and the record stored in this browser.
    */
   goal?: Goal
   /**
-   * Cómo se llama la cabina en el salón (el `name` de su manifiesto): es lo que dicen el menú y la
-   * portada (`nombreDelJuego` de `plantillaDelMenu.ts`). Sin él, el del `package.json` con
-   * mayúsculas, que coincide con el del catálogo.
+   * What the cabinet is called in the hall (the `name` of its manifest): it is what the menu and
+   * the cover say (`gameName` of `menuTemplate.ts`). Without it, the one in `package.json` with
+   * capitals, which matches the catalogue's.
    */
   name?: string
 }
 
 /**
- * Glide Hockey como ESCENA: lo que se pinta dentro del Canvas de otro.
+ * Glide Hockey as a SCENE: what is drawn inside someone else's Canvas.
  *
- * Es el contrato con el que xrcade monta un juego dentro de su salón. No crea
- * Canvas, no abre ni cierra la sesión inmersiva y no pinta una sola etiqueta de
- * DOM: solo objetos de three. Así, entrar en el juego y volver al salón son
- * montar y desmontar un trozo de escena, y la sesión ni se entera — que es lo
- * que permite pasar de un juego al salón sin quitarse el visor.
+ * It is the contract with which xrcade mounts a game inside its hall. It
+ * creates no Canvas, neither opens nor closes the immersive session and draws
+ * not a single DOM tag: only three objects. That way, entering the game and
+ * going back to the hall are mounting and unmounting a piece of scene, and the
+ * session does not even notice — which is what allows going from a game to the
+ * hall without taking the headset off.
  *
- * Para montarlo con su interfaz 2D y su propia sesión —lo que quiere una página
- * web normal— está `<GlideHockey>`, que es esta escena con un Canvas alrededor.
+ * To mount it with its 2D interface and its own session —what a normal web
+ * page wants— there is `<GlideHockey>`, which is this scene with a Canvas
+ * around it.
  *
- * El contrato completo, en `docs/mounting-the-game.md`.
+ * The full contract, in `docs/mounting-the-game.md`.
  */
-export function GlideHockeyScene({ assetsBase, anchor, onExit, challenge: reto, onFinish, goal: objetivo, name: nombre }: GlideHockeySceneProps) {
-  // Antes que los hijos, por lo mismo que la base de ficheros: el menú lo lee desde el primer
-  // fotograma, y fijarlo dos veces con el mismo nombre no cambia nada.
-  setGameName(nombre)
-  // Durante el render y no en un efecto: el store de WebXR resuelve su base de
-  // ficheros la primera vez que alguien lo pide, que puede ser antes de que
-  // corra ningún efecto. Escribir la misma base dos veces no cambia nada, así
-  // que repetir el render es inocuo.
+export function GlideHockeyScene({ assetsBase, anchor, onExit, challenge, onFinish, goal, name }: GlideHockeySceneProps) {
+  // Before the children, for the same reason as the file base: the menu reads it from the first
+  // frame, and setting it twice with the same name changes nothing.
+  setGameName(name)
+  // During render and not in an effect: the WebXR store resolves its file
+  // base the first time someone asks for it, which can be before any effect
+  // runs. Writing the same base twice changes nothing, so repeating the
+  // render is harmless.
   if (assetsBase !== undefined) setAssetsBase(assetsBase)
 
   return (
-    <GameProvider challenge={reto} onFinish={onFinish} goal={objetivo}>
+    <GameProvider challenge={challenge} onFinish={onFinish} goal={goal}>
       <ExitProvider onExit={onExit}>
         <GameWorld anchor={anchor} />
       </ExitProvider>

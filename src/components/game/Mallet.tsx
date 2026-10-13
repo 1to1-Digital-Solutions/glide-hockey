@@ -5,44 +5,44 @@ import { type Group, type Texture } from 'three'
 import { NO_RAYCAST } from '../raycast'
 import { MALLET_RADIUS } from '../../lib/gameConfig'
 
-/** Alto de la base que roza la mesa y del pomo que se agarra. */
+/** Height of the base that slides on the table and of the knob that is grabbed. */
 const BASE_HEIGHT = 0.028
 const KNOB_HEIGHT = 0.045
 
 /**
- * Un mazo, el del jugador o el de la máquina.
+ * A mallet, the player's or the machine's.
  *
- * Como el disco, no sabe dónde está: lo coloca el bucle de la partida (ver
- * `Rink`). Lo único suyo es el color, que es lo que distingue de un vistazo de
- * quién es cada mitad de la mesa.
+ * Like the puck, it does not know where it is: the match loop places it (see
+ * `Rink`). The only thing of its own is the colour, which is what tells at a
+ * glance whose each half of the table is.
  *
- * **Y los reflejos de la sala, los mismos que llevan la mesa y el disco.** Es el objeto que
- * está a un palmo de los ojos toda la partida: sin ellos tenía menos acabado que la mesa que
- * hay debajo, y eso se nota mucho más que al revés. No cuesta una llamada de dibujo más — el
- * mapa ya está cargado y se comparte.
+ * **And the room's reflections, the same ones the table and the puck carry.** It is the
+ * object that is a hand's breadth from the eyes the whole match: without them it had less
+ * finish than the table underneath, and that shows much more than the other way round. It
+ * does not cost one more draw call — the map is already loaded and is shared.
  *
- * **Fuera del alcance de los rayos.** Con el visor puesto el mazo va en la mano, y el rayo
- * con el que se pulsa el menú sale de esa misma mano: lo primero que se encuentra es el mazo,
- * que se queda con el evento y deja al botón sin enterarse. Desde dentro eso no se ve como
- * «el mazo está en medio», se ve como que **el botón no funciona**. El arreglo llegó a los
- * demás juegos y a este no —el mismo mazo, el mismo fallo, y en hole-patrol ya estaba
- * escrito—. En escritorio no se pierde nada: ahí no hay rayo.
+ * **Out of reach of the rays.** With the headset on the mallet goes in the hand, and the ray
+ * with which the menu is pressed comes out of that same hand: the first thing it meets is the
+ * mallet, which keeps the event and leaves the button none the wiser. From inside that is not
+ * seen as «the mallet is in the way», it is seen as **the button does not work**. The fix
+ * reached the other games and not this one —the same mallet, the same failure, and in
+ * hole-patrol it was already written—. On desktop nothing is lost: there is no ray there.
  */
 export function Mallet({
   color,
   environment,
-  highlighted: resaltado = false,
+  highlighted = false,
   ref,
 }: {
   color: string
-  /** Los reflejos de la sala, los mismos que lleva el tablero. */
+  /** The room's reflections, the same ones the table top carries. */
   environment?: Texture
   /**
-   * Que hay que cogerlo **ahora**: se enciende para que se vea cuál es.
+   * That it has to be grabbed **now**: it lights up so that it is seen which one it is.
    *
-   * Lo pide la cuenta atrás mientras espera a tenerlo en la mano. Sin esto, lo único que
-   * pasaba era que el 1 se quedaba clavado: «el countdown se queda parado en el 1 sin
-   * ninguna explicación. Se podría ayudar al usuario, o que el objeto brille más».
+   * The countdown asks for it while it waits to have it in the hand. Without this, the only
+   * thing that happened was that the 1 stayed stuck: «the countdown stays stopped on the 1
+   * with no explanation. The user could be helped, or the object could glow more».
    */
   highlighted?: boolean
   ref?: Ref<Group>
@@ -60,7 +60,7 @@ export function Mallet({
           envMap={environment ?? null}
           envMapIntensity={0.5}
           emissive={color}
-          emissiveIntensity={resaltado ? 0.9 : 0}
+          emissiveIntensity={highlighted ? 0.9 : 0}
         />
       </mesh>
 
@@ -74,7 +74,7 @@ export function Mallet({
           envMap={environment ?? null}
           envMapIntensity={0.4}
           emissive={color}
-          emissiveIntensity={resaltado ? 0.9 : 0}
+          emissiveIntensity={highlighted ? 0.9 : 0}
         />
       </mesh>
     </group>

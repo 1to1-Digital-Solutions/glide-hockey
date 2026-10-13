@@ -1,47 +1,50 @@
 import { gameStorage } from './storage'
 
 /**
- * El tutorial que se ve dentro del visor la primera vez.
+ * The tutorial seen inside the headset the first time.
  *
- * **El problema que resuelve.** Los controles no se entienden mirando la escena: el mazo no
- * está en la mano hasta que se cierra el puño, se lanza con el brazo —no con el puntero— y
- * sale **al soltar**, no al apretar. Quien llega nuevo aprende primero a manejar el menú con
- * el rayo, que es justo lo que no sirve para tirar.
+ * **The problem it solves.** The controls are not understood by looking at the scene: the
+ * mallet is not in the hand until the fist closes, it is thrown with the arm —not with the
+ * pointer— and it leaves **on release**, not on squeezing. Whoever arrives new first learns to
+ * work the menu with the ray, which is exactly what is no use for throwing.
  *
- * **Y cómo se resolvía mal.** Era un pase de diapositivas por reloj, con el juego parado: tres
- * frases con un monigote moviéndose, cada una sus segundos, y al acabar el tiempo se daba por
- * aprendido. Quien lo miraba sin hacer nada salía igual que entró, y quien ya lo sabía tenía
- * que esperar. Reportado con el visor puesto: hace falta un botón de siguiente y otro de
- * saltar, hace falta que enseñe **qué botón** del mando se aprieta, y hace falta que **el
- * juego no se pare**: si el paso es agarrar y se agarra, que el mazo aparezca de verdad en la
- * mano; si el paso es lanzar, que no se pase al siguiente hasta que el mazo se clave.
+ * **And how it was solved badly.** It was a slide show run by the clock, with the game
+ * stopped: three phrases with a stick figure moving, each one its seconds, and when the time
+ * ran out it was taken as learnt. Whoever watched it without doing anything left the same as
+ * they came in, and whoever already knew it had to wait. Reported with the headset on: a next
+ * button and a skip one are needed, it has to show **which button** of the controller is
+ * pressed, and **the game must not stop**: if the step is grabbing and one grabs, the mallet
+ * should really appear in the hand; if the step is throwing, it should not move on to the
+ * next one until the mallet sticks.
  *
- * **Cómo se resuelve ahora: por logro.** Cada paso se supera **haciéndolo**. El tutorial no
- * lleva reloj: espera. Y siempre hay salida —siguiente y saltar—, porque un paso que no se
- * consiga dejaría a alguien encerrado en él.
+ * **How it is solved now: by achievement.** Each step is passed **by doing it**. The tutorial
+ * has no clock: it waits. And there is always a way out —next and skip—, because a step that
+ * is not achieved would leave someone locked inside it.
  *
- * Aquí vive solo el guion —qué pasos hay, qué los supera y si ya se ha visto—, sin three ni
- * React, para poder probarlo sin navegador ni visor.
+ * Only the script lives here —which steps there are, what passes them and whether it has
+ * already been seen—, with no three and no React, so that it can be tested without a browser
+ * or a headset.
  */
 
-/** Qué enseña cada paso, y qué hay que hacer para superarlo. */
+/** What each step teaches, and what has to be done to pass it. */
 export type TutorialStepKey =
-  /** Cerrar la mano sobre el mazo: se supera cuando va en ella. */
+  /** Closing the hand on the mallet: passed when it is in it. */
   | 'grab'
-  /** Darle al disco: se supera con el primer golpe. */
+  /** Hitting the puck: passed with the first hit. */
   | 'hit'
-  /** Marcar: se supera con el primer gol. */
+  /** Scoring: passed with the first goal. */
   | 'goal'
 
-/** Los pasos, en orden. */
+/** The steps, in order. */
 export const TUTORIAL_STEPS: readonly TutorialStepKey[] = ['grab', 'hit', 'goal']
 
 /**
- * Qué botón del mando enseña cada paso, para dibujarlo resaltado.
+ * Which button of the controller each step teaches, so as to draw it highlighted.
  *
- * **Es la mitad de la lección.** Una frase que dice «el botón de agarre» solo sirve a quien ya
- * sabe cuál es; con el visor puesto, lo que hay en la mano es un mando con cinco botones y
- * ninguno con su nombre escrito. `null` es un paso que no va de apretar nada.
+ * **It is half the lesson.** A phrase that says «el botón de agarre» only helps whoever
+ * already knows which one it is; with the headset on, what is in the hand is a controller with
+ * five buttons and none with its name written on it. `null` is a step that is not about
+ * pressing anything.
  */
 export type ControllerButton = 'agarre' | 'gatillo'
 
@@ -52,13 +55,13 @@ export const TUTORIAL_BUTTONS: Record<TutorialStepKey, ControllerButton | null> 
 }
 
 /**
- * Cómo llama WebXR a cada uno de esos botones.
+ * What WebXR calls each of those buttons.
  *
- * Es el puente entre el nombre de andar por casa —el que se usa al escribir la lección— y el
- * identificador del perfil de mando, que es con el que se encuentra la pieza dentro del
- * modelo 3D cuando el tutorial lo enseña a tamaño real sobre la mano (`MandoDeVerdad.tsx`).
- * Los dos nombres son los del estándar y valen para cualquier mando, no solo para los de
- * Quest.
+ * It is the bridge between the everyday name —the one used when writing the lesson— and the
+ * identifier of the controller profile, which is the one the part is found by inside the 3D
+ * model when the tutorial shows it at real size over the hand (`RealController.tsx`).
+ * Both names are the standard's and hold for any controller, not only for the Quest
+ * ones.
  */
 export const COMPONENTE_DEL_BOTON: Record<ControllerButton, string> = {
   agarre: 'xr-standard-squeeze',
@@ -66,80 +69,82 @@ export const COMPONENTE_DEL_BOTON: Record<ControllerButton, string> = {
 }
 
 /**
- * Lo que quien juega ya ha hecho. Se **acumula**: hacer algo no se deshace.
+ * What the player has already done. It **accumulates**: doing something is not undone.
  *
- * Vive en el estado de la partida y no aquí porque lo escriben los mismos sitios que ya
- * apuntan lo que pasa —coger, tirar, clavar—, y así el tutorial no necesita ni pararle el
- * juego a nadie ni escuchar nada: **se deduce**.
+ * It lives in the state of the match and not here because it is written by the same places
+ * that already note down what happens —picking up, throwing, sticking—, and that way the
+ * tutorial needs neither to stop anyone's game nor to listen to anything: **it is deduced**.
  */
 export type TutorialMilestones = Readonly<Record<TutorialStepKey, boolean>>
 
-/** Nada hecho todavía. */
+/** Nothing done yet. */
 export const NO_MILESTONES: TutorialMilestones = { grab: false, hit: false, goal: false }
 
-/** Los hitos de antes más el que se acaba de conseguir. */
-export function recordMilestone(hitos: TutorialMilestones, hito: TutorialStepKey): TutorialMilestones {
-  if (hitos[hito]) return hitos
-  return { ...hitos, [hito]: true }
+/** The earlier milestones plus the one just achieved. */
+export function recordMilestone(milestones: TutorialMilestones, milestone: TutorialStepKey): TutorialMilestones {
+  if (milestones[milestone]) return milestones
+  return { ...milestones, [milestone]: true }
 }
 
 /**
- * Qué paso toca enseñar, o `null` si ya no queda nada.
+ * Which step is due to be taught, or `null` if nothing is left.
  *
- * El primero que no esté hecho, saltándose los que se hayan pasado con el botón. Se **calcula**
- * en vez de guardarse: un tutorial que lleva su propia cuenta acaba discrepando de lo que pasa
- * en la partida, y aquí lo que manda es lo que pasa en la partida.
+ * The first one that is not done, skipping those passed with the button. It is **computed**
+ * instead of stored: a tutorial that keeps its own count ends up disagreeing with what happens
+ * in the match, and here what rules is what happens in the match.
  *
- * @param saltados Cuántos pasos se ha saltado quien juega con el botón de siguiente.
+ * @param skipped How many steps the player has skipped with the next button.
  */
-export function tutorialStep(hitos: TutorialMilestones, saltados: number): TutorialStepKey | null {
-  for (let i = Math.max(0, saltados); i < TUTORIAL_STEPS.length; i += 1) {
-    const paso = TUTORIAL_STEPS[i]
-    if (!hitos[paso]) return paso
+export function tutorialStep(milestones: TutorialMilestones, skipped: number): TutorialStepKey | null {
+  for (let i = Math.max(0, skipped); i < TUTORIAL_STEPS.length; i += 1) {
+    const step = TUTORIAL_STEPS[i]
+    if (!milestones[step]) return step
   }
   return null
 }
 
 /**
- * Dónde se recuerda que el tutorial ya se ha visto. Con prefijo, como el récord, para no
- * chocar con nada más del mismo origen.
+ * Where it is remembered that the tutorial has already been seen. With a prefix, like the
+ * record, so as not to clash with anything else of the same origin.
  */
 export const TUTORIAL_SEEN_KEY = 'glide-hockey:tutorial-seen'
 
-/** Lo que se escribe cuando ya se ha visto. */
+/** What is written once it has been seen. */
 /**
- * Qué se guarda como «ya visto»: **la versión de la lección**, no un sí.
+ * What is stored as "already seen": **the version of the lesson**, not a yes.
  *
- * Cualquier otro valor la vuelve a enseñar, así que subir este número es la forma de que
- * quien ya la vio la vuelva a ver cuando lo que enseña ha cambiado. La 2 fue la del agarre —la
- * demostración decía «mantén el gatillo» y lo que se aprieta es el de agarre—; la **3** es
- * esta: el tutorial dejó de ser un pase de diapositivas con el juego parado y pasó a hacerse
- * jugando, paso a paso y enseñando qué botón se aprieta. Quien vio la 2 no ha hecho este.
+ * Any other value shows it again, so raising this number is the way for whoever already saw
+ * it to see it again when what it teaches has changed. Version 2 was the grab one —the
+ * demonstration said «mantén el gatillo» and what is pressed is the grip one—; version **3**
+ * is this one: the tutorial stopped being a slide show with the game stopped and came to be
+ * done by playing, step by step and showing which button is pressed. Whoever saw version 2
+ * has not done this one.
  */
 export const TUTORIAL_SEEN_VALUE = '3'
 
 /**
- * ¿Ya se ha visto la demostración?
+ * Has the demonstration already been seen?
  *
- * Lo leído es entrada externa —cualquiera puede editarla desde las herramientas del
- * navegador—, así que solo el valor exacto cuenta como visto: cualquier otra cosa la
- * vuelve a enseñar, que es lo que hacía el juego antes de guardar nada.
+ * What is read is external input —anyone can edit it from the browser's tools—, so only the
+ * exact value counts as seen: anything else shows it again, which is what the game did
+ * before storing anything.
  */
 export function tutorialSeen(storage: Pick<Storage, 'getItem'> | null = gameStorage()): boolean {
   if (storage === null) return false
   try {
     return storage.getItem(TUTORIAL_SEEN_KEY) === TUTORIAL_SEEN_VALUE
   } catch {
-    // Almacenamiento capado: se enseña otra vez. Ver de más es mejor que no entender.
+    // Storage blocked: it is shown again. Seeing it once too often is better than not
+    // understanding.
     return false
   }
 }
 
 /**
- * Deja constancia de que ya se ha visto.
+ * Leaves a record that it has already been seen.
  *
- * @returns si quedó guardado. Un `false` no es un error: significa que este navegador no
- *   guarda nada y la demostración se verá también la próxima vez.
+ * @returns whether it was stored. A `false` is not an error: it means this browser stores
+ *   nothing and the demonstration will be seen next time too.
  */
 export function markTutorialSeen(storage: Storage | null = gameStorage()): boolean {
   if (storage === null) return false

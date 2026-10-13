@@ -1,13 +1,14 @@
 /**
- * El cartel del objetivo en este juego: dónde cuelga y qué partida le cuenta.
+ * The goal sign in this game: where it hangs and which run it is told about.
  *
- * El cartel es común a todos los juegos del salón (`objetivo.ts` y `CartelDeObjetivo.tsx`); lo
- * que es del air hockey está aquí: que va **encima del marcador del fondo**, sobre la portería de
- * la máquina, que es donde ya se mira jugando; que la partida que cuenta es el reto, y que lo que
- * le queda a quien juega es la ronda, a cuántos goles se juega y lo que vale el próximo gol.
+ * The sign is common to every game of the hall (`goal.ts` and `GoalSign.tsx`); what belongs to
+ * air hockey is here: that it goes **above the back scoreboard**, over the machine's goal, which
+ * is where one already looks while playing; that the run that counts is the challenge, and that
+ * what remains for whoever plays is the round, how many goals it is played to and what the next
+ * goal is worth.
  *
- * Sin three ni React: la escena coloca lo que sale de aquí, los tests lo miden y el port a Godot
- * lo lee tal cual.
+ * Without three or React: the scene places what comes out of here, the tests measure it and the
+ * Godot port reads it as is.
  */
 
 import { challengeRound } from './challenge'
@@ -22,132 +23,133 @@ import { HAPTIC_RECIPES, pulsesFor, type HandSide, type HandPulse } from './hapt
 import { REFERENCE_EYE_HEIGHT } from './uiHeight'
 
 /**
- * El marcador del fondo, en el espacio de la mesa (su centro, a la altura del tablero): sobre la
- * portería de la máquina e inclinado hacia quien juega. Es de donde cuelga el cartel, y por eso
- * sus medidas viven aquí y la escena las lee.
+ * The back scoreboard, in table space (its centre, at the height of the board): over the
+ * machine's goal and tilted towards whoever plays. It is where the sign hangs from, and that is
+ * why its measurements live here and the scene reads them.
  */
 export const BACK_SCOREBOARD = {
   center: [0, 0.5, -HALF_LENGTH - 0.05] as [number, number, number],
-  /** Como el `rotation.x` de three: echado hacia atrás, de cara a los ojos. */
+  /** Like three's `rotation.x`: leaning back, facing the eyes. */
   tilt: -0.18,
   width: 0.52,
   height: 0.34,
 } as const
 
-/** El aire entre el canto de arriba del marcador y el cartel, en metros. */
+/** The air between the top edge of the scoreboard and the sign, in metres. */
 export const GAP_ABOVE_SCOREBOARD = 0.03
 
-/** Lo que mide el cartel por cada metro de distancia de lectura: su ancho y su alto. */
+/** What the sign measures per metre of reading distance: its width and its height. */
 export interface SignProportion {
   readonly width: number
   readonly height: number
 }
 
-/** Dónde queda el cartel y cómo se orienta. */
+/** Where the sign ends up and how it is oriented. */
 export interface SignPlacement {
-  /** Su centro, en el espacio de la mesa, que es de donde cuelga la interfaz. */
+  /** Its centre, in table space, which is where the interface hangs from. */
   readonly position: [number, number, number]
-  /** Como el `rotation` de three: de cara a los ojos e inclinado hacia ellos. */
+  /** Like three's `rotation`: facing the eyes and tilted towards them. */
   readonly rotation: [number, number, number, 'YXZ']
-  /** De los ojos al centro del cartel, en metros: de ahí sale su tamaño. */
+  /** From the eyes to the centre of the sign, in metres: its size comes from there. */
   readonly distance: number
 }
 
-/** Del espacio de la mesa al de quien juega: los pies en el origen y el `−Z` delante. */
-function delEspacioDelJugador(pieza: Triple): [number, number, number] {
-  return [pieza[0], pieza[1] + TABLE_HEIGHT, pieza[2] + TABLE_CENTER_Z]
+/** From table space to the player's: the feet at the origin and `−Z` ahead. */
+function toPlayerSpace(part: Triple): [number, number, number] {
+  return [part[0], part[1] + TABLE_HEIGHT, part[2] + TABLE_CENTER_Z]
 }
 
-/** El centro del canto de arriba del marcador, en el espacio de quien juega. */
+/** The centre of the top edge of the scoreboard, in the player's space. */
 export function scoreboardTopEdge(): { x: number; y: number; z: number } {
   const pose: PanelPose = {
-    position: delEspacioDelJugador(BACK_SCOREBOARD.center),
+    position: toPlayerSpace(BACK_SCOREBOARD.center),
     rotation: [BACK_SCOREBOARD.tilt, 0, 0],
   }
   return pointOnPanel(pose, 0, BACK_SCOREBOARD.height / 2)
 }
 
-/** La pose del cartel ya colocado, en el espacio de quien juega: para medirlo. */
-export function signPose(sitio: SignPlacement): PanelPose {
-  return { position: delEspacioDelJugador(sitio.position), rotation: sitio.rotation }
+/** The pose of the sign once placed, in the player's space: to measure it. */
+export function signPose(placement: SignPlacement): PanelPose {
+  return { position: toPlayerSpace(placement.position), rotation: placement.rotation }
 }
 
 /**
- * Dónde va el cartel: **encima del marcador del fondo, centrado**, con su canto de abajo a un
- * dedo del canto de arriba del marcador y de cara a los ojos de quien juega.
+ * Where the sign goes: **above the back scoreboard, centred**, with its bottom edge a finger
+ * away from the top edge of the scoreboard and facing the eyes of whoever plays.
  *
- * Ahí queda a la altura de la vista y de frente: se lee sin girar la cabeza ni levantarla, y por
- * encima de la mesa entera, así que no tapa ni el disco ni la portería. Cuelga de la interfaz, que
- * sube y baja con los ojos (`XRUiHeight`), igual que el marcador: lo que mide desde ellos no
- * cambia con la estatura.
+ * There it sits at eye level and straight ahead: it is read without turning the head or raising
+ * it, and above the whole table, so it covers neither the puck nor the goal. It hangs from the
+ * interface, which goes up and down with the eyes (`XRUiHeight`), just like the scoreboard: what
+ * it measures from them does not change with height.
  *
- * El tamaño depende de la distancia y la distancia de dónde acabe el centro, que a su vez depende
- * del tamaño y de la inclinación: se corrige el centro con lo que falta, unas cuantas vueltas.
+ * The size depends on the distance and the distance on where the centre ends up, which in turn
+ * depends on the size and on the tilt: the centre is corrected by what is missing, a few passes.
  *
- * @param proporcion Lo que mide el cartel por metro de distancia de lectura.
+ * @param proportion What the sign measures per metre of reading distance.
  */
-export function signPlacement(proporcion: SignProportion): SignPlacement {
-  const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
-  const canto = scoreboardTopEdge()
-  const apoyo = { x: canto.x, y: canto.y + GAP_ABOVE_SCOREBOARD, z: canto.z }
+export function signPlacement(proportion: SignProportion): SignPlacement {
+  const eyes = eyesAt(REFERENCE_EYE_HEIGHT)
+  const edge = scoreboardTopEdge()
+  const rest = { x: edge.x, y: edge.y + GAP_ABOVE_SCOREBOARD, z: edge.z }
 
-  let centro: [number, number, number] = [apoyo.x, apoyo.y, apoyo.z]
-  for (let vuelta = 0; vuelta < 12; vuelta++) {
-    const pose: PanelPose = { position: centro, rotation: panelRotation(centro, ojos) }
-    const abajo = pointOnPanel(pose, 0, (-proporcion.height * distanceFromEyes(centro, ojos)) / 2)
-    centro = [centro[0] + apoyo.x - abajo.x, centro[1] + apoyo.y - abajo.y, centro[2] + apoyo.z - abajo.z]
+  let center: [number, number, number] = [rest.x, rest.y, rest.z]
+  for (let pass = 0; pass < 12; pass++) {
+    const pose: PanelPose = { position: center, rotation: panelRotation(center, eyes) }
+    const bottom = pointOnPanel(pose, 0, (-proportion.height * distanceFromEyes(center, eyes)) / 2)
+    center = [center[0] + rest.x - bottom.x, center[1] + rest.y - bottom.y, center[2] + rest.z - bottom.z]
   }
   return {
-    position: [centro[0], centro[1] - TABLE_HEIGHT, centro[2] - TABLE_CENTER_Z],
-    rotation: panelRotation(centro, ojos),
-    distance: distanceFromEyes(centro, ojos),
+    position: [center[0], center[1] - TABLE_HEIGHT, center[2] - TABLE_CENTER_Z],
+    rotation: panelRotation(center, eyes),
+    distance: distanceFromEyes(center, eyes),
   }
 }
 
 /**
- * Dónde va el tutorial de la primera vez: **a un lado del cartel**, a la derecha.
+ * Where the first-time tutorial goes: **to one side of the sign**, on the right.
  *
- * Estaba de frente, sobre la mesa y a 1,2 m: 36° de ancho por 28° de alto justo delante del
- * marcador (13° de ancho) y del cartel (24°), que quedaban tapados enteros mientras duraba —y la
- * primera partida es el reto, la que tiene objetivo que leer—. Por arriba no cabe sin levantar la
- * cabeza 19° y por abajo taparía la mesa, así que se aparta: a la misma distancia y a la misma
- * altura, girado hacia los ojos, con lo que cada letra ocupa los mismos grados que ocupaba. A 32°
- * su canto izquierdo queda a 14° del frente y el cartel acaba a 12°: dos grados de aire. A la
- * derecha, porque a la izquierda está el botón de parar (55°). A CALIBRAR CON EL VISOR.
+ * It used to be straight ahead, above the table and at 1.2 m: 36° wide by 28° high right in front
+ * of the scoreboard (13° wide) and of the sign (24°), which were wholly covered while it lasted
+ * —and the first run is the challenge, the one that has a goal to read—. Above there is no room
+ * without raising the head 19° and below it would cover the table, so it moves aside: at the same
+ * distance and at the same height, turned towards the eyes, so each letter takes up the same
+ * degrees it did. At 32° its left edge is 14° from straight ahead and the sign ends at 12°: two
+ * degrees of air. On the right, because the stop button is on the left (55°). TO BE CALIBRATED
+ * WITH THE HEADSET.
  */
 export const TUTORIAL_TO_ONE_SIDE = {
-  /** Grados a la derecha del frente. */
+  /** Degrees to the right of straight ahead. */
   azimuth: 32,
-  /** De los ojos al panel, en horizontal. */
+  /** From the eyes to the panel, horizontally. */
   distance: 1.2,
-  /** Lo que sube su centro sobre los ojos de referencia. */
+  /** How far its centre rises above the reference eyes. */
   aboveEyes: 0.02,
 } as const
 
 /**
- * El centro del tutorial, en el espacio de la mesa.
+ * The centre of the tutorial, in table space.
  *
- * @param azimut Grados a la derecha del frente; con cero, de frente: donde estaba, y donde sigue
- *   en plano, que no tiene a dónde girar la cabeza.
+ * @param azimuth Degrees to the right of straight ahead; with zero, straight ahead: where it used
+ *   to be, and where it still is on a flat screen, which has nowhere to turn the head to.
  */
-export function tutorialPlacement(azimut: number = TUTORIAL_TO_ONE_SIDE.azimuth): [number, number, number] {
-  const giro = (azimut * Math.PI) / 180
+export function tutorialPlacement(azimuth: number = TUTORIAL_TO_ONE_SIDE.azimuth): [number, number, number] {
+  const angle = (azimuth * Math.PI) / 180
   return [
-    TUTORIAL_TO_ONE_SIDE.distance * Math.sin(giro),
+    TUTORIAL_TO_ONE_SIDE.distance * Math.sin(angle),
     REFERENCE_EYE_HEIGHT + TUTORIAL_TO_ONE_SIDE.aboveEyes - TABLE_HEIGHT,
-    -TUTORIAL_TO_ONE_SIDE.distance * Math.cos(giro) - TABLE_CENTER_Z,
+    -TUTORIAL_TO_ONE_SIDE.distance * Math.cos(angle) - TABLE_CENTER_Z,
   ]
 }
 
 /**
- * Las dos tiras de neón de la pared del fondo: a qué altura va el centro de cada una y cuánto
- * miden, en metros. Las pintan `Room.tsx` y, en Godot, `sala.ts`.
+ * The two neon strips of the back wall: at what height the centre of each one goes and how much
+ * they measure, in metres. They are drawn by `Room.tsx` and, in Godot, `room.ts`.
  *
- * **Su altura depende del cartel.** El cartel sube con los ojos y la pared no: desde 1,6 m quedaba
- * 1,9° por debajo de la tira de abajo, pero a partir de 1,8 m la alcanzaba y a 1,9 m la tenía
- * detrás entera, brillando a través del fondo del cartel. Quince centímetros más arriba las dos
- * —la separación entre ellas no cambia— quedan 0,4° de aire con los ojos a 1,9 m; más abajo,
- * más (`cartelDelMarcador.legible.test.ts`).
+ * **Their height depends on the sign.** The sign rises with the eyes and the wall does not: from
+ * 1.6 m it sat 1.9° below the lower strip, but from 1.8 m on it reached it and at 1.9 m it had it
+ * wholly behind, glowing through the background of the sign. With both fifteen centimetres higher
+ * —the separation between them does not change— 0.4° of air is left with the eyes at 1.9 m;
+ * lower down, more (`scoreboardSign.legible.test.ts`).
  */
 export const BACK_NEONS = {
   thickness: 0.06,
@@ -157,134 +159,137 @@ export const BACK_NEONS = {
   ],
 } as const
 
-/** El modo del que salen las medallas: el del récord de la cabina. */
-const MODO_QUE_CUENTA: GameMode = 'challenge'
+/** The mode the medals come from: the one of the cabinet's record. */
+const MODE_THAT_COUNTS: GameMode = 'challenge'
 
-/** La misión del reto en una frase. */
+/** The challenge's mission in one phrase. */
 export const CHALLENGE_MISSION = 'Win games until you lose one'
 
-/** Lo que le queda a quien juega: la ronda, a cuántos goles va y lo que vale el próximo. */
+/** What remains for whoever plays: the round, how many goals it goes to and what the next one is worth. */
 export const REMAINING_TEMPLATE = 'Round {round} · to {goals} goals · goal +{points}'
 
 /**
- * Lo que queda, escrito. **De ahí salen los miles de los listones**: el próximo gol vale lo que
- * diga la ronda —la máquina sube de nivel y los goles valen más— y la racha que se lleve.
+ * What remains, written. **That is where the thousands of the thresholds come from**: the next
+ * goal is worth whatever the round says —the machine goes up a level and the goals are worth
+ * more— and the streak so far.
  */
 export function remainingText(round: number, streak: number, t: Translate): string {
-  const ronda = challengeRound(round)
+  const current = challengeRound(round)
   return t(REMAINING_TEMPLATE, {
-    round: ronda.round,
-    goals: ronda.goalTarget,
-    points: goalPoints({ difficulty: ronda.difficulty, streak: streak + 1, lap: ronda.multiplier }),
+    round: current.round,
+    goals: current.goalTarget,
+    points: goalPoints({ difficulty: current.difficulty, streak: streak + 1, lap: current.multiplier }),
   })
 }
 
-/** Si ese modo da medalla: lo que el menú dice de cada uno. */
-export function givesMedal(objetivo: Goal | null | undefined, mode: GameMode): boolean {
-  return mode === MODO_QUE_CUENTA && countsForMedal(objetivo, mode)
+/** Whether that mode gives a medal: what the menu says about each one. */
+export function givesMedal(goal: Goal | null | undefined, mode: GameMode): boolean {
+  return mode === MODE_THAT_COUNTS && countsForMedal(goal, mode)
 }
 
-/** Lo que el menú dice de un modo: si cuenta para medalla o no. */
-export function medalPhrase(objetivo: Goal | null | undefined, mode: GameMode) {
-  return givesMedal(objetivo, mode) ? ('Counts for a medal' as const) : ('Does not count for a medal' as const)
+/** What the menu says about a mode: whether it counts for a medal or not. */
+export function medalPhrase(goal: Goal | null | undefined, mode: GameMode) {
+  return givesMedal(goal, mode) ? ('Counts for a medal' as const) : ('Does not count for a medal' as const)
 }
 
-/** Lo que el cartel necesita saber de lo que se está jugando. */
+/** What the sign needs to know about what is being played. */
 export interface GameInPlay {
-  /** Lo que pasó el salón, si lo pasó. */
+  /** What the hall passed, if it passed it. */
   goal?: Goal | null
   gameMode: GameMode
   gameState: 'menu' | 'countdown' | 'playing' | 'finished'
-  /** La ronda del reto por la que se va (1 fuera de él). */
+  /** The round of the challenge currently in play (1 outside it). */
   round: number
-  /** Los goles de toda la partida, de los dos: con alguno ya se está jugando. */
-  goles: number
+  /** The goals of the whole run, by both: with any, play is already under way. */
+  goals: number
   points: number
-  /** Goles seguidos sin encajar. */
+  /** Goals in a row without conceding. */
   streak: number
-  /** El récord del modo guardado aquí al empezar; cero si no hay. */
+  /** The record of the mode stored here at the start; zero if there is none. */
   record: number
 }
 
 /**
- * La partida que se le cuenta al cartel, o `null` si no hay nada que colgar.
+ * The run the sign is told about, or `null` if there is nothing to hang.
  *
- * La que cuenta es el reto —o el modo que diga el salón—: durante la primera cuenta atrás, la
- * misión y los listones; después, el listón que falta y lo que queda; al acabar, lo que faltó. En
- * cualquier otro modo, dentro del salón el cartel dice bajito que no cuenta para medalla; con el
- * juego abierto suelto no hay medalla de la que hablar y no se cuelga. En el menú, nunca.
+ * The one that counts is the challenge —or the mode the hall says—: during the first countdown,
+ * the mission and the thresholds; afterwards, the threshold that is missing and what remains; at
+ * the end, what was missing. In any other mode, inside the hall the sign says quietly that it
+ * does not count for a medal; with the game opened on its own there is no medal to talk about and
+ * it is not hung. In the menu, never.
  */
-export function signRun(juego: GameInPlay, t: Translate): Run | null {
-  const { gameMode, gameState } = juego
+export function signRun(game: GameInPlay, t: Translate): Run | null {
+  const { gameMode, gameState } = game
   if (gameState === 'menu') return null
-  const objetivo = juego.goal ?? null
-  const mision = t(CHALLENGE_MISSION)
-  if (!givesMedal(objetivo, gameMode)) {
-    if (objetivo == null) return null
-    return { goal: objetivo, phase: 'playing', points: 0, mission: mision, counts: false, mode: t(GAME_MODE_LABELS[gameMode]) }
+  const goal = game.goal ?? null
+  const mission = t(CHALLENGE_MISSION)
+  if (!givesMedal(goal, gameMode)) {
+    if (goal == null) return null
+    return { goal, phase: 'playing', points: 0, mission, counts: false, mode: t(GAME_MODE_LABELS[gameMode]) }
   }
-  const sinEmpezar = gameState === 'countdown' && juego.round === 1 && juego.goles === 0
+  const notStarted = gameState === 'countdown' && game.round === 1 && game.goals === 0
   return {
-    goal: objetivo,
-    phase: gameState === 'finished' ? 'end' : sinEmpezar ? 'before' : 'playing',
-    points: juego.points,
-    mission: mision,
-    remaining: remainingText(juego.round, juego.streak, t),
-    record: juego.record > 0 ? juego.record : null,
+    goal,
+    phase: gameState === 'finished' ? 'end' : notStarted ? 'before' : 'playing',
+    points: game.points,
+    mission,
+    remaining: remainingText(game.round, game.streak, t),
+    record: game.record > 0 ? game.record : null,
   }
 }
 
 /**
- * Lo que el marcador del fondo calla porque ya lo dice el cartel que tiene encima.
+ * What the back scoreboard omits because the sign above it already says it.
  *
- * Con el objetivo de frente, repetir los puntos debajo era obligar a elegir dónde mirar; y la
- * ronda va escrita en el cartel mientras se juega. Al acabar el cartel dice lo que faltó, así que
- * la ronda vuelve al marcador: es en la que se quedó el reto.
+ * With the goal straight ahead, repeating the points below forced a choice of where to look; and
+ * the round is written on the sign while playing. At the end the sign says what was missing, so
+ * the round goes back to the scoreboard: it is the one the challenge stopped at.
  */
-export function scoreboardOmits(partida: Run | null): { points: boolean; round: boolean } {
-  const cuenta = partida != null && partida.counts !== false
-  return { points: cuenta, round: cuenta && partida.phase !== 'end' }
+export function scoreboardOmits(run: Run | null): { points: boolean; round: boolean } {
+  const counts = run != null && run.counts !== false
+  return { points: counts, round: counts && run.phase !== 'end' }
 }
 
-/** Cómo se llama el sonido de cada listón cruzado (`audioEngine.ts`; en Godot, su efecto renderizado). */
+/** What the sound of each crossed threshold is called (`audioEngine.ts`; in Godot, its rendered effect). */
 export const THRESHOLD_SOUND = { bronze: 'medal-bronze', silver: 'medal-silver', gold: 'medal-gold' } as const
 
 /**
- * Lo que se siente en la mano del mazo al cruzar un listón: algo lejano ha llegado, más fuerte
- * cuanto mejor es la medalla. Sale detrás del pulso del gol que lo cruzó, que si no lo cortaría.
- * A CALIBRAR CON EL VISOR.
+ * What is felt in the mallet hand on crossing a threshold: something far away has arrived,
+ * stronger the better the medal is. It comes out after the pulse of the goal that crossed it,
+ * which would otherwise cut it off. TO BE CALIBRATED WITH THE HEADSET.
  */
-export function thresholdPulses(medalla: Medal, mano: HandSide | null): HandPulse[] {
-  if (mano == null) return []
-  return pulsesFor({ type: 'arrival', hand: mano, strength: 0.5 + 0.25 * MEDALS.indexOf(medalla) }).map((pulso) => ({
-    ...pulso,
-    delay: pulso.delay + HAPTIC_RECIPES.arrival.ms,
+export function thresholdPulses(medal: Medal, hand: HandSide | null): HandPulse[] {
+  if (hand == null) return []
+  return pulsesFor({ type: 'arrival', hand, strength: 0.5 + 0.25 * MEDALS.indexOf(medal) }).map((pulse) => ({
+    ...pulse,
+    delay: pulse.delay + HAPTIC_RECIPES.arrival.ms,
   }))
 }
 
 /**
- * Lo que dura el aviso de que la partida ya cuenta, en milisegundos: lo justo para leer una
- * línea antes de que la cuenta atrás llegue al saque.
+ * How long the notice that the run now counts lasts, in milliseconds: just enough to read one
+ * line before the countdown reaches the serve.
  */
 export const NOW_IT_COUNTS_MS = 2500
 
-/** La frase del aviso: la común del salón (`palabras.ts`). */
+/** The phrase of the notice: the hall's common one (`menuWords.ts`). */
 export const NOW_IT_COUNTS_NOTICE = MENU_EN.nowItCounts
 
 /**
- * El cartel justo al cerrar el tutorial en el reto: su línea grande dice que **ahora cuenta para
- * medalla**, y luego vuelve a lo de siempre.
+ * The sign right when the tutorial closes in the challenge: its big line says that **now it
+ * counts for a medal**, and then it goes back to the usual.
  *
- * Mientras se aprende, los goles encajados no cuentan; al cerrarse el tutorial —por sus pasos,
- * por «Siguiente» o por «Saltar»— el reto empieza desde cero, y quien juega tiene que saber que lo
- * que viene ya sí cuenta. Solo en el reto, que es lo único que da medalla.
+ * While learning, the goals conceded do not count; when the tutorial closes —through its steps,
+ * through «Siguiente» or through «Saltar»— the challenge starts from zero, and whoever plays has
+ * to know that what comes now does count. Only in the challenge, which is the only thing that
+ * gives a medal.
  */
 export function withNowItCountsNotice(
-  vista: GoalSignView | null,
+  view: GoalSignView | null,
   gameMode: GameMode,
-  avisando: boolean,
+  announcing: boolean,
   t: Translate,
 ): GoalSignView | null {
-  if (vista == null || vista.subdued || gameMode !== 'challenge' || !avisando) return vista
-  return { ...vista, title: t(NOW_IT_COUNTS_NOTICE) }
+  if (view == null || view.subdued || gameMode !== 'challenge' || !announcing) return view
+  return { ...view, title: t(NOW_IT_COUNTS_NOTICE) }
 }

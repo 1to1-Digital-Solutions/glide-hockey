@@ -1,22 +1,23 @@
 /**
- * De lo que pasa en la mesa a lo que se oye y se siente, en Godot.
+ * From what happens on the table to what is heard and felt, in Godot.
  *
- * **Las reglas son las de la web**, pero dos de sus ficheros no entran en el motor: `haptics.ts`
- * importa `impactStrength` de `audioEngine.ts`, y ese abre un `AudioContext` del navegador, así que
- * el grafo entero queda fuera (`build.mjs --list-tests`). Lo poco que se usa de ellos se copia
- * aquí con su nombre en la web al lado; si `impactStrength` y los sucesos de la mano pasaran a un
- * fichero sin navegador, esto se borraría y la escena importaría el de la web.
+ * **The rules are the web's**, but two of its files do not go into the engine: `haptics.ts`
+ * imports `impactStrength` from `audioEngine.ts`, and that one opens a browser `AudioContext`, so
+ * the whole graph stays out (`build.mjs --list-tests`). The little that is used of them is copied
+ * here with its name on the web beside it; if `impactStrength` and the hand's events moved to a
+ * file with no browser, this would be deleted and the scene would import the web's.
  *
- * - **Qué se oye**: el golpe del mazo (dé quien lo dé) y el rebote en la banda, cada uno con la
- *   fuerza del choque, y el gol. Los efectos están renderizados de `audioEngine.ts` a tres
- *   fuerzas (`godot-kit.json`): se elige la más cercana a la del choque, como el volumen y el tono
- *   que la web calcula a cada golpe.
- * - **El roce del disco** (`roceDelDisco`): un bucle renderizado de la voz continua de la web a la
- *   velocidad máxima, al que se le baja el volumen y el tono con la velocidad de ahora, con las
- *   mismas cuentas que la web (`slideSound.ts`).
- * - **Qué se siente** (`sucesosDelFotograma` y `pulsosDelSuceso`): solo el golpe del mazo **del
- *   jugador** al disco, en la mano que lo lleva y con la fuerza del choque; el gol, suave; y el
- *   final del partido, largo. El roce y el rebote no los toca la mano, así que no vibran.
+ * - **What is heard**: the mallet's strike (whoever deals it) and the bounce off the rail, each
+ *   with the strength of the collision, and the goal. The effects are rendered from
+ *   `audioEngine.ts` at three strengths (`godot-kit.json`): the closest to the collision's is
+ *   chosen, like the volume and the pitch the web computes at every strike.
+ * - **The puck's slide** (`puckSlide`): a loop rendered from the web's continuous voice at top
+ *   speed, whose volume and pitch are lowered with the speed of the moment, with the same sums as
+ *   the web (`slideSound.ts`).
+ * - **What is felt** (`frameEvents` and `eventPulses`): only the hit of the **player's** mallet on
+ *   the puck, in the hand that carries it and with the strength of the collision; the goal, soft;
+ *   and the end of the match, long. The slide and the bounce are not touched by the hand, so they
+ *   do not vibrate.
  */
 import { thresholdPulses } from '@/lib/scoreboardSign'
 import { MAX_PUCK_SPEED } from '@/lib/gameConfig'
@@ -25,74 +26,75 @@ import type { Medal } from '@/lib/goal'
 import { slideLevel, slidePitch } from '@/lib/slideSound'
 import { pulsesFor, type HandSide, type HandPulse } from '@/lib/hapticFeedback'
 
-/** A qué velocidad se renderizó el bucle del roce (`loops.slide` de `godot-kit.json`): la máxima. */
-export const VELOCIDAD_DEL_BUCLE = MAX_PUCK_SPEED
+/** At what speed the slide loop was rendered (`loops.slide` of `godot-kit.json`): the top one. */
+export const LOOP_SPEED = MAX_PUCK_SPEED
 
 /**
- * Cómo suena el roce a esta velocidad (m/s), respecto al bucle renderizado: el volumen, en la
- * proporción del de la web (`slideLevel`), y el tono, en la de su filtro (`slidePitch`). El bucle
- * es ruido pasado por ese filtro paso banda; reproducido más despacio, la banda baja en la misma
- * proporción y con la misma forma, que es lo que hace la web al mover el filtro. Por eso se
- * renderiza a la velocidad máxima: de ahí todo es bajar, y el volumen nunca pasa del que se afinó.
+ * How the slide sounds at this speed (m/s), relative to the rendered loop: the volume, in the
+ * proportion of the web's (`slideLevel`), and the pitch, in that of its filter (`slidePitch`). The
+ * loop is noise passed through that band-pass filter; played back slower, the band drops in the
+ * same proportion and with the same shape, which is what the web does when it moves the filter.
+ * That is why it is rendered at top speed: from there everything is going down, and the volume
+ * never goes above the one that was tuned.
  */
-export function roceDelDisco(speed: number): { volume: number; pitch: number } {
+export function puckSlide(speed: number): { volume: number; pitch: number } {
   return {
-    volume: slideLevel(speed) / slideLevel(VELOCIDAD_DEL_BUCLE),
-    pitch: slidePitch(speed) / slidePitch(VELOCIDAD_DEL_BUCLE),
+    volume: slideLevel(speed) / slideLevel(LOOP_SPEED),
+    pitch: slidePitch(speed) / slidePitch(LOOP_SPEED),
   }
 }
 
-/** Cuánto de fuerte es un impacto, de 0 a 1, por su velocidad en m/s (`impactStrength`). */
+/** How strong an impact is, from 0 to 1, by its speed in m/s (`impactStrength`). */
 export function impactStrength(speed: number): number {
   if (!Number.isFinite(speed) || speed <= 0) return 0
   return Math.min(1, speed / MAX_PUCK_SPEED)
 }
 
-/** Las tres fuerzas a las que se renderizaron el golpe y el rebote (`godot-kit.json`). */
-export const FUERZAS = { suave: 0.2, medio: 0.5, fuerte: 0.9 } as const
+/** The three strengths the strike and the bounce were rendered at (`godot-kit.json`). */
+export const STRENGTHS = { suave: 0.2, medio: 0.5, fuerte: 0.9 } as const
 
-/** El efecto renderizado más cercano a una fuerza de 0 a 1. */
-export function efectoDelChoque(sonido: 'strike' | 'bounce', fuerza: number): string {
-  let mejor: keyof typeof FUERZAS = 'suave'
-  for (const nombre of Object.keys(FUERZAS) as (keyof typeof FUERZAS)[]) {
-    if (Math.abs(FUERZAS[nombre] - fuerza) < Math.abs(FUERZAS[mejor] - fuerza)) mejor = nombre
+/** The rendered effect closest to a strength from 0 to 1. */
+export function collisionSound(sound: 'strike' | 'bounce', strength: number): string {
+  let best: keyof typeof STRENGTHS = 'suave'
+  for (const name of Object.keys(STRENGTHS) as (keyof typeof STRENGTHS)[]) {
+    if (Math.abs(STRENGTHS[name] - strength) < Math.abs(STRENGTHS[best] - strength)) best = name
   }
-  return `${sonido}-${mejor}`
+  return `${sound}-${best}`
 }
 
-/** Lo fuerte que llega el gol en la mano: la más suave de las llegadas (`FUERZA_DEL_GOL`). */
-export const FUERZA_DEL_GOL = 0
+/** How strongly the goal reaches the hand: the softest of the arrivals (`GOAL_STRENGTH`). */
+export const GOAL_STRENGTH = 0
 
-/** El final del partido en la mano del mazo (`FINAL_PULSE`). */
-export const PULSO_DEL_FINAL = { intensidad: 0.6, ms: 220 } as const
+/** The end of the match in the mallet's hand (`FINAL_PULSE`). */
+export const END_PULSE = { intensity: 0.6, ms: 220 } as const
 
-/** Lo que se siente de un suceso de la mesa (`SucesoEnLaMano`). */
-export type SucesoEnLaMano =
-  | { readonly tipo: 'hit'; readonly fuerza: number }
-  | { readonly tipo: 'goal' }
-  | { readonly tipo: 'end' }
-  /** Se cruza un listón de medalla: lo celebra el cartel del objetivo. */
-  | { readonly tipo: 'threshold'; readonly medalla: Medal }
+/** What is felt of an event on the table (`HandEvent`). */
+export type HandEvent =
+  | { readonly type: 'hit'; readonly strength: number }
+  | { readonly type: 'goal' }
+  | { readonly type: 'end' }
+  /** A medal threshold is crossed: the goal sign celebrates it. */
+  | { readonly type: 'threshold'; readonly medal: Medal }
 
-/** Lo que de un fotograma de la mesa llega a la mano (`sucesosDelFotograma`). */
-export function sucesosDelFotograma(golpesAntes: number, { table, goals, impact }: Pick<FrameResult, 'table' | 'goals' | 'impact'>): SucesoEnLaMano[] {
-  const sucesos: SucesoEnLaMano[] = []
-  if (table.playerHits > golpesAntes) sucesos.push({ tipo: 'hit', fuerza: impactStrength(impact.strike) })
-  if (goals.length > 0) sucesos.push({ tipo: 'goal' })
-  return sucesos
+/** What of one frame of the table reaches the hand (`frameEvents`). */
+export function frameEvents(hitsBefore: number, { table, goals, impact }: Pick<FrameResult, 'table' | 'goals' | 'impact'>): HandEvent[] {
+  const events: HandEvent[] = []
+  if (table.playerHits > hitsBefore) events.push({ type: 'hit', strength: impactStrength(impact.strike) })
+  if (goals.length > 0) events.push({ type: 'goal' })
+  return events
 }
 
-/** Los pulsos de un suceso en la mano que lleva el mazo; sin mano, ninguno (`pulsosDelSuceso`). */
-export function pulsosDelSuceso(suceso: SucesoEnLaMano, mazo: HandSide | null): HandPulse[] {
-  if (mazo == null) return []
-  switch (suceso.tipo) {
+/** The pulses of an event in the hand that carries the mallet; with no hand, none (`eventPulses`). */
+export function eventPulses(event: HandEvent, mallet: HandSide | null): HandPulse[] {
+  if (mallet == null) return []
+  switch (event.type) {
     case 'hit':
-      return pulsesFor({ type: 'impact', hand: mazo, strength: Number.isFinite(suceso.fuerza) ? suceso.fuerza : 1 })
+      return pulsesFor({ type: 'impact', hand: mallet, strength: Number.isFinite(event.strength) ? event.strength : 1 })
     case 'goal':
-      return pulsesFor({ type: 'arrival', hand: mazo, strength: FUERZA_DEL_GOL })
+      return pulsesFor({ type: 'arrival', hand: mallet, strength: GOAL_STRENGTH })
     case 'end':
-      return [{ hand: mazo, intensity: PULSO_DEL_FINAL.intensidad, ms: PULSO_DEL_FINAL.ms, delay: 0 }]
+      return [{ hand: mallet, intensity: END_PULSE.intensity, ms: END_PULSE.ms, delay: 0 }]
     case 'threshold':
-      return thresholdPulses(suceso.medalla, mazo)
+      return thresholdPulses(event.medal, mallet)
   }
 }

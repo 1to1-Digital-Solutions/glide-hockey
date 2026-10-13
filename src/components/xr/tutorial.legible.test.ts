@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   BUTTON,
-  BOTONES,
-  FRASES,
+  PANEL_BUTTONS,
+  PHRASES,
   PHRASES_WITH_ONE_TAP,
   PANEL_HEIGHT,
   PANEL_WIDTH,
@@ -36,88 +36,88 @@ import { SIGN_PLACEMENT } from '../game/ScoreboardSign'
 import { XR_UI, XR_UI_ROTATION, fromPlayerSpace, panelViews } from '../game/GameWorld'
 
 /**
- * El panel del tutorial, medido en vez de mirado.
+ * The tutorial panel, measured instead of looked at.
  *
- * Es el texto más nuevo del juego y el único que **nadie ha visto todavía con el
- * visor puesto**: una frase que se saliera del panel se descubriría en la sesión
- * de pruebas y costaría una tanda entera. Se recorren los dos idiomas, los dos
- * modos de agarre —mantener y un toque, que dicen frases distintas— y todos los
- * pasos.
+ * It is the newest text of the game and the only one that **nobody has seen yet
+ * with the headset on**: a phrase that ran off the panel would be discovered in
+ * the test session and would cost a whole round. Both languages are covered,
+ * both grab modes —hold and one tap, which say different phrases— and all the
+ * steps.
  */
 
-const IDIOMAS = ['en', 'es'] as const
+const LANGUAGES = ['en', 'es'] as const
 const PANEL = { width: PANEL_WIDTH, height: PANEL_HEIGHT }
-const VISTAS = panelViews(XR_UI.tutorial, XR_UI_ROTATION.tutorial)
+const VIEWS = panelViews(XR_UI.tutorial, XR_UI_ROTATION.tutorial)
 
-/** A qué distancia se miden los problemas: la de lectura del texto que peor se lee, con el escorzo. */
-function distancia(escritos: readonly DrawnText[]): number {
-  return Math.max(...VISTAS.map(({ pose, eyes: ojos }) => worstReadingDistance(escritos, pose, ojos, LINE_HEIGHT)))
+/** At what distance the problems are measured: the reading one of the text that reads worst, with the foreshortening. */
+function readingDistance(texts: readonly DrawnText[]): number {
+  return Math.max(...VIEWS.map(({ pose, eyes: eyePoint }) => worstReadingDistance(texts, pose, eyePoint, LINE_HEIGHT)))
 }
 
-/** Lo que escribe cada paso, con los dos agarres y en los dos idiomas. */
-function todosLosPasos(): { donde: string; escritos: DrawnText[] }[] {
-  const pasos: { donde: string; escritos: DrawnText[] }[] = []
-  for (const lang of IDIOMAS) {
-    for (const frases of [FRASES, PHRASES_WITH_ONE_TAP]) {
+/** What each step writes, with both grabs and in both languages. */
+function allSteps(): { where: string; texts: DrawnText[] }[] {
+  const steps: { where: string; texts: DrawnText[] }[] = []
+  for (const lang of LANGUAGES) {
+    for (const phrases of [PHRASES, PHRASES_WITH_ONE_TAP]) {
       for (const step of TUTORIAL_STEPS) {
-        const { ctx, drawnTexts: escritos } = recordingCanvas()
-        drawStep(ctx, step, frases, translator(lang))
-        pasos.push({ donde: `${lang} ${step}: «${translator(lang)(frases[step])}»`, escritos })
+        const { ctx, drawnTexts: texts } = recordingCanvas()
+        drawStep(ctx, step, phrases, translator(lang))
+        steps.push({ where: `${lang} ${step}: «${translator(lang)(phrases[step])}»`, texts })
       }
     }
   }
-  return pasos
+  return steps
 }
 
-describe('el panel del tutorial se lee', () => {
-  it('en cada paso, con los dos agarres y en los dos idiomas', () => {
-    for (const lang of IDIOMAS) {
-      for (const frases of [FRASES, PHRASES_WITH_ONE_TAP]) {
+describe('the tutorial panel reads', () => {
+  it('at each step, with both grabs and in both languages', () => {
+    for (const lang of LANGUAGES) {
+      for (const phrases of [PHRASES, PHRASES_WITH_ONE_TAP]) {
         for (const step of TUTORIAL_STEPS) {
-          const { ctx, drawnTexts: escritos } = recordingCanvas()
-          drawStep(ctx, step, frases, translator(lang))
-          const donde = `${lang} ${step}: «${translator(lang)(frases[step])}»`
-          expect(escritos.length, donde).toBeGreaterThan(0)
-          expect(legibilityProblems(escritos, { panel: PANEL, distance: distancia(escritos) }), donde).toEqual([])
+          const { ctx, drawnTexts: texts } = recordingCanvas()
+          drawStep(ctx, step, phrases, translator(lang))
+          const where = `${lang} ${step}: «${translator(lang)(phrases[step])}»`
+          expect(texts.length, where).toBeGreaterThan(0)
+          expect(legibilityProblems(texts, { panel: PANEL, distance: readingDistance(texts) }), where).toEqual([])
         }
       }
     }
   })
 
   /**
-   * El control de la propia medida: un panel del que no se leyera nada daría cero
-   * problemas igual que uno perfecto. Estrechado a la mitad tiene que cantar.
+   * The control of the measurement itself: a panel of which nothing was read would
+   * give zero problems just like a perfect one. Narrowed to half it has to complain.
    */
-  it('y la medida se entera cuando la frase no cabe', () => {
-    const { ctx, drawnTexts: escritos } = recordingCanvas()
-    drawStep(ctx, TUTORIAL_STEPS[0], FRASES, translator('es'))
-    const estrecho = { width: PANEL.width / 2, height: PANEL.height }
-    expect(legibilityProblems(escritos, { panel: estrecho }).join(' ')).toContain(
+  it('and the measurement notices when the phrase does not fit', () => {
+    const { ctx, drawnTexts: texts } = recordingCanvas()
+    drawStep(ctx, TUTORIAL_STEPS[0], PHRASES, translator('es'))
+    const narrow = { width: PANEL.width / 2, height: PANEL.height }
+    expect(legibilityProblems(texts, { panel: narrow }).join(' ')).toContain(
       'runs off the panel',
     )
   })
 
   /**
-   * El mando dibujado no es texto, así que el instrumento no lo apunta y un choque
-   * con él no se cantaría solo. Se comprueba contra el reparto de verdad —el mismo
-   * que se pinta, no una copia—: ocupa 18 cm de alto y es justo lo que la frase
-   * larga se comía al crecer hacia abajo.
+   * The drawn controller is not text, so the instrument does not record it and a
+   * clash with it would not be called out by itself. It is checked against the real
+   * layout —the same one that is painted, not a copy—: it takes up 18 cm of height
+   * and is exactly what the long phrase ate into as it grew downwards.
    */
-  it('y ninguna frase se mete en el mando dibujado', () => {
-    for (const lang of IDIOMAS) {
-      for (const frases of [FRASES, PHRASES_WITH_ONE_TAP]) {
+  it('and no phrase gets into the drawn controller', () => {
+    for (const lang of LANGUAGES) {
+      for (const phrases of [PHRASES, PHRASES_WITH_ONE_TAP]) {
         for (const step of TUTORIAL_STEPS) {
-          const { ctx, drawnTexts: escritos } = recordingCanvas()
-          drawStep(ctx, step, frases, translator(lang))
-          const { controller: mando } = stepLayout(ctx, step, frases, translator(lang))
-          const arriba = mando + CONTROLLER_HEIGHT / 2
-          const abajo = mando - CONTROLLER_HEIGHT / 2
-          for (const escrito of escritos) {
-            const pisa = escrito.y - escrito.height / 2 < arriba && escrito.y + escrito.height / 2 > abajo
-            expect(pisa, `${lang} ${step}: «${escrito.text}» pisa el mando`).toBe(false)
+          const { ctx, drawnTexts: texts } = recordingCanvas()
+          drawStep(ctx, step, phrases, translator(lang))
+          const { controller: controllerY } = stepLayout(ctx, step, phrases, translator(lang))
+          const top = controllerY + CONTROLLER_HEIGHT / 2
+          const bottom = controllerY - CONTROLLER_HEIGHT / 2
+          for (const drawnText of texts) {
+            const overlaps = drawnText.y - drawnText.height / 2 < top && drawnText.y + drawnText.height / 2 > bottom
+            expect(overlaps, `${lang} ${step}: «${drawnText.text}» overlaps the controller`).toBe(false)
           }
-          // Y el mando entero cabe en el panel.
-          expect(abajo, `${lang} ${step}: el mando se sale por abajo`).toBeGreaterThan(
+          // And the whole controller fits in the panel.
+          expect(bottom, `${lang} ${step}: the controller runs off the bottom`).toBeGreaterThan(
             -PANEL_HEIGHT / 2,
           )
         }
@@ -125,110 +125,110 @@ describe('el panel del tutorial se lee', () => {
     }
   })
 
-  it('sin paso que enseñar no escribe nada: el tutorial se ha acabado', () => {
-    const { ctx, drawnTexts: escritos } = recordingCanvas()
-    drawStep(ctx, null, FRASES, translator('es'))
-    expect(escritos).toEqual([])
+  it('with no step to show it writes nothing: the tutorial is over', () => {
+    const { ctx, drawnTexts: texts } = recordingCanvas()
+    drawStep(ctx, null, PHRASES, translator('es'))
+    expect(texts).toEqual([])
   })
 })
 
 /**
- * Que cada letra del tutorial se lea de un vistazo desde donde se juega, **tal como la apunta el
- * lienzo**: el contador y los botones iban a 30 y 32 mm y «Saltar tutorial» se encogía a 29 para
- * caber, y a metro y medio se quedaban en 1°.
+ * That every letter of the tutorial reads at a glance from where the game is played, **just as
+ * the canvas records it**: the counter and the buttons were at 30 and 32 mm and «Saltar tutorial»
+ * shrank to 29 to fit, and at a metre and a half they were left at 1°.
  */
-describe('cada letra del tutorial se lee de un vistazo', () => {
-  it(`ninguna baja de ${MIN_READING_DEGREES}°, en cada paso, agarre, idioma y altura de ojos`, () => {
-    for (const { donde, escritos } of todosLosPasos()) {
-      for (const vista of VISTAS) {
-        expect(unreadableTexts(escritos, vista.pose, vista.eyes, LINE_HEIGHT), `${donde}, ${vista.where}`).toEqual([])
+describe('every letter of the tutorial reads at a glance', () => {
+  it(`none drops below ${MIN_READING_DEGREES}°, at each step, grab, language and eye height`, () => {
+    for (const { where, texts } of allSteps()) {
+      for (const view of VIEWS) {
+        expect(unreadableTexts(texts, view.pose, view.eyes, LINE_HEIGHT), `${where}, ${view.where}`).toEqual([])
       }
     }
   })
 
-  it('y todas se escriben con un tamaño de la lista, sin encogerse', () => {
-    for (const { donde, escritos } of todosLosPasos()) {
-      expect(sizesOffList(escritos, LINE_HEIGHT, Object.values(TUTORIAL_TEXT)), donde).toEqual([])
+  it('and all of them are written at a size from the list, without shrinking', () => {
+    for (const { where, texts } of allSteps()) {
+      expect(sizesOffList(texts, LINE_HEIGHT, Object.values(TUTORIAL_TEXT)), where).toEqual([])
     }
   })
 
-  it('y ninguna frase se mete en los botones de abajo', () => {
-    const botones = BOTONES.map((boton) => ({ x: boton.x, y: BUTTON.y, width: BUTTON.width, height: BUTTON.height }))
-    for (const { donde, escritos } of todosLosPasos()) {
-      expect(textsOnButtons(escritos, botones), donde).toEqual([])
+  it('and no phrase gets into the buttons below', () => {
+    const buttons = PANEL_BUTTONS.map((button) => ({ x: button.x, y: BUTTON.y, width: BUTTON.width, height: BUTTON.height }))
+    for (const { where, texts } of allSteps()) {
+      expect(textsOnButtons(texts, buttons), where).toEqual([])
     }
   })
 
-  it('el control: el contador a 30 mm, en el sitio y con el giro de antes, no llegaba', () => {
-    const { escritos } = todosLosPasos()[0]
-    const contador = escritos.find((e) => e.text.startsWith('1/'))!
-    const comoEstaba: PanelPose = { position: fromPlayerSpace([0, 0.66, -0.35]), rotation: [-0.2, 0, 0] }
-    expect(unreadableTexts([{ ...contador, height: 0.03 * LINE_HEIGHT }], comoEstaba, eyesAt(1.6), LINE_HEIGHT)).toHaveLength(1)
+  it('the control: the counter at 30 mm, in the place and with the rotation it had before, did not make it', () => {
+    const { texts } = allSteps()[0]
+    const counter = texts.find((e) => e.text.startsWith('1/'))!
+    const asItWas: PanelPose = { position: fromPlayerSpace([0, 0.66, -0.35]), rotation: [-0.2, 0, 0] }
+    expect(unreadableTexts([{ ...counter, height: 0.03 * LINE_HEIGHT }], asItWas, eyesAt(1.6), LINE_HEIGHT)).toHaveLength(1)
   })
 })
 
-describe('dónde se planta el tutorial', () => {
-  const MEDIDAS = { width: PANEL_WIDTH, height: PANEL_HEIGHT }
-  /** Lo que mide el cartel donde cuelga, y el marcador. */
-  const CARTEL = {
+describe('where the tutorial is planted', () => {
+  const SIZE = { width: PANEL_WIDTH, height: PANEL_HEIGHT }
+  /** What the sign measures where it hangs, and the scoreboard. */
+  const SIGN = {
     width: signAspect().width * SIGN_PLACEMENT.distance,
     height: signAspect().height * SIGN_PLACEMENT.distance,
   }
 
-  /** El cartel y el marcador, que suben con los ojos igual que el tutorial. */
-  function loQueSeLee(sube: number) {
-    const cartel = fromPlayerSpace(SIGN_PLACEMENT.position)
-    const marcador = fromPlayerSpace(XR_UI.scoreboard)
+  /** The sign and the scoreboard, which rise with the eyes just like the tutorial. */
+  function whatIsRead(rise: number) {
+    const sign = fromPlayerSpace(SIGN_PLACEMENT.position)
+    const scoreboard = fromPlayerSpace(XR_UI.scoreboard)
     return [
-      { what: 'el cartel', points: panelPoints([cartel[0], cartel[1] + sube, cartel[2]], CARTEL, 8) },
-      { what: 'el marcador', points: panelPoints([marcador[0], marcador[1] + sube, marcador[2]], SCOREBOARD_SIZE, 8) },
+      { what: 'the sign', points: panelPoints([sign[0], sign[1] + rise, sign[2]], SIGN, 8) },
+      { what: 'the scoreboard', points: panelPoints([scoreboard[0], scoreboard[1] + rise, scoreboard[2]], SCOREBOARD_SIZE, 8) },
     ]
   }
 
-  it('no tapa la mesa: ni el tablero ni el disco, desde los ojos con los que se colocó', () => {
-    const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
+  it('does not hide the table: neither the board nor the puck, from the eyes it was placed with', () => {
+    const eyes = eyesAt(REFERENCE_EYE_HEIGHT)
     const tutorial: PanelPose = { position: fromPlayerSpace(XR_UI.tutorial), rotation: XR_UI_ROTATION.tutorial }
-    const mesa = [
-      { what: 'la mesa', points: tablePoints(13) },
-      { what: 'el disco y los mazos', points: tablePoints(13).map((p) => ({ ...p, y: p.y + 0.12 })) },
+    const table = [
+      { what: 'the table', points: tablePoints(13) },
+      { what: 'the puck and the mallets', points: tablePoints(13).map((p) => ({ ...p, y: p.y + 0.12 })) },
     ]
-    expect(whatThePanelHides(tutorial, MEDIDAS, ojos, mesa)).toEqual([])
+    expect(whatThePanelHides(tutorial, SIZE, eyes, table)).toEqual([])
   })
 
-  it('ni el cartel del objetivo ni el marcador, a ninguna altura de ojos: está a un lado', () => {
-    for (const { where: donde, pose, eyes: ojos } of VISTAS) {
-      const sube = pose.position[1] - fromPlayerSpace(XR_UI.tutorial)[1]
-      expect(whatThePanelHides(pose, MEDIDAS, ojos, loQueSeLee(sube)), donde).toEqual([])
+  it('neither the goal sign nor the scoreboard, at any eye height: it is to one side', () => {
+    for (const { where: place, pose, eyes: eyePoint } of VIEWS) {
+      const rise = pose.position[1] - fromPlayerSpace(XR_UI.tutorial)[1]
+      expect(whatThePanelHides(pose, SIZE, eyePoint, whatIsRead(rise)), place).toEqual([])
     }
   })
 
-  it('con dos grados de aire entre su canto y el del cartel', () => {
-    const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
-    const azimut = (p: { x: number; z: number }) => (Math.atan2(p.x - ojos.x, -(p.z - ojos.z)) * 180) / Math.PI
+  it("with two degrees of gap between its edge and the sign's", () => {
+    const eyes = eyesAt(REFERENCE_EYE_HEIGHT)
+    const azimuth = (p: { x: number; z: number }) => (Math.atan2(p.x - eyes.x, -(p.z - eyes.z)) * 180) / Math.PI
     const tutorial: PanelPose = { position: fromPlayerSpace(XR_UI.tutorial), rotation: XR_UI_ROTATION.tutorial }
-    const cartel: PanelPose = { position: fromPlayerSpace(SIGN_PLACEMENT.position), rotation: SIGN_PLACEMENT.rotation }
-    const cantoDelTutorial = Math.min(...[-1, 1].map((y) => azimut(pointOnPanel(tutorial, -PANEL_WIDTH / 2, (y * PANEL_HEIGHT) / 2))))
-    const cantoDelCartel = Math.max(...[-1, 1].map((y) => azimut(pointOnPanel(cartel, CARTEL.width / 2, (y * CARTEL.height) / 2))))
-    expect(cantoDelTutorial - cantoDelCartel).toBeGreaterThan(1.5)
-    // Y sin irse más lejos de lo que hace falta: se sigue viendo girando poco la cabeza.
-    expect(cantoDelTutorial - cantoDelCartel).toBeLessThan(3)
+    const sign: PanelPose = { position: fromPlayerSpace(SIGN_PLACEMENT.position), rotation: SIGN_PLACEMENT.rotation }
+    const tutorialEdge = Math.min(...[-1, 1].map((y) => azimuth(pointOnPanel(tutorial, -PANEL_WIDTH / 2, (y * PANEL_HEIGHT) / 2))))
+    const signEdge = Math.max(...[-1, 1].map((y) => azimuth(pointOnPanel(sign, SIGN.width / 2, (y * SIGN.height) / 2))))
+    expect(tutorialEdge - signEdge).toBeGreaterThan(1.5)
+    // And without going further away than needed: it is still seen by turning the head a little.
+    expect(tutorialEdge - signEdge).toBeLessThan(3)
   })
 
-  it('a la misma distancia de los ojos que tenía de frente: cada letra ocupa lo mismo', () => {
-    const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
-    expect(distanceFromEyes(fromPlayerSpace(XR_UI.tutorial), ojos)).toBeCloseTo(
-      distanceFromEyes(fromPlayerSpace(tutorialPlacement(0)), ojos),
+  it('at the same distance from the eyes it had facing forward: every letter takes up the same', () => {
+    const eyes = eyesAt(REFERENCE_EYE_HEIGHT)
+    expect(distanceFromEyes(fromPlayerSpace(XR_UI.tutorial), eyes)).toBeCloseTo(
+      distanceFromEyes(fromPlayerSpace(tutorialPlacement(0)), eyes),
       10,
     )
   })
 
-  it('el control: de frente, donde estaba, tapaba el cartel y el marcador enteros', () => {
-    const ojos = eyesAt(REFERENCE_EYE_HEIGHT)
+  it('the control: facing forward, where it was, it hid the whole sign and scoreboard', () => {
+    const eyes = eyesAt(REFERENCE_EYE_HEIGHT)
     const position = fromPlayerSpace(tutorialPlacement(0))
-    const deFrente: PanelPose = { position, rotation: panelRotation(position, ojos) }
-    expect(whatThePanelHides(deFrente, MEDIDAS, ojos, loQueSeLee(0))).toEqual([
-      'el panel tapa el cartel en 81 de 81 puntos',
-      'el panel tapa el marcador en 81 de 81 puntos',
+    const facing: PanelPose = { position, rotation: panelRotation(position, eyes) }
+    expect(whatThePanelHides(facing, SIZE, eyes, whatIsRead(0))).toEqual([
+      'the panel hides the sign at 81 of 81 points',
+      'the panel hides the scoreboard at 81 of 81 points',
     ])
   })
 })

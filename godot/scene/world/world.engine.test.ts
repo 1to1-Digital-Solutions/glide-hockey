@@ -1,16 +1,17 @@
 /**
- * El mundo de Glide Hockey en Godot, contra la web y en el motor:
+ * The world of Glide Hockey in Godot, against the web and in the engine:
  *
- * - **El salón** (`Room.tsx`): las copias de cada malla múltiple, las recreativas dentro de la sala y
- *   de cara a la mesa, y el halo bajo ella.
- * - **La sala y tu habitación**: la habitación solo con realidad aumentada; con ella, la sala se
- *   esconde sin desmontarse y el fondo deja de tapar.
- * - **Las ayudas** (`Ayudas.tsx`) con el guion de la web: qué se enciende al entrar, al empezar la
- *   partida y al coger el mazo, qué apaga cada hito, los plazos, que nada aparece de golpe, que sin
- *   visor no se enseñan, y que lo pintado cae donde dicen las cotas de `guionDeAyudas.ts`.
- * - **El mando de verdad** junto al mazo fantasma, con el modelo del paquete y el agarre marcado.
+ * - **The arcade room** (`Room.tsx`): the copies of each multimesh, the arcade machines inside the
+ *   room and facing the table, and the halo under it.
+ * - **The room and your own room**: your room only with augmented reality; with it, the room is
+ *   hidden without being unmounted and the background stops covering.
+ * - **The hints** (`Hints.tsx`) with the web's script: what lights up on entering, on starting the
+ *   match and on grabbing the mallet, what each milestone puts out, the deadlines, that nothing
+ *   appears all at once, that without a headset they are not shown, and that what is painted lands
+ *   where the measurements of `hintScript.ts` say.
+ * - **The real controller** beside the ghost mallet, with the package's model and the grip marked.
  *
- * Corre dentro del motor, con los tests de dominio (`npm run godot:build -- --tests`).
+ * It runs inside the engine, with the domain tests (`npm run godot:build -- --tests`).
  */
 import { Environment, Node3D } from 'godot'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -34,186 +35,186 @@ import {
 import { playerStart } from '@/lib/opponent'
 import { gameStorage } from '@/lib/storage'
 
-import { AyudasDelJuego, juntoAlMazo } from './hints'
-import { CABINET, ROOM, Sala, sitiosDeLasMaquinas } from './room'
+import { GameHints, besideMallet } from './hints'
+import { CABINET, ROOM, Room, machinePlacements } from './room'
 
-const DIR_DE_LOS_MANDOS = 'res://games/glide-hockey/mandos'
+const CONTROLLERS_DIR = 'res://games/glide-hockey/mandos'
 
-describe('el salón de la web', () => {
-  it('las mismas copias que las mallas instanciadas de la web', () => {
-    const sala = new Sala(new Environment())
-    expect(sala.copias).toEqual({ bandas: 5, paredes: 3, zocalos: 3, maquinas: 10 })
-    sala.nodo.free()
+describe('the arcade room of the web', () => {
+  it('the same copies as the instanced meshes of the web', () => {
+    const room = new Room(new Environment())
+    expect(room.copies).toEqual({ stripes: 5, walls: 3, trims: 3, machines: 10 })
+    room.node.free()
   })
 
-  it('las recreativas caben entre las paredes y miran hacia la mesa', () => {
-    for (const s of sitiosDeLasMaquinas()) {
+  it('the arcade machines fit between the walls and face the table', () => {
+    for (const s of machinePlacements()) {
       expect(Math.abs(s.x) + CABINET.depth / 2).toBeLessThanOrEqual(ROOM.width / 2)
       expect(s.z - CABINET.depth / 2).toBeGreaterThanOrEqual(TABLE_CENTER_Z - ROOM.depth / 2)
-      // Su frente (+Z girado) apunta hacia el centro de la mesa y no hacia la pared.
-      const frente = { x: Math.sin(s.giro), z: Math.cos(s.giro) }
-      const hacia = { x: -s.x, z: TABLE_CENTER_Z - s.z }
-      expect(frente.x * hacia.x + frente.z * hacia.z, JSON.stringify(s)).toBeGreaterThan(0)
+      // Its front (+Z rotated) points toward the centre of the table and not toward the wall.
+      const front = { x: Math.sin(s.rotation), z: Math.cos(s.rotation) }
+      const toward = { x: -s.x, z: TABLE_CENTER_Z - s.z }
+      expect(front.x * toward.x + front.z * toward.z, JSON.stringify(s)).toBeGreaterThan(0)
     }
   })
 })
 
-describe('la sala y tu habitación', () => {
-  let sala: Sala
-  let entorno: Environment
-  let transparente: boolean[]
+describe('the room and your own room', () => {
+  let room: Room
+  let environment: Environment
+  let transparentCalls: boolean[]
   let passthrough: boolean
-  const vista: RoomView = {
+  const view: RoomView = {
     hayPassthrough: () => passthrough,
-    transparente: (si) => transparente.push(si),
+    transparente: (yes) => transparentCalls.push(yes),
   }
 
   beforeEach(() => {
     gameStorage()?.clear()
-    entorno = new Environment()
-    sala = new Sala(entorno)
-    transparente = []
+    environment = new Environment()
+    room = new Room(environment)
+    transparentCalls = []
     passthrough = false
   })
-  afterEach(() => sala.nodo.free())
+  afterEach(() => room.node.free())
 
-  it('sin realidad aumentada se ve la sala aunque el salón pida la habitación', () => {
-    const escenario = new SceneryRig({ mostrar: (si) => sala.mostrar(si), vista })
+  it('without augmented reality the room is seen even if the hall asks for your own room', () => {
+    const scenery = new SceneryRig({ mostrar: (yes) => room.show(yes), vista: view })
     gameStorage()!.setItem('xrcade:scenery', 'room')
-    escenario.actualizar()
-    expect(escenario.hayHabitacion).toBe(false)
-    expect(sala.nodo.visible).toBe(true)
-    expect(entorno.background_color.a).toBe(1)
-    expect(transparente).toEqual([false])
+    scenery.actualizar()
+    expect(scenery.hayHabitacion).toBe(false)
+    expect(room.node.visible).toBe(true)
+    expect(environment.background_color.a).toBe(1)
+    expect(transparentCalls).toEqual([false])
   })
 
-  it('con ella, la habitación: la sala se esconde sin desmontarse y el fondo no tapa', () => {
+  it('with it, your own room: the room is hidden without being unmounted and the background does not cover', () => {
     passthrough = true
-    const escenario = new SceneryRig({ mostrar: (si) => sala.mostrar(si), vista })
-    escenario.alternar()
-    escenario.actualizar()
-    expect(escenario.elegido).toBe('room')
-    expect(sala.nodo.visible).toBe(false)
-    expect(sala.nodo.get_child_count()).toBeGreaterThan(5)
-    expect(entorno.background_color.a).toBe(0)
-    expect(transparente).toEqual([true])
-    // Volver a la sala la enseña; lo elegido va en la clave del salón, para todas las cabinas.
-    escenario.alternar()
-    escenario.actualizar()
-    expect(escenario.elegido).toBe('place')
-    expect(sala.nodo.visible).toBe(true)
+    const scenery = new SceneryRig({ mostrar: (yes) => room.show(yes), vista: view })
+    scenery.alternar()
+    scenery.actualizar()
+    expect(scenery.elegido).toBe('room')
+    expect(room.node.visible).toBe(false)
+    expect(room.node.get_child_count()).toBeGreaterThan(5)
+    expect(environment.background_color.a).toBe(0)
+    expect(transparentCalls).toEqual([true])
+    // Going back to the room shows it; the choice goes in the hall's key, for every cabinet.
+    scenery.alternar()
+    scenery.actualizar()
+    expect(scenery.elegido).toBe('place')
+    expect(room.node.visible).toBe(true)
   })
 })
 
-describe('las ayudas, con el guion de la web', () => {
-  let suelo: Node3D
-  let mesa: Node3D
-  let ayudas: AyudasDelJuego
-  const hechos = (h: Partial<Record<HintFact, boolean>> = {}) => ({ round: false, grab: false, hit: false, goal: false, ...h })
+describe('the hints, with the script of the web', () => {
+  let floor: Node3D
+  let table: Node3D
+  let hints: GameHints
+  const facts = (h: Partial<Record<HintFact, boolean>> = {}) => ({ round: false, grab: false, hit: false, goal: false, ...h })
 
   beforeEach(() => {
-    suelo = new Node3D()
-    mesa = new Node3D()
-    suelo.add_child(mesa)
-    ayudas = new AyudasDelJuego(suelo, mesa, new RealController({ mano: 'right', dir: DIR_DE_LOS_MANDOS, perfil: () => 'meta-quest-touch-plus', junto: juntoAlMazo() }))
+    floor = new Node3D()
+    table = new Node3D()
+    floor.add_child(table)
+    hints = new GameHints(floor, table, new RealController({ mano: 'right', dir: CONTROLLERS_DIR, perfil: () => 'meta-quest-touch-plus', junto: besideMallet() }))
   })
-  afterEach(() => suelo.free())
+  afterEach(() => floor.free())
 
-  function correr(segundos: number, h: Partial<Record<HintFact, boolean>>, dando = true): void {
-    for (let t = 0; t < segundos; t += 0.05) ayudas.actualizar(0.05, { dando, hechos: hechos(h) })
+  function run(seconds: number, h: Partial<Record<HintFact, boolean>>, showing = true): void {
+    for (let t = 0; t < seconds; t += 0.05) hints.update(0.05, { showing, facts: facts(h) })
   }
 
-  it('al entrar, solo las huellas; nada aparece de golpe', () => {
-    ayudas.actualizar(0.05, { dando: true, hechos: hechos() })
-    expect(ayudas.fuerza.floor).toBeGreaterThan(0)
-    expect(ayudas.fuerza.floor).toBeLessThan(0.2)
-    correr(1, {})
-    expect(ayudas.visibles()).toEqual(['floor'])
+  it('on entering, only the footprints; nothing appears all at once', () => {
+    hints.update(0.05, { showing: true, facts: facts() })
+    expect(hints.strength.floor).toBeGreaterThan(0)
+    expect(hints.strength.floor).toBeLessThan(0.2)
+    run(1, {})
+    expect(hints.visibleHints()).toEqual(['floor'])
   })
 
-  it('con la partida, el mando y el mazo fantasma; con el mazo en la mano, la portería; y se van', () => {
-    correr(1, { round: true })
-    expect(ayudas.visibles()).toEqual(['floor', 'controller', 'gesture'])
-    correr(1, { round: true, grab: true })
-    expect(ayudas.visibles()).toEqual(['floor', 'goal'])
-    correr(1, { round: true, grab: true, hit: true })
-    expect(ayudas.visibles()).toEqual(['goal'])
-    correr(1, { round: true, grab: true, hit: true, goal: true })
-    expect(ayudas.visibles()).toEqual([])
+  it('with the match, the controller and the ghost mallet; with the mallet in the hand, the goal; and they leave', () => {
+    run(1, { round: true })
+    expect(hints.visibleHints()).toEqual(['floor', 'controller', 'gesture'])
+    run(1, { round: true, grab: true })
+    expect(hints.visibleHints()).toEqual(['floor', 'goal'])
+    run(1, { round: true, grab: true, hit: true })
+    expect(hints.visibleHints()).toEqual(['goal'])
+    run(1, { round: true, grab: true, hit: true, goal: true })
+    expect(hints.visibleHints()).toEqual([])
   })
 
-  it('lo que se levanta de la mesa se ha ido con el mazo en la mano, antes de que salga el disco', () => {
-    correr(1, { round: true })
-    correr(1, { round: true, grab: true })
-    const visibles = ayudas.visibles()
-    for (const id of HINTS_ON_THE_TABLE) expect(visibles, id).not.toContain(id)
+  it('what rises from the table is gone with the mallet in the hand, before the puck sets off', () => {
+    run(1, { round: true })
+    run(1, { round: true, grab: true })
+    const visible = hints.visibleHints()
+    for (const id of HINTS_ON_THE_TABLE) expect(visible, id).not.toContain(id)
   })
 
-  it('ninguna se queda puesta: pasado el plazo más largo, todas fuera aunque no se haga nada', () => {
-    correr(MAX_EXPIRY + 1, { round: true, grab: true })
-    expect(ayudas.visibles()).toEqual([])
-    expect(Math.max(...HINT_SCRIPT.map((a) => a.expiresAfter))).toBeLessThanOrEqual(MAX_EXPIRY)
+  it('none stays on: past the longest deadline, all of them are out even if nothing is done', () => {
+    run(MAX_EXPIRY + 1, { round: true, grab: true })
+    expect(hints.visibleHints()).toEqual([])
+    expect(Math.max(...HINT_SCRIPT.map((hint) => hint.expiresAfter))).toBeLessThanOrEqual(MAX_EXPIRY)
   })
 
-  it('sin visor no se enseñan ni corren sus plazos', () => {
-    correr(30, { round: true }, false)
-    expect(ayudas.visibles()).toEqual([])
-    correr(1, { round: true })
-    expect(ayudas.visibles()).toContain('gesture')
+  it('without a headset they are not shown and their deadlines do not run', () => {
+    run(30, { round: true }, false)
+    expect(hints.visibleHints()).toEqual([])
+    run(1, { round: true })
+    expect(hints.visibleHints()).toContain('gesture')
   })
 
-  it('las huellas van a los pies, a la par y de frente', () => {
-    correr(1, {})
-    const huellas: Node3D[] = []
-    for (let i = 0; i < suelo.get_child_count(); i++) {
-      const n = suelo.get_child(i)
-      if (n instanceof Node3D && n !== mesa) huellas.push(n)
+  it('the footprints go at the feet, side by side and facing forward', () => {
+    run(1, {})
+    const footprints: Node3D[] = []
+    for (let i = 0; i < floor.get_child_count(); i++) {
+      const n = floor.get_child(i)
+      if (n instanceof Node3D && n !== table) footprints.push(n)
     }
-    expect(huellas.length).toBe(FOOTPRINTS.length)
-    huellas.forEach((n, i) => {
+    expect(footprints.length).toBe(FOOTPRINTS.length)
+    footprints.forEach((n, i) => {
       expect(n.position.x).toBeCloseTo(FOOTPRINTS[i].x, 6)
       expect(n.position.y).toBeCloseTo(FOOTPRINTS_Y, 6)
       expect(n.position.z).toBeCloseTo(FOOTPRINTS[i].z, 6)
     })
   })
 
-  it('el fantasma empuja por la mitad del jugador hasta tocar el disco del saque', () => {
-    let masCerca = Infinity
-    let masLejos = -Infinity
+  it('the ghost pushes through the player half until it touches the puck at the serve', () => {
+    let nearest = Infinity
+    let farthest = -Infinity
     for (let t = 0; t < 1.7; t += 0.02) {
-      ayudas.actualizar(0.02, { dando: true, hechos: hechos({ round: true }) })
-      const p = ayudas.fantasma.position
+      hints.update(0.02, { showing: true, facts: facts({ round: true }) })
+      const p = hints.ghost.position
       expect(inPlayerHalf({ x: p.x, z: p.z }), `${p.z}`).toBe(true)
-      masCerca = Math.min(masCerca, p.z)
-      masLejos = Math.max(masLejos, p.z)
+      nearest = Math.min(nearest, p.z)
+      farthest = Math.max(farthest, p.z)
     }
-    expect(masCerca).toBeLessThan(PUCK_RADIUS + MALLET_RADIUS + 0.01)
-    expect(masLejos).toBeGreaterThan(playerStart().z + 0.1)
+    expect(nearest).toBeLessThan(PUCK_RADIUS + MALLET_RADIUS + 0.01)
+    expect(farthest).toBeGreaterThan(playerStart().z + 0.1)
   })
 
-  it('la marca de la portería va calcada dentro de la mesa, en el fondo de la máquina', () => {
-    const p = ayudas.porteria.position
+  it('the goal mark is traced inside the table, at the machine end', () => {
+    const p = hints.goalMark.position
     expect(p.z).toBeCloseTo(GOAL_MARK.z, 6)
     for (const z of [p.z - GOAL_MARK.depth / 2, p.z + GOAL_MARK.depth / 2]) {
       for (const x of [-GOAL_MARK.width / 2, GOAL_MARK.width / 2]) expect(onTheTable({ x, z })).toBe(true)
     }
   })
 
-  it('el mando va a un palmo del sitio del mazo, crecido y con el agarre marcado', () => {
-    correr(1, { round: true })
-    const mando = ayudas.mando!
-    expect(mando.visible).toBe(true)
-    expect(mando.perfil).toBe('meta-quest-touch-plus')
-    expect(mando.sitioDeLaMarca).not.toBeNull()
-    const junto = juntoAlMazo()
-    expect(mando.nodo.position.x).toBeCloseTo(playerStart().x + CONTROLLER_BESIDE_MALLET.separation, 6)
-    expect(mando.nodo.position.y).toBeCloseTo(CONTROLLER_BESIDE_MALLET.height, 6)
-    expect(mando.nodo.position.z).toBeCloseTo(playerStart().z, 6)
-    expect(mando.nodo.scale.x).toBeCloseTo(junto.escala, 6)
-    expect(mando.nodo.rotation.y).toBeCloseTo(junto.giro, 6)
-    correr(1, { round: true, grab: true })
-    expect(mando.visible).toBe(false)
-    // Queda colgado de la mesa: esconderlo no lo desmonta.
-    expect(mando.nodo.get_parent()).toBe(mesa)
+  it('the controller goes a hand breadth from the mallet spot, enlarged and with the grip marked', () => {
+    run(1, { round: true })
+    const controller = hints.controller!
+    expect(controller.visible).toBe(true)
+    expect(controller.perfil).toBe('meta-quest-touch-plus')
+    expect(controller.sitioDeLaMarca).not.toBeNull()
+    const beside = besideMallet()
+    expect(controller.nodo.position.x).toBeCloseTo(playerStart().x + CONTROLLER_BESIDE_MALLET.separation, 6)
+    expect(controller.nodo.position.y).toBeCloseTo(CONTROLLER_BESIDE_MALLET.height, 6)
+    expect(controller.nodo.position.z).toBeCloseTo(playerStart().z, 6)
+    expect(controller.nodo.scale.x).toBeCloseTo(beside.escala, 6)
+    expect(controller.nodo.rotation.y).toBeCloseTo(beside.giro, 6)
+    run(1, { round: true, grab: true })
+    expect(controller.visible).toBe(false)
+    // It stays hanging from the table: hiding it does not unmount it.
+    expect(controller.nodo.get_parent()).toBe(table)
   })
 })

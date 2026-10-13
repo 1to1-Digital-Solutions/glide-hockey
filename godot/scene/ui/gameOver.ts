@@ -1,19 +1,20 @@
 /**
- * El final de la partida en Godot: `XRGameOver` de la web (`components/xr/XRHud.tsx`), en la columna,
- * donde estaba el menú.
+ * The end of the match in Godot: the web's `XRGameOver` (`components/xr/XRHud.tsx`), in the column,
+ * where the menu was.
  *
- * Una franja del color de cómo ha acabado (el verde de acierto o el rojo de fallo del salón), los
- * puntos en grande —en oro si son récord— y, en los niveles, las estrellas ganadas. Debajo, **otra
- * vez** en grande, volver al menú y salir: repetir es lo que más se hace, así que es el botón
- * ancho, y menú y salida llevan iconos distintos porque son cosas distintas.
+ * A band in the colour of how it ended (the hall's green for a hit or red for a miss), the points
+ * in large —in gold if they are a record— and, in the levels, the stars earned. Below, **again** in
+ * large, back to the menu and exit: playing again is what is done most, so it is the wide button,
+ * and menu and exit carry different icons because they are different things.
  *
- * **Lo añadido respecto a la web**: la franja lleva escrito cómo ha acabado («Partida ganada»,
- * «Nivel 3 superado»…). En la web no lleva nada porque su lienzo no escribía en ese panel; aquí la
- * letra es del motor, y la medimos con el mismo instrumento que el resto.
+ * **What is added with respect to the web**: the band has written on it how it ended («Partida
+ * ganada», «Nivel 3 superado»…). On the web it carries nothing because its canvas did not write on
+ * that panel; here the font is the engine's, and we measure it with the same instrument as the rest.
  *
- * **En el duelo no hay franja ni puntos: va escrito** (`dibujarElDuelo` de la web, con sus cotas y
- * sus letras): tras la partida del primero, cómo le fue y a quién pasarle el mando —el botón ancho
- * empieza la del otro—; con las dos jugadas, quién gana, por cuánto y cuántos duelos lleva la pareja.
+ * **In the duel there is no band and no points: it is written** (the web's `drawDuel`, with its
+ * dimensions and its font sizes): after the first player's match, how it went and whom to pass the
+ * controller to —the wide button starts the other's—; with both played, who wins, by how much and
+ * how many duels the pair has.
  */
 import { Node3D, Vector3 } from 'godot'
 
@@ -34,148 +35,148 @@ import { translator } from '@/lib/textos'
 import { PLAYER_LABELS, formatMargin, margin, type Player } from '@/lib/duel'
 import type { DuelTally } from '@/lib/duelTally'
 
-import { Cifras } from './digits'
-import { DIM, triangulosDeRombo } from './menu'
-import type { VistaDelDuelo } from './match'
-import { CAJAS_DEL_FINAL, CIFRA_DEL_FINAL, FINAL } from './layout'
+import { Digits } from './digits'
+import { DIM, diamondTriangles } from './menu'
+import type { DuelView } from './match'
+import { GAME_OVER_BOXES, GAME_OVER_DIGIT, GAME_OVER_SIZE } from './layout'
 
-/** La letra de la franja: la de los rótulos del menú, que ya se mide a esta distancia. */
-export const LETRA_DEL_FINAL = 0.034
+/** The font of the band: that of the menu's labels, which is already measured at this distance. */
+export const GAME_OVER_TEXT = 0.034
 
-/** Las letras del final del duelo: las de la web (`DUEL_TEXT` de `XRHud.tsx`). */
-export const LETRA_DEL_DUELO = { title: 0.05, body: 0.034 } as const
+/** The font sizes of the end of the duel: the web's (`DUEL_TEXT` of `XRHud.tsx`). */
+export const DUEL_TEXT = { title: 0.05, body: 0.034 } as const
 
-/** Lo que enseña el final. */
-export interface EstadoDelFinal {
+/** What the end shows. */
+export interface GameOverState {
   lang: Lang
   outcome: RunOutcome
-  puntos: number
-  esRecord: boolean
-  /** En los niveles: cuál y con cuántas estrellas. */
-  nivel: { nivel: number; stars: Stars; passed: boolean } | null
-  /** En el duelo: cómo va, el marcador de la partida y lo que lleva la pareja. */
-  duelo: { vista: VistaDelDuelo; marcador: { scored: number; conceded: number }; pareja: DuelTally } | null
+  points: number
+  isRecord: boolean
+  /** In the levels: which one and with how many stars. */
+  level: { level: number; stars: Stars; passed: boolean } | null
+  /** In the duel: how it is going, the score of the match and what the pair has. */
+  duel: { view: DuelView; score: { scored: number; conceded: number }; tally: DuelTally } | null
 }
 
-/** Tres rayas: el icono de volver al menú (`XRMenuIcon`). */
-export function triangulosDelMenu(lado = 0.05): Point2[] {
-  const puntos: Point2[] = []
-  for (const fila of [-1, 0, 1]) {
-    const y = fila * lado * 0.32
-    const alto = lado * 0.16
-    puntos.push(
-      [-lado / 2, y - alto / 2], [lado / 2, y - alto / 2], [lado / 2, y + alto / 2],
-      [-lado / 2, y - alto / 2], [lado / 2, y + alto / 2], [-lado / 2, y + alto / 2],
+/** Three stripes: the icon of going back to the menu (`XRMenuIcon`). */
+export function menuIconTriangles(side = 0.05): Point2[] {
+  const points: Point2[] = []
+  for (const row of [-1, 0, 1]) {
+    const y = row * side * 0.32
+    const height = side * 0.16
+    points.push(
+      [-side / 2, y - height / 2], [side / 2, y - height / 2], [side / 2, y + height / 2],
+      [-side / 2, y - height / 2], [side / 2, y + height / 2], [-side / 2, y + height / 2],
     )
   }
-  return puntos
+  return points
 }
 
-export class FinalDeLaPartida {
+export class GameOverPanel {
   readonly panel: Panel
-  readonly nodo: Node3D
-  readonly otraVez: Button
+  readonly node: Node3D
+  readonly again: Button
   readonly menu: Button
-  readonly salir: Button
-  readonly puntos = new Cifras(CIFRA_DEL_FINAL, PALETTE.foreground)
-  private readonly franja = plate(0.5, 0.06, COMMON_PALETTE.hit, 1)
-  private readonly estrellas: ReturnType<typeof shape>[] = []
-  private pintado = ''
+  readonly exit: Button
+  readonly points = new Digits(GAME_OVER_DIGIT, PALETTE.foreground)
+  private readonly band = plate(0.5, 0.06, COMMON_PALETTE.hit, 1)
+  private readonly stars: ReturnType<typeof shape>[] = []
+  private painted = ''
 
-  constructor(acciones: { otraVez(): void; menu(): void; salir(): void }, punteria: PointerAim) {
-    this.panel = new Panel({ ancho: FINAL.width, alto: FINAL.height, fondo: PALETTE.background, opacidad: 0.86 })
-    this.nodo = this.panel.nodo
-    this.franja.position = new Vector3(0, 0.13, -0.01)
-    this.nodo.add_child(this.franja)
-    this.puntos.nodo.position = new Vector3(0, 0.02, 0.004)
-    this.nodo.add_child(this.puntos.nodo)
+  constructor(actions: { again(): void; menu(): void; exit(): void }, aim: PointerAim) {
+    this.panel = new Panel({ ancho: GAME_OVER_SIZE.width, alto: GAME_OVER_SIZE.height, fondo: PALETTE.background, opacidad: 0.86 })
+    this.node = this.panel.nodo
+    this.band.position = new Vector3(0, 0.13, -0.01)
+    this.node.add_child(this.band)
+    this.points.node.position = new Vector3(0, 0.02, 0.004)
+    this.node.add_child(this.points.node)
     for (let i = 0; i < 3; i++) {
-      const rombo = shape(triangulosDeRombo(0.022), DIM)
-      rombo.position = new Vector3((i - 1) * 0.045, -0.055, 0.004)
-      this.nodo.add_child(rombo)
-      this.estrellas.push(rombo)
+      const diamond = shape(diamondTriangles(0.022), DIM)
+      diamond.position = new Vector3((i - 1) * 0.045, -0.055, 0.004)
+      this.node.add_child(diamond)
+      this.stars.push(diamond)
     }
-    this.otraVez = this.panel.boton(new Button({ id: 'final:again', caja: CAJAS_DEL_FINAL.again, color: PALETTE.primary, alPulsar: () => acciones.otraVez() }))
-    this.otraVez.dibujo(playIcon(0.045, PALETTE.primaryInk), PALETTE.primaryInk)
-    this.menu = this.panel.boton(new Button({ id: 'final:menu', caja: CAJAS_DEL_FINAL.menu, color: PALETTE.rail, opacidad: 0.8, alPulsar: () => acciones.menu() }))
-    this.menu.dibujo(shape(triangulosDelMenu(), DIM), DIM)
-    this.salir = this.panel.boton(
-      exitButton({ id: 'final:exit', caja: CAJAS_DEL_FINAL.exit, color: PALETTE.rail, opacidad: 0.8, flecha: PALETTE.foreground, alPulsar: () => acciones.salir() }),
+    this.again = this.panel.boton(new Button({ id: 'final:again', caja: GAME_OVER_BOXES.again, color: PALETTE.primary, alPulsar: () => actions.again() }))
+    this.again.dibujo(playIcon(0.045, PALETTE.primaryInk), PALETTE.primaryInk)
+    this.menu = this.panel.boton(new Button({ id: 'final:menu', caja: GAME_OVER_BOXES.menu, color: PALETTE.rail, opacidad: 0.8, alPulsar: () => actions.menu() }))
+    this.menu.dibujo(shape(menuIconTriangles(), DIM), DIM)
+    this.exit = this.panel.boton(
+      exitButton({ id: 'final:exit', caja: GAME_OVER_BOXES.exit, color: PALETTE.rail, opacidad: 0.8, flecha: PALETTE.foreground, alPulsar: () => actions.exit() }),
     )
-    punteria.anadir(this.otraVez, this.menu, this.salir)
-    this.nodo.visible = false
+    aim.anadir(this.again, this.menu, this.exit)
+    this.node.visible = false
   }
 
-  pintar(estado: EstadoDelFinal): void {
-    const clave = JSON.stringify(estado)
-    if (clave === this.pintado) return
-    this.pintado = clave
-    const t = translator(estado.lang)
-    const duelo = estado.duelo
-    this.franja.visible = duelo == null
-    this.puntos.nodo.visible = duelo == null
-    const gano = estado.outcome === 'won'
-    const franja = gano ? COMMON_PALETTE.hit : COMMON_PALETTE.miss
-    paint(this.franja, franja)
-    this.puntos.pintar(estado.puntos, estado.esRecord ? COMMON_PALETTE.gold : PALETTE.foreground)
-    for (const [i, rombo] of this.estrellas.entries()) {
-      rombo.visible = estado.nivel != null
-      const ganada = i < (estado.nivel?.stars ?? 0)
-      paint(rombo, ganada ? COMMON_PALETTE.gold : DIM, ganada ? 1 : 0.35)
+  paint(state: GameOverState): void {
+    const key = JSON.stringify(state)
+    if (key === this.painted) return
+    this.painted = key
+    const t = translator(state.lang)
+    const duel = state.duel
+    this.band.visible = duel == null
+    this.points.node.visible = duel == null
+    const won = state.outcome === 'won'
+    const bandColor = won ? COMMON_PALETTE.hit : COMMON_PALETTE.miss
+    paint(this.band, bandColor)
+    this.points.paint(state.points, state.isRecord ? COMMON_PALETTE.gold : PALETTE.foreground)
+    for (const [i, diamond] of this.stars.entries()) {
+      diamond.visible = state.level != null
+      const earned = i < (state.level?.stars ?? 0)
+      paint(diamond, earned ? COMMON_PALETTE.gold : DIM, earned ? 1 : 0.35)
     }
-    const titulo =
-      estado.nivel != null
-        ? t(estado.nivel.passed ? 'Level {level} cleared' : 'Level {level} not cleared', { level: estado.nivel.nivel })
-        : estado.esRecord
+    const title =
+      state.level != null
+        ? t(state.level.passed ? 'Level {level} cleared' : 'Level {level} not cleared', { level: state.level.level })
+        : state.isRecord
           ? t('New record!')
-          : t(gano ? 'Game won' : 'Game lost')
+          : t(won ? 'Game won' : 'Game lost')
     this.panel.borrarTextos()
-    if (duelo != null) {
-      this.escribirElDuelo(estado.lang, duelo)
+    if (duel != null) {
+      this.writeDuel(state.lang, duel)
       return
     }
-    this.panel.escribir(titulo, 0, 0.13, { alto: LETRA_DEL_FINAL, color: PALETTE.background, anchoMax: 0.46 })
+    this.panel.escribir(title, 0, 0.13, { alto: GAME_OVER_TEXT, color: PALETTE.background, anchoMax: 0.46 })
   }
 
-  /** Lo que se escribe al acabar una partida del duelo (`dibujarElDuelo` de la web). */
-  private escribirElDuelo(lang: Lang, { vista, marcador, pareja }: NonNullable<EstadoDelFinal['duelo']>): void {
+  /** What is written when a match of the duel ends (the web's `drawDuel`). */
+  private writeDuel(lang: Lang, { view, score, tally }: NonNullable<GameOverState['duel']>): void {
     const t = translator(lang)
     const { panel } = this
-    const nombre = (jugador: Player) => t(PLAYER_LABELS[jugador])
-    const ancho = FINAL.width - 0.08
-    const titulo = vista.over
-      ? vista.winner != null
-        ? t('{player} wins', { player: nombre(vista.winner) })
+    const name = (player: Player) => t(PLAYER_LABELS[player])
+    const width = GAME_OVER_SIZE.width - 0.08
+    const title = view.over
+      ? view.winner != null
+        ? t('{player} wins', { player: name(view.winner) })
         : t('Tie')
-      : t('{player}: {scored}–{conceded}', { player: nombre(vista.player), ...marcador })
-    panel.escribir(titulo, 0, 0.15, { alto: LETRA_DEL_DUELO.title, color: PALETTE.foreground, anchoMax: ancho })
-    if (vista.next != null) {
-      panel.parrafo(t('Pass the controller to {player}.', { player: nombre(vista.next) }), 0, 0.05, {
-        alto: LETRA_DEL_DUELO.body,
+      : t('{player}: {scored}–{conceded}', { player: name(view.player), ...score })
+    panel.escribir(title, 0, 0.15, { alto: DUEL_TEXT.title, color: PALETTE.foreground, anchoMax: width })
+    if (view.next != null) {
+      panel.parrafo(t('Pass the controller to {player}.', { player: name(view.next) }), 0, 0.05, {
+        alto: DUEL_TEXT.body,
         color: PALETTE.foreground,
-        anchoMax: ancho,
+        anchoMax: width,
       })
       return
     }
-    for (const jugador of [0, 1] as const) {
-      const partida = vista.matches[jugador]
-      if (partida == null) continue
+    for (const player of [0, 1] as const) {
+      const match = view.matches[player]
+      if (match == null) continue
       panel.escribir(
         t('{player}: {scored}–{conceded} ({margin})', {
-          player: nombre(jugador),
-          scored: partida.scored,
-          conceded: partida.conceded,
-          margin: formatMargin(margin(partida)),
+          player: name(player),
+          scored: match.scored,
+          conceded: match.conceded,
+          margin: formatMargin(margin(match)),
         }),
         0,
-        0.09 - jugador * 0.05,
-        { alto: LETRA_DEL_DUELO.body, color: vista.winner === jugador ? PALETTE.primary : DIM, anchoMax: ancho },
+        0.09 - player * 0.05,
+        { alto: DUEL_TEXT.body, color: view.winner === player ? PALETTE.primary : DIM, anchoMax: width },
       )
     }
-    panel.parrafo(t('Duels won: {one}–{two} · tied: {ties}', { one: pareja.wins[0], two: pareja.wins[1], ties: pareja.ties }), 0, 0.015, {
-      alto: LETRA_DEL_DUELO.body,
+    panel.parrafo(t('Duels won: {one}–{two} · tied: {ties}', { one: tally.wins[0], two: tally.wins[1], ties: tally.ties }), 0, 0.015, {
+      alto: DUEL_TEXT.body,
       color: DIM,
-      anchoMax: ancho,
+      anchoMax: width,
       ancla: 'top',
     })
   }

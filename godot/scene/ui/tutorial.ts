@@ -1,14 +1,14 @@
 /**
- * El tutorial de Glide Hockey en Godot: el guion de la web (`lib/tutorial.ts`) en el panel del kit.
+ * The tutorial of Glide Hockey in Godot: the web's script (`lib/tutorial.ts`) on the kit's panel.
  *
- * **Se aprende haciendo**: cada paso se supera cuando quien juega lo hace —el mazo en la mano, el
- * primer golpe al disco, el primer gol— y el juego no se para mientras tanto. Siempre hay
- * siguiente y saltar. El paso **se calcula**, no se guarda (`tutorialStep` con lo hecho y lo
- * saltado): un tutorial que lleva su propia cuenta acaba discrepando de la partida.
+ * **It is learnt by doing**: each step is passed when whoever plays does it —the mallet in the
+ * hand, the first hit on the puck, the first goal— and the game does not stop meanwhile. There is
+ * always next and skip. The step **is worked out**, not stored (`tutorialStep` with what is done
+ * and what is skipped): a tutorial that keeps its own count ends up disagreeing with the match.
  *
- * Como en la web (`XRTutorial.tsx`), sale **con el visor puesto**, con la partida en juego y la
- * primera vez; en el reto del salón, nunca (es la misma partida para todos). `-- --tutorial` lo
- * enseña en plano, para mirarlo sin visor.
+ * As on the web (`XRTutorial.tsx`), it comes up **with the headset on**, with the match in play
+ * and the first time; in the hall's challenge, never (it is the same match for everyone).
+ * `-- --tutorial` shows it flat, to look at it without a headset.
  */
 import type { MandoEnLaMano } from '@kit/runtime/ui/tutorial'
 import { PanelDeTutorial } from '@kit/runtime/ui/tutorial'
@@ -28,37 +28,37 @@ import {
 } from '@/lib/tutorial'
 
 import { DIM } from './menu'
-import { MEDIDAS_DEL_TUTORIAL } from './layout'
+import { TUTORIAL_SIZES } from './layout'
 
-/** Lo que se pide en cada paso (`FRASES` de `XRTutorial.tsx`). */
-export const FRASES: Record<TutorialStepKey, TextKey> = {
+/** What is asked in each step (`PHRASES` of `XRTutorial.tsx`). */
+export const PHRASES: Record<TutorialStepKey, TextKey> = {
   grab: 'Close your hand on the mallet to pick it up',
   hit: 'Push the puck with it',
   goal: 'Score a goal',
 }
 
-/** Y con un toque en vez de manteniendo (`FRASES_CON_UN_TOQUE`). */
-export const FRASES_CON_UN_TOQUE: Record<TutorialStepKey, TextKey> = {
+/** And with one tap instead of holding (`PHRASES_WITH_ONE_TAP`). */
+export const PHRASES_WITH_ONE_TAP: Record<TutorialStepKey, TextKey> = {
   grab: 'Press the grip button on the mallet to pick it up',
   hit: 'Push the puck with it',
   goal: 'Score a goal',
 }
 
-export class TutorialDelJuego {
-  readonly vista: PanelDeTutorial
-  private saltados = 0
-  private pendiente: boolean
-  private pintado: string | null = null
-  /** Si en el fotograma anterior se enseñaba un paso. */
-  private ensenaba = false
+export class GameTutorial {
+  readonly view: PanelDeTutorial
+  private skipped = 0
+  private pending: boolean
+  private painted: string | null = null
+  /** Whether a step was being shown in the previous frame. */
+  private wasTeaching = false
 
-  constructor(punteria: PointerAim, manos: readonly MandoEnLaMano[] = []) {
-    // Se decide una vez, al empezar: leerlo a cada fotograma lo apagaría en cuanto se marca.
-    this.pendiente = !tutorialSeen()
-    this.vista = new PanelDeTutorial({
+  constructor(aim: PointerAim, hands: readonly MandoEnLaMano[] = []) {
+    // It is decided once, at the start: reading it every frame would turn it off as soon as it is marked.
+    this.pending = !tutorialSeen()
+    this.view = new PanelDeTutorial({
       rotulos: { next: 'Next', skip: 'Skip tutorial' },
-      alSiguiente: () => this.saltar(1),
-      alSaltar: () => this.saltar(TUTORIAL_STEPS.length),
+      alSiguiente: () => this.skip(1),
+      alSaltar: () => this.skip(TUTORIAL_STEPS.length),
       colores: {
         fondo: PALETTE.background,
         texto: PALETTE.foreground,
@@ -67,63 +67,63 @@ export class TutorialDelJuego {
         boton: PALETTE.primary,
         tintaDelBoton: PALETTE.primaryInk,
       },
-      manos,
-      medidas: MEDIDAS_DEL_TUTORIAL,
+      manos: hands,
+      medidas: TUTORIAL_SIZES,
     })
-    punteria.anadir(this.vista.siguiente, this.vista.saltar)
+    aim.anadir(this.view.siguiente, this.view.saltar)
   }
 
-  /** El paso que toca con lo hecho, o `null` si ya no queda ninguno. */
-  paso(hitos: TutorialMilestones): TutorialStepKey | null {
-    return this.pendiente ? tutorialStep(hitos, this.saltados) : null
+  /** The step that applies with what is done, or `null` if none is left. */
+  step(milestones: TutorialMilestones): TutorialStepKey | null {
+    return this.pending ? tutorialStep(milestones, this.skipped) : null
   }
 
-  private saltar(cuantos: number): void {
-    this.saltados = Math.min(TUTORIAL_STEPS.length, this.saltados + cuantos)
+  private skip(count: number): void {
+    this.skipped = Math.min(TUTORIAL_STEPS.length, this.skipped + count)
   }
 
-  /** Vuelve a enseñarlo aunque ya se viera (`-- --tutorial`). */
-  forzar(): void {
-    this.pendiente = true
+  /** Shows it again even if it was already seen (`-- --tutorial`). */
+  force(): void {
+    this.pending = true
   }
 
   /**
-   * Un fotograma: si toca enseñarlo (`activo`: jugando, con visor y no en un reto), el paso de
-   * ahora; si no, fuera. Al acabar los pasos se guarda como visto.
+   * A frame: if it is time to show it (`active`: playing, with a headset and not in a challenge),
+   * the step of now; if not, out. When the steps end it is saved as seen.
    */
-  actualizar(activo: boolean, hitos: TutorialMilestones, lang: Lang, agarre: GrabMode, delta: number): EstadoDelTutorial {
-    const paso = this.paso(hitos)
-    if (this.pendiente && paso == null) {
+  update(active: boolean, milestones: TutorialMilestones, lang: Lang, grab: GrabMode, delta: number): TutorialState {
+    const step = this.step(milestones)
+    if (this.pending && step == null) {
       markTutorialSeen()
-      this.pendiente = false
+      this.pending = false
     }
-    const ensenando = activo && paso != null
-    // Se cierra cuando estaba enseñando y ya no queda paso: por sus hitos, «Siguiente» o «Saltar».
-    // Que se acabe la partida o se salga del visor (`activo` falso con paso) no es cerrarlo.
-    const cerrado = this.ensenaba && paso == null && activo
-    this.ensenaba = ensenando
-    if (!ensenando) {
-      this.vista.ocultar()
-      this.pintado = null
-      return { ensenando, cerrado }
+    const teaching = active && step != null
+    // It closes when it was showing and no step is left: by its milestones, «Siguiente» or «Saltar».
+    // The match ending or leaving the headset (`active` false with a step) is not closing it.
+    const closed = this.wasTeaching && step == null && active
+    this.wasTeaching = teaching
+    if (!teaching) {
+      this.view.ocultar()
+      this.painted = null
+      return { teaching, closed }
     }
-    const clave = `${paso}:${lang}:${agarre}`
-    if (clave !== this.pintado) {
+    const key = `${step}:${lang}:${grab}`
+    if (key !== this.painted) {
       const t = translator(lang)
-      const frases = agarre === 'toggle' ? FRASES_CON_UN_TOQUE : FRASES
-      this.vista.rotular({ next: t('Next'), skip: t('Skip tutorial') })
-      this.vista.mostrarPaso(TUTORIAL_STEPS.indexOf(paso) + 1, TUTORIAL_STEPS.length, t(frases[paso]), TUTORIAL_BUTTONS[paso])
-      this.pintado = clave
+      const phrases = grab === 'toggle' ? PHRASES_WITH_ONE_TAP : PHRASES
+      this.view.rotular({ next: t('Next'), skip: t('Skip tutorial') })
+      this.view.mostrarPaso(TUTORIAL_STEPS.indexOf(step) + 1, TUTORIAL_STEPS.length, t(phrases[step]), TUTORIAL_BUTTONS[step])
+      this.painted = key
     }
-    this.vista.actualizar(delta)
-    return { ensenando, cerrado }
+    this.view.actualizar(delta)
+    return { teaching, closed }
   }
 }
 
-/** Lo que el tutorial le cuenta a la partida tras un fotograma. */
-export interface EstadoDelTutorial {
-  /** Si se está enseñando un paso: en el reto, lo que mete la máquina no cuenta. */
-  readonly ensenando: boolean
-  /** Si se acaba de cerrar con la partida en marcha: el reto empieza desde cero. */
-  readonly cerrado: boolean
+/** What the tutorial tells the match after a frame. */
+export interface TutorialState {
+  /** Whether a step is being shown: in the challenge, what the machine scores does not count. */
+  readonly teaching: boolean
+  /** Whether it has just been closed with the match running: the challenge starts from scratch. */
+  readonly closed: boolean
 }

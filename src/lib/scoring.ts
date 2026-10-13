@@ -1,36 +1,37 @@
 import { type Difficulty } from './gameConfig'
 
 /**
- * Puntuación de una partida.
+ * Score of a match.
  *
- * La regla del juego es simple —**cada gol que metes suma y cada gol que te
- * meten resta**— y aquí solo se decide cuánto. Dos cosas la modulan, y las dos
- * premian jugar mejor y no solo jugar más:
+ * The rule of the game is simple —**each goal you score adds and each goal
+ * scored against you subtracts**— and here only how much is decided. Two things
+ * modulate it, and both reward playing better and not just playing more:
  *
- * - **La dificultad**, porque marcarle a Imposible cuesta lo que no cuesta
- *   marcarle a Fácil. Multiplica lo que se gana; lo que se pierde es fijo, o
- *   subir de nivel castigaría el mismo error dos veces.
- * - **La racha**, porque encadenar goles sin encajar es más difícil que
- *   intercambiarlos. Un gol en contra la corta de golpe.
- * - **La vuelta del reto**, que es la única de las tres que no se elige: se llega
- *   a ella aguantando quince rondas sin perder (ver `challenge.ts`). Fuera del
- *   reto vale uno y no cambia nada.
+ * - **The difficulty**, because scoring against Impossible costs what scoring
+ *   against Easy does not. It multiplies what is earned; what is lost is fixed,
+ *   or going up a level would punish the same mistake twice.
+ * - **The streak**, because chaining goals without conceding is harder than
+ *   trading them. A goal against cuts it off at once.
+ * - **The lap of the challenge**, which is the only one of the three that is not
+ *   chosen: one gets to it by holding out fifteen rounds without losing (see
+ *   `challenge.ts`). Outside the challenge it is worth one and changes nothing.
  *
- * La puntuación **no baja de cero**: es una marca que se compara con el récord,
- * y una negativa no dice nada que no diga el marcador. Y **en la primera ronda del reto
- * encajar no resta** (`concededPenalty`): perderla con un gol marcado no deja cero.
+ * The score **does not drop below zero**: it is a mark that is compared with the
+ * record, and a negative one says nothing the scoreboard does not say. And **in the first
+ * round of the challenge conceding does not subtract** (`concededPenalty`): losing it with
+ * one goal scored does not leave zero.
  */
 
-/** Puntos de un gol antes de aplicar ningún multiplicador. */
+/** Points of a goal before applying any multiplier. */
 export const BASE_GOAL_POINTS = 100
 
-/** Lo que descuenta un gol encajado, igual en todas las dificultades. */
+/** What a conceded goal deducts, the same at every difficulty. */
 export const CONCEDED_PENALTY = 60
 
 /**
- * Cuánto multiplica cada dificultad. Crece más que proporcionalmente al margen
- * que quita: si fuera lineal, una partida larga en Fácil rendiría lo mismo que
- * una ajustada en Imposible y elegir nivel daría igual.
+ * How much each difficulty multiplies. It grows more than proportionally to the
+ * margin it takes away: if it were linear, a long match on Easy would yield the
+ * same as a tight one on Impossible and choosing a level would make no difference.
  */
 const DIFFICULTY_MULTIPLIERS: Record<Difficulty, number> = {
   easy: 1,
@@ -40,28 +41,28 @@ const DIFFICULTY_MULTIPLIERS: Record<Difficulty, number> = {
   impossible: 5,
 }
 
-/** Cuánto suma cada gol encadenado a la racha. */
+/** How much each chained goal adds to the streak. */
 const STREAK_STEP = 0.2
 
 /**
- * Tope del multiplicador de racha. Sin él, un reto largo en Fácil daría más que
- * uno impecable en Imposible solo por durar más.
+ * Cap of the streak multiplier. Without it, a long challenge on Easy would give
+ * more than a flawless one on Impossible just for lasting longer.
  */
 export const MAX_STREAK_MULTIPLIER = 2.5
 
 /**
- * Multiplicador por racha. El primer gol va a 1 y cada uno encadenado suma,
- * hasta el tope.
+ * Multiplier for the streak. The first goal goes at 1 and each chained one adds,
+ * up to the cap.
  *
- * @param streak goles consecutivos sin encajar, **incluido** el actual
+ * @param streak consecutive goals without conceding, **including** the current one
  */
 export function streakMultiplier(streak: number): number {
   if (!Number.isFinite(streak) || streak <= 1) return 1
   return Math.min(1 + (streak - 1) * STREAK_STEP, MAX_STREAK_MULTIPLIER)
 }
 
-/** Puntos que suma un gol. Siempre entero: los decimales no le dicen nada al
- * jugador. */
+/** Points a goal adds. Always an integer: decimals say nothing to the
+ * player. */
 export function goalPoints({
   difficulty,
   streak,
@@ -69,7 +70,7 @@ export function goalPoints({
 }: {
   difficulty: Difficulty
   streak: number
-  /** Lo que multiplica la vuelta del reto. Uno —o nada— fuera de él. */
+  /** What the lap of the challenge multiplies by. One —or nothing— outside it. */
   lap?: number
 }): number {
   return Math.round(
@@ -80,7 +81,7 @@ export function goalPoints({
   )
 }
 
-/** La puntuación tras marcar un gol. */
+/** The score after scoring a goal. */
 export function scoreGoal(
   points: number,
   options: { difficulty: Difficulty; streak: number; lap?: number },
@@ -89,18 +90,18 @@ export function scoreGoal(
 }
 
 /**
- * Lo que descuenta un gol encajado en esa ronda del reto (`null` fuera de él).
+ * What a conceded goal deducts in that round of the challenge (`null` outside it).
  *
- * **En la primera ronda del reto, nada.** Es la de quien estrena el juego, en Fácil y a tres
- * goles: marcar uno y perderla 1–3 restaba 180 y el cartel cerraba con «0 puntos», que le decía
- * a quien acaba de marcar su primer gol que no había hecho nada. Desde la segunda ronda, lo de
- * siempre. Fuera del reto, también.
+ * **In the first round of the challenge, nothing.** It is the one of whoever is new to the game,
+ * on Easy and to three goals: scoring one and losing it 1–3 subtracted 180 and the sign closed
+ * with «0 puntos», which told whoever had just scored their first goal that they had done
+ * nothing. From the second round on, the usual. Outside the challenge, too.
  */
 export function concededPenalty(round: number | null): number {
   return round === 1 ? 0 : CONCEDED_PENALTY
 }
 
-/** La puntuación tras encajar un gol, con el cero como suelo. */
+/** The score after conceding a goal, with zero as the floor. */
 export function scoreConceded(points: number, penalty: number = CONCEDED_PENALTY): number {
   return Math.max(0, points - penalty)
 }

@@ -3,124 +3,125 @@ import type { GameResult } from './seed'
 import { createStoredPreference } from './storage'
 
 /**
- * Las hazañas de Glide Hockey: lo que el juego tiene que saber para que el salón pueda dar sus
- * logros de destreza y el oculto (`xrcade/docs/logros-de-steam.md`, los marcados con ➕).
+ * The feats of Glide Hockey: what the game has to know so that the hall can award its skill
+ * achievements and the hidden one (`xrcade/docs/logros-de-steam.md`, the ones marked with ➕).
  *
- * El juego no sabe de Steam ni de logros: apunta la primera vez que alguien consigue cada cosa
- * y se lo cuenta al salón al acabar la partida, con el nombre de API que el salón declara en
- * Steamworks. Todo son cuentas puras sobre lo que la mesa ya dice (quién toca el disco, dónde y
- * quién marca) y sobre el marcador, así que el port de Godot lo hereda tal cual.
+ * The game knows nothing about Steam or achievements: it records the first time someone manages
+ * each thing and tells the hall when the match ends, with the API name the hall declares in
+ * Steamworks. It is all pure arithmetic on what the table already says (who touches the puck,
+ * where and who scores) and on the score, so the Godot port inherits it as is.
  *
- * - `GH_SHUTOUT`: ganar un partido sin encajar un gol.
- * - `GH_LONG_SHOT`: marcar de un solo toque desde el fondo de tu campo.
- * - `GH_OWN_GOAL` (oculto): marcar en tu propia portería.
+ * - `GH_SHUTOUT`: winning a match without conceding a goal.
+ * - `GH_LONG_SHOT`: scoring with a single touch from the back of your half.
+ * - `GH_OWN_GOAL` (hidden): scoring in your own goal.
  */
 export const FEATS = ['GH_SHUTOUT', 'GH_LONG_SHOT', 'GH_OWN_GOAL'] as const
 
 export type Feat = (typeof FEATS)[number]
 
-/** Dónde se recuerda cuáles se han conseguido ya. Con el prefijo del juego, como los récords. */
+/** Where the ones already achieved are remembered. With the game's prefix, like the records. */
 export const FEATS_KEY = 'glide-hockey:hazanas'
 
-/** El resultado con sus hazañas, o tal cual si no se estrenó ninguna. */
-export function withFeats(resultado: GameResult, nuevas: readonly Feat[]): GameResult {
-  return nuevas.length > 0 ? { ...resultado, feats: [...nuevas] } : resultado
+/** The result with its feats, or as is if none was earned for the first time. */
+export function withFeats(result: GameResult, newFeats: readonly Feat[]): GameResult {
+  return newFeats.length > 0 ? { ...result, feats: [...newFeats] } : result
 }
 
 /**
- * Las hazañas del texto guardado, en el orden de `HAZANAS` y sin repetir. Es entrada externa
- * (se edita a mano desde el navegador), así que lo que no es una hazaña de este juego se ignora.
+ * The feats of the stored text, in the order of `FEATS` and without repeats. It is external input
+ * (it is edited by hand from the browser), so whatever is not a feat of this game is ignored.
  */
-export function readFeats(texto: string | null): Feat[] {
-  const escritas = new Set((texto ?? '').split(','))
-  return FEATS.filter((hazana) => escritas.has(hazana))
+export function readFeats(text: string | null): Feat[] {
+  const written = new Set((text ?? '').split(','))
+  return FEATS.filter((feat) => written.has(feat))
 }
 
-/** El texto guardado, tal cual: comparable con `Object.is` (ver `createStoredPreference`). */
-const guardadas = createStoredPreference<string>({
+/** The stored text, as is: comparable with `Object.is` (see `createStoredPreference`). */
+const stored = createStoredPreference<string>({
   key: FEATS_KEY,
   parse: (raw) => raw ?? '',
   serialize: (value) => value,
 })
 
-/** Las que ya se consiguieron alguna vez. */
+/** The ones already achieved at some point. */
 export function storedFeats(): Feat[] {
-  return readFeats(guardadas.get())
+  return readFeats(stored.get())
 }
 
 /**
- * Apunta las hazañas de una partida y devuelve **solo las que se estrenan**: las que ya estaban
- * no se vuelven a contar al salón. Sin ninguna nueva no escribe nada.
+ * Records the feats of a match and returns **only the ones earned for the first time**: the ones
+ * already there are not told to the hall again. With no new one it writes nothing.
  */
-export function earnFeats(conseguidas: Iterable<Feat>): Feat[] {
-  const antes = new Set(storedFeats())
-  const ahora = new Set(conseguidas)
-  const nuevas = FEATS.filter((hazana) => ahora.has(hazana) && !antes.has(hazana))
-  if (nuevas.length > 0) {
-    guardadas.save(FEATS.filter((hazana) => antes.has(hazana) || ahora.has(hazana)).join(','))
+export function earnFeats(achieved: Iterable<Feat>): Feat[] {
+  const before = new Set(storedFeats())
+  const now = new Set(achieved)
+  const newFeats = FEATS.filter((feat) => now.has(feat) && !before.has(feat))
+  if (newFeats.length > 0) {
+    stored.save(FEATS.filter((feat) => before.has(feat) || now.has(feat)).join(','))
   }
-  return nuevas
+  return newFeats
 }
 
 /**
- * Qué deja un partido cerrado: ganarlo sin encajar. La partida sin fin no cuenta —la cierra el
- * jugador cuando quiere y un 1-0 abandonado no es un partido—, y el duelo tampoco, que es de dos.
+ * What a finished match leaves: winning it without conceding. The endless match does not count
+ * —the player closes it whenever they want and an abandoned 1-0 is not a match—, and neither does
+ * the duel, which belongs to two.
  */
 export function matchFeats({
-  won: ganado,
-  conceded: encajados,
-  sinFin,
+  won,
+  conceded,
+  endless,
 }: {
   won: boolean
   conceded: number
-  sinFin: boolean
+  endless: boolean
 }): Feat[] {
-  return ganado && !sinFin && encajados === 0 ? ['GH_SHUTOUT'] : []
+  return won && !endless && conceded === 0 ? ['GH_SHUTOUT'] : []
 }
 
 /**
- * La jugada en curso, contada desde el último saque: quién tocó el disco el último y, si fue el
- * jugador, cuántas veces seguidas y desde dónde.
+ * The possession under way, counted from the last serve: who touched the puck last and, if it was
+ * the player, how many times in a row and from where.
  */
 export interface Possession {
-  /** Quién tocó el disco el último, o `null` si nadie desde el saque. */
+  /** Who touched the puck last, or `null` if nobody since the serve. */
   readonly last: Scorer | null
-  /** Toques seguidos del jugador sin que la máquina toque entre medias. */
+  /** Touches in a row by the player without the machine touching in between. */
   readonly touchesInARow: number
-  /** Si el primero de esos toques fue con el disco en el fondo del campo propio. */
+  /** Whether the first of those touches was with the puck at the back of their own half. */
   readonly fromTheBack: boolean
 }
 
-/** La jugada recién sacada: nadie ha tocado el disco. */
+/** The possession just served: nobody has touched the puck. */
 export const NEW_POSSESSION: Possession = { last: null, touchesInARow: 0, fromTheBack: false }
 
 /**
- * Desde dónde cuenta un tiro como lejano: la mitad de atrás del campo propio, más cerca de tu
- * portería que de la línea de medio campo. El mazo no cruza esa línea, así que «desde tu campo»
- * es cualquier tiro; lo que pide destreza es cruzar la mesa entera de un toque.
+ * From where a shot counts as a long one: the back half of your own half, closer to your goal
+ * than to the centre line. The mallet does not cross that line, so «from your half» is any shot;
+ * what takes skill is crossing the whole table with one touch.
  */
 export const BACK_OF_OWN_HALF = HALF_LENGTH / 2
 
 /**
- * Un toque de un mazo al disco. `z` es dónde estaba el disco, en coordenadas de la mesa: el
- * campo del jugador es el de `z` positiva.
+ * A touch of a mallet on the puck. `z` is where the puck was, in table coordinates: the player's
+ * half is the one of positive `z`.
  */
-export function touch(jugada: Possession, quien: Scorer, z: number): Possession {
-  if (quien === 'opponent') return { last: 'opponent', touchesInARow: 0, fromTheBack: false }
-  const primero = jugada.last !== 'player'
+export function touch(possession: Possession, who: Scorer, z: number): Possession {
+  if (who === 'opponent') return { last: 'opponent', touchesInARow: 0, fromTheBack: false }
+  const first = possession.last !== 'player'
   return {
     last: 'player',
-    touchesInARow: primero ? 1 : jugada.touchesInARow + 1,
-    fromTheBack: primero ? z >= BACK_OF_OWN_HALF : jugada.fromTheBack,
+    touchesInARow: first ? 1 : possession.touchesInARow + 1,
+    fromTheBack: first ? z >= BACK_OF_OWN_HALF : possession.fromTheBack,
   }
 }
 
 /**
- * La hazaña que deja un gol, según cómo fue la jugada: el del jugador de un solo toque desde el
- * fondo, o el que el jugador se mete en su propia portería (el último toque fue suyo).
+ * The feat a goal leaves, depending on how the possession went: the player's one with a single
+ * touch from the back, or the one the player puts into their own goal (the last touch was theirs).
  */
-export function goalFeat(jugada: Possession, gol: Scorer): Feat | null {
-  if (jugada.last !== 'player') return null
-  if (gol === 'opponent') return 'GH_OWN_GOAL'
-  return jugada.touchesInARow === 1 && jugada.fromTheBack ? 'GH_LONG_SHOT' : null
+export function goalFeat(possession: Possession, goal: Scorer): Feat | null {
+  if (possession.last !== 'player') return null
+  if (goal === 'opponent') return 'GH_OWN_GOAL'
+  return possession.touchesInARow === 1 && possession.fromTheBack ? 'GH_LONG_SHOT' : null
 }

@@ -5,26 +5,27 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { markHandBusy, releaseHands } from './busyHands'
 
 /**
- * El mando de la web propia del juego (`XRControllerGrip`): **el rayo se apaga con la mano
- * ocupada**. Montado en el salón el mando es del hub; aquí lo dibuja este componente, y es el que
- * tiene que leer el registro de manos ocupadas (`manosOcupadas.ts`).
+ * The controller of the game's own website (`XRControllerGrip`): **the ray goes off with the
+ * hand busy**. Mounted in the hall the controller belongs to the hub; here this component draws
+ * it, and it is the one that has to read the registry of busy hands (`busyHands.ts`).
  *
- * Se monta sin Canvas ni sesión: la librería de XR se sustituye por piezas que apuntan con qué
- * se las llama, que es lo que se mira. Los punteros tienen que seguir ahí —el de agarre y el
- * rayo— y lo único que cambia con la mano ocupada es el dibujo del rayo y de su cursor.
+ * It is mounted without a Canvas or a session: the XR library is replaced by pieces that record
+ * what they are called with, which is what is looked at. The pointers have to still be there
+ * —the grab one and the ray— and the only thing that changes with the hand busy is the drawing
+ * of the ray and of its cursor.
  */
 
-const rayos: Record<string, unknown>[] = []
-const agarres: Record<string, unknown>[] = []
+const rays: Record<string, unknown>[] = []
+const grabs: Record<string, unknown>[] = []
 
 vi.mock('@react-three/xr', () => ({
   CombinedPointer: ({ children }: { children: ReactNode }) => <>{children}</>,
   DefaultXRControllerGrabPointer: (props: Record<string, unknown>) => {
-    agarres.push(props)
+    grabs.push(props)
     return null
   },
   DefaultXRInputSourceRayPointer: (props: Record<string, unknown>) => {
-    rayos.push(props)
+    rays.push(props)
     return null
   },
   XRSpace: () => null,
@@ -36,38 +37,38 @@ const { XRControllerGrip } = await import('./XRControllerGrip')
 afterEach(() => {
   cleanup()
   act(() => releaseHands())
-  rayos.length = 0
-  agarres.length = 0
+  rays.length = 0
+  grabs.length = 0
 })
 
-describe('el mando de la web propia', () => {
-  it('con la mano libre, el rayo y su cursor se dibujan', () => {
+describe("the controller of the game's own website", () => {
+  it('with the hand free, the ray and its cursor are drawn', () => {
     render(<XRControllerGrip />)
-    expect(rayos.at(-1)).toMatchObject({ makeDefault: true, cursorModel: true })
-    expect(rayos.at(-1)?.rayModel).toBeTruthy()
-    expect(agarres.length).toBeGreaterThan(0)
+    expect(rays.at(-1)).toMatchObject({ makeDefault: true, cursorModel: true })
+    expect(rays.at(-1)?.rayModel).toBeTruthy()
+    expect(grabs.length).toBeGreaterThan(0)
   })
 
-  it('con algo en esa mano, el rayo y el cursor se apagan; al soltar vuelven', () => {
+  it('with something in that hand, the ray and the cursor go off; on release they come back', () => {
     render(<XRControllerGrip />)
     act(() => markHandBusy('right', true))
-    expect(rayos.at(-1)).toMatchObject({ makeDefault: true, rayModel: false, cursorModel: false })
+    expect(rays.at(-1)).toMatchObject({ makeDefault: true, rayModel: false, cursorModel: false })
     act(() => markHandBusy('right', false))
-    expect(rayos.at(-1)?.rayModel).toBeTruthy()
-    expect(rayos.at(-1)?.cursorModel).toBe(true)
+    expect(rays.at(-1)?.rayModel).toBeTruthy()
+    expect(rays.at(-1)?.cursorModel).toBe(true)
   })
 
-  it('un juego sin puntero de agarre sigue sin él, y con su rayo', () => {
+  it('a game without a grab pointer still has none, and keeps its ray', () => {
     render(<XRControllerGrip grab={false} ray={{ maxLength: 3, opacity: 0.9 }} />)
-    expect(agarres).toEqual([])
-    expect(rayos.at(-1)?.rayModel).toEqual({ maxLength: 3, opacity: 0.9 })
+    expect(grabs).toEqual([])
+    expect(rays.at(-1)?.rayModel).toEqual({ maxLength: 3, opacity: 0.9 })
     act(() => markHandBusy('right', true))
-    expect(rayos.at(-1)?.rayModel).toBe(false)
+    expect(rays.at(-1)?.rayModel).toBe(false)
   })
 
-  it('la otra mano ocupada no apaga el rayo de esta', () => {
+  it('the other hand being busy does not turn off the ray of this one', () => {
     render(<XRControllerGrip />)
     act(() => markHandBusy('left', true))
-    expect(rayos.at(-1)?.rayModel).toBeTruthy()
+    expect(rays.at(-1)?.rayModel).toBeTruthy()
   })
 })

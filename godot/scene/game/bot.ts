@@ -1,48 +1,48 @@
 /**
- * El jugador automático: a dónde lleva el mazo para jugar contra la máquina sin nadie delante.
+ * The automatic player: where it takes the mallet to play against the machine with nobody there.
  *
- * Sirve para comprobar sin visor ni ratón que la escena y la lógica están bien cosidas, para medir
- * el coste por fotograma y para que un test juegue una partida entera hasta el final. No pretende
- * jugar bien: pretende que haya goles de los dos lados y que la partida acabe. Con el reloj fijo
- * (`--fixed-fps`) y la semilla de la mesa, juega siempre la misma partida.
+ * It serves to check without a headset or a mouse that the scene and the logic are well stitched
+ * together, to measure the cost per frame and for a test to play a whole match to the end. It does
+ * not aim to play well: it aims for goals on both sides and for the match to end. With the fixed
+ * clock (`--fixed-fps`) and the table's seed, it always plays the same match.
  *
- * La regla es la de cualquiera que empieza: con el disco en su mitad, ponerse **detrás** de él
- * (entre el disco y la portería propia) y empujarlo hacia delante; si el mazo ha quedado por
- * delante del disco, rodearlo por un lado en vez de empujarlo hacia su propia portería; con el
- * disco en la otra mitad, volver a defender delante de la portería, alineado con él.
+ * The rule is that of anyone starting out: with the puck in its half, get **behind** it (between
+ * the puck and its own goal) and push it forward; if the mallet has ended up ahead of the puck, go
+ * round it on one side instead of pushing it toward its own goal; with the puck in the other half,
+ * go back to defend in front of the goal, lined up with it.
  */
 import { MALLET_RADIUS, PLAYER_MALLET_SPEED, PUCK_RADIUS } from '@/lib/gameConfig'
 import type { TableState } from '@/lib/matchLoop'
 import { HALF_LENGTH, constrainMallet, type Vec2 } from '@/lib/puckPhysics'
 
-/** Lo que se separa el mazo del disco al rodearlo, en metros. */
-const RODEO = MALLET_RADIUS + PUCK_RADIUS + 0.04
+/** How far the mallet keeps from the puck when going round it, in metres. */
+const DETOUR = MALLET_RADIUS + PUCK_RADIUS + 0.04
 
-/** A dónde quiere ir el mazo del jugador automático con la mesa así. */
-export function destinoDelBot({ puck, player }: Pick<TableState, 'puck' | 'player'>): Vec2 {
+/** Where the automatic player's mallet wants to go with the table like this. */
+export function botTarget({ puck, player }: Pick<TableState, 'puck' | 'player'>): Vec2 {
   const p = puck.position
   const m = player.position
-  // El disco en la otra mitad: a defender, delante de la portería y alineado con él.
+  // The puck in the other half: defend, in front of the goal and lined up with it.
   if (p.z < -0.02) return constrainMallet({ x: p.x * 0.5, z: HALF_LENGTH - 0.28 }, 'player')
-  // El mazo ha quedado por delante del disco: rodearlo por el lado en el que ya está.
+  // The mallet has ended up ahead of the puck: go round it on the side it is already on.
   if (m.z < p.z + MALLET_RADIUS * 0.5) {
-    const lado = m.x >= p.x ? 1 : -1
-    return constrainMallet({ x: p.x + lado * RODEO, z: p.z + RODEO }, 'player')
+    const side = m.x >= p.x ? 1 : -1
+    return constrainMallet({ x: p.x + side * DETOUR, z: p.z + DETOUR }, 'player')
   }
-  // Detrás del disco: atravesarlo hacia delante, que es lo que lo manda a la otra portería.
+  // Behind the puck: go through it forward, which is what sends it to the other goal.
   return constrainMallet({ x: p.x, z: p.z - 0.1 }, 'player')
 }
 
 /**
- * Lleva un punto hacia otro sin pasar de la velocidad del mazo: es la mano del jugador automático
- * con visor, que no puede saltar de un lado de la mesa al otro en un fotograma (el mazo en la mano
- * golpea con la velocidad de la mano).
+ * Takes one point toward another without going over the mallet's speed: it is the hand of the
+ * automatic player with a headset, which cannot jump from one side of the table to the other in a
+ * frame (the mallet in the hand hits with the speed of the hand).
  */
-export function acercar(desde: Vec2, hacia: Vec2, delta: number, velocidad = PLAYER_MALLET_SPEED * 0.8): Vec2 {
-  const dx = hacia.x - desde.x
-  const dz = hacia.z - desde.z
+export function approach(from: Vec2, to: Vec2, delta: number, speed = PLAYER_MALLET_SPEED * 0.8): Vec2 {
+  const dx = to.x - from.x
+  const dz = to.z - from.z
   const d = Math.hypot(dx, dz)
-  const paso = velocidad * delta
-  if (d <= paso || d === 0) return hacia
-  return { x: desde.x + (dx / d) * paso, z: desde.z + (dz / d) * paso }
+  const step = speed * delta
+  if (d <= step || d === 0) return to
+  return { x: from.x + (dx / d) * step, z: from.z + (dz / d) * step }
 }

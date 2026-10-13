@@ -3,16 +3,16 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { INITIAL_COMFORT, COMFORT_KEY, getComfort, saveComfort, useComfort } from './comfort'
 
 /**
- * El puente con el navegador, escrito a mano: si la clave cambia, lo que cada
- * cual eligió deja de leerse en silencio.
+ * The bridge with the browser, written by hand: if the key changes, what each
+ * person chose silently stops being read.
  */
-describe('el confort del golpe recibido', () => {
+describe('the comfort of the hit feedback', () => {
   beforeEach(() => {
     window.localStorage.clear()
     window.dispatchEvent(new StorageEvent('storage'))
   })
 
-  it('se guarda con el prefijo del juego, y se entra con el golpe entero', () => {
+  it('is saved with the game prefix, and one starts with the full hit', () => {
     expect(COMFORT_KEY).toBe('glide-hockey:confort')
     expect(INITIAL_COMFORT).toBe('normal')
     expect(getComfort()).toBe('normal')
@@ -21,17 +21,17 @@ describe('el confort del golpe recibido', () => {
     expect(getComfort()).toBe('gentle')
   })
 
-  it('lo que no existe cae al de partida', () => {
-    window.localStorage.setItem('glide-hockey:confort', 'mucho')
+  it('what does not exist falls back to the starting one', () => {
+    window.localStorage.setItem('glide-hockey:confort', 'a lot')
     expect(getComfort()).toBe('normal')
   })
 
-  it('los dos menús lo ven cambiar a la vez', () => {
-    const uno = renderHook(() => useComfort())
-    const otro = renderHook(() => useComfort())
-    act(() => uno.result.current[1]('off'))
-    expect(otro.result.current[0]).toBe('off')
-    act(() => otro.result.current[1]('normal'))
-    expect(uno.result.current[0]).toBe('normal')
+  it('both menus see it change at once', () => {
+    const one = renderHook(() => useComfort())
+    const other = renderHook(() => useComfort())
+    act(() => one.result.current[1]('off'))
+    expect(other.result.current[0]).toBe('off')
+    act(() => other.result.current[1]('normal'))
+    expect(one.result.current[0]).toBe('normal')
   })
 })

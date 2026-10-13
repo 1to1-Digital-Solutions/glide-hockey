@@ -1,72 +1,75 @@
 import { DEFAULT_GOALS, type Difficulty } from './gameConfig'
 
 /**
- * El duelo: dos personas, un mando y la misma máquina.
+ * The duel: two people, one controller and the same machine.
  *
- * **Por qué por partidas y no gol a gol.** Sin red, dos jugadores solo pueden turnarse el mando, y
- * en air hockey el ritmo lo es todo: pasarse el visor tras cada gol —quitárselo, ajustarlo, volver
- * a coger el mazo— rompería cada jugada y convertiría la partida en una sucesión de esperas. Los
- * hermanos con modo a dos cambian de turno por una unidad de juego entera (un cuadro en bolos, un
- * hoyo en minigolf, un partido en table-tennis), y aquí la unidad natural es **la partida**.
+ * **Why by matches and not goal by goal.** Without a network, two players can only take turns with
+ * the controller, and in air hockey the rhythm is everything: handing over the headset after every
+ * goal —taking it off, adjusting it, picking the mallet up again— would break every rally and turn
+ * the match into a string of waits. The siblings with a two-player mode change turns by a whole
+ * unit of play (a frame in bowling, a hole in minigolf, a match in table-tennis), and here the
+ * natural unit is **the match**.
  *
- * **Por qué contra la máquina y no uno contra otro.** No hay forma de devolverle a alguien un disco
- * que se jugó hace un minuto. Lo que sí se puede es darles a los dos **el mismo rival**: la
- * máquina, al mismo nivel y a los mismos goles (`DUEL_SETUP`), y con **la misma semilla** en las
- * dos partidas (`Duel.seed`). La máquina elige cada tiro con un hash de la semilla, la jugada y el
- * golpe (`opponent.ts`), así que en la misma jugada y el mismo golpe tira igual a los dos: nadie
- * juega contra una máquina con más suerte. Como la mesa es caótica, el disco no rebota igual —eso
- * lo decide cómo juega cada uno—, pero las decisiones de la máquina sí son las mismas.
+ * **Why against the machine and not one against the other.** There is no way to return to someone
+ * a puck that was played a minute ago. What can be done is to give both of them **the same
+ * opponent**: the machine, at the same level and to the same goals (`DUEL_SETUP`), and with **the
+ * same seed** in both matches (`Duel.seed`). The machine picks each shot with a hash of the seed,
+ * the rally and the hit (`opponent.ts`), so on the same rally and the same hit it shoots the same
+ * at both: nobody plays against a luckier machine. As the table is chaotic, the puck does not
+ * bounce the same —that is decided by how each one plays—, but the machine's decisions are the
+ * same.
  *
- * **Gana quien le saque más ventaja a la máquina**: goles a favor menos goles en contra. Ganar o
- * perder la partida no basta para comparar —los dos pueden ganarla— y los goles a favor tampoco:
- * quien pierde 5–7 ha marcado más que quien gana 7–0. La diferencia sí dice quién ha dominado a la
- * máquina. Con la misma diferencia es empate: desempatar por otra cifra sería premiar algo que
- * nadie buscaba.
+ * **The winner is whoever gets the bigger lead over the machine**: goals for minus goals against.
+ * Winning or losing the match is not enough to compare —both can win it— and neither are the goals
+ * for: whoever loses 5–7 has scored more than whoever wins 7–0. The difference does say who
+ * dominated the machine. With the same difference it is a tie: breaking the tie by another figure
+ * would reward something nobody was after.
  *
- * Funciones puras, sin React: el duelo entero se prueba sin montar el juego, y el port de Godot lo
- * usa tal cual.
+ * Pure functions, without React: the whole duel is tested without mounting the game, and the Godot
+ * port uses it as is.
  */
 
 export type Player = 0 | 1
 
-/** Cómo se llama cada uno en pantalla, en inglés: es la clave con la que se traduce. */
+/** What each one is called on screen, in English: it is the key it is translated with. */
 export const PLAYER_LABELS = ['Player 1', 'Player 2'] as const satisfies readonly [string, string]
 
 /**
- * Cómo se juega el duelo: la máquina en Media y a 7 goles, la partida con la que se entra en la
- * práctica.
+ * How the duel is played: the machine on Medium and to 7 goals, the match you enter practice
+ * with.
  *
- * Fijo para que los dos jueguen contra lo mismo sin ponerse de acuerdo en el menú, que es justo lo
- * que hace falta para que la ventaja de uno se compare con la del otro. Media y no Fácil porque en
- * Fácil quien sepa mover el mazo gana 7–0, y dos 7–0 son un empate que no dice nada.
+ * Fixed so that both play against the same thing without agreeing on it in the menu, which is
+ * exactly what is needed for one's lead to be compared with the other's. Medium and not Easy
+ * because on Easy whoever knows how to move the mallet wins 7–0, and two 7–0s are a tie that says
+ * nothing.
  */
 export const DUEL_SETUP = { difficulty: 'medium', goalTarget: DEFAULT_GOALS } as const satisfies {
   difficulty: Difficulty
   goalTarget: number
 }
 
-/** El marcador de una partida contra la máquina. */
+/** The score of a match against the machine. */
 export interface MatchScore {
-  /** Goles que metió quien jugaba. */
+  /** Goals scored by whoever was playing. */
   readonly scored: number
-  /** Goles que le metió la máquina. */
+  /** Goals the machine scored against them. */
   readonly conceded: number
 }
 
-/** Un duelo: la semilla de la máquina y las dos partidas, en orden de jugador. */
+/** A duel: the machine's seed and the two matches, in player order. */
 export interface Duel {
-  /** Con qué semilla elige sus tiros la máquina en las dos partidas (`AimSeed.match`). */
+  /** The seed the machine picks its shots with in both matches (`AimSeed.match`). */
   readonly seed: number
-  /** `null` es que todavía no se ha jugado. */
+  /** `null` means it has not been played yet. */
   readonly matches: readonly [MatchScore | null, MatchScore | null]
 }
 
-/** Un duelo sin empezar, con la semilla de sus dos partidas: le toca al primero. */
+/** A duel not yet started, with the seed of its two matches: it is the first one's turn. */
 export function newDuel(seed: number): Duel {
   return { seed, matches: [null, null] }
 }
 
-/** A quién le toca jugar, o `null` si los dos han jugado ya. */
+/** Whose turn it is to play, or `null` if both have already played. */
 export function duelTurn(duel: Duel): Player | null {
   if (duel.matches[0] == null) return 0
   if (duel.matches[1] == null) return 1
@@ -74,25 +77,26 @@ export function duelTurn(duel: Duel): Player | null {
 }
 
 /**
- * Quién tiene el mando: a quien le toca o, con las dos partidas jugadas, el último que jugó.
+ * Who holds the controller: whoever's turn it is or, with both matches played, the last one who
+ * played.
  *
- * Es lo que pinta el marcador —de quién es la partida que se ve— y siempre es alguien: un duelo
- * acabado sigue enseñando la partida que lo cerró.
+ * It is what the scoreboard draws —whose match is the one on show— and it is always someone: a
+ * finished duel keeps showing the match that closed it.
  */
 export function controllerHolder(duel: Duel): Player {
   return duelTurn(duel) ?? 1
 }
 
-/** ¿Han jugado los dos? */
+/** Have both played? */
 export function duelOver(duel: Duel): boolean {
   return duelTurn(duel) == null
 }
 
 /**
- * Apunta la partida de quien tenía el turno. La semilla no cambia: es la de las dos.
+ * Records the match of whoever had the turn. The seed does not change: it is the one of both.
  *
- * Con el duelo acabado no apunta nada: una tercera partida no es de nadie, y sobrescribir una de
- * las dos cambiaría el resultado de algo que ya se ha visto.
+ * With the duel finished it records nothing: a third match belongs to nobody, and overwriting one
+ * of the two would change the result of something that has already been seen.
  */
 export function recordMatch(duel: Duel, score: MatchScore): Duel {
   const turn = duelTurn(duel)
@@ -100,19 +104,19 @@ export function recordMatch(duel: Duel, score: MatchScore): Duel {
   return { seed: duel.seed, matches: turn === 0 ? [score, duel.matches[1]] : [duel.matches[0], score] }
 }
 
-/** La ventaja que le sacó a la máquina: positiva si le metió más goles de los que recibió. */
+/** The lead they got over the machine: positive if they scored more goals than they conceded. */
 export function margin(score: MatchScore): number {
   return score.scored - score.conceded
 }
 
-/** La ventaja escrita como se lee en un marcador: «+3», «−2» o «0». */
+/** The lead written the way it reads on a scoreboard: «+3», «−2» or «0». */
 export function formatMargin(value: number): string {
   if (value > 0) return `+${value}`
   if (value < 0) return `−${-value}`
   return '0'
 }
 
-/** Quién ha ganado el duelo, o `null` si no ha acabado o van empatados. */
+/** Who has won the duel, or `null` if it has not finished or they are tied. */
 export function duelWinner(duel: Duel): Player | null {
   const [one, two] = duel.matches
   if (one == null || two == null) return null
@@ -122,14 +126,15 @@ export function duelWinner(duel: Duel): Player | null {
 }
 
 /**
- * Si el final que acaba de llegar suena a ganar. `duelAcabado` es que con esta partida han jugado
- * ya los dos (`DuelView.over`); fuera del duelo, `false`.
+ * Whether the ending that has just arrived sounds like winning. `duelFinished` means that with
+ * this match both have already played (`DuelView.over`); outside the duel, `false`.
  *
- * Fuera del duelo, y en la partida del primero, lo dice el marcador contra la máquina. **El final
- * del duelo suena siempre a ganar**: ahí no se cierra una partida contra la máquina sino el duelo,
- * y lo gana uno de los dos que están delante —o empatan, que tampoco es perder—. Con el marcador
- * de la segunda partida, un duelo ganado por quien jugó primero sonaba a derrota.
+ * Outside the duel, and in the first one's match, the score against the machine says it. **The
+ * end of the duel always sounds like winning**: what closes there is not a match against the
+ * machine but the duel, and one of the two standing there wins it —or they tie, which is not
+ * losing either—. With the score of the second match, a duel won by whoever played first sounded
+ * like a defeat.
  */
-export function endSoundsLikeWin(duelAcabado: boolean, marcador: MatchScore): boolean {
-  return duelAcabado || marcador.scored > marcador.conceded
+export function endSoundsLikeWin(duelFinished: boolean, score: MatchScore): boolean {
+  return duelFinished || score.scored > score.conceded
 }

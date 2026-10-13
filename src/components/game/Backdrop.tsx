@@ -5,43 +5,46 @@ import { useFrame } from '@react-three/fiber'
 import { Color, type Scene } from 'three'
 
 /**
- * El fondo de la escena: lo que se ve donde no hay nada dibujado.
+ * The background of the scene: what is seen where nothing is drawn.
  *
- * **Qué arregla.** Las paredes acaban a la altura que acaban, y por encima estaba el negro
- * del compositor: no el negro de un sitio a oscuras, sino la ausencia de sitio. Desde una
- * pantalla apenas se nota; con el visor puesto se nota a la primera, porque el ojo usa
- * justamente el fondo para saber dónde está.
+ * **What it fixes.** The walls end at the height they end at, and above them was the
+ * compositor's black: not the black of a place in the dark, but the absence of a place. From
+ * a screen it is barely noticed; with the headset on it is noticed at once, because the eye
+ * uses precisely the background to know where it is.
  *
- * **Por qué no `<color attach="background">`.** Ese atajo adjunta el color a **su padre**, y
- * solo acierta si el padre es la escena. Dentro de cualquier `<group>` —y aquí el mundo
- * cuelga de varios— se adjunta al grupo, donde `background` no significa nada: no falla, no
- * avisa, simplemente no hace nada. Esto lo pone donde va, cuelgue de donde cuelgue.
+ * **Why not `<color attach="background">`.** That shortcut attaches the colour to **its
+ * parent**, and only gets it right if the parent is the scene. Inside any `<group>` —and here
+ * the world hangs from several— it attaches to the group, where `background` means nothing:
+ * it does not fail, it does not warn, it simply does nothing. This puts it where it goes,
+ * whatever it hangs from.
  *
- * **Y lo devuelve al irse.** Montado en el salón, el juego se desmonta al volver al arco: sin
- * restaurar lo que había, la cabina se llevaría por delante el fondo del hub.
+ * **And gives it back on leaving.** Mounted in the hall, the game unmounts on going back to
+ * the arc: without restoring what was there, the cabinet would take the hub's background with
+ * it.
  *
- * La escena se toma del fotograma y no de `useThree` a propósito: lo que devuelve un hook no
- * se toca (`react-hooks/immutability`), y lo que hay que hacer aquí es exactamente tocarlo.
+ * The scene is taken from the frame and not from `useThree` on purpose: what a hook returns
+ * is not to be touched (`react-hooks/immutability`), and what has to be done here is exactly
+ * to touch it.
  */
 export function Backdrop({ color }: { color: string }) {
-  const fondo = useMemo(() => new Color(color), [color])
-  const escena = useRef<Scene | null>(null)
-  const anterior = useRef<Scene['background']>(null)
+  const background = useMemo(() => new Color(color), [color])
+  const seenScene = useRef<Scene | null>(null)
+  const previous = useRef<Scene['background']>(null)
 
   useFrame(({ scene }) => {
-    if (escena.current !== scene) {
-      escena.current = scene
-      anterior.current = scene.background
+    if (seenScene.current !== scene) {
+      seenScene.current = scene
+      previous.current = scene.background
     }
-    // Solo cuando hace falta: asignar en cada uno de los noventa fotogramas no
-    // rompe nada, pero tampoco hace nada.
-    if (scene.background !== fondo) scene.background = fondo
+    // Only when needed: assigning on each of the ninety frames breaks nothing,
+    // but does nothing either.
+    if (scene.background !== background) scene.background = background
   })
 
   useEffect(
     () => () => {
-      const scene = escena.current
-      if (scene != null) scene.background = anterior.current
+      const scene = seenScene.current
+      if (scene != null) scene.background = previous.current
     },
     [],
   )

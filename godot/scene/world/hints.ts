@@ -1,19 +1,20 @@
 /**
- * Las ayudas visuales de Glide Hockey en Godot: lo que hay que hacer, enseñado sin una letra
- * (`components/game/Ayudas.tsx`). Las huellas en el suelo dicen dónde plantarse, de frente y a la
- * par; el mazo fantasma empujando hasta tocar el disco, qué se coge y qué se hace con él; el mando
- * de verdad a su lado con el agarre latiendo, con qué; y la marca calcada en la portería
- * contraria, adónde va lo que se golpea.
+ * The visual hints of Glide Hockey in Godot: what has to be done, shown without a single letter
+ * (`components/game/Hints.tsx`). The footprints on the floor say where to stand, facing forward
+ * and side by side; the ghost mallet pushing until it touches the puck, what is grabbed and what
+ * is done with it; the real controller beside it with the grip throbbing, with what; and the mark
+ * traced on the opposite goal, where what is hit goes.
  *
- * **Ninguna se queda puesta.** Cuándo se enciende y se apaga cada una lo decide el guion de la web
- * (`lib/guionDeAyudas.ts`) sobre el motor común de los juegos (`lib/ayudas.ts`), los dos tal cual,
- * y las cotas de lo que se pinta son las suyas: aquí solo se pinta. Las dos que se levantan de la
- * mesa (el fantasma y el mando) se van con el mazo en la mano, que es antes de que el disco salga.
+ * **None of them stays on.** When each one lights up and goes out is decided by the web's script
+ * (`lib/hintScript.ts`) on top of the games' shared engine (`lib/hints.ts`), both as they are, and
+ * the measurements of what is painted are theirs: here it is only painted. The two that rise from
+ * the table (the ghost and the controller) leave with the mallet in the hand, which is before the
+ * puck sets off.
  *
- * **Todo se monta de una vez** y se enciende con `visible` y la opacidad: montar una malla a mitad
- * de partida es compilar un material a mitad de partida. Las huellas cuelgan del espacio de quien
- * juega; lo demás, de la mesa. Como en la web, **solo con el visor puesto** (`dando`); `-- --ayudas`
- * las enseña en plano.
+ * **Everything is mounted at once** and lit with `visible` and the opacity: mounting a mesh in the
+ * middle of a match is compiling a material in the middle of a match. The footprints hang from the
+ * space of whoever plays; the rest, from the table. As on the web, **only with the headset on**
+ * (`showing`); `-- --ayudas` shows them on the flat screen.
  */
 import { Node3D, Vector3, type MeshInstance3D, type StandardMaterial3D } from 'godot'
 
@@ -39,150 +40,164 @@ import {
   type HintFact,
 } from '@/lib/hintScript'
 
-/** Lo transparente que llega a ponerse cada ayuda encendida del todo (`OPACIDAD` de `Ayudas.tsx`). */
-export const OPACIDAD_DE_LA_AYUDA = { floor: 0.75, gesture: 0.7, goal: 0.72 } as const
-
-/** Lo que mide el mazo fantasma: el aro al radio del mazo de verdad y un apunte de mango (`FANTASMA`). */
-export const FANTASMA = { grosor: 0.008, mango: { radio: 0.02, alto: 0.05 } } as const
-
-/** Por debajo de esto, una ayuda que se apaga ya no se pinta (el `> 0.004` de la web). */
-const APAGADA = 0.004
+/** How opaque each hint gets when fully lit (`OPACITY` of `Hints.tsx`). */
+export const HINT_OPACITY = { floor: 0.75, gesture: 0.7, goal: 0.72 } as const
 
 /**
- * Dónde va el mando junto al mazo fantasma, en las coordenadas de la mesa (`JUNTO` de la web): a
- * un palmo del sitio donde nace el mazo, del lado de la mano buena, a la altura de la mano y con el
- * agarre de cara a los ojos.
+ * The measurements of the ghost mallet: the ring at the radius of the real mallet and a sketch of a
+ * handle (`GHOST`).
  */
-export function juntoAlMazo(mano: Hand = 'right'): { posicion: Vector3; giro: number; escala: number } {
-  const { position: posicion, rotation: giro } = controllerBesideMallet(mano)
-  return { posicion: new Vector3(posicion.x, posicion.y, posicion.z), giro, escala: CONTROLLER_BESIDE_MALLET.scale }
+export const GHOST = { thickness: 0.008, handle: { radius: 0.02, height: 0.05 } } as const
+
+/** Below this, a hint that is going out is no longer painted (the web's `> 0.004`). */
+const FADED_OUT = 0.004
+
+/**
+ * Where the controller goes beside the ghost mallet, in the table's coordinates (the web's
+ * `besideMallet`): a hand's breadth from the spot where the mallet starts, on the side of the
+ * dominant hand, at the height of the hand and with the grip facing the eyes.
+ */
+export function besideMallet(hand: Hand = 'right'): { posicion: Vector3; giro: number; escala: number } {
+  const { position, rotation } = controllerBesideMallet(hand)
+  return { posicion: new Vector3(position.x, position.y, position.z), giro: rotation, escala: CONTROLLER_BESIDE_MALLET.scale }
 }
 
-/** Lo que las ayudas necesitan saber de la partida, cada fotograma. */
-export interface MomentoDeLasAyudas {
-  /** Con el visor puesto (o forzadas en plano): sin eso, no se enseñan ni corren sus plazos. */
-  dando: boolean
-  /** Lo hecho: la partida en marcha, el mazo en la mano, el primer golpe y el primer gol. */
-  hechos: Readonly<Record<HintFact, boolean>>
+/** What the hints need to know about the match, every frame. */
+export interface HintsMoment {
+  /**
+   * With the headset on (or forced on the flat screen): without that, they are not shown and their
+   * deadlines do not run.
+   */
+  showing: boolean
+  /**
+   * What has been done: the match under way, the mallet in the hand, the first hit and the first
+   * goal.
+   */
+  facts: Readonly<Record<HintFact, boolean>>
 }
 
-export class AyudasDelJuego {
-  private readonly estado = noHints()
-  private readonly fuerzas: Record<MalletHint, number> = { floor: 0, controller: 0, gesture: 0, goal: 0 }
-  private readonly huellas: { nodo: MeshInstance3D; material: StandardMaterial3D }[] = []
-  readonly fantasma = new Node3D()
-  private readonly pinturaDelFantasma: StandardMaterial3D[] = []
-  readonly porteria: MeshInstance3D
-  private readonly pinturaDeLaPorteria: StandardMaterial3D
-  private reloj = 0
-  private apagadas = false
+export class GameHints {
+  private readonly state = noHints()
+  private readonly strengths: Record<MalletHint, number> = { floor: 0, controller: 0, gesture: 0, goal: 0 }
+  private readonly footprints: { node: MeshInstance3D; material: StandardMaterial3D }[] = []
+  readonly ghost = new Node3D()
+  private readonly ghostPaint: StandardMaterial3D[] = []
+  readonly goalMark: MeshInstance3D
+  private readonly goalMarkPaint: StandardMaterial3D
+  private clock = 0
+  private allOff = false
 
   constructor(
-    /** El espacio de quien juega: los pies en el origen. Ahí van las huellas. */
-    suelo: Node3D,
-    /** El espacio de la mesa: su centro, a la altura del tablero. Ahí va lo demás. */
-    mesa: Node3D,
-    /** El mando de verdad junto al mazo fantasma, ya plantado con `juntoAlMazo()`, o nada. */
-    readonly mando: RealController | null = null,
+    /** The space of whoever plays: the feet at the origin. The footprints go there. */
+    floor: Node3D,
+    /** The table's space: its centre, at the height of the top. The rest goes there. */
+    table: Node3D,
+    /**
+     * The real controller beside the ghost mallet, already placed with `besideMallet()`, or
+     * nothing.
+     */
+    readonly controller: RealController | null = null,
   ) {
     for (const h of FOOTPRINTS) {
-      // Una huella es un óvalo: el círculo de doce lados estirado a lo largo del pie.
+      // A footprint is an oval: the twelve-sided circle stretched along the foot.
       const material = translucent(HINT_MARK_COLOR, 0, 3)
-      const nodo = layFlat(mesh(flatMesh(arcTriangles(0, 1, 0, Math.PI * 2, 12)), material), h.x, FOOTPRINTS_Y, h.z)
-      nodo.scale = new Vector3(FOOTPRINT.width / 2, FOOTPRINT.length / 2, 1)
-      nodo.visible = false
-      suelo.add_child(nodo)
-      this.huellas.push({ nodo, material })
+      const node = layFlat(mesh(flatMesh(arcTriangles(0, 1, 0, Math.PI * 2, 12)), material), h.x, FOOTPRINTS_Y, h.z)
+      node.scale = new Vector3(FOOTPRINT.width / 2, FOOTPRINT.length / 2, 1)
+      node.visible = false
+      floor.add_child(node)
+      this.footprints.push({ node, material })
     }
 
-    // El mazo fantasma: el aro calcado sobre la mesa y el mango apuntado, que sin él el aro se lee
-    // como un agujero y no como algo que se coge. El aro de Godot ya va tumbado.
-    this.fantasma.set_name('MazoFantasma')
-    this.fantasma.visible = false
-    const pintura = () => {
+    // The ghost mallet: the ring traced on the table and the sketched handle, since without it the
+    // ring reads as a hole and not as something to grab. Godot's ring already lies flat.
+    this.ghost.set_name('GhostMallet')
+    this.ghost.visible = false
+    const paint = () => {
       const m = translucent(HINT_MARK_COLOR, 0, 4)
-      this.pinturaDelFantasma.push(m)
+      this.ghostPaint.push(m)
       return m
     }
-    const anilla = hoop(MALLET_RADIUS, FANTASMA.grosor, pintura(), 24)
-    anilla.position = new Vector3(0, DECAL_Y, 0)
-    this.fantasma.add_child(anilla)
-    this.fantasma.add_child(cylinder(FANTASMA.mango.radio, FANTASMA.mango.radio, FANTASMA.mango.alto, pintura(), new Vector3(0, FANTASMA.mango.alto / 2, 0), 10))
-    mesa.add_child(this.fantasma)
+    const ring = hoop(MALLET_RADIUS, GHOST.thickness, paint(), 24)
+    ring.position = new Vector3(0, DECAL_Y, 0)
+    this.ghost.add_child(ring)
+    this.ghost.add_child(cylinder(GHOST.handle.radius, GHOST.handle.radius, GHOST.handle.height, paint(), new Vector3(0, GHOST.handle.height / 2, 0), 10))
+    table.add_child(this.ghost)
 
-    // La marca de la portería contraria, calcada en el fondo: por ahí pasa el disco.
-    this.pinturaDeLaPorteria = translucent(HINT_MARK_COLOR, 0, 4)
-    this.porteria = layFlat(quad(GOAL_MARK.width, GOAL_MARK.depth, this.pinturaDeLaPorteria), 0, DECAL_Y, GOAL_MARK.z)
-    this.porteria.set_name('MarcaDeLaPorteria')
-    this.porteria.visible = false
-    mesa.add_child(this.porteria)
+    // The mark of the opposite goal, traced at the far end: the puck goes through there.
+    this.goalMarkPaint = translucent(HINT_MARK_COLOR, 0, 4)
+    this.goalMark = layFlat(quad(GOAL_MARK.width, GOAL_MARK.depth, this.goalMarkPaint), 0, DECAL_Y, GOAL_MARK.z)
+    this.goalMark.set_name('GoalMark')
+    this.goalMark.visible = false
+    table.add_child(this.goalMark)
 
-    if (mando != null) mesa.add_child(mando.nodo)
+    if (controller != null) table.add_child(controller.nodo)
   }
 
-  /** Lo que se ve de cada ayuda ahora mismo, de 0 a 1. */
-  get fuerza(): Readonly<Record<MalletHint, number>> {
-    return this.fuerzas
+  /** How much of each hint is seen right now, from 0 to 1. */
+  get strength(): Readonly<Record<MalletHint, number>> {
+    return this.strengths
   }
 
-  /** El reloj de las ayudas: las capturas esperan a que estén encendidas del todo. */
-  get segundos(): number {
-    return this.reloj
+  /** The hints' clock: the screenshots wait until they are fully lit. */
+  get seconds(): number {
+    return this.clock
   }
 
-  actualizar(delta: number, momento: MomentoDeLasAyudas): void {
-    this.reloj += delta
-    const { dando } = momento
-    const paso = advanceHints(HINT_SCRIPT, momento.hechos, this.estado, dando ? delta : 0)
-    let alguna = false
-    for (const ayuda of HINT_SCRIPT) {
-      const quiere = dando && paso.lit.has(ayuda.id) ? 1 : 0
-      this.fuerzas[ayuda.id] = moveToward(this.fuerzas[ayuda.id], quiere, delta)
-      if (this.fuerzas[ayuda.id] > APAGADA) alguna = true
+  update(delta: number, moment: HintsMoment): void {
+    this.clock += delta
+    const { showing } = moment
+    const step = advanceHints(HINT_SCRIPT, moment.facts, this.state, showing ? delta : 0)
+    let anyVisible = false
+    for (const hint of HINT_SCRIPT) {
+      const wanted = showing && step.lit.has(hint.id) ? 1 : 0
+      this.strengths[hint.id] = moveToward(this.strengths[hint.id], wanted, delta)
+      if (this.strengths[hint.id] > FADED_OUT) anyVisible = true
     }
-    // Todas apagadas y ya escondidas: nada que pintar, y no se toca el motor.
-    if (!alguna && this.apagadas) return
-    this.apagadas = !alguna
-    const pulso = throb(this.reloj, THROB.strength)
+    // All of them off and already hidden: nothing to paint, and the engine is not touched.
+    if (!anyVisible && this.allOff) return
+    this.allOff = !anyVisible
+    const pulse = throb(this.clock, THROB.strength)
 
-    // Las huellas, latiendo: es lo que las separa de una mancha de la moqueta.
-    const suelo = this.fuerzas.floor
-    for (const h of this.huellas) {
-      h.nodo.visible = suelo > APAGADA
-      opacidad(h.material, suelo * OPACIDAD_DE_LA_AYUDA.floor * pulso)
+    // The footprints, throbbing: it is what sets them apart from a stain on the carpet.
+    const floor = this.strengths.floor
+    for (const h of this.footprints) {
+      h.node.visible = floor > FADED_OUT
+      opacidad(h.material, floor * HINT_OPACITY.floor * pulse)
     }
 
-    // El mazo fantasma, dando su empujón: se recoge despacio y empuja deprisa hasta tocar el disco.
-    const gesto = this.fuerzas.gesture
-    this.fantasma.visible = gesto > APAGADA
-    const donde = ghostMalletAt(sweepPhase(this.reloj, PUSH.period).progress)
-    this.fantasma.position = new Vector3(donde.x, 0, donde.z)
-    for (const m of this.pinturaDelFantasma) opacidad(m, gesto * OPACIDAD_DE_LA_AYUDA.gesture * pulso)
+    // The ghost mallet, giving its push: it draws back slowly and pushes fast until it touches the
+    // puck.
+    const gesture = this.strengths.gesture
+    this.ghost.visible = gesture > FADED_OUT
+    const where = ghostMalletAt(sweepPhase(this.clock, PUSH.period).progress)
+    this.ghost.position = new Vector3(where.x, 0, where.z)
+    for (const m of this.ghostPaint) opacidad(m, gesture * HINT_OPACITY.gesture * pulse)
 
-    // La marca de la portería **no late**: se queda mientras se juega, y algo que palpita mientras
-    // el disco cruza la mesa roba la mirada justo cuando hace falta en otro sitio.
-    const porteria = this.fuerzas.goal
-    this.porteria.visible = porteria > APAGADA
-    opacidad(this.pinturaDeLaPorteria, porteria * OPACIDAD_DE_LA_AYUDA.goal)
+    // The goal mark **does not throb**: it stays while playing, and something that pulses while
+    // the puck crosses the table steals the gaze just when it is needed elsewhere.
+    const goal = this.strengths.goal
+    this.goalMark.visible = goal > FADED_OUT
+    opacidad(this.goalMarkPaint, goal * HINT_OPACITY.goal)
 
-    // El mando se apaga escondiéndolo, no desmontándolo: volver a enseñarlo recompilaría el modelo.
-    const mando = this.mando
-    if (mando != null) {
-      if (this.fuerzas.controller > APAGADA) {
-        mando.encender('agarre')
-        mando.actualizar(delta)
-      } else mando.apagar()
+    // The controller goes out by hiding it, not unmounting it: showing it again would recompile the
+    // model.
+    const controller = this.controller
+    if (controller != null) {
+      if (this.strengths.controller > FADED_OUT) {
+        controller.encender('agarre')
+        controller.actualizar(delta)
+      } else controller.apagar()
     }
   }
 
-  /** Lo que de verdad se ve: las ayudas con algo pintado ahora mismo. */
-  visibles(): MalletHint[] {
+  /** What is really seen: the hints with something painted right now. */
+  visibleHints(): MalletHint[] {
     const visible: Record<MalletHint, boolean> = {
-      floor: this.huellas.some((h) => h.nodo.visible),
-      controller: this.mando?.visible ?? false,
-      gesture: this.fantasma.visible,
-      goal: this.porteria.visible,
+      floor: this.footprints.some((h) => h.node.visible),
+      controller: this.controller?.visible ?? false,
+      gesture: this.ghost.visible,
+      goal: this.goalMark.visible,
     }
-    return HINT_SCRIPT.map((a) => a.id).filter((id) => visible[id])
+    return HINT_SCRIPT.map((hint) => hint.id).filter((id) => visible[id])
   }
 }

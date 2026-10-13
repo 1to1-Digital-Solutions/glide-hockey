@@ -5,73 +5,75 @@ import { playerStart } from './opponent'
 import { HALF_LENGTH, HALF_WIDTH } from './puckPhysics'
 
 /**
- * Las ayudas visuales de este juego: qué se enseña al entrar, y qué apaga cada cosa.
+ * The visual hints of this game: what is shown on entering, and what turns each one off.
  *
- * **Lo que no se ve mirando la mesa** son tres cosas. Dónde plantarse —de frente y a un paso,
- * que en air hockey no hay postura de lado—. Que el mazo **se agarra con la mano**, llevándola
- * hasta él y apretando, y no apuntándole con el rayo: es el error que cuesta la primera
- * partida entera, y el que hizo falta arreglar a mano en `lib/malletGrab.ts` («apuntar se
- * siente como manejar un cursor»). Y qué se hace con él: **empujarlo contra el disco**, no
- * esperar a que el disco venga.
+ * **What cannot be seen by looking at the table** is three things. Where to stand —facing it and
+ * one step away, since in air hockey there is no sideways stance—. That the mallet **is grabbed
+ * with the hand**, by taking it to the mallet and squeezing, and not by pointing at it with the
+ * ray: it is the mistake that costs the whole first match, and the one that had to be fixed by
+ * hand in `lib/malletGrab.ts` («pointing feels like driving a cursor»). And what is done with
+ * it: **pushing it against the puck**, not waiting for the puck to come.
  *
- * El motor —cuándo se enciende y cuándo se apaga cada una— está en `lib/ayudas.ts`, el mismo
- * fichero en los dieciséis juegos. Aquí está lo de este: el guion y las cotas de lo que se
- * pinta, que salen de aquí y no de dentro de la escena para que el test pueda medir **los
- * mismos números que se pintan** y no una copia suya.
+ * The engine —when each one turns on and when it turns off— is in `lib/hints.ts`, the same file
+ * in the sixteen games. Here is what belongs to this one: the script and the dimensions of what
+ * is drawn, which come from here and not from inside the scene so that the test can measure
+ * **the same numbers that are drawn** and not a copy of them.
  *
- * **Lo que hay que coger, resaltado, no está aquí**, y a propósito: el mazo ya se enciende solo
- * mientras la cuenta atrás lo espera (`resaltado` en `components/game/Mallet.tsx`). Nació de
- * una queja distinta —«el countdown se queda parado en el 1 sin ninguna explicación»— y por eso
- * se queda donde está: contesta *por qué no arranca*, que es una pregunta que sigue habiendo
- * pasado el plazo de cualquier ayuda. Añadir aquí un halo ámbar alrededor del mismo mazo sería
- * pintar dos veces la misma frase.
+ * **What has to be picked up, highlighted, is not here**, and on purpose: the mallet already
+ * lights up by itself while the countdown waits for it (`highlighted` in
+ * `components/game/Mallet.tsx`). It was born from a different complaint —«the countdown stays
+ * stopped at 1 with no explanation»— and that is why it stays where it is: it answers *why it
+ * does not start*, which is a question that is still there once the deadline of any hint has
+ * passed. Adding an amber halo here around the same mallet would be drawing the same sentence
+ * twice.
  *
- * Las cotas van en **coordenadas de la mesa** —el eje X de banda a banda, el Z de portería a
- * portería, `y = 0` en la superficie y el jugador defendiendo el `+Z`—, salvo las huellas, que
- * van en el suelo y a los pies de quien entra. Quien las pinta las planta en el sitio que toca
- * (`components/game/Ayudas.tsx`).
+ * The dimensions are in **table coordinates** —the X axis from rail to rail, the Z from goal to
+ * goal, `y = 0` on the surface and the player defending `+Z`—, except the footprints, which go
+ * on the floor and at the feet of whoever enters. Whoever draws them plants them in the right
+ * place (`components/game/Hints.tsx`).
  */
 
 /**
- * Lo que una ayuda de este juego puede esperar o dar por hecho.
+ * What a hint of this game can wait for or take for granted.
  *
- * `grab`, `hit` y `goal` son **los mismos hitos que ya usa el tutorial** (`lib/tutorial.ts`), y
- * los apuntan los mismos sitios que ya saben lo que pasa: el mazo al cerrarse la mano sobre él
- * y la mesa al primer golpe y al primer gol. Así una ayuda no escucha nada ni le para el juego
- * a nadie: se deduce.
+ * `grab`, `hit` and `goal` are **the same milestones the tutorial already uses**
+ * (`lib/tutorial.ts`), and they are recorded by the same places that already know what happens:
+ * the mallet when the hand closes on it and the table at the first hit and the first goal. That
+ * way a hint listens to nothing and stops the game for nobody: it is deduced.
  *
- * `tanda` es el cuarto y no sale del tutorial: dice que **la partida ha empezado**, que aquí es
- * lo mismo que decir que hay un mazo y un disco sobre la mesa. En el menú el tablero está vacío
- * a propósito —es lo que hace que empezar se note—, y una ayuda que señala un mazo que no está
- * es peor que ninguna ayuda.
+ * `round` is the fourth and does not come from the tutorial: it says that **the match has
+ * started**, which here is the same as saying there is a mallet and a puck on the table. In the
+ * menu the board is empty on purpose —it is what makes starting noticeable—, and a hint that
+ * points at a mallet that is not there is worse than no hint.
  */
 export type HintFact = 'round' | 'grab' | 'hit' | 'goal'
 
 /**
- * El guion.
+ * The script.
  *
- * - **`suelo`**, las dos huellas de dónde ponerse. Se enseñan **desde que se entra en la
- *   cabina**, porque colocarse es lo único que se puede hacer con la mesa vacía, y son las que
- *   más tarde se apagan: se van con el primer golpe, que es cuando quien juega ya está
- *   colocado de verdad.
- * - **`mando`**, el mando de verdad con el botón de agarre encendido. Espera a que haya
- *   partida, y aquí eso **es una desviación deliberada** de lo que hacen los demás juegos —que
- *   lo enseñan desde que se entra—: en el menú el botón de agarre no hace nada, porque los
- *   paneles se manejan con el rayo. Un botón encendido que no responde enseña una mentira. Sale
- *   **desde la primera partida** (antes esperaba a que se hubiera visto el tutorial) y se apaga
- *   con lo mismo que el mazo fantasma: con `grab` o a los doce segundos. Va **al lado del mazo
- *   fantasma** (`mandoJuntoAlMazo`) y no sobre la mano: la mano la ocupa la copia del tutorial.
- * - **`gesto`**, el mazo fantasma empujando hacia el disco, una y otra vez. Es lo que de verdad
- *   no se adivina, y por eso dura más que el mando.
- * - **`porteria`**, la marca en la portería contraria: adónde va lo que se golpea. **No dice
- *   nada antes de tener el mazo** —sin nada con que golpear, una diana es decorado—, así que
- *   espera a `grab`, y se va con el primer gol.
+ * - **`floor`**, the two footprints of where to stand. They are shown **from the moment the
+ *   cabinet is entered**, because getting into position is the only thing that can be done with
+ *   the table empty, and they are the last to turn off: they go with the first hit, which is
+ *   when whoever plays is really in position.
+ * - **`controller`**, the real controller with the grab button lit. It waits for there to be a
+ *   match, and here that **is a deliberate departure** from what the other games do —which show
+ *   it from the moment of entering—: in the menu the grab button does nothing, because the
+ *   panels are operated with the ray. A lit button that does not respond teaches a lie. It
+ *   comes out **from the first match** (it used to wait until the tutorial had been seen) and
+ *   turns off with the same thing as the ghost mallet: with `grab` or at twelve seconds. It
+ *   goes **beside the ghost mallet** (`controllerBesideMallet`) and not on the hand: the hand
+ *   is taken by the tutorial's copy.
+ * - **`gesture`**, the ghost mallet pushing towards the puck, again and again. It is what
+ *   really cannot be guessed, and that is why it lasts longer than the controller.
+ * - **`goal`**, the mark on the opposite goal: where what is hit goes. **It says nothing before
+ *   having the mallet** —with nothing to hit with, a target is decoration—, so it waits for
+ *   `grab`, and goes with the first goal.
  *
- * **Las dos que ocupan la mesa se apagan con `grab`**, que es lo que las deja fuera del
- * problema de tapar el juego: el disco no sale hasta que el mazo está en la mano
- * (`HITO_ANTES_DE_QUE_SE_MUEVA_EL_DISCO`), así que cuando algo empieza a correr por la mesa
- * ya no queda ninguna encima. La de la portería se queda, pero va **pintada en el fondo**,
- * donde un calco no puede tapar nada que resbale por encima de él.
+ * **The two that sit on the table turn off with `grab`**, which is what keeps them out of the
+ * problem of covering the game: the puck does not leave until the mallet is in the hand
+ * (`MILESTONE_BEFORE_PUCK_MOVES`), so when something starts running across the table there is
+ * none left on it. The one on the goal stays, but it is **painted at the back**, where a decal
+ * cannot cover anything that slides over it.
  */
 export const HINT_SCRIPT = [
   { id: 'floor', until: 'hit', expiresAfter: 15 },
@@ -80,41 +82,41 @@ export const HINT_SCRIPT = [
   { id: 'goal', from: 'grab', until: 'goal', expiresAfter: 12 },
 ] as const satisfies HintScript<HintFact>
 
-/** Cómo se llama cada una, para que la escena no las pinte por un nombre inventado. */
+/** What each one is called, so that the scene does not draw them by a made-up name. */
 export type MalletHint = (typeof HINT_SCRIPT)[number]['id']
 
 /**
- * Cuáles de ellas ocupan la mesa, en vez de ir pintadas en ella o en el suelo.
+ * Which of them sit on the table, instead of being painted on it or on the floor.
  *
- * **Es la lista que decide qué tiene que haberse apagado antes de que el disco salga.** Un
- * calco sobre la superficie no puede tapar nada que resbale por encima; lo que se levanta de
- * ella —el mazo fantasma, el modelo del mando— está en la recta que va de los ojos al disco, y
- * entonces solo vale si desaparece antes de que haya disco que seguir.
+ * **It is the list that decides what must have turned off before the puck leaves.** A decal on
+ * the surface cannot cover anything that slides over it; what rises from it —the ghost mallet,
+ * the controller model— is on the line that goes from the eyes to the puck, and then it is only
+ * acceptable if it disappears before there is a puck to follow.
  */
 export const HINTS_ON_THE_TABLE: readonly MalletHint[] = ['gesture', 'controller']
 
 /**
- * El hito a partir del cual puede moverse el disco.
+ * The milestone from which the puck may move.
  *
- * Aquí es gratis y no por suerte: la cuenta atrás **se para en el último segundo** hasta que el
- * mazo va en la mano (ver `malletHeld` en `lib/gameStore.ts`), así que `grab` pasa siempre
- * antes que el saque. Lo comprueba el test, porque es el tipo de cosa que se rompe sola el día
- * que alguien haga que la partida arranque sin esperar a nadie.
+ * Here it is free and not by luck: the countdown **stops at the last second** until the mallet
+ * is in the hand (see `malletHeld` in `lib/gameStore.ts`), so `grab` always happens before the
+ * serve. The test checks it, because it is the kind of thing that breaks by itself the day
+ * someone makes the match start without waiting for anybody.
  */
 export const MILESTONE_BEFORE_PUCK_MOVES = 'grab' satisfies HintFact
 
-/* --- Las cotas de lo que se pinta --- */
+/* --- The dimensions of what is drawn --- */
 
 /**
- * Las dos huellas, a los pies de quien entra, y lo que mide cada una.
+ * The two footprints, at the feet of whoever enters, and what each one measures.
  *
- * **De frente y a la par, no escalonadas**: esa es la postura del air hockey y la mitad del
- * mensaje. En el billar el pie de atrás se retrasa porque el brazo va y viene sobre el eje del
- * taco; aquí las dos manos trabajan por delante del cuerpo y lo que hace falta es poder
- * alcanzar las dos bandas sin mover los pies, que es lo que da una postura cuadrada.
+ * **Facing forward and level, not staggered**: that is the air hockey stance and half of the
+ * message. In billiards the back foot drops behind because the arm goes back and forth along
+ * the axis of the cue; here both hands work in front of the body and what is needed is to be
+ * able to reach both rails without moving the feet, which is what a square stance gives.
  *
- * Van justo detrás del borde cercano de la mesa, que el juego deja a 20 cm del origen
- * (`TABLE_CENTER_Z`), y separadas el ancho de los hombros.
+ * They go just behind the near edge of the table, which the game leaves 20 cm from the origin
+ * (`TABLE_CENTER_Z`), and shoulder-width apart.
  */
 export const FOOTPRINT = { length: 0.26, width: 0.1 }
 export const FOOTPRINTS: readonly { x: number; z: number }[] = [
@@ -122,139 +124,142 @@ export const FOOTPRINTS: readonly { x: number; z: number }[] = [
   { x: 0.11, z: 0.03 },
 ]
 
-/** A qué altura se pintan las huellas sobre el suelo, antes del sesgo del rasterizado. */
+/** At what height the footprints are drawn above the floor, before the rasterisation bias. */
 export const FOOTPRINTS_Y = 0.005
 
 /**
- * El empujón que hace el mazo fantasma: por dónde va, cuánto tarda y qué parte es el brazo
- * recogiéndose.
+ * The push the ghost mallet makes: where it goes, how long it takes and what part is the arm
+ * drawing back.
  *
- * **Va despacio hacia atrás y empuja deprisa**, que es lo que distingue un golpe de un vaivén.
- * Con los dos tramos iguales lo que se enseñaba era un limpiaparabrisas.
+ * **It goes back slowly and pushes fast**, which is what tells a hit from a swaying motion.
+ * With the two stretches equal what was shown was a windscreen wiper.
  *
- * El recorrido sale de dónde nace el mazo (`playerStart()`) y de dónde está el disco al sacar
- * —en el centro—: se recoge un palmo por detrás de su sitio y llega hasta rozar el disco. Que
- * termine **tocándolo** es la mitad de la lección: un fantasma que se para a medio camino
- * enseña a mover el mazo, no a golpear.
+ * The travel comes from where the mallet starts (`playerStart()`) and from where the puck is at
+ * the serve —in the centre—: it draws back a hand's breadth behind its place and goes as far as
+ * brushing the puck. That it ends **touching it** is half of the lesson: a ghost that stops
+ * halfway teaches how to move the mallet, not how to hit.
  */
 export const PUSH = {
-  /** Lo que se recoge por detrás de donde nace el mazo, en metros. */
+  /** How far it draws back behind where the mallet starts, in metres. */
   back: 0.14,
-  /** Lo que tarda un empujón entero, en segundos. */
+  /** How long a whole push takes, in seconds. */
   period: 1.6,
-  /** Qué parte de esa vuelta es el brazo recogiéndose. */
+  /** What part of that cycle is the arm drawing back. */
   returnAt: 0.62,
 } as const
 
-/** Dónde está el disco al sacar: en el centro de la mesa. De ahí sale el final del empujón. */
+/** Where the puck is at the serve: in the centre of the table. The end of the push comes from there. */
 export const PUCK_AT_SERVE = { x: 0, z: 0 } as const
 
 /**
- * Por dónde pasa el mazo fantasma: de más retrasado que su sitio a tocando el disco.
+ * Where the ghost mallet passes: from further back than its place to touching the puck.
  *
- * Los dos extremos se calculan y no se escriben: así el fantasma sigue enseñando el gesto
- * bueno el día que el mazo nazca en otro sitio o el disco cambie de tamaño.
+ * The two ends are computed and not written: that way the ghost keeps showing the right
+ * gesture the day the mallet starts somewhere else or the puck changes size.
  */
 export function pushTravel(): { from: number; to: number } {
-  const salida = playerStart().z
-  return { from: salida + PUSH.back, to: PUCK_AT_SERVE.z + PUCK_RADIUS + MALLET_RADIUS }
+  const start = playerStart().z
+  return { from: start + PUSH.back, to: PUCK_AT_SERVE.z + PUCK_RADIUS + MALLET_RADIUS }
 }
 
 /**
- * Cuánto está recogido el mazo en este momento del empujón: de 0 —tocando el disco— a 1
- * —atrás del todo—.
+ * How far the mallet is drawn back at this moment of the push: from 0 —touching the puck— to 1
+ * —all the way back—.
  */
-export function pushReturn(avance: number): number {
-  const paso = Math.min(1, Math.max(0, avance))
-  if (paso < PUSH.returnAt) return paso / PUSH.returnAt
-  return 1 - (paso - PUSH.returnAt) / (1 - PUSH.returnAt)
+export function pushReturn(progress: number): number {
+  const step = Math.min(1, Math.max(0, progress))
+  if (step < PUSH.returnAt) return step / PUSH.returnAt
+  return 1 - (step - PUSH.returnAt) / (1 - PUSH.returnAt)
 }
 
-/** Dónde está el mazo fantasma en ese momento del empujón, en coordenadas de la mesa. */
-export function ghostMalletAt(avance: number): { x: number; z: number } {
-  const { from: desde, to: hasta } = pushTravel()
-  const recogido = pushReturn(avance)
-  return { x: PUCK_AT_SERVE.x, z: hasta + (desde - hasta) * recogido }
+/** Where the ghost mallet is at that moment of the push, in table coordinates. */
+export function ghostMalletAt(progress: number): { x: number; z: number } {
+  const { from, to } = pushTravel()
+  const drawnBack = pushReturn(progress)
+  return { x: PUCK_AT_SERVE.x, z: to + (from - to) * drawnBack }
 }
 
 /**
- * La marca de la portería contraria: adónde va lo que se golpea.
+ * The mark of the opposite goal: where what is hit goes.
  *
- * Va **pegada al fondo y pintada en la superficie**, no levantada como una diana: por ahí pasa
- * el disco, y lo único que puede quedarse mientras se juega es un calco. Ocupa el hueco entero
- * de la portería porque eso es lo que se puede aprovechar —quien apunta al centro exacto está
- * tirando a lo más fácil de parar—, y se mete hacia dentro lo justo para no confundirse con la
- * banda del fondo.
+ * It goes **against the back and painted on the surface**, not raised like a target: the puck
+ * passes through there, and the only thing that can stay while playing is a decal. It takes up
+ * the whole opening of the goal because that is what can be used —whoever aims at the exact
+ * centre is shooting at the easiest thing to stop—, and it comes inwards just enough not to be
+ * confused with the back rail.
  */
 export const GOAL_MARK = {
-  /** Lo ancho de la marca: el hueco entero de la portería. */
+  /** How wide the mark is: the whole opening of the goal. */
   width: GOAL_WIDTH,
   /**
-   * Lo que ocupa hacia dentro de la mesa.
+   * How far it reaches into the table.
    *
-   * **Catorce centímetros y no ocho.** Se mira desde el otro extremo de una mesa de dos metros
-   * y casi a ras de ella, así que lo que se ve de una banda tumbada no es lo que mide: es lo
-   * que queda de ella en escorzo. Con ocho se leía como una raya más de las que ya tiene la
-   * mesa pintadas, y encima el mazo de la máquina, que defiende justo delante, se comía la
-   * mitad.
+   * **Fourteen centimetres and not eight.** It is looked at from the other end of a two-metre
+   * table and almost level with it, so what is seen of a strip lying flat is not what it
+   * measures: it is what is left of it foreshortened. With eight it read as one more of the
+   * lines the table already has painted, and on top of that the machine's mallet, which
+   * defends right in front, ate half of it.
    */
   depth: 0.14,
-  /** Y a cuánto del fondo se planta su centro, dejándola entera dentro de la mesa. */
+  /** And how far from the back its centre is planted, leaving it wholly inside the table. */
   z: -HALF_LENGTH + 0.085,
 } as const
 
 /**
- * El mando de verdad junto al mazo fantasma: a un palmo de su lado, a la altura de la mano sobre
- * el tablero y crecido lo justo para que el botón se lea desde los ojos.
+ * The real controller beside the ghost mallet: a hand's breadth from its side, at the height of
+ * the hand above the board and enlarged just enough for the button to be read from the eyes.
  *
- * El mazo se coge con la mano que se tenga libre (`MalletHand`), pero la ayuda enseña una: **la
- * mano buena del salón** (`xrcade:hand`), que es la que se echa primero. A la derecha del mazo
- * para un diestro; para un zurdo, el izquierdo y a su izquierda, en espejo.
+ * The mallet is picked up with whichever hand is free (`MalletHand`), but the hint shows one:
+ * **the hall's dominant hand** (`xrcade:hand`), which is the one that reaches first. To the right
+ * of the mallet for a right-hander; for a left-hander, the left one and to its left, mirrored.
  *
- * Se planta junto a **donde nace el mazo** (`playerStart()`), que es donde el fantasma empieza su
- * empujón y donde se va a echar la mano. A CALIBRAR CON EL VISOR: las tres cifras.
+ * It is planted beside **where the mallet starts** (`playerStart()`), which is where the ghost
+ * begins its push and where the hand is going to reach. TO BE CALIBRATED WITH THE HEADSET: the
+ * three figures.
  */
 export const CONTROLLER_BESIDE_MALLET = {
-  /** Cuánto se aparta del centro del mazo hacia el lado de la mano, en metros: un palmo de aire entre la punta del mando y el aro. */
+  /** How far it moves away from the centre of the mallet towards the hand's side, in metres: a hand's breadth of air between the tip of the controller and the ring. */
   separation: 0.26,
-  /** A qué altura sobre el tablero, en metros: donde va la mano al coger el mazo. */
+  /** At what height above the board, in metres: where the hand goes when picking up the mallet. */
   height: 0.1,
-  /** El mando mide unos 12 cm: a casi un metro de los ojos se agradece crecerlo. */
+  /** The controller measures about 12 cm: at almost a metre from the eyes, enlarging it is welcome. */
   scale: 1.5,
 } as const
 
 /**
- * Dónde va el mando, en coordenadas de la mesa, y cuánto se gira sobre la vertical (el
- * `rotation.y` de three): lo que deja **el costado del agarre de cara a los ojos**.
+ * Where the controller goes, in table coordinates, and how much it turns about the vertical
+ * (three's `rotation.y`): what leaves **the side of the grab button facing the eyes**.
  *
- * El modelo se dibuja como un mando en la mano, apuntando a −Z; el agarre del derecho está en su
- * costado izquierdo (−X). Sin girar, visto desde los ojos se vería de punta; girado así se ve de
- * lado, con el botón hacia quien juega y la punta hacia el fantasma. Los ojos están sobre el
- * origen del espacio de quien juega, y la mesa a `TABLE_CENTER_Z` de él. El izquierdo lleva el
- * agarre en su +X, y el giro que lo pone de cara es el espejo del derecho.
+ * The model is drawn as a controller in the hand, pointing at −Z; the grab button of the right
+ * one is on its left side (−X). Without turning, seen from the eyes it would be seen end-on;
+ * turned like this it is seen from the side, with the button towards whoever plays and the tip
+ * towards the ghost. The eyes are above the origin of the player's space, and the table at
+ * `TABLE_CENTER_Z` from it. The left one has the grab button on its +X, and the turn that makes
+ * it face is the mirror of the right one's.
  */
-export function controllerBesideMallet(mano: Hand = 'right'): { position: { x: number; y: number; z: number }; rotation: number } {
-  const lado = mano === 'left' ? -1 : 1
-  const mazo = playerStart()
-  const position = { x: mazo.x + lado * CONTROLLER_BESIDE_MALLET.separation, y: CONTROLLER_BESIDE_MALLET.height, z: mazo.z }
-  const delante = -(position.z + TABLE_CENTER_Z)
-  return { position: position, rotation: Math.atan2(lado * delante, lado * position.x) }
+export function controllerBesideMallet(hand: Hand = 'right'): { position: { x: number; y: number; z: number }; rotation: number } {
+  const side = hand === 'left' ? -1 : 1
+  const mallet = playerStart()
+  const position = { x: mallet.x + side * CONTROLLER_BESIDE_MALLET.separation, y: CONTROLLER_BESIDE_MALLET.height, z: mallet.z }
+  const ahead = -(position.z + TABLE_CENTER_Z)
+  return { position: position, rotation: Math.atan2(side * ahead, side * position.x) }
 }
 
-/** A qué altura se pinta lo que va calcado sobre la superficie de la mesa. */
+/** At what height what goes as a decal on the table surface is drawn. */
 export const DECAL_Y = 0.002
 
 /**
- * Si un punto de la mesa cae dentro de ella, con el margen que se le quiera dar.
+ * Whether a point of the table falls inside it, with whatever margin you want to give it.
  *
- * Sirve para lo único que se puede medir sin gafas de lo que se pinta encima: que no se salga.
- * Una ayuda medio fuera de la mesa no se lee como una ayuda, se lee como un fallo.
+ * It serves for the only thing that can be measured without goggles about what is drawn on
+ * top: that it does not stick out. A hint half off the table does not read as a hint, it reads
+ * as a bug.
  */
-export function onTheTable(punto: { x: number; z: number }, margen = 0): boolean {
-  return Math.abs(punto.x) <= HALF_WIDTH + margen && Math.abs(punto.z) <= HALF_LENGTH + margen
+export function onTheTable(point: { x: number; z: number }, margin = 0): boolean {
+  return Math.abs(point.x) <= HALF_WIDTH + margin && Math.abs(point.z) <= HALF_LENGTH + margin
 }
 
-/** Y si cae en la mitad del jugador, que es por donde el mazo puede andar. */
-export function inPlayerHalf(punto: { x: number; z: number }): boolean {
-  return onTheTable(punto) && punto.z >= 0
+/** And whether it falls in the player's half, which is where the mallet can move. */
+export function inPlayerHalf(point: { x: number; z: number }): boolean {
+  return onTheTable(point) && point.z >= 0
 }

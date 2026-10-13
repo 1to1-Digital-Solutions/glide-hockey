@@ -28,19 +28,19 @@ import { softTranslator } from '../../lib/textos'
 import { REFERENCE_EYE_HEIGHT, uiRiseOverWorld, worldRise } from '../../lib/uiHeight'
 
 /**
- * El cartel de encima del marcador, medido donde cuelga de verdad.
+ * The sign above the scoreboard, measured where it really hangs.
  *
- * `cartel.legible.test.ts` mide las frases comunes a todos los juegos; aquí van las del air hockey
- * —la misión del reto, la ronda con lo que vale el próximo gol, el nombre de cada modo— con los
- * listones de miles de este juego, y lo que solo se sabe con la mesa delante: cuántos grados ocupa
- * cada letra desde donde se juega, si queda dentro de lo que se ve sin girar la cabeza y si tapa
- * la mesa o el marcador.
+ * `goalSign.legible.test.ts` measures the phrases common to every game; here go the air hockey
+ * ones —the mission of the challenge, the round with what the next goal is worth, the name of
+ * each mode— with this game's thresholds in the thousands, and what is only known with the table
+ * in front: how many degrees each letter takes up from where the game is played, whether it stays
+ * inside what is seen without turning the head and whether it hides the table or the scoreboard.
  */
 
-const IDIOMAS = ['en', 'es'] as const
+const LANGUAGES = ['en', 'es'] as const
 
-/** Los listones del air hockey en el salón, con un récord de seis cifras. */
-const OBJETIVO: Goal = {
+/** The thresholds of air hockey in the hall, with a six-figure record. */
+const GOAL: Goal = {
   medals: { bronze: 1500, silver: 8000, gold: 20000 },
   better: 'higher',
   unit: 'points in the challenge',
@@ -48,307 +48,307 @@ const OBJETIVO: Goal = {
   mode: 'challenge',
 }
 
-/** Las partidas que se miden: de la primera cuenta atrás a un reto de dos vueltas. */
-const MOMENTOS: Partial<GameInPlay>[] = [
+/** The runs that are measured: from the first countdown to a challenge of two laps. */
+const MOMENTS: Partial<GameInPlay>[] = [
   { gameState: 'countdown' },
   { gameState: 'playing' },
-  { round: 2, points: 340, goles: 5, streak: 2 },
-  { round: 5, points: 1650, goles: 20, streak: 4 },
-  { round: 9, points: 9875, goles: 50, streak: 8 },
-  { round: 12, points: 19850, goles: 70, streak: 11 },
-  { round: 15, points: 31200, goles: 90, streak: 12 },
-  { round: 28, points: 123450, goles: 180, streak: 12 },
-  { gameState: 'finished', round: 1, points: 0, goles: 3 },
-  { gameState: 'finished', round: 4, points: 1650, goles: 20 },
-  { gameState: 'finished', round: 10, points: 12340, goles: 60 },
-  { gameState: 'finished', round: 16, points: 31200, goles: 95 },
-  { gameState: 'finished', round: 30, points: 123450, goles: 190 },
+  { round: 2, points: 340, goals: 5, streak: 2 },
+  { round: 5, points: 1650, goals: 20, streak: 4 },
+  { round: 9, points: 9875, goals: 50, streak: 8 },
+  { round: 12, points: 19850, goals: 70, streak: 11 },
+  { round: 15, points: 31200, goals: 90, streak: 12 },
+  { round: 28, points: 123450, goals: 180, streak: 12 },
+  { gameState: 'finished', round: 1, points: 0, goals: 3 },
+  { gameState: 'finished', round: 4, points: 1650, goals: 20 },
+  { gameState: 'finished', round: 10, points: 12340, goals: 60 },
+  { gameState: 'finished', round: 16, points: 31200, goals: 95 },
+  { gameState: 'finished', round: 30, points: 123450, goals: 190 },
 ]
 
-/** Todo lo que el cartel llega a decir en este juego, en ese idioma. */
-function vistas(lang: (typeof IDIOMAS)[number]): GoalSignView[] {
+/** Everything the sign gets to say in this game, in that language. */
+function signViews(lang: (typeof LANGUAGES)[number]): GoalSignView[] {
   const t = softTranslator(lang)
-  const todas: GoalSignView[] = []
-  const base: GameInPlay = { gameMode: 'challenge', gameState: 'playing', round: 1, goles: 0, points: 0, streak: 0, record: 104250 }
-  for (const objetivo of [OBJETIVO, { ...OBJETIVO, record: null }, null]) {
-    for (const momento of MOMENTOS) {
-      todas.push(goalSign(signRun({ ...base, goal: objetivo, ...momento }, t)!, t))
+  const all: GoalSignView[] = []
+  const base: GameInPlay = { gameMode: 'challenge', gameState: 'playing', round: 1, goals: 0, points: 0, streak: 0, record: 104250 }
+  for (const hallGoal of [GOAL, { ...GOAL, record: null }, null]) {
+    for (const moment of MOMENTS) {
+      all.push(goalSign(signRun({ ...base, goal: hallGoal, ...moment }, t)!, t))
     }
   }
-  // Al cerrar el tutorial, el aviso de que ya cuenta, con lo que diga debajo en la cuenta atrás.
-  for (const objetivo of [OBJETIVO, null]) {
-    const vista = goalSign(signRun({ ...base, goal: objetivo, gameState: 'countdown' }, t)!, t)
-    todas.push(withNowItCountsNotice(vista, 'challenge', true, t)!)
+  // On closing the tutorial, the notice that it now counts, with whatever it says below in the countdown.
+  for (const hallGoal of [GOAL, null]) {
+    const view = goalSign(signRun({ ...base, goal: hallGoal, gameState: 'countdown' }, t)!, t)
+    all.push(withNowItCountsNotice(view, 'challenge', true, t)!)
   }
   for (const gameMode of GAME_MODE_ORDER) {
     if (gameMode === 'challenge') continue
-    todas.push(goalSign(signRun({ ...base, goal: OBJETIVO, gameMode }, t)!, t))
+    all.push(goalSign(signRun({ ...base, goal: GOAL, gameMode }, t)!, t))
   }
-  return todas
+  return all
 }
 
-function medir(vista: GoalSignView): DrawnText[] {
-  const { ctx, drawnTexts: escritos } = recordingCanvas()
-  drawSign(ctx, vista)
-  return escritos
+function measure(view: GoalSignView): DrawnText[] {
+  const { ctx, drawnTexts: texts } = recordingCanvas()
+  drawSign(ctx, view)
+  return texts
 }
 
-/** Lo escrito, llevado al tamaño al que cuelga: el cartel se agranda con la distancia. */
-function colgados(escritos: readonly DrawnText[]): DrawnText[] {
+/** What is written, taken to the size at which it hangs: the sign grows with the distance. */
+function hung(texts: readonly DrawnText[]): DrawnText[] {
   const k = signScale(SIGN_PLACEMENT.distance)
-  return escritos.map((e) => ({ ...e, x: e.x * k, y: e.y * k, width: e.width * k, height: e.height * k }))
+  return texts.map((e) => ({ ...e, x: e.x * k, y: e.y * k, width: e.width * k, height: e.height * k }))
 }
 
-/** Desde dónde se lee: a tres alturas de ojos, con el mundo de pie o a la altura de ellos. */
-const VISTAS = panelViews(SIGN_PLACEMENT.position, SIGN_PLACEMENT.rotation)
+/** Where it is read from: at three eye heights, with the world standing or at their height. */
+const VIEWS = panelViews(SIGN_PLACEMENT.position, SIGN_PLACEMENT.rotation)
 
-/** Los grados que ocupa cada letra del cartel colgado, vista desde esos ojos. */
-function grados(escritos: readonly DrawnText[], pose: PanelPose, ojos: Point): number[] {
-  return colgados(escritos).map((e) => letterAngle(pose, ojos, e.x, e.y, e.height / LINE_HEIGHT))
+/** The degrees each letter of the hung sign takes up, seen from those eyes. */
+function degrees(texts: readonly DrawnText[], pose: PanelPose, eyes: Point): number[] {
+  return hung(texts).map((e) => letterAngle(pose, eyes, e.x, e.y, e.height / LINE_HEIGHT))
 }
 
-/** Lo que mide el cartel donde cuelga, en metros. */
-const MEDIDAS = {
+/** What the sign measures where it hangs, in metres. */
+const SIZE = {
   width: signAspect().width * SIGN_PLACEMENT.distance,
   height: signAspect().height * SIGN_PLACEMENT.distance,
 }
 
-describe('el cartel de encima del marcador se lee', () => {
-  it('todo lo que dice cabe y no se pisa, en los dos idiomas', () => {
-    for (const lang of IDIOMAS) {
-      for (const vista of vistas(lang)) {
-        const escritos = medir(vista)
-        expect(escritos.length, 'no se ha medido nada').toBeGreaterThan(0)
+describe('the sign above the scoreboard reads', () => {
+  it('everything it says fits and does not overlap, in both languages', () => {
+    for (const lang of LANGUAGES) {
+      for (const view of signViews(lang)) {
+        const texts = measure(view)
+        expect(texts.length, 'nothing was measured').toBeGreaterThan(0)
         expect(
-          legibilityProblems(escritos, { panel: SIGN_PANEL, distance: DRAW_DISTANCE }),
-          `${lang}: ${vista.title} / ${vista.detail}`,
+          legibilityProblems(texts, { panel: SIGN_PANEL, distance: DRAW_DISTANCE }),
+          `${lang}: ${view.title} / ${view.detail}`,
         ).toEqual([])
       }
     }
   })
 
-  it('desde donde se juega, a cualquier altura de ojos, cada letra pasa de lo que se lee', () => {
-    for (const lang of IDIOMAS) {
-      for (const vista of vistas(lang)) {
-        const escritos = medir(vista)
-        for (const { where: donde, pose, eyes: ojos } of VISTAS) {
-          grados(escritos, pose, ojos).forEach((angulo, i) => {
-            expect(angulo, `${lang}: «${escritos[i].text}», ${donde}`).toBeGreaterThan(MIN_ANGLE)
+  it('from where the game is played, at any eye height, every letter is above what can be read', () => {
+    for (const lang of LANGUAGES) {
+      for (const view of signViews(lang)) {
+        const texts = measure(view)
+        for (const { where: place, pose, eyes: eyePoint } of VIEWS) {
+          degrees(texts, pose, eyePoint).forEach((angle, i) => {
+            expect(angle, `${lang}: «${texts[i].text}», ${place}`).toBeGreaterThan(MIN_ANGLE)
           })
         }
       }
     }
   })
 
-  it('la misión se lee de un vistazo en la cuenta atrás: más de 1,2° en los dos idiomas', () => {
-    for (const lang of IDIOMAS) {
+  it('the mission reads at a glance in the countdown: more than 1.2° in both languages', () => {
+    for (const lang of LANGUAGES) {
       const t = softTranslator(lang)
-      const partida = signRun(
-        { goal: OBJETIVO, gameMode: 'challenge', gameState: 'countdown', round: 1, goles: 0, points: 0, streak: 0, record: 0 },
+      const run = signRun(
+        { goal: GOAL, gameMode: 'challenge', gameState: 'countdown', round: 1, goals: 0, points: 0, streak: 0, record: 0 },
         t,
       )
-      const escritos = medir(goalSign(partida!, t))
-      const [mision] = grados(escritos, VISTAS[2].pose, VISTAS[2].eyes)
+      const texts = measure(goalSign(run!, t))
+      const [mission] = degrees(texts, VIEWS[2].pose, VIEWS[2].eyes)
 
-      expect(escritos[0].text).toBe(lang === 'es' ? 'Gana partidos hasta perder uno' : 'Win games until you lose one')
-      expect(mision, lang).toBeGreaterThan(1.2)
+      expect(texts[0].text).toBe(lang === 'es' ? 'Gana partidos hasta perder uno' : 'Win games until you lose one')
+      expect(mission, lang).toBeGreaterThan(1.2)
     }
   })
 
-  it('lo que se mira mientras se juega —el listón y lo que queda— pasa de un grado camino del oro', () => {
-    for (const lang of IDIOMAS) {
+  it('what is looked at while playing —the threshold and what remains— is above one degree on the way to gold', () => {
+    for (const lang of LANGUAGES) {
       const t = softTranslator(lang)
-      for (const momento of MOMENTOS.filter((m) => m.gameState == null)) {
-        const partida = signRun(
-          { goal: OBJETIVO, gameMode: 'challenge', gameState: 'playing', round: 1, goles: 0, points: 0, streak: 0, record: 0, ...momento },
+      for (const moment of MOMENTS.filter((m) => m.gameState == null)) {
+        const run = signRun(
+          { goal: GOAL, gameMode: 'challenge', gameState: 'playing', round: 1, goals: 0, points: 0, streak: 0, record: 0, ...moment },
           t,
         )
-        const escritos = medir(goalSign(partida!, t))
-        // Con el oro en la mano la frase común pasa a llevar el récord y lo que se lleva, dos
-        // cifras de seis: es la más larga que el cartel llega a decir y la que más encoge.
-        // Con los miles separados y desde los ojos más bajos se queda en 0,84° («Gold · your record
-        // 104,250 · you have 31,200»), por encima del mínimo (0,75°); antes del oro («Silver at
-        // 8,000 · you have 1,650»), en 1,16°.
-        const conElOro = (momento.points ?? 0) >= OBJETIVO.medals.gold
-        for (const { where: donde, pose, eyes: ojos } of VISTAS) {
-          const [liston, queda] = grados(escritos, pose, ojos)
-          expect(liston, `${lang}: «${escritos[0].text}», ${donde}`).toBeGreaterThan(conElOro ? 0.8 : 1.15)
-          expect(queda, `${lang}: «${escritos[1].text}», ${donde}`).toBeGreaterThan(1)
+        const texts = measure(goalSign(run!, t))
+        // With the gold in hand the common phrase goes on to carry the record and the current
+        // score, two six-figure numbers: it is the longest the sign gets to say and the one that
+        // shrinks most. With the thousands separated and from the lowest eyes it stays at 0.84°
+        // («Gold · your record 104,250 · you have 31,200»), above the minimum (0.75°); before
+        // the gold («Silver at 8,000 · you have 1,650»), at 1.16°.
+        const withGold = (moment.points ?? 0) >= GOAL.medals.gold
+        for (const { where: place, pose, eyes: eyePoint } of VIEWS) {
+          const [threshold, remaining] = degrees(texts, pose, eyePoint)
+          expect(threshold, `${lang}: «${texts[0].text}», ${place}`).toBeGreaterThan(withGold ? 0.8 : 1.15)
+          expect(remaining, `${lang}: «${texts[1].text}», ${place}`).toBeGreaterThan(1)
         }
       }
     }
-    // Y con lo de casi toda la partida —cuatro cifras—, a su tamaño entero.
+    // And with what almost the whole run has —four figures—, at its full size.
     const t = softTranslator('es')
-    const partida = signRun(
-      { goal: OBJETIVO, gameMode: 'challenge', gameState: 'playing', round: 5, goles: 20, points: 1650, streak: 4, record: 0 },
+    const run = signRun(
+      { goal: GOAL, gameMode: 'challenge', gameState: 'playing', round: 5, goals: 20, points: 1650, streak: 4, record: 0 },
       t,
     )
-    const escritos = medir(goalSign(partida!, t))
-    expect(escritos.map((e) => e.text)).toEqual(['Plata a 8000 · llevas 1650', 'Ronda 5 · a 5 goles · gol +270'])
-    const [liston, queda] = grados(escritos, VISTAS[2].pose, VISTAS[2].eyes)
-    // Cuatro cifras en español van sin punto, como en la chapa del salón: la línea no encoge de su 1,4°.
-    expect(liston).toBeGreaterThan(1.39)
-    expect(queda).toBeGreaterThan(1.15)
+    const texts = measure(goalSign(run!, t))
+    expect(texts.map((e) => e.text)).toEqual(['Plata a 8000 · llevas 1650', 'Ronda 5 · a 5 goles · gol +270'])
+    const [threshold, remaining] = degrees(texts, VIEWS[2].pose, VIEWS[2].eyes)
+    // Four figures in Spanish go without a dot, as on the hall's plaque: the line does not shrink from its 1.4°.
+    expect(threshold).toBeGreaterThan(1.39)
+    expect(remaining).toBeGreaterThan(1.15)
   })
 })
 
-describe('dónde queda el cartel para quien juega', () => {
-  /** Hacia dónde cae un punto visto desde esos ojos: a un lado y hacia arriba, en grados. */
-  function direccion(punto: Point, ojos: Point): { azimut: number; elevacion: number } {
-    const suelo = Math.hypot(punto.x - ojos.x, punto.z - ojos.z)
+describe('where the sign ends up for whoever plays', () => {
+  /** Which way a point falls seen from those eyes: to one side and upwards, in degrees. */
+  function direction(point: Point, eyes: Point): { azimuth: number; elevation: number } {
+    const ground = Math.hypot(point.x - eyes.x, point.z - eyes.z)
     return {
-      azimut: (Math.atan2(punto.x - ojos.x, -(punto.z - ojos.z)) * 180) / Math.PI,
-      elevacion: (Math.atan2(punto.y - ojos.y, suelo) * 180) / Math.PI,
+      azimuth: (Math.atan2(point.x - eyes.x, -(point.z - eyes.z)) * 180) / Math.PI,
+      elevation: (Math.atan2(point.y - eyes.y, ground) * 180) / Math.PI,
     }
   }
 
-  /** Las cuatro esquinas del cartel colgado. */
-  function esquinas(pose: PanelPose): Point[] {
-    return [-1, 1].flatMap((x) => [-1, 1].map((y) => pointOnPanel(pose, (x * MEDIDAS.width) / 2, (y * MEDIDAS.height) / 2)))
+  /** The four corners of the hung sign. */
+  function corners(pose: PanelPose): Point[] {
+    return [-1, 1].flatMap((x) => [-1, 1].map((y) => pointOnPanel(pose, (x * SIZE.width) / 2, (y * SIZE.height) / 2)))
   }
 
-  it('cuelga con las medidas del cartel de verdad, encima del marcador', () => {
+  it('hangs with the measurements of the real sign, above the scoreboard', () => {
     expect(SIGN_PLACEMENT).toEqual(signPlacement(signAspect()))
     expect(XR_UI.scoreboard).toBe(BACK_SCOREBOARD.center)
     expect(SCOREBOARD_SIZE).toEqual({ width: BACK_SCOREBOARD.width, height: BACK_SCOREBOARD.height })
-    // Por encima del marcador entero, y sin pasar de un metro de ancho.
-    const techo = fromPlayerSpace(XR_UI.scoreboard)[1] + SCOREBOARD_SIZE.height / 2
+    // Above the whole scoreboard, and without going over a metre wide.
+    const top = fromPlayerSpace(XR_UI.scoreboard)[1] + SCOREBOARD_SIZE.height / 2
     const pose = { position: fromPlayerSpace(SIGN_PLACEMENT.position), rotation: SIGN_PLACEMENT.rotation }
-    for (const esquina of esquinas(pose)) expect(esquina.y).toBeGreaterThan(techo)
-    expect(MEDIDAS.width).toBeLessThan(1)
+    for (const corner of corners(pose)) expect(corner.y).toBeGreaterThan(top)
+    expect(SIZE.width).toBeLessThan(1)
   })
 
-  it('se ve sin girar ni levantar la cabeza: de frente, a la altura de la vista, a cualquier estatura', () => {
-    for (const { where: donde, pose, eyes: ojos } of VISTAS) {
-      for (const esquina of esquinas(pose)) {
-        const { azimut, elevacion } = direccion(esquina, ojos)
-        expect(Math.abs(azimut), donde).toBeLessThan(13)
-        expect(elevacion, donde).toBeGreaterThan(-1)
-        expect(elevacion, donde).toBeLessThan(6)
+  it('is seen without turning or lifting the head: straight ahead, at eye level, at any stature', () => {
+    for (const { where: place, pose, eyes: eyePoint } of VIEWS) {
+      for (const corner of corners(pose)) {
+        const { azimuth, elevation } = direction(corner, eyePoint)
+        expect(Math.abs(azimuth), place).toBeLessThan(13)
+        expect(elevation, place).toBeGreaterThan(-1)
+        expect(elevation, place).toBeLessThan(6)
       }
     }
   })
 
-  /** Cada vista con lo que se ha movido el mundo bajo la interfaz, que no sube con ella. */
-  const VISTAS_CON_MUNDO = EYE_HEIGHTS.flatMap((alto) =>
-    [false, true].map((aLaAlturaDeLosOjos) => {
-      const mundo = worldRise(alto, aLaAlturaDeLosOjos)
-      const sube = mundo + uiRiseOverWorld(alto, aLaAlturaDeLosOjos)
+  /** Each view with how much the world has moved under the interface, which does not rise with it. */
+  const VIEWS_WITH_WORLD = EYE_HEIGHTS.flatMap((height) =>
+    [false, true].map((atEyeHeight) => {
+      const world = worldRise(height, atEyeHeight)
+      const rise = world + uiRiseOverWorld(height, atEyeHeight)
       const [x, y, z] = fromPlayerSpace(SIGN_PLACEMENT.position)
       return {
-        donde: `ojos a ${alto} m${aLaAlturaDeLosOjos ? ', mundo a su altura' : ''}`,
-        pose: { position: [x, y + sube, z] as const, rotation: SIGN_PLACEMENT.rotation },
-        ojos: eyesAt(alto),
-        mundo,
-        sube,
+        where: `eyes at ${height} m${atEyeHeight ? ', world at their height' : ''}`,
+        pose: { position: [x, y + rise, z] as const, rotation: SIGN_PLACEMENT.rotation },
+        eyes: eyesAt(height),
+        world,
+        rise,
       }
     }),
   )
 
-  /** Lo que no puede tapar: la mesa entera —el disco y las dos porterías— y el marcador. */
-  function loQueHayDetras(mundo: number, sube: number) {
-    const marcador = fromPlayerSpace(XR_UI.scoreboard)
+  /** What it cannot hide: the whole table —the puck and both goals— and the scoreboard. */
+  function whatIsBehind(world: number, rise: number) {
+    const scoreboard = fromPlayerSpace(XR_UI.scoreboard)
     return [
-      { what: 'la mesa', points: tablePoints(13).map((p) => ({ ...p, y: p.y + mundo })) },
-      // El disco y los mazos levantan un palmo del tablero.
-      { what: 'el disco y los mazos', points: tablePoints(13).map((p) => ({ ...p, y: p.y + mundo + 0.12 })) },
-      { what: 'el marcador', points: panelPoints([marcador[0], marcador[1] + sube, marcador[2]], SCOREBOARD_SIZE, 6) },
+      { what: 'the table', points: tablePoints(13).map((p) => ({ ...p, y: p.y + world })) },
+      // The puck and the mallets stand a hand span above the board.
+      { what: 'the puck and the mallets', points: tablePoints(13).map((p) => ({ ...p, y: p.y + world + 0.12 })) },
+      { what: 'the scoreboard', points: panelPoints([scoreboard[0], scoreboard[1] + rise, scoreboard[2]], SCOREBOARD_SIZE, 6) },
     ]
   }
 
-  it('no tapa la mesa, ni el disco, ni la portería de la máquina, ni el marcador, desde ninguna altura', () => {
-    for (const { donde, pose, ojos, mundo, sube } of VISTAS_CON_MUNDO) {
-      expect(whatThePanelHides(pose, MEDIDAS, ojos, loQueHayDetras(mundo, sube)), donde).toEqual([])
+  it("does not hide the table, nor the puck, nor the machine's goal, nor the scoreboard, from any height", () => {
+    for (const { where, pose, eyes, world, rise } of VIEWS_WITH_WORLD) {
+      expect(whatThePanelHides(pose, SIZE, eyes, whatIsBehind(world, rise)), where).toEqual([])
     }
   })
 
-  it('ni moviéndose delante de su portería, que es por donde anda quien juega', () => {
+  it("nor moving in front of one's goal, which is where whoever plays moves about", () => {
     const pose = { position: fromPlayerSpace(SIGN_PLACEMENT.position), rotation: SIGN_PLACEMENT.rotation }
     for (const x of [-0.5, -0.25, 0, 0.25, 0.5]) {
       for (const z of [-0.1, 0.2, 0.5]) {
-        const ojos = { x, y: REFERENCE_EYE_HEIGHT, z }
-        expect(whatThePanelHides(pose, MEDIDAS, ojos, loQueHayDetras(0, 0)), `ojos en ${x}, ${z}`).toEqual([])
+        const eyes = { x, y: REFERENCE_EYE_HEIGHT, z }
+        expect(whatThePanelHides(pose, SIZE, eyes, whatIsBehind(0, 0)), `eyes at ${x}, ${z}`).toEqual([])
       }
     }
   })
 
-  it('y el marcador no lo tapa a él: queda entero por encima', () => {
-    const marcador = fromPlayerSpace(XR_UI.scoreboard)
-    for (const { donde, pose, ojos, sube } of VISTAS_CON_MUNDO) {
-      const delante = {
-        position: [marcador[0], marcador[1] + sube, marcador[2]] as const,
+  it('and the scoreboard does not hide it: it stays whole above', () => {
+    const scoreboard = fromPlayerSpace(XR_UI.scoreboard)
+    for (const { where, pose, eyes, rise } of VIEWS_WITH_WORLD) {
+      const inFront = {
+        position: [scoreboard[0], scoreboard[1] + rise, scoreboard[2]] as const,
         rotation: [BACK_SCOREBOARD.tilt, 0, 0] as const,
       }
-      const tapados = panelPoints(pose.position, MEDIDAS, 8).filter((punto) => hiddenByPanel(delante, SCOREBOARD_SIZE, ojos, punto))
-      expect(tapados, donde).toEqual([])
+      const hidden = panelPoints(pose.position, SIZE, 8).filter((point) => hiddenByPanel(inFront, SCOREBOARD_SIZE, eyes, point))
+      expect(hidden, where).toEqual([])
     }
   })
 
-  it('el control: a la altura del marcador y delante de él, lo tapaba', () => {
-    const marcador = fromPlayerSpace(XR_UI.scoreboard)
-    const delante = { position: [marcador[0], marcador[1], marcador[2] + 0.3] as const }
+  it('the control: at the height of the scoreboard and in front of it, it hid it', () => {
+    const scoreboard = fromPlayerSpace(XR_UI.scoreboard)
+    const inFront = { position: [scoreboard[0], scoreboard[1], scoreboard[2] + 0.3] as const }
     expect(
-      whatThePanelHides(delante, MEDIDAS, eyesAt(REFERENCE_EYE_HEIGHT), loQueHayDetras(0, 0)).some((frase) => frase.includes('el marcador')),
+      whatThePanelHides(inFront, SIZE, eyesAt(REFERENCE_EYE_HEIGHT), whatIsBehind(0, 0)).some((phrase) => phrase.includes('the scoreboard')),
     ).toBe(true)
   })
 })
 
-describe('las tiras de neón de la pared del fondo, detrás del cartel', () => {
-  /** La pared del fondo de la sala (`ROOM_DEPTH` de `Room.tsx`, diez metros centrados en la mesa). */
-  const PARED = TABLE_CENTER_Z - 10 / 2 + 0.03
+describe('the neon strips of the back wall, behind the sign', () => {
+  /** The back wall of the room (`ROOM_DEPTH` of `Room.tsx`, ten metres centred on the table). */
+  const WALL = TABLE_CENTER_Z - 10 / 2 + 0.03
 
-  /** Las dos tiras, punto a punto, con lo que se haya movido el mundo: la sala no sube con la interfaz. */
-  function tiras(mundo: number, baja = 0): Point[] {
-    return BACK_NEONS.strips.flatMap((tira) =>
-      panelPoints([0, tira.y - baja + mundo, PARED], { width: tira.width, height: BACK_NEONS.thickness }, 40),
+  /** The two strips, point by point, with however much the world has moved: the room does not rise with the interface. */
+  function strips(world: number, drop = 0): Point[] {
+    return BACK_NEONS.strips.flatMap((strip) =>
+      panelPoints([0, strip.y - drop + world, WALL], { width: strip.width, height: BACK_NEONS.thickness }, 40),
     )
   }
 
-  /** Los ojos de referencia de la tanda (1,4–1,9 m), de pie y con el mundo a su altura. */
-  const OJOS = [1.4, 1.5, 1.6, 1.7, 1.8, 1.9].flatMap((alto) =>
-    [false, true].map((aLaAlturaDeLosOjos) => {
-      const mundo = worldRise(alto, aLaAlturaDeLosOjos)
+  /** The reference eyes of the round (1.4–1.9 m), standing and with the world at their height. */
+  const EYES = [1.4, 1.5, 1.6, 1.7, 1.8, 1.9].flatMap((height) =>
+    [false, true].map((atEyeHeight) => {
+      const world = worldRise(height, atEyeHeight)
       const [x, y, z] = fromPlayerSpace(SIGN_PLACEMENT.position)
       return {
-        donde: `ojos a ${alto} m${aLaAlturaDeLosOjos ? ', mundo a su altura' : ''}`,
-        pose: { position: [x, y + mundo + uiRiseOverWorld(alto, aLaAlturaDeLosOjos), z] as const, rotation: SIGN_PLACEMENT.rotation },
-        ojos: eyesAt(alto),
-        mundo,
+        where: `eyes at ${height} m${atEyeHeight ? ', world at their height' : ''}`,
+        pose: { position: [x, y + world + uiRiseOverWorld(height, atEyeHeight), z] as const, rotation: SIGN_PLACEMENT.rotation },
+        eyes: eyesAt(height),
+        world,
       }
     }),
   )
 
-  it('el cartel no las pisa desde ninguna altura de ojos: quedan por encima', () => {
-    for (const { donde, pose, ojos, mundo } of OJOS) {
-      expect(tiras(mundo).filter((punto) => hiddenByPanel(pose, MEDIDAS, ojos, punto)), donde).toEqual([])
+  it('the sign does not overlap them from any eye height: they stay above', () => {
+    for (const { where, pose, eyes, world } of EYES) {
+      expect(strips(world).filter((point) => hiddenByPanel(pose, SIZE, eyes, point)), where).toEqual([])
     }
   })
 
-  it('con 0,4° de aire en el peor caso: de pie y con los ojos a 1,9 m', () => {
-    const elevacion = (y: number, z: number, ojos: Point) => (Math.atan2(y - ojos.y, -(z - ojos.z)) * 180) / Math.PI
-    const aires = OJOS.map(({ pose, ojos, mundo }) => {
-      const techo = pointOnPanel(pose, 0, MEDIDAS.height / 2)
-      const tira = Math.min(...BACK_NEONS.strips.map((t) => t.y)) - BACK_NEONS.thickness / 2 + mundo
-      return elevacion(tira, PARED, ojos) - elevacion(techo.y, techo.z, ojos)
+  it('with 0.4° of gap in the worst case: standing and with the eyes at 1.9 m', () => {
+    const elevation = (y: number, z: number, eyes: Point) => (Math.atan2(y - eyes.y, -(z - eyes.z)) * 180) / Math.PI
+    const gaps = EYES.map(({ pose, eyes, world }) => {
+      const top = pointOnPanel(pose, 0, SIZE.height / 2)
+      const strip = Math.min(...BACK_NEONS.strips.map((t) => t.y)) - BACK_NEONS.thickness / 2 + world
+      return elevation(strip, WALL, eyes) - elevation(top.y, top.z, eyes)
     })
-    expect(Math.min(...aires)).toBeGreaterThan(0.35)
-    expect(aires.indexOf(Math.min(...aires))).toBe(OJOS.findIndex((o) => o.donde === 'ojos a 1.9 m'))
+    expect(Math.min(...gaps)).toBeGreaterThan(0.35)
+    expect(gaps.indexOf(Math.min(...gaps))).toBe(EYES.findIndex((o) => o.where === 'eyes at 1.9 m'))
   })
 
-  it('el control: quince centímetros más abajo, donde estaban, a 1,9 m la de abajo quedaba detrás', () => {
-    const { pose, ojos, mundo } = OJOS.find((o) => o.donde === 'ojos a 1.9 m')!
-    expect(tiras(mundo, 0.15).filter((punto) => hiddenByPanel(pose, MEDIDAS, ojos, punto)).length).toBeGreaterThan(0)
-    // Y desde 1,6 m no: por eso no se vio al colocarlo.
-    const referencia = OJOS.find((o) => o.donde === 'ojos a 1.6 m')!
-    expect(tiras(0, 0.15).filter((punto) => hiddenByPanel(referencia.pose, MEDIDAS, referencia.ojos, punto))).toEqual([])
+  it('the control: fifteen centimetres lower, where they were, at 1.9 m the bottom one ended up behind', () => {
+    const { pose, eyes, world } = EYES.find((o) => o.where === 'eyes at 1.9 m')!
+    expect(strips(world, 0.15).filter((point) => hiddenByPanel(pose, SIZE, eyes, point)).length).toBeGreaterThan(0)
+    // And from 1.6 m it did not: that is why it was not seen when placing it.
+    const reference = EYES.find((o) => o.where === 'eyes at 1.6 m')!
+    expect(strips(0, 0.15).filter((point) => hiddenByPanel(reference.pose, SIZE, reference.eyes, point))).toEqual([])
   })
 })
 
-describe('el marcador, con el cartel encima', () => {
-  it('los goles van en su fila, y en medio cuando el cartel ya dice los puntos y la ronda', () => {
+describe('the scoreboard, with the sign above it', () => {
+  it('the goals go in their row, and in the middle when the sign already says the points and the round', () => {
     expect(goalsRow({ points: false, round: false })).toBeGreaterThan(0)
     expect(goalsRow({ points: true, round: true })).toBe(0)
-    // Al acabar vuelve la ronda, y los goles a su fila de arriba para dejarle sitio.
+    // On finishing the round comes back, and the goals go to their top row to make room for it.
     expect(goalsRow({ points: true, round: false })).toBe(goalsRow({ points: false, round: false }))
   })
 })

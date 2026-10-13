@@ -11,18 +11,18 @@ import {
 import { PUCK_RADIUS } from '../../lib/gameConfig'
 import { PALETTE } from '../../lib/palette'
 import { puckGlow } from '../../lib/puckGlow'
-/** Grosor del disco. Lo justo para que se le vea el canto desde el borde. */
+/** Thickness of the puck. Just enough for its edge to be seen from the side. */
 const PUCK_HEIGHT = 0.022
 
 /**
- * El disco.
+ * The puck.
  *
- * No sabe dónde está: lo coloca el bucle de la partida moviendo su grupo (ver
- * `Rink`). Así la posición no pasa por el estado de React, que a sesenta
- * fotogramas por segundo repintaría el árbol entero. Lo que sí sabe es lo
- * rápido que va (`speedRef`, que escribe el bucle): con la velocidad crece
- * su brillo con la velocidad (`lib/puckGlow.ts`), que es lo que deja
- * seguirlo en el visor cuando cruza la mesa en medio segundo.
+ * It does not know where it is: the match loop places it by moving its group
+ * (see `Rink`). That way the position does not go through React state, which
+ * at sixty frames per second would re-render the whole tree. What it does know
+ * is how fast it is going (`speedRef`, which the loop writes): with the speed
+ * its glow grows with the speed (`lib/puckGlow.ts`), which is what lets it be
+ * followed in the headset when it crosses the table in half a second.
  */
 export function Puck({
   ref,
@@ -30,9 +30,9 @@ export function Puck({
   environment,
 }: {
   ref?: Ref<Group>
-  /** Velocidad del disco en m/s, escrita cada fotograma por el bucle de la mesa. */
+  /** Speed of the puck in m/s, written every frame by the table's loop. */
   speedRef?: RefObject<number>
-  /** Los reflejos de la sala, los mismos que lleva el tablero. */
+  /** The room's reflections, the same ones the table top carries. */
   environment?: Texture
 }) {
   const body = useRef<Mesh>(null)
@@ -61,8 +61,8 @@ export function Puck({
         />
       </mesh>
 
-      {/* Tapa más clara: da la cara superior del disco y le pone un punto de
-          referencia al ojo cuando cruza la mesa a toda velocidad. */}
+      {/* Lighter cap: it gives the puck its top face and gives the eye a point
+          of reference when it crosses the table at full speed. */}
       <mesh position={[0, PUCK_HEIGHT + 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[PUCK_RADIUS * 0.62, 32]} />
         <meshBasicMaterial color={PALETTE.primaryBright} toneMapped={false} />

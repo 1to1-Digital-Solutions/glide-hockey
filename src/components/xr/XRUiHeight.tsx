@@ -16,50 +16,52 @@ import {
 } from '../../lib/uiHeight'
 
 /**
- * Pone lo que cuelgue de aquí a la altura de los ojos de quien juega.
+ * Puts whatever hangs from here at the eye height of whoever is playing.
  *
- * Las cotas de la interfaz se midieron con una persona delante, y esa persona quedó dentro
- * del código: a alguien de metro y medio los paneles le quedan por encima de la vista cómoda
- * —y ahí están los ajustes y el botón de salir— y a alguien de dos metros, a la altura del
- * pecho. Es de las pocas cosas que no se pueden ajustar a mano, porque nadie va a entrar en
- * un menú que no alcanza para subir el menú.
+ * The heights of the interface were measured with one person in front of it, and that person
+ * stayed inside the code: for someone a metre and a half tall the panels sit above a
+ * comfortable line of sight —and that is where the settings and the exit button are— and for
+ * someone two metres tall, at chest height. It is one of the few things that cannot be adjusted
+ * by hand, because nobody is going to enter a menu they cannot reach in order to raise the
+ * menu.
  *
- * **Se coloca y se queda quieta.** Una interfaz que persiguiera la cabeza subiría al ponerse
- * de puntillas y bajaría al agacharse, justo mientras se apunta a un botón. Solo un cambio
- * grande y sostenido —sentarse— la vuelve a colocar (ver `lib/uiHeight.ts`).
+ * **It is placed and it stays still.** An interface that chased the head would rise when
+ * standing on tiptoe and drop when crouching, right while aiming at a button. Only a large,
+ * sustained change —sitting down— places it again (see `lib/uiHeight.ts`).
  *
- * Se mueve por referencia y no por estado: es una cota que cambia como mucho dos veces por
- * sesión, y repintar el árbol por ella sería repintarlo por nada.
+ * It is moved by reference and not by state: it is a height that changes at most twice per
+ * session, and repainting the tree for it would be repainting it for nothing.
  *
- * Fuera del visor no hay a quién medir y el grupo se queda en cero, que es donde han estado
- * siempre las cotas.
+ * Outside the headset there is nobody to measure and the group stays at zero, which is where
+ * the heights have always been.
  */
 export function XRUiHeight({ children }: { children: ReactNode }) {
-  const grupo = useRef<Group>(null)
-  const seguimiento = useRef<HeightTracker>(startTracking())
+  const group = useRef<Group>(null)
+  const tracker = useRef<HeightTracker>(startTracking())
   const mode = useXR((state) => state.mode)
-  const conSuelo = useXR((state) => hasFloorReference(state.session?.enabledFeatures))
-  // Si el mundo entero ya ha bajado, la interfaz vino con él y no le hace
-  // falta corrección propia (ver `uiRiseOverWorld`).
-  const aLaAlturaDeLosOjos = usePlayHeight() === 'eyes'
+  const hasFloor = useXR((state) => hasFloorReference(state.session?.enabledFeatures))
+  // If the whole world has already come down, the interface came with it and it
+  // does not need a correction of its own (see `uiRiseOverWorld`).
+  const atEyeHeight = usePlayHeight() === 'eyes'
 
   useFrame(({ camera }, delta) => {
-    const node = grupo.current
+    const node = group.current
     if (node == null) return
 
     if (mode == null) {
-      // Fuera de sesión no hay estatura que seguir, y la próxima empieza a medir de cero.
-      seguimiento.current = startTracking()
+      // Outside a session there is no height to follow, and the next one starts measuring from
+      // zero.
+      tracker.current = startTracking()
       node.position.y = 0
       return
     }
 
-    // Sin suelo, el origen es el punto donde arrancó la sesión y la cota de la cabeza no
-    // mide desde el suelo: no es una estatura y no se puede usar como tal.
-    const medida = conSuelo && isPlausibleEyeHeight(camera.position.y) ? camera.position.y : null
-    seguimiento.current = trackHeight(seguimiento.current, medida, 1 - Math.exp(-3.5 * delta), delta)
-    node.position.y = uiRiseOverWorld(seguimiento.current.held, aLaAlturaDeLosOjos)
+    // Without a floor, the origin is the point where the session started and the height of the
+    // head is not measured from the floor: it is not a stature and cannot be used as one.
+    const measured = hasFloor && isPlausibleEyeHeight(camera.position.y) ? camera.position.y : null
+    tracker.current = trackHeight(tracker.current, measured, 1 - Math.exp(-3.5 * delta), delta)
+    node.position.y = uiRiseOverWorld(tracker.current.held, atEyeHeight)
   })
 
-  return <group ref={grupo}>{children}</group>
+  return <group ref={group}>{children}</group>
 }

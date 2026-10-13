@@ -1,27 +1,28 @@
 /**
- * El roce del disco deslizándose: cuánto se oye y a qué tono, según su velocidad.
+ * The slide of the puck: how loud it is and at what pitch, depending on its speed.
  *
- * Solo las cuentas, sin audio: las usa `audioEngine.ts` para mover su voz de ruido filtrado, y el
- * port a Godot para mover el bucle que se renderizó de esa misma voz. Un solo sitio para las dos,
- * así que el disco suena igual de rápido en las dos.
+ * Only the maths, no audio: `audioEngine.ts` uses it to drive its filtered noise voice, and the
+ * Godot port to drive the loop that was rendered from that same voice. A single place for both,
+ * so the puck sounds just as fast in both.
  */
 import { MAX_PUCK_SPEED } from './gameConfig'
 import { STALL_SPEED } from './puckPhysics'
 
-/** Tope del roce respecto a un golpe entero, y su banda de frecuencias en Hz. */
+/** Cap of the slide relative to a whole strike, and its frequency band in Hz. */
 export const SLIDE_MAX_LEVEL = 0.28
 export const SLIDE_PITCH_MIN = 380
 export const SLIDE_PITCH_MAX = 1900
-/** Segundos que tarda el roce en seguir a la velocidad: sin saltos entre fotogramas. */
+/** Seconds the slide takes to follow the speed: no jumps between frames. */
 export const SLIDE_SMOOTHING = 0.05
 
 /**
- * Cuánto se oye el disco deslizándose, de 0 a 1, según su velocidad en m/s.
+ * How loud the sliding puck is, from 0 to 1, depending on its speed in m/s.
  *
- * Nada por debajo de la velocidad a la que el disco cuenta como parado
- * (`STALL_SPEED`): un disco quieto no roza. De ahí sube con la raíz de la
- * velocidad —el oído nota más el arranque que la punta— hasta el tope a la
- * velocidad máxima. Es un sonido de fondo: nunca llega al volumen de un golpe.
+ * Nothing below the speed at which the puck counts as stopped
+ * (`STALL_SPEED`): a puck at rest does not slide. From there it rises with the
+ * root of the speed —the ear notices the start more than the top end— up to
+ * the cap at the maximum speed. It is a background sound: it never reaches the
+ * volume of a strike.
  */
 export function slideLevel(speed: number): number {
   if (!Number.isFinite(speed) || speed <= STALL_SPEED) return 0
@@ -30,8 +31,8 @@ export function slideLevel(speed: number): number {
 }
 
 /**
- * A qué frecuencia se filtra el roce según la velocidad: más rápido, más agudo.
- * Es lo que hace que la velocidad se oiga y no solo el volumen.
+ * At what frequency the slide is filtered depending on the speed: faster, higher.
+ * It is what makes the speed be heard and not only the volume.
  */
 export function slidePitch(speed: number): number {
   const s = Number.isFinite(speed) ? Math.min(1, Math.max(0, speed / MAX_PUCK_SPEED)) : 0

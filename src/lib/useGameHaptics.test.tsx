@@ -5,9 +5,9 @@ import { HAPTIC_RECIPES } from './hapticFeedback'
 import { useGameHaptics } from './useGameHaptics'
 
 /**
- * Lo que el hook añade sobre `haptics.ts` (que ya tiene sus tests): que los golpes van a la
- * sesión abierta y **solo** a la mano que `MalletHand` dijo que lleva el mazo, que sin mano no
- * vibra nada, y que la cola del golpe se cancela al desmontar.
+ * What the hook adds on top of `haptics.ts` (which already has its tests): that the strikes go
+ * to the open session and **only** to the hand `MalletHand` said holds the mallet, that with no
+ * hand nothing vibrates, and that the tail of the strike is cancelled on unmount.
  */
 const xr = vi.hoisted(() => ({
   left: vi.fn(),
@@ -35,7 +35,7 @@ afterEach(() => {
 })
 
 describe('useGameHaptics', () => {
-  it('sin nadie con el mazo en la mano, un golpe no vibra en ninguna', () => {
+  it('with nobody holding the mallet, a strike vibrates in neither hand', () => {
     withHeadset()
     const { result } = renderHook(() => useGameHaptics())
 
@@ -45,7 +45,7 @@ describe('useGameHaptics', () => {
     expect(xr.right).not.toHaveBeenCalled()
   })
 
-  it('con el mazo en la izquierda, el golpe y su cola van a la izquierda y nada más', () => {
+  it('with the mallet in the left hand, the strike and its tail go to the left and nowhere else', () => {
     vi.useFakeTimers()
     withHeadset()
     const { result } = renderHook(() => useGameHaptics())
@@ -59,7 +59,7 @@ describe('useGameHaptics', () => {
     expect(xr.right).not.toHaveBeenCalled()
   })
 
-  it('cambiar el mazo de mano cambia la mano que vibra, y soltarlo la apaga', () => {
+  it('changing the mallet to the other hand changes the hand that vibrates, and releasing it turns it off', () => {
     withHeadset()
     const { result } = renderHook(() => useGameHaptics())
 
@@ -74,7 +74,7 @@ describe('useGameHaptics', () => {
     expect(xr.right).toHaveBeenCalledTimes(1)
   })
 
-  it('desmontar cancela la cola que quedaba por sonar', () => {
+  it('unmounting cancels the tail that was still to play', () => {
     vi.useFakeTimers()
     withHeadset()
     const { result, unmount } = renderHook(() => useGameHaptics())
@@ -87,7 +87,7 @@ describe('useGameHaptics', () => {
     expect(xr.right).toHaveBeenCalledTimes(1)
   })
 
-  it('sin sesión inmersiva no hay mandos que pulsar, y no pasa nada', () => {
+  it('without an immersive session there are no controllers to pulse, and nothing happens', () => {
     withHeadset()
     xr.session = null
     const { result } = renderHook(() => useGameHaptics())
@@ -97,7 +97,7 @@ describe('useGameHaptics', () => {
     expect(xr.right).not.toHaveBeenCalled()
   })
 
-  it('el pulso del golpe recibido va a la mano que diga, lleve o no el mazo', () => {
+  it('the pulse of the hit feedback goes to the hand it says, whether or not it holds the mallet', () => {
     withHeadset()
     const { result } = renderHook(() => useGameHaptics())
 

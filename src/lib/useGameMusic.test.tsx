@@ -9,19 +9,20 @@ import { DEFAULT_VOLUMES, volumeFactor } from './settings'
 import { setVolume } from './settingsClient'
 
 /**
- * La música de fondo, vista desde la escena.
+ * The background music, seen from the scene.
  *
- * Lo que se prueba es lo que solo pasa aquí: que no se descargue si se entra
- * con la música apagada, que el silencio la calle, que se pare al quitar la
- * escena y que, si el navegador rechaza el primer intento —que es lo normal,
- * porque exige un gesto—, vuelva a probar en cuanto lo haya.
+ * What is tested is what only happens here: that it is not downloaded if one
+ * enters with the music off, that the mute silences it, that it stops when
+ * the scene is removed and that, if the browser rejects the first attempt
+ * —which is the normal thing, because it demands a gesture—, it tries again
+ * as soon as there is one.
  *
- * El elemento de audio va de mentira porque jsdom no reproduce nada. El almacén
- * es el de verdad: la música se enciende y se apaga como lo hacen los dos
- * menús, guardándola en el navegador.
+ * The audio element is a fake because jsdom plays nothing. The store is the
+ * real one: the music turns on and off the way the two menus do it, saving
+ * it in the browser.
  */
 
-/** Los reproductores creados, en orden, para mirar qué se les pidió. */
+/** The players created, in order, to look at what was asked of them. */
 const players: {
   src: string
   loop: boolean
@@ -30,13 +31,13 @@ const players: {
   pause: ReturnType<typeof vi.fn>
 }[] = []
 
-/** Si el navegador deja sonar sin gesto previo. */
+/** Whether the browser allows sound without a previous gesture. */
 let allowsAutoplay = true
 
 class FakeAudio {
   loop = false
   volume = 1
-  play = vi.fn(() => (allowsAutoplay ? Promise.resolve() : Promise.reject(new Error('gesto'))))
+  play = vi.fn(() => (allowsAutoplay ? Promise.resolve() : Promise.reject(new Error('gesture'))))
   pause = vi.fn()
 
   constructor(public src: string) {
@@ -45,10 +46,10 @@ class FakeAudio {
 }
 
 beforeEach(() => {
-  // Los volúmenes salen de los ajustes del arcade, que cachean lo leído para
-  // que `useSyncExternalStore` no repinte sin parar: vaciar `localStorage` a
-  // secas dejaría el caché con el valor de la prueba anterior. Se restablecen
-  // por la API, que es la que lo invalida.
+  // The volumes come from the hall's settings, which cache what was read so
+  // that `useSyncExternalStore` does not repaint endlessly: just emptying
+  // `localStorage` would leave the cache with the value of the previous
+  // test. They are reset through the API, which is what invalidates it.
   setVolume('sfx', DEFAULT_VOLUMES.sfx)
   setVolume('ambience', DEFAULT_VOLUMES.ambience)
   players.length = 0
@@ -69,28 +70,28 @@ const renderMusic = () => renderHook(() => useGameMusic(), { wrapper: Harness })
 
 
 /**
- * Espera a que termine el fundido.
+ * Waits for the fade to finish.
  *
- * La música ya no entra ni se va de golpe (`lib/musicFade.ts`), así que el volumen final y
- * el `pause()` llegan al acabar la rampa y no en la misma línea. Se espera de verdad y no
- * con relojes falsos porque la rampa va por fotogramas: falsear el reloj sin falsear
- * `requestAnimationFrame` la dejaría parada, y falsear los dos es más maquinaria que los
- * setecientos milisegundos que cuesta esperarla.
+ * The music no longer comes in or leaves abruptly (`lib/musicFade.ts`), so the final volume
+ * and the `pause()` arrive when the ramp ends and not on the same line. It really waits and
+ * does not use fake clocks because the ramp goes by frames: faking the clock without faking
+ * `requestAnimationFrame` would leave it stopped, and faking both is more machinery than the
+ * seven hundred milliseconds it costs to wait for it.
  */
-async function trasElFundido() {
+async function afterFade() {
   await act(async () => {
-    await new Promise((listo) => setTimeout(listo, MUSIC_FADE_MS + 120))
+    await new Promise((done) => setTimeout(done, MUSIC_FADE_MS + 120))
   })
 }
 
-describe('la música de fondo', () => {
-  // Cada prueba desmonta lo suyo: la preferencia avisa a todo el que esté
-  // escuchando, así que un hook de una prueba anterior que siguiera montado
-  // reaccionaría a los cambios de la siguiente y crearía reproductores de más.
+describe('the background music', () => {
+  // Each test unmounts its own: the preference notifies everyone who is
+  // listening, so a hook of a previous test that stayed mounted would react
+  // to the changes of the next one and would create extra players.
 
-  it('suena en bucle y bajita, desde donde le toque', async () => {
+  it('plays looped and quietly, from wherever it is served', async () => {
     const hook = renderMusic()
-    await trasElFundido()
+    await afterFade()
 
     expect(players).toHaveLength(1)
     expect(players[0].src).toBe(musicUrl())
@@ -100,7 +101,7 @@ describe('la música de fondo', () => {
     hook.unmount()
   })
 
-  it('entrando con la música apagada no se descarga nada', () => {
+  it('entering with the music off nothing is downloaded', () => {
     act(() => setVolume('ambience', 0))
     const hook = renderMusic()
 
@@ -108,10 +109,10 @@ describe('la música de fondo', () => {
     hook.unmount()
   })
 
-  it('quitar los efectos no la calla: son dos canales aparte', () => {
-    // Antes el silencio mandaba sobre todo. Ahora los ajustes del arcade
-    // separan «sonidos interactivos» de «sonidos ambientales» a propósito: hay
-    // quien quiere oír el fondo y no el juego, y quien prefiere lo contrario.
+  it('turning the effects off does not silence it: they are two separate channels', () => {
+    // The mute used to rule over everything. Now the hall's settings separate
+    // «sonidos interactivos» from «sonidos ambientales» on purpose: some want
+    // to hear the background and not the game, and some prefer the opposite.
     const hook = renderMusic()
     act(() => setVolume('sfx', true ? 0 : DEFAULT_VOLUMES.sfx))
 
@@ -119,29 +120,29 @@ describe('la música de fondo', () => {
     hook.unmount()
   })
 
-  it('apagarla la para, y volver a encenderla la reanuda con el mismo reproductor', async () => {
+  it('turning it off stops it, and turning it back on resumes it with the same player', async () => {
     const hook = renderMusic()
     act(() => setVolume('ambience', 0))
-    await trasElFundido()
+    await afterFade()
     expect(players[0].pause).toHaveBeenCalled()
 
     act(() => setVolume('ambience', DEFAULT_VOLUMES.ambience))
-    // El mismo elemento: volver a crearlo pediría el fichero otra vez.
+    // The same element: creating it again would request the file once more.
     expect(players).toHaveLength(1)
     expect(players[0].play).toHaveBeenCalledTimes(2)
     hook.unmount()
   })
 
-  it('quitar la escena se lleva la música', async () => {
+  it('removing the scene takes the music with it', async () => {
     const hook = renderMusic()
     hook.unmount()
-    // Bajándola, no cortándola: el salón devuelve la suya justo detrás.
-    await trasElFundido()
+    // Fading it down, not cutting it: the hall brings its own back right after.
+    await afterFade()
 
     expect(players[0].pause).toHaveBeenCalled()
   })
 
-  it('si el navegador la rechaza, vuelve a probar al primer gesto', async () => {
+  it('if the browser rejects it, it tries again on the first gesture', async () => {
     allowsAutoplay = false
     const hook = renderMusic()
     expect(players[0].play).toHaveBeenCalledTimes(1)

@@ -6,69 +6,70 @@ import { eventPulses, playPulses, type Handedness, type HandEvent } from './hapt
 import type { HandPulse } from './hapticFeedback'
 
 export interface GameHaptics {
-  /** Lo que se siente de un suceso de la mesa, en la mano que lleva el mazo (si la lleva). */
-  feel: (suceso: HandEvent) => void
+  /** What is felt of an event of the table, in the hand that holds the mallet (if one does). */
+  feel: (event: HandEvent) => void
   /**
-   * Qué mano lleva el mazo, o `null` si no lo lleva ninguna. Lo dice `MalletHand` cada
-   * fotograma que el mazo va cogido, y al soltarlo.
+   * Which hand holds the mallet, or `null` if none does. `MalletHand` says it every
+   * frame the mallet is held, and on release.
    */
-  noteHand: (mano: Handedness | null) => void
+  noteHand: (hand: Handedness | null) => void
   /**
-   * Un pulso ya hecho, en la mano que diga. Es por donde vibra el golpe recibido
-   * (`components/xr/GolpeRecibido.tsx`), que trae los suyos de la receta común
-   * y en las dos manos: el cuerpo recibe el golpe, no la mano del mazo.
+   * A ready-made pulse, in the hand it says. It is where the hit feedback vibrates
+   * (`components/xr/HitFeedback.tsx`), which brings its own from the shared recipe
+   * and in both hands: the body takes the hit, not the mallet hand.
    */
-  pulse: (pulso: HandPulse) => void
+  pulse: (handPulse: HandPulse) => void
 }
 
 /**
- * Hace vibrar los mandos con lo que pasa en la mesa.
+ * Makes the controllers vibrate with what happens on the table.
  *
- * Es imperativo, como `useGameAudio`, porque los sucesos los decide el bucle de la mesa
- * fotograma a fotograma. Sin sesión inmersiva no hay mandos y no hace nada. No mira el silencio:
- * silenciar apaga el altavoz, no la mano.
+ * It is imperative, like `useGameAudio`, because the events are decided by the table loop
+ * frame by frame. Without an immersive session there are no controllers and it does nothing. It
+ * ignores the mute: muting turns off the speaker, not the hand.
  *
- * **Nada vibra por deslizar.** Aquí no hay roce: era un tren de pulsos solapados cada
- * fotograma, y como `pulse()` no encola, lo que llegaba a la mano era un zumbido sin fin.
+ * **Nothing vibrates for sliding.** There is no slide here: it was a train of overlapping
+ * pulses every frame, and since `pulse()` does not queue, what reached the hand was an endless
+ * buzz.
  */
 export function useGameHaptics(): GameHaptics {
   const session = useXR((state) => state.session)
-  const mazo = useRef<Handedness | null>(null)
-  /** Las colas de los golpes que esperan su turno, para cancelarlas al desmontar. */
-  const pendientes = useRef(new Set<ReturnType<typeof setTimeout>>())
+  const mallet = useRef<Handedness | null>(null)
+  /** The tails of the strikes waiting for their turn, to cancel them on unmount. */
+  const pending = useRef(new Set<ReturnType<typeof setTimeout>>())
 
   useEffect(() => {
-    const cola = pendientes.current
+    const tails = pending.current
     return () => {
-      for (const id of cola) clearTimeout(id)
-      cola.clear()
+      for (const id of tails) clearTimeout(id)
+      tails.clear()
     }
   }, [])
 
-  const noteHand = useCallback((mano: Handedness | null) => {
-    mazo.current = mano
+  const noteHand = useCallback((hand: Handedness | null) => {
+    mallet.current = hand
   }, [])
 
-  const tocar = useCallback(
-    (pulsos: HandPulse[]) => {
+  const play = useCallback(
+    (pulses: HandPulse[]) => {
       if (session == null) return
-      playPulses(session, pulsos, (hacer, ms) => {
+      playPulses(session, pulses, (fire, ms) => {
         const id = setTimeout(() => {
-          pendientes.current.delete(id)
-          hacer()
+          pending.current.delete(id)
+          fire()
         }, ms)
-        pendientes.current.add(id)
+        pending.current.add(id)
       })
     },
     [session],
   )
 
   const feel = useCallback(
-    (suceso: HandEvent) => tocar(eventPulses(suceso, mazo.current)),
-    [tocar],
+    (event: HandEvent) => play(eventPulses(event, mallet.current)),
+    [play],
   )
 
-  const pulse = useCallback((pulso: HandPulse) => tocar([pulso]), [tocar])
+  const pulse = useCallback((handPulse: HandPulse) => play([handPulse]), [play])
 
   return useMemo(() => ({ feel, noteHand, pulse }), [feel, noteHand, pulse])
 }

@@ -25,102 +25,103 @@ function source(handedness: string, pulse?: (value: number, duration: number) =>
 }
 
 /**
- * Lo que se vio con el visor el 24/09: los dos mandos vibraban la jugada entera. Era el roce del
- * disco —un toque solapado cada 90 ms mientras se moviera— y, como nunca se sabía qué mano
- * llevaba el mazo, iba a las dos. Lo que queda: el golpe del mazo al disco, en su mano.
+ * What was seen with the headset: the two controllers vibrated for the whole rally. It was the
+ * slide of the puck —an overlapping tap every 90 ms while it moved— and, since it was never
+ * known which hand held the mallet, it went to both. What remains: the mallet striking the puck,
+ * in its hand.
  */
-describe('qué se siente de la mesa', () => {
-  it('el golpe del mazo es un impacto en la mano que lo lleva, y solo en ella', () => {
-    const pulsos = eventPulses({ type: 'hit', strength: 0.6 }, 'left')
-    expect(pulsos).toEqual(pulsesFor({ type: 'impact', hand: 'left', strength: 0.6 }))
-    expect(pulsos.every((p) => p.hand === 'left')).toBe(true)
+describe('what is felt of the table', () => {
+  it('the mallet strike is an impact in the hand that holds it, and only in that one', () => {
+    const pulses = eventPulses({ type: 'hit', strength: 0.6 }, 'left')
+    expect(pulses).toEqual(pulsesFor({ type: 'impact', hand: 'left', strength: 0.6 }))
+    expect(pulses.every((p) => p.hand === 'left')).toBe(true)
   })
 
-  it('cuanto más fuerte el choque, más fuerte el pulso', () => {
-    const flojo = eventPulses({ type: 'hit', strength: 0.1 }, 'right')[0]
-    const seco = eventPulses({ type: 'hit', strength: 1 }, 'right')[0]
-    expect(seco.intensity).toBeGreaterThan(flojo.intensity)
+  it('the stronger the collision, the stronger the pulse', () => {
+    const weak = eventPulses({ type: 'hit', strength: 0.1 }, 'right')[0]
+    const sharp = eventPulses({ type: 'hit', strength: 1 }, 'right')[0]
+    expect(sharp.intensity).toBeGreaterThan(weak.intensity)
   })
 
-  it('una fuerza que no es número cuenta como un golpe entero, no llega al vibrador', () => {
-    const [pulso] = eventPulses({ type: 'hit', strength: Number.NaN }, 'right')
-    expect(pulso.intensity).toBe(HAPTIC_RECIPES.impact.max)
+  it('a strength that is not a number counts as a whole strike, it does not reach the actuator', () => {
+    const [pulse] = eventPulses({ type: 'hit', strength: Number.NaN }, 'right')
+    expect(pulse.intensity).toBe(HAPTIC_RECIPES.impact.max)
   })
 
-  it('el gol es una llegada suave, más floja que cualquier golpe', () => {
-    const [gol] = eventPulses({ type: 'goal' }, 'right')
-    expect(gol).toEqual(pulsesFor({ type: 'arrival', hand: 'right', strength: GOAL_STRENGTH })[0])
-    expect(gol.intensity).toBeLessThan(eventPulses({ type: 'hit', strength: 0 }, 'right')[0].intensity)
+  it('the goal is a soft arrival, weaker than any strike', () => {
+    const [goal] = eventPulses({ type: 'goal' }, 'right')
+    expect(goal).toEqual(pulsesFor({ type: 'arrival', hand: 'right', strength: GOAL_STRENGTH })[0])
+    expect(goal.intensity).toBeLessThan(eventPulses({ type: 'hit', strength: 0 }, 'right')[0].intensity)
   })
 
-  it('el final del partido, largo y en la mano del mazo', () => {
+  it('the end of the match, long and in the mallet hand', () => {
     expect(eventPulses({ type: 'end' }, 'left')).toEqual([
       { hand: 'left', intensity: FINAL_PULSE.intensity, ms: FINAL_PULSE.durationMs, delay: 0 },
     ])
   })
 
-  it('el listón de medalla cruzado, el del cartel del objetivo, en la mano del mazo', () => {
+  it('the medal threshold crossed, the one of the goal sign, in the mallet hand', () => {
     expect(eventPulses({ type: 'threshold', medal: 'silver' }, 'left')).toEqual(thresholdPulses('silver', 'left'))
     expect(eventPulses({ type: 'threshold', medal: 'gold' }, 'right')[0].hand).toBe('right')
   })
 
-  it('sin mano en el mazo no vibra nada: nunca las dos «por si acaso»', () => {
-    for (const suceso of [{ type: 'hit', strength: 1 }, { type: 'goal' }, { type: 'end' }, { type: 'threshold', medal: 'gold' }] as const) {
-      expect(eventPulses(suceso, null), suceso.type).toEqual([])
+  it('with no hand on the mallet nothing vibrates: never both «just in case»', () => {
+    for (const event of [{ type: 'hit', strength: 1 }, { type: 'goal' }, { type: 'end' }, { type: 'threshold', medal: 'gold' }] as const) {
+      expect(eventPulses(event, null), event.type).toEqual([])
     }
   })
 })
 
-describe('lo que de cada fotograma llega a la mano', () => {
+describe('what reaches the hand from each frame', () => {
   const skill = OPPONENT_SKILLS.medium
-  /** El mazo del jugador aparcado en una esquina de su campo, lejos de donde pasa el disco. */
-  const aparcado: Vec2 = { x: HALF_WIDTH - 0.08, z: HALF_LENGTH - 0.08 }
+  /** The player's mallet parked in a corner of its own half, far from where the puck goes by. */
+  const parked: Vec2 = { x: HALF_WIDTH - 0.08, z: HALF_LENGTH - 0.08 }
 
-  it('el disco deslizando suelto y rebotando en las bandas: cero pulsos', () => {
-    let mesa: TableState = startTable({ skill, lastScorer: null, seed: 7 })
-    let rebotes = 0
-    let fotogramasSueltos = 0
-    let pulsos = 0
+  it('the puck sliding loose and bouncing off the rails: zero pulses', () => {
+    let table: TableState = startTable({ skill, lastScorer: null, seed: 7 })
+    let bounces = 0
+    let looseFrames = 0
+    let pulses = 0
     for (let i = 0; i < 90 * 20; i++) {
-      const antes = mesa.playerHits
-      const fotograma = advanceTable(mesa, { delta: 1 / 90, pointer: aparcado, skill, playing: true })
-      mesa = fotograma.table
-      if (fotograma.bounced) rebotes += 1
-      if (mesa.playerHits > antes || fotograma.goals.length > 0) continue
-      fotogramasSueltos += 1
-      for (const suceso of frameEvents(antes, fotograma)) pulsos += eventPulses(suceso, 'right').length
+      const before = table.playerHits
+      const frame = advanceTable(table, { delta: 1 / 90, pointer: parked, skill, playing: true })
+      table = frame.table
+      if (frame.bounced) bounces += 1
+      if (table.playerHits > before || frame.goals.length > 0) continue
+      looseFrames += 1
+      for (const event of frameEvents(before, frame)) pulses += eventPulses(event, 'right').length
     }
-    // Que el test no mida el vacío: el disco se movió y chocó contra las bandas.
-    expect(rebotes).toBeGreaterThan(3)
-    expect(fotogramasSueltos).toBeGreaterThan(90 * 15)
-    expect(pulsos).toBe(0)
+    // So that the test does not measure nothing: the puck moved and hit the rails.
+    expect(bounces).toBeGreaterThan(3)
+    expect(looseFrames).toBeGreaterThan(90 * 15)
+    expect(pulses).toBe(0)
   })
 
-  it('el golpe del jugador sí, con la fuerza del choque', () => {
-    const antes = startTable({ skill, lastScorer: null })
-    const sucesos = frameEvents(0, {
-      table: { ...antes, playerHits: 1 },
+  it('the player strike does, with the strength of the collision', () => {
+    const before = startTable({ skill, lastScorer: null })
+    const events = frameEvents(0, {
+      table: { ...before, playerHits: 1 },
       goals: [],
       impact: { strike: 3, bounce: 0 },
     })
-    expect(sucesos).toHaveLength(1)
-    expect(sucesos[0]).toMatchObject({ type: 'hit' })
-    expect((sucesos[0] as { strength: number }).strength).toBeGreaterThan(0)
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ type: 'hit' })
+    expect((events[0] as { strength: number }).strength).toBeGreaterThan(0)
   })
 
-  it('el golpe de la máquina no es de la mano del jugador', () => {
-    const mesa = startTable({ skill, lastScorer: null })
-    expect(frameEvents(0, { table: { ...mesa, opponentHits: 1 }, goals: [], impact: { strike: 4, bounce: 0 } })).toEqual([])
+  it('the machine strike does not belong to the hand of the player', () => {
+    const table = startTable({ skill, lastScorer: null })
+    expect(frameEvents(0, { table: { ...table, opponentHits: 1 }, goals: [], impact: { strike: 4, bounce: 0 } })).toEqual([])
   })
 
-  it('y el gol', () => {
-    const mesa = startTable({ skill, lastScorer: null })
-    expect(frameEvents(0, { table: mesa, goals: ['player'], impact: { strike: 0, bounce: 0 } })).toEqual([{ type: 'goal' }])
+  it('and the goal', () => {
+    const table = startTable({ skill, lastScorer: null })
+    expect(frameEvents(0, { table: table, goals: ['player'], impact: { strike: 0, bounce: 0 } })).toEqual([{ type: 'goal' }])
   })
 })
 
-describe('reproducir los pulsos', () => {
-  it('pulsa solo el mando de esa mano', () => {
+describe('playing the pulses', () => {
+  it('pulses only the controller of that hand', () => {
     const left = vi.fn()
     const right = vi.fn()
     const session: HapticSession = { inputSources: [source('left', left), source('right', right)] }
@@ -130,24 +131,24 @@ describe('reproducir los pulsos', () => {
     expect(left).not.toHaveBeenCalled()
   })
 
-  it('la cola de un golpe sale con su retardo, por el reloj de quien llama', () => {
+  it('the tail of a strike goes out with its delay, on the clock of the caller', () => {
     const right = vi.fn()
     const session: HapticSession = { inputSources: [source('right', right)] }
-    const programados: { hacer: () => void; ms: number }[] = []
+    const scheduled: { fire: () => void; ms: number }[] = []
 
-    playPulses(session, eventPulses({ type: 'hit', strength: 1 }, 'right'), (hacer, ms) => programados.push({ hacer, ms }))
+    playPulses(session, eventPulses({ type: 'hit', strength: 1 }, 'right'), (fire, ms) => scheduled.push({ fire, ms }))
 
     expect(right).toHaveBeenCalledTimes(1)
-    expect(programados).toHaveLength(1)
-    expect(programados[0].ms).toBe(HAPTIC_RECIPES.impact.ms)
-    programados[0].hacer()
+    expect(scheduled).toHaveLength(1)
+    expect(scheduled[0].ms).toBe(HAPTIC_RECIPES.impact.ms)
+    scheduled[0].fire()
     expect(right).toHaveBeenCalledTimes(2)
   })
 
-  it('un mando sin vibrador, o que rechaza el pulso, no rompe nada', () => {
-    const rejects = vi.fn(() => Promise.reject(new Error('sin permiso')))
+  it('a controller with no actuator, or that rejects the pulse, breaks nothing', () => {
+    const rejects = vi.fn(() => Promise.reject(new Error('no permission')))
     const throws = vi.fn(() => {
-      throw new Error('desconectado')
+      throw new Error('disconnected')
     })
     const session: HapticSession = {
       inputSources: [source('left', throws), source('right', rejects), source('none')],
@@ -157,20 +158,20 @@ describe('reproducir los pulsos', () => {
     expect(pulseHand(session, 'right', 0.5, 30)).toBe(true)
   })
 
-  it('sin sesión no hay a quién pulsar', () => {
+  it('without a session there is nobody to pulse', () => {
     expect(pulseHand(null, 'left', 0.5, 30)).toBe(false)
   })
 })
 
-describe('un mando que dice tener vibrador pero no lo tiene', () => {
-  it('se salta sin romper', () => {
-    // `hapticActuators` está en el estándar pero no todos los navegadores lo
-    // rellenan igual: unos lo dejan vacío y otros ponen un objeto sin `pulse`.
-    const sinNada = { gamepad: undefined, handedness: 'left' }
-    const sinLista = { gamepad: {}, handedness: 'right' }
-    const sinPulse = { gamepad: { hapticActuators: [{}] }, handedness: 'none' }
+describe('a controller that claims to have an actuator but has none', () => {
+  it('is skipped without breaking', () => {
+    // `hapticActuators` is in the standard but not every browser fills it in
+    // the same way: some leave it empty and others put an object without `pulse`.
+    const withNothing = { gamepad: undefined, handedness: 'left' }
+    const withNoList = { gamepad: {}, handedness: 'right' }
+    const withNoPulse = { gamepad: { hapticActuators: [{}] }, handedness: 'none' }
     const session = {
-      inputSources: [sinNada, sinLista, sinPulse],
+      inputSources: [withNothing, withNoList, withNoPulse],
     } as unknown as HapticSession
 
     expect(pulseHand(session, 'left', 0.5, 30)).toBe(false)
@@ -179,65 +180,65 @@ describe('un mando que dice tener vibrador pero no lo tiene', () => {
 })
 
 /**
- * El toque que confirma un botón del visor.
+ * The tap that confirms a headset button.
  *
- * Dentro del visor el mando no se dibuja y lo que se pulsa es un rectángulo flotando: sin
- * este toque, el botón no da ninguna señal de haber oído nada. Va **al mando que ha
- * pulsado** y no a las dos manos, que contestarle a la otra sería contestarle a quien no ha
- * hecho nada.
+ * Inside the headset the controller is not drawn and what is pressed is a floating rectangle:
+ * without this tap, the button gives no sign of having heard anything. It goes **to the
+ * controller that pressed** and not to both hands, since answering the other would be
+ * answering someone who has done nothing.
  */
-describe('el toque de un botón', () => {
-  /** Un evento de puntero como el que llega de un mando del visor. */
-  const desdeElMando = (source: HapticSource) => ({ nativeEvent: { inputSource: source } })
+describe('the tap of a button', () => {
+  /** A pointer event like the one that arrives from a headset controller. */
+  const fromController = (source: HapticSource) => ({ nativeEvent: { inputSource: source } })
 
-  it('vibra el mando que lo pulsa', () => {
+  it('vibrates the controller that presses it', () => {
     const pulse = vi.fn(() => Promise.resolve(true))
 
-    expect(pulsePressed(desdeElMando(source('right', pulse)))).toBe(true)
+    expect(pulsePressed(fromController(source('right', pulse)))).toBe(true)
     expect(pulse).toHaveBeenCalledWith(PRESS_PULSE.intensity, PRESS_PULSE.durationMs)
   })
 
-  it('con el ratón no hay mando, y no pasa nada', () => {
-    // Es el caso de escritorio: el mismo menú, sin nada que vibrar.
+  it('with the mouse there is no controller, and nothing happens', () => {
+    // It is the desktop case: the same menu, with nothing to vibrate.
     expect(pulsePressed({ nativeEvent: {} })).toBe(false)
     expect(pulsePressed(null)).toBe(false)
   })
 
-  it('un mando sin vibrador sigue siendo un mando', () => {
-    expect(pulsePressed(desdeElMando(source('right')))).toBe(false)
+  it('a controller with no actuator is still a controller', () => {
+    expect(pulsePressed(fromController(source('right')))).toBe(false)
   })
 
-  it('un vibrador que falla no para la partida', () => {
-    const roto: HapticSource = {
+  it('an actuator that fails does not stop the match', () => {
+    const broken: HapticSource = {
       handedness: 'right',
       gamepad: {
         hapticActuators: [
           {
             pulse: () => {
-              throw new Error('sin vibrador')
+              throw new Error('no actuator')
             },
           },
         ],
       },
     }
 
-    expect(pulsePressed(desdeElMando(roto))).toBe(false)
+    expect(pulsePressed(fromController(broken))).toBe(false)
   })
 
-  it('y uno que devuelve una promesa rota tampoco ensucia la consola', () => {
-    const rechaza: HapticSource = {
+  it('and one that returns a broken promise does not dirty the console either', () => {
+    const rejecting: HapticSource = {
       handedness: 'right',
       gamepad: { hapticActuators: [{ pulse: () => Promise.reject(new Error('no')) }] },
     }
 
-    expect(pulsePressed(desdeElMando(rechaza))).toBe(true)
+    expect(pulsePressed(fromController(rejecting))).toBe(true)
   })
 
-  it('un toque de fuerza cero no es un toque', () => {
+  it('a tap of zero strength is not a tap', () => {
     const pulse = vi.fn(() => Promise.resolve(true))
 
     expect(
-      pulsePressed(desdeElMando(source('right', pulse)), { ...PRESS_PULSE, intensity: 0 }),
+      pulsePressed(fromController(source('right', pulse)), { ...PRESS_PULSE, intensity: 0 }),
     ).toBe(false)
     expect(pulse).not.toHaveBeenCalled()
   })

@@ -1,16 +1,18 @@
 /**
- * La vibración de los mandos: qué se siente en la mano con lo que pasa en la mesa.
+ * The vibration of the controllers: what is felt in the hand with what happens on the table.
  *
- * **Solo vibra el golpe del mazo al disco**, en la mano que lleva el mazo y con la fuerza del
- * choque. El roce del disco vibraba cada fotograma con pulsos solapados y, sin saber qué mano
- * llevaba el mazo, en las dos: con el visor puesto los mandos zumbaban la jugada entera
- * (24/09/2026). Ahora, como en todo el salón (`.claude/rules/xr.md`, «Cada contacto se siente en
- * la mano que toca, y nada más»), deslizar no vibra, rebotar en la banda tampoco —lo toca el
- * disco, no la mano— y las recetas son las comunes de `tactos.ts`.
+ * **Only the mallet striking the puck vibrates**, in the hand that holds the mallet and with the
+ * strength of the collision. The slide of the puck used to vibrate every frame with overlapping
+ * pulses and, not knowing which hand held the mallet, in both: with the headset on the
+ * controllers buzzed for the whole rally. Now, as in the whole hall (`.claude/rules/xr.md`,
+ * «Each contact is felt in the hand that touches, and nothing else»), sliding does not vibrate,
+ * bouncing off the rail does not either —the puck touches it, not the hand— and the recipes are
+ * the shared ones of `hapticFeedback.ts`.
  *
- * Sale de los mismos sucesos que el sonido (`audioEngine.ts`) pero **no** obedece al silencio:
- * silenciar apaga el altavoz, no la mano. Es lógica pura y con tests; quien pulsa de verdad los
- * mandos es `useGameHaptics`, que pone la sesión, la mano del mazo y los relojes.
+ * It comes from the same events as the sound (`audioEngine.ts`) but it does **not** obey the
+ * mute: muting turns off the speaker, not the hand. It is pure logic and tested; the one that
+ * really pulses the controllers is `useGameHaptics`, which brings the session, the mallet hand
+ * and the clocks.
  */
 
 import { impactStrength } from './audioEngine'
@@ -21,90 +23,91 @@ import { pulsesFor, type HandSide, type HandPulse } from './hapticFeedback'
 
 export type Handedness = HandSide
 
-/** Un toque suelto: fuerza de 0 a 1 y cuánto dura. */
+/** A single tap: strength from 0 to 1 and how long it lasts. */
 export interface HapticPulse {
   intensity: number
   durationMs: number
 }
 
-/** Lo que pasa en la mesa y puede sentirse en la mano. */
+/** What happens on the table and can be felt in the hand. */
 export type HandEvent =
-  /** El mazo del jugador golpea el disco; `fuerza` (0–1) sale de la velocidad del choque. */
+  /** The player's mallet strikes the puck; `strength` (0–1) comes from the collision speed. */
   | { readonly type: 'hit'; readonly strength: number }
-  /** Entra un gol, a favor o en contra. */
+  /** A goal goes in, for or against. */
   | { readonly type: 'goal' }
-  /** Se acaba el partido. */
+  /** The match ends. */
   | { readonly type: 'end' }
-  /** Se cruza un listón de medalla: lo celebra el cartel del objetivo. */
+  /** A medal threshold is crossed: the goal sign celebrates it. */
   | { readonly type: 'threshold'; readonly medal: Medal }
 
 /**
- * Lo fuerte que llega el gol, como `llegada` de `tactos.ts`: la más suave de las suyas.
+ * How strong the goal arrives, as an `arrival` of `hapticFeedback.ts`: the softest of its kind.
  *
- * El disco entra lejos, en la otra punta de la mesa: se avisa sin que se confunda con un golpe
- * que haya dado la mano. A CALIBRAR CON EL VISOR.
+ * The puck goes in far away, at the other end of the table: it is announced without being
+ * mistaken for a strike the hand has made. TO BE CALIBRATED WITH THE HEADSET.
  */
 export const GOAL_STRENGTH = 0
 
 /**
- * El final del partido: no es un contacto, es lo único que dice que se acabó sin mirar el
- * marcador. Largo y en la mano del mazo —no en las dos: eso queda para el golpe que recibe el
- * cuerpo—. A CALIBRAR CON EL VISOR.
+ * The end of the match: it is not a contact, it is the only thing that says it is over without
+ * looking at the scoreboard. Long and in the mallet hand —not in both: that is left for the hit
+ * the body takes—. TO BE CALIBRATED WITH THE HEADSET.
  */
 export const FINAL_PULSE: HapticPulse = { intensity: 0.6, durationMs: 220 }
 
 /**
- * Lo que de un fotograma de la mesa llega a la mano.
+ * What reaches the hand from one frame of the table.
  *
- * **Solo el golpe del mazo del jugador** —el de la máquina lo da ella— y el gol. El disco que
- * resbala o rebota en la banda no lo toca la mano, así que no vibra. El golpe se reconoce porque
- * sube la cuenta de golpes del jugador (`playerHits`): `struck` dice que golpeó *algún* mazo.
+ * **Only the strike of the player's mallet** —the machine's is its own— and the goal. The puck
+ * that slides or bounces off the rail is not touched by the hand, so it does not vibrate. The
+ * strike is recognised because the player's hit count goes up (`playerHits`): `struck` says
+ * that *some* mallet struck.
  *
- * @param golpesAntes Los golpes del jugador que llevaba la mesa antes de este fotograma.
+ * @param hitsBefore The player's hits the table had before this frame.
  */
 export function frameEvents(
-  golpesAntes: number,
+  hitsBefore: number,
   { table, goals, impact }: Pick<FrameResult, 'table' | 'goals' | 'impact'>,
 ): HandEvent[] {
-  const sucesos: HandEvent[] = []
-  if (table.playerHits > golpesAntes) sucesos.push({ type: 'hit', strength: impactStrength(impact.strike) })
-  if (goals.length > 0) sucesos.push({ type: 'goal' })
-  return sucesos
+  const events: HandEvent[] = []
+  if (table.playerHits > hitsBefore) events.push({ type: 'hit', strength: impactStrength(impact.strike) })
+  if (goals.length > 0) events.push({ type: 'goal' })
+  return events
 }
 
 /**
- * Los pulsos que tocan con un suceso de la mesa, en la mano que lleva el mazo.
+ * The pulses that go with an event of the table, in the hand that holds the mallet.
  *
- * **Sin mano no hay pulso**: el mazo suelto no lo toca nadie, y mandarlo a las dos manos «por si
- * acaso» es lo que dejaba los dos mandos vibrando.
+ * **No hand, no pulse**: nobody touches the loose mallet, and sending it to both hands «just in
+ * case» is what left the two controllers vibrating.
  */
-export function eventPulses(suceso: HandEvent, mazo: HandSide | null): HandPulse[] {
-  if (mazo == null) return []
-  switch (suceso.type) {
+export function eventPulses(event: HandEvent, mallet: HandSide | null): HandPulse[] {
+  if (mallet == null) return []
+  switch (event.type) {
     case 'hit':
-      // Una fuerza que no es número —un fotograma perdido— cuenta como un golpe entero: mejor
-      // eso que pasarle `NaN` al vibrador.
+      // A strength that is not a number —a lost frame— counts as a whole strike: better that
+      // than passing `NaN` to the actuator.
       return pulsesFor({
         type: 'impact',
-        hand: mazo,
-        strength: Number.isFinite(suceso.strength) ? suceso.strength : 1,
+        hand: mallet,
+        strength: Number.isFinite(event.strength) ? event.strength : 1,
       })
     case 'goal':
-      return pulsesFor({ type: 'arrival', hand: mazo, strength: GOAL_STRENGTH })
+      return pulsesFor({ type: 'arrival', hand: mallet, strength: GOAL_STRENGTH })
     case 'end':
-      return [{ hand: mazo, intensity: FINAL_PULSE.intensity, ms: FINAL_PULSE.durationMs, delay: 0 }]
+      return [{ hand: mallet, intensity: FINAL_PULSE.intensity, ms: FINAL_PULSE.durationMs, delay: 0 }]
     case 'threshold':
-      return thresholdPulses(suceso.medal, mazo)
+      return thresholdPulses(event.medal, mallet)
   }
 }
 
-/** Lo que este módulo necesita de un `XRInputSource`: la mano y su vibrador. */
+/** What this module needs from an `XRInputSource`: the hand and its actuator. */
 export interface HapticSource {
   handedness: XRHandedness | string
   gamepad?: { hapticActuators?: readonly { pulse?: unknown }[] } | null
 }
 
-/** Lo que necesita de una sesión de WebXR: por dónde llegan los mandos. */
+/** What it needs from a WebXR session: where the controllers come in. */
 export interface HapticSession {
   inputSources: Iterable<HapticSource>
 }
@@ -119,72 +122,73 @@ function actuatorOf(source: HapticSource): HapticActuator | undefined {
 }
 
 /**
- * Da un toque en el mando de esa mano. Devuelve si vibró: un mando sin vibrador, o uno que
- * rechace el pulso, no es un error, es un mando distinto.
+ * Gives a tap on the controller of that hand. Returns whether it vibrated: a controller with no
+ * actuator, or one that rejects the pulse, is not an error, it is a different controller.
  */
 export function pulseHand(
   session: HapticSession | null | undefined,
-  mano: HandSide,
-  intensidad: number,
+  hand: HandSide,
+  intensity: number,
   ms: number,
 ): boolean {
   if (session == null) return false
-  let pulsado = false
+  let pulsed = false
   for (const source of session.inputSources) {
-    if (source.handedness !== mano) continue
+    if (source.handedness !== hand) continue
     const actuator = actuatorOf(source)
     if (actuator == null) continue
     try {
-      const played: unknown = actuator.pulse(intensidad, ms)
+      const played: unknown = actuator.pulse(intensity, ms)
       if (typeof (played as Promise<unknown> | undefined)?.catch === 'function') {
         void (played as Promise<unknown>).catch(() => {})
       }
-      pulsado = true
+      pulsed = true
     } catch {
-      // Un vibrador que falla no puede parar la partida.
+      // An actuator that fails cannot stop the match.
     }
   }
-  return pulsado
+  return pulsed
 }
 
 /**
- * Reproduce una lista de pulsos: los de `retardo` 0 en el acto y el resto con `programar`, que es
- * quien lleva el reloj (y quien los cancela al desmontar). Cada pulso mira la sesión en su momento.
+ * Plays a list of pulses: those with `delay` 0 right away and the rest with `schedule`, which is
+ * the one that keeps the clock (and the one that cancels them on unmount). Each pulse looks at
+ * the session at its own moment.
  */
 export function playPulses(
   session: HapticSession | null | undefined,
-  pulsos: readonly HandPulse[],
-  programar: (hacer: () => void, ms: number) => void,
+  pulses: readonly HandPulse[],
+  schedule: (fire: () => void, ms: number) => void,
 ): void {
-  for (const { hand: mano, intensity: intensidad, ms, delay: retardo } of pulsos) {
-    const hacer = () => {
-      pulseHand(session, mano, intensidad, ms)
+  for (const { hand, intensity, ms, delay } of pulses) {
+    const fire = () => {
+      pulseHand(session, hand, intensity, ms)
     }
-    if (retardo > 0) programar(hacer, retardo)
-    else hacer()
+    if (delay > 0) schedule(fire, delay)
+    else fire()
   }
 }
 
 /**
- * Fuerza y duración del toque que confirma un botón del visor.
+ * Strength and duration of the tap that confirms a headset button.
  *
- * Corto y flojo: no es un golpe del juego, es el «te he oído» de un botón. Los mismos
- * números en los trece, que cambiar de cabina no cambie lo que se siente al pulsar.
+ * Short and weak: it is not a strike of the game, it is the «I heard you» of a button. The
+ * same numbers in the thirteen, so that changing cabinet does not change what pressing feels like.
  */
 export const PRESS_PULSE: HapticPulse = { intensity: 0.25, durationMs: 18 }
 
-/** De qué mando viene el evento, si es que viene de uno. */
+/** Which controller the event comes from, if it comes from one. */
 function inputSourceOf(event: unknown): HapticSource | undefined {
   return (event as { nativeEvent?: { inputSource?: HapticSource } } | null)?.nativeEvent
     ?.inputSource
 }
 
 /**
- * Vibra **el mando que ha pulsado**, si puede.
+ * Vibrates **the controller that pressed**, if it can.
  *
- * Aparte de `pulseSession`, que reparte por manos: un botón lo pulsa una mano concreta y
- * contestarle a la otra sería contestarle a quien no ha hecho nada. Con el ratón no hay
- * mando y no pasa nada, que es el caso de escritorio.
+ * Apart from `pulseSession`, which deals out by hands: a button is pressed by one specific hand
+ * and answering the other would be answering someone who has done nothing. With the mouse there
+ * is no controller and nothing happens, which is the desktop case.
  */
 export function pulsePressed(event: unknown, pulse: HapticPulse = PRESS_PULSE): boolean {
   const source = inputSourceOf(event)
@@ -197,7 +201,7 @@ export function pulsePressed(event: unknown, pulse: HapticPulse = PRESS_PULSE): 
     }
     return true
   } catch {
-    // Un vibrador que falla no puede parar la partida.
+    // An actuator that fails cannot stop the match.
     return false
   }
 }

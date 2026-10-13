@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { useExit } from '../../game/exit'
 import { PLAYER_LABELS, formatMargin, margin, type Player } from '../../lib/duel'
 import { DIFFICULTY_LABELS } from '../../lib/gameConfig'
@@ -427,6 +428,63 @@ function QuitButton() {
   )
 }
 
+/** What Tab can land on inside a dialog. */
+const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/**
+ * The keyboard side of a modal dialog, for as long as it is mounted.
+ *
+ * - **Escape answers it** with `onDismiss`, which has to be the choice that loses nothing.
+ * - **Tab stays inside**: past the last control comes the first and before the first, the last;
+ *   pressed from anywhere behind the dialog, it comes back in. Between its own controls the browser
+ *   moves the focus, as always.
+ * - **Closing gives the focus back** to whatever had it when the dialog opened, if it is still on
+ *   the page: without that the next Tab starts again from the top of the document.
+ *
+ * The listener is on the document and not on the dialog because a click on the backdrop leaves
+ * the focus on `<body>`, and Escape has to keep working from there.
+ */
+function useModalFocus(onDismiss: () => void): RefObject<HTMLDivElement | null> {
+  const dialog = useRef<HTMLDivElement>(null)
+  // Read while rendering, before `autoFocus` moves the focus into the dialog: in an effect it would
+  // already be the dialog's own button.
+  const [opener] = useState(() => document.activeElement)
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onDismiss()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const controls = dialog.current?.querySelectorAll<HTMLElement>(FOCUSABLE)
+      if (controls == null || controls.length === 0) return
+      const first = controls[0]
+      const last = controls[controls.length - 1]
+      const inside = dialog.current?.contains(document.activeElement) ?? false
+      const leavesBy = event.shiftKey ? first : last
+      if (inside && document.activeElement !== leavesBy) return
+      event.preventDefault()
+      ;(event.shiftKey ? last : first).focus()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onDismiss])
+
+  useEffect(() => {
+    const node = dialog.current
+    return () => {
+      // Only once the dialog is really gone: StrictMode rehearses this clean-up with the dialog
+      // still on screen, and handing the focus back then would take it out of the dialog.
+      if (node?.isConnected) return
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus()
+    }
+  }, [opener])
+
+  return dialog
+}
+
 /**
  * El aviso antes de dejar la partida.
  *
@@ -438,9 +496,11 @@ function QuitButton() {
 function QuitConfirm() {
   const { resetGame, keepPlaying } = useGame()
   const t = translator(useLang())
+  const dialog = useModalFocus(keepPlaying)
 
   return (
     <div
+      ref={dialog}
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="quit-title"

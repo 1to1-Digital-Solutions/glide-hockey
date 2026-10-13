@@ -64,154 +64,145 @@
 - [x] Práctica sin fin: partida que no acaba hasta que sales, con récord de racha <!-- org:37e6f302-159b-46e7-9130-5bad022155ab -->
 - [x] Brillo del disco y reflejo de la mesa con un mapa de entorno barato <!-- org:38455675-8fea-4c54-bd3c-cb8e09c76d11 -->
 
-## From the headset — fourth round
+## Del visor — cuarta ronda
 
-- [x] [urgente] The text of the exit notice overlaps
-  **Measured, and in this panel it does not overlap**: neither with the current measurements nor
-  with the earlier ones. What is done is the rule you asked for —`components/xr/legibility.ts`,
-  see xrcade's `TODO.md`—, and with it the two panels with lettering in this game are measured in
-  both languages: the exit notice and the names of the menu rows. Neither overlaps nor overflows.
-  So the overlap you saw is somewhere else. Most likely it was the settings menu —you say in the
-  same paragraph that the exit button "looks like it opens the options"—, and that panel is
-  measured now. If it happens again, say **which words** overlap: with that, which panel it is
-  can be known in a minute.
-  The «¿dejar la partida?» modal is well thought out but the words overlap and it cannot be
-  understood. See the shared rule on legible text in the Organízate repo.
+- [x] [urgente] El texto del aviso de salir se solapa
+  **Medido, y en este panel no se solapa**: ni con las medidas de ahora ni con las de antes. Lo
+  que sí queda hecho es la regla que pedías —`components/xr/legibilidad.ts`, ver el `TODO.md`
+  de xrcade—, y con ella los dos paneles con letra de este juego están medidos en los dos
+  idiomas: el aviso de salir y los nombres de las filas del menú. Ninguno se pisa ni se sale.
+  Así que el solape que viste está en otro sitio. Lo más probable es que fuera el menú de
+  ajustes —dices en el mismo párrafo que el botón de salir «parece que abre las opciones»—, y
+  ese panel está medido ahora. Si vuelve a pasar, decir **qué palabras** se pisan: con eso se
+  sabe qué panel es en un minuto.
+  El modal de «¿dejar la partida?» está bien pensado pero las palabras se pisan y no se
+  entiende. Ver la regla común de texto legible en el repo de Organízate.
 
-- [x] [alta] The exit button should open the options, with exit inside
-  **And the icon already said "options"**: it was the one with the three little bars and what it
-  did was ask whether to exit. Hence the "looks like it opens the options".
-  Now it opens a panel with **three** ways out instead of two: keep playing —the first and the
-  widest, which is the one that loses nothing—, go back to the game's menu, and leave altogether.
-  Going back to the menu and exiting were different things and until now there was only the
-  first one under the name of the second.
-  The panel is measured with the legibility rule in both languages: none of the five texts
-  overlaps or overflows.
-- [x] [alta] The settings have no text: the VR/AR button cannot be understood
-  Done: the scenery switch says next to it which one is on —the rink or your room—. It was an
-  icon and nothing else, so with the headset on there was no way to know what it did until you
-  pressed it. The label goes **to the right of the icon and not below it**: below, it landed
-  right on top of the «Modo» one, and that was said by the measurement, not by the eye.
+- [x] [alta] El botón de salir debería abrir las opciones, y salir estar dentro
+  **Y el icono ya decía «opciones»**: era el de las tres rayitas y lo que hacía era preguntar
+  si salir. De ahí lo de «parece que abre las opciones».
+  Ahora abre un panel con **tres** salidas en vez de dos: seguir jugando —la primera y la más
+  ancha, que es la que no pierde nada—, volver al menú del juego, y salirse del todo. Volver
+  al menú y salir eran cosas distintas y hasta ahora solo estaba la primera con el nombre de
+  la segunda.
+  El panel está medido con la regla de legibilidad en los dos idiomas: ninguno de los cinco
+  textos se pisa ni se sale.
+- [x] [alta] Los ajustes no tienen texto: el botón de VR/AR no se entiende
+  Hecho: el interruptor del escenario dice al lado cuál está puesto —la pista o tu
+  habitación—. Era un icono y nada más, así que con las gafas puestas no había forma de saber
+  qué hacía hasta pulsarlo. El rótulo va **a la derecha del icono y no debajo**: debajo caía
+  justo encima del de «Modo», y eso lo dijo la medida, no el ojo.
 
-- [x] [media] The puck has a halo of light that is not needed
-  Removed. Only the puck's own `emissive` remains, which is what makes it visible on the table
-  without painting a halo around it.
+- [x] [media] El disco tiene una aureola de luz que sobra
+  Quitada. Queda solo el `emissive` del propio disco, que es lo que lo hace visible sobre la
+  mesa sin pintarle un halo alrededor.
 
-- [x] [urgente] What is carried in the hand eats the ray of its own controller
-  **Fixed in all thirteen.** The axe, the ball, the bat, the bow, the bowling ball, the dart, the
-  paddle, the putter, the mallet and the pistol go with `raycast={NO_RAYCAST}`: they look the
-  same and let the ray through.
-  Found by reading the code and it is the same bug in several games: **nothing that hangs from
-  the hand is excluded from raycasting**. The controller's ray starts at 20 cm (the hall's
-  `minDistance`) and the first thing it meets is the pistol, the mallet, the putter or the stick
-  that same hand is holding, so the object keeps the event and nothing reaches the menu. From
-  outside it looks like "the controller does not work" or "there is something invisible in the
-  way".
-  Fix: everything that goes in the hand is marked `raycast={NO_RAYCAST}` —the mechanism the
-  panels already use—, including the meshes inside a loaded model, which do not inherit it from
-  the `<primitive>`.
+- [x] [urgente] Lo que se lleva en la mano se come el rayo del propio mando
+  **Arreglado en los trece.** El hacha, el balón, el bate, el arco, la bola, el dardo, la pala,
+  el putter, el mazo y la pistola van con `raycast={NO_RAYCAST}`: se ven igual y dejan pasar
+  el rayo.
+  Encontrado leyendo el código y es el mismo fallo en varios juegos: **nada de lo que cuelga
+  de la mano se excluye del raycasting**. El rayo del mando arranca a 20 cm (`minDistance`
+  del salón) y lo primero que se encuentra es la pistola, el mazo, el putter o el palo que
+  esa misma mano sostiene, así que el evento se lo queda el objeto y al menú no le llega
+  nada. Desde fuera parece que «el mando no funciona» o que «hay algo invisible por medio».
+  Arreglo: todo lo que vaya en la mano se marca `raycast={NO_RAYCAST}` —el mecanismo que ya
+  usan los paneles—, incluidas las mallas de dentro de un modelo cargado, que no lo heredan
+  del `<primitive>`.
 
-- [x] [alta] The tutorial: next button, skip button, and showing the controller <!-- org:28c0e6a6-6ad4-4fe9-af13-b5e73d346ff6 -->
-  **Done, with the axe game's model.** Each step is passed **by doing it** —grabbing the mallet, hitting the puck and scoring—, the game does not
-  stop in the meantime and the step is **computed** from what the match already records
-  (`milestones`), so it cannot disagree with it. It draws the controller with the button
-  highlighted, has next and skip, and the lesson's version goes up: whoever saw the previous one
-  will do this one.
-- [x] [alta] The labels overlap and the lettering is small and cramped
-  Measured, and in this game **they do not overlap**: so say `menu.legible.test.ts` and
-  `tutorial.legible.test.ts`, which fail if two texts touch, if one overflows the panel or if
-  any drops below four millimetres. Where there were overlaps was in the tutorial panel —the
-  Spanish phrase grew upwards and got under the counter— and that is already fixed.
-  If with the headset on it still looks cramped, the place to look at it is that test.
+- [x] [alta] El tutorial: botón de siguiente, botón de saltar, y que enseñe el mando <!-- org:28c0e6a6-6ad4-4fe9-af13-b5e73d346ff6 -->
+  **Hecho, con el modelo de hachas.** Cada paso se supera **haciéndolo** —coger el mazo, darle al disco y marcar—, el juego no se
+  para mientras tanto y el paso se **calcula** de lo que la partida ya apunta (`hitos`), así
+  que no puede discrepar de ella. Dibuja el mando con el botón resaltado, lleva siguiente y
+  saltar, y la versión de la lección sube: quien vio la anterior hará este.
+- [x] [alta] Los rótulos se solapan y la letra es pequeña y apretada
+  Medido, y en este juego **no se pisan**: lo dicen `menu.legible.test.ts` y
+  `tutorial.legible.test.ts`, que suspenden si dos textos se tocan, si uno se sale del panel o
+  si alguno baja de cuatro milímetros. Donde sí había solapes era en el panel del tutorial —la
+  frase en español crecía hacia arriba y se metía debajo del contador— y ya está arreglado.
+  Si con el visor puesto sigue viéndose apretado, el sitio donde mirarlo es ese test.
 
-- [x] [alta] The modes —practice and challenge— cannot be told apart in the menu
-  Done: the line that explains the chosen mode is in the headset panel and changes when the mode
-  changes. It had always been declared next to each mode and **was only drawn on the web
-  screen**, which cannot be seen with the headset on. The panel grew to make room for it without
-  squeezing any row.
+- [x] [alta] Los modos —práctica y desafío— no se distinguen en el menú
+  Hecho: la línea que explica el modo elegido está en el panel del visor y cambia al cambiar
+  de modo. Estaba declarada desde siempre junto a cada modo y **solo se pintaba en la pantalla
+  de la web**, que con las gafas puestas no se ve. El panel creció para hacerle sitio sin
+  apretar ninguna fila.
 
-- [x] [alta] The exit button looks like a square and not an X or an arrow
-  **The square has not been found.** Having looked at all thirteen: six write the word «Salir»
-  and seven draw a cross (`XRCloseIcon`); none draws a square. The closest thing is the
-  **plate** under the icon, which is indeed a rounded rectangle and on a dark panel can be read
-  as the whole button. We need to know in which game it was seen in order to fix whichever it is.
+- [x] [alta] El botón de salir parece un cuadrado y no una X ni una flecha
+  **No se ha encontrado el cuadrado.** Mirados los trece: seis escriben la palabra «Salir» y
+  siete dibujan un aspa (`XRCloseIcon`); ninguno pinta un cuadrado. Lo más parecido es la
+  **placa** de debajo del icono, que sí es un rectángulo redondeado y en un panel oscuro puede
+  leerse como el botón entero. Hace falta saber en qué juego se vio para arreglar el que sea.
 
-- [x] [media] Switching between virtual and augmented reality from the game itself
-  It can already be done, and since before this task: each game's menu has its scenery switch,
-  so it is changed without leaving the session. What was missing was **understanding what it
-  did**: it was a mute icon. Now it says next to it which one is on.
-  What cannot be done is changing it **mid-match**: for that you have to go back to the menu.
+- [x] [media] Cambiar entre realidad virtual y aumentada desde el propio juego
+  Ya se puede, y desde antes de esta tarea: el menú de cada juego lleva su interruptor de
+  escenario, así que se cambia sin salir de la sesión. Lo que faltaba era **entender qué
+  hacía**: era un icono mudo. Ahora dice al lado cuál está puesto.
+  Lo que no se puede es cambiarlo **a mitad de partida**: para eso hay que volver al menú.
 
-## From the headset — third round
+## Del visor — tercera ronda
 
-- [x] [urgente] The button for going back to the arcade was in the middle of the screen
-  The hall put it there in addition to the one this game brings, hanging from the gaze at a bit
-  over a metre, so it stayed in front of your face the whole match and on top of that it exited
-  without asking. Removed in `xrcade`: the exit is the one from here —the button with the three
-  little bars, out of the line of play and with its confirmation—, which is what already called
-  `onExit`.
+- [x] [urgente] El botón de volver al arcade estaba en medio de la pantalla
+  Lo ponía el salón además del que trae este juego, colgado de la mirada a metro y pico, así
+  que se quedaba delante de la cara toda la partida y además salía sin preguntar. Retirado en
+  `xrcade`: la salida es la de aquí —el botón de las tres rayitas, fuera de la línea de juego
+  y con su confirmación—, que es lo que ya llamaba a `onExit`.
 
-- [x] [urgente] Objects are picked up with the grip button and not with the trigger
-  Here it was already grabbed by closing the hand (`xr-standard-squeeze`), so there was nothing
-  to change. It is noted because the review covered all thirteen: the five that did it with the
-  trigger —axes, basketball, bowling, darts and minigolf— now do it with the grip.
+- [x] [urgente] Los objetos se cogen con el botón de agarre y no con el gatillo
+  Aquí ya se cogía cerrando la mano (`xr-standard-squeeze`), así que no había nada que
+  cambiar. Se apunta porque el repaso fue de los trece: los cinco que lo hacían con el gatillo
+  —hachas, baloncesto, bolos, dardos y minigolf— ya lo hacen con el agarre.
 
-- [x] [alta] The controller's ray is still visible with the mallet grabbed <!-- org:73147f52-c503-4d26-b463-a3eb108ed9f6 -->
-  It now turns off. The game loop records which hand carries the mallet (`xr/busyHands.ts`) and
-  the controller on that side stops drawing its ray and its cursor. What turns off is **the
-  drawing, not the pointer**: releasing the mallet and pressing a menu button again works the
-  same. And when the scene is removed both are released, or the ray would stay off in the arc,
-  which is the only thing a cabinet is chosen with.
-- [x] [alta] There is no tutorial <!-- org:28c0e6a6-6ad4-4fe9-af13-b5e73d346ff6 -->
-  There is one: it comes up between «empezar» and the serve, the first time. What happened is that
-  it had already been seen, and what has been seen is not repeated. Now what is stored is **the
-  lesson's version** and not a yes, so raising it shows it again — and it had to be raised,
-  because the demonstration said «mantén el gatillo» and what is squeezed now is the grip button.
-  Raised as well in axes, basketball, bowling, darts and minigolf, for the same reason.
-- [x] [alta] The letters of the settings menu come out overlapped <!-- org:77653e48-ff5d-4b1c-979a-ce9f3c343030 -->
-  They really did overlap, and it can be measured: the «Modo» label reached 0.355 and the record
-  band started at 0.335, so the word was drawn on top of the scenery button. The panel has grown
-  from 0.86 to 1.00 and the rows have been spread out with room for their names.
-  It is watched by `xrMenuLayout.rows.test.ts`, which sorts the bands from top to bottom and
-  fails if one enters the previous one; with the old measurements it fails pointing at exactly
-  that one.
-- [x] [media] The setup explains nothing before starting <!-- org:5ec4c247-f584-4b39-a694-90169956253b -->
-  It had an explanation, but it only talked about the mouse: «mueve el mazo con el ratón y mete
-  el disco». With the headset on that says nothing, and on top of that that screen cannot be
-  seen. Now the phrase tells both halves —with the mouse and with the headset— as in the other
-  twelve, and inside the headset the one that explains the gesture is the demonstration, which
-  comes up again (see above).
+- [x] [alta] El rayo del mando se sigue viendo con el mazo agarrado <!-- org:73147f52-c503-4d26-b463-a3eb108ed9f6 -->
+  Ya se apaga. El bucle del juego apunta qué mano lleva el mazo (`xr/manosOcupadas.ts`) y el
+  mando de ese lado deja de dibujar su rayo y su cursor. Se apaga **el dibujo, no el
+  puntero**: soltar el mazo y volver a pulsar un botón del menú funciona igual. Y al quitar
+  la escena se sueltan las dos, o el rayo se quedaría apagado en el arco, que es lo único con
+  lo que se elige cabina.
+- [x] [alta] No hay tutorial <!-- org:28c0e6a6-6ad4-4fe9-af13-b5e73d346ff6 -->
+  Haberlo, lo hay: sale entre «empezar» y el saque, la primera vez. Lo que pasaba es que ya
+  se había visto, y lo visto no se repite. Ahora lo guardado es **la versión de la lección**
+  y no un sí, así que subirla la vuelve a enseñar — y había que subirla, porque la
+  demostración decía «mantén el gatillo» y lo que se aprieta ahora es el botón de agarre.
+  Subida también en hachas, baloncesto, bolos, dardos y minigolf, por lo mismo.
+- [x] [alta] Las letras del menú de ajustes salen solapadas <!-- org:77653e48-ff5d-4b1c-979a-ce9f3c343030 -->
+  Se pisaban de verdad, y se puede medir: el rótulo «Modo» llegaba a 0,355 y la banda del
+  récord empezaba en 0,335, así que la palabra se pintaba encima del botón del decorado. El
+  panel ha crecido de 0,86 a 1,00 y las filas se han repartido con aire para sus nombres.
+  Lo vigila `xrMenuLayout.filas.test.ts`, que ordena las bandas de arriba abajo y falla si
+  una entra en la anterior; con las medidas viejas falla señalando exactamente esa.
+- [x] [media] La configuración no explica nada antes de empezar <!-- org:5ec4c247-f584-4b39-a694-90169956253b -->
+  La tenía, pero solo hablaba del ratón: «mueve el mazo con el ratón y mete el disco». Con el
+  visor puesto eso no dice nada, y encima esa pantalla no se ve. Ahora la frase cuenta las dos
+  mitades —con el ratón y con el visor— como en las otras doce, y dentro del visor quien
+  explica el gesto es la demostración, que vuelve a salir (ver arriba).
 
-## Review of improvements
+## Revisión de mejoras
 
-- [x] The environment reflection reaches the table but not the mallet
-  It reaches it now: `Mallet` receives it from `Rink`, same as the puck. `MalletHand` did not
-  need it —it only moves the mallet, it does not draw it—, so with this it is covered inside the
-  headset as well. No extra draw calls: the map was already loaded and is passed along, not
-  duplicated.
-- [x] Finishing the match makes no sound
-  The HUD draws stars, unlocked level or record in silence: only the last normal sound of the
-  match is repeated. It shares the gap with table-tennis, hole-patrol, bow-shooting, skeet and
+- [x] El reflejo del entorno llega a la mesa pero no al mazo
+  Ya llega: `Mallet` lo recibe de `Rink`, igual que el disco. `MalletHand` no hacía falta —solo
+  mueve el mazo, no lo dibuja—, así que con esto está cubierto también dentro del visor.
+  Sin llamadas de dibujo de más: el mapa ya estaba cargado y se pasa, no se duplica.
+- [x] Terminar la partida no suena
+  El HUD pinta estrellas, nivel desbloqueado o récord en silencio: solo se repite el último sonido
+  normal de la partida. Comparte el hueco con table-tennis, hole-patrol, bow-shooting, skeet y
   stick-rush.
-- [x] No ceiling and no sky background when playing from its own website
-  There is a ceiling now, and above all there is a background: the game sets it with `Backdrop`,
-  not the `<Canvas>`.
-  **Inside the hall it did happen**, contrary to what this note said: the hub's `Entorno` is
-  removed on entering the cabinet, so a game without a background of its own stayed just as
-  black there as here.
-  The `<color attach="background">` shortcut would not have worked: it attaches the colour to
-  **its parent**, and here the parent is a group, where it means nothing —it neither fails nor
-  warns—. It is watched by `e2e/room.spec.ts`, looking at which colour the canvas is cleared
-  with.
+- [x] Sin techo ni fondo de cielo jugando desde su propia web
+  Ya hay techo, y sobre todo hay fondo: lo pone el juego con `Backdrop`, no el `<Canvas>`.
+  **Dentro del salón sí pasaba**, al revés de lo que decía esta nota: el `Entorno` del hub se
+  retira al entrar en la cabina, así que un juego sin fondo propio se quedaba igual de negro
+  allí que aquí.
+  El atajo `<color attach="background">` no habría servido: adjunta el color a **su padre**, y
+  aquí el padre es un grupo, donde no significa nada —ni falla ni avisa—. Lo vigila
+  `e2e/sala.spec.ts`, mirando con qué color se limpia el lienzo.
 
-## From the headset — second round
+## Del visor — segunda ronda
 
-- [x] [urgente] The match does not wait for the mallet to be in the hand
-  **Half the task done**: the mallet can now be grabbed —the game did not know where the hand
-  was, see `XRControllerGrip`—. The other half remains: the countdown starts all the same even
-  if you have not grabbed it, so the match can start with you having nothing to stop the puck
-  with. It has to wait.
-- [x] [alta] The goal is too small for how big the mallet is
-  With the current mallet covering almost the whole mouth, scoring —and being scored on— is very
-  hard, and a match without goals is no fun. The proportion between `GOAL_WIDTH` and the
-  mallet's radius in `lib/gameConfig.ts` needs reviewing.
+- [x] [urgente] La partida no espera a que el mazo esté en la mano
+  **Media tarea hecha**: el mazo ya se puede agarrar —el juego no sabía dónde estaba la mano, ver
+  `XRControllerGrip`—. Queda lo otro: la cuenta atrás arranca igual aunque no lo hayas cogido, así
+  que la partida puede empezar contigo sin nada con que parar el disco. Tiene que esperar.
+- [x] [alta] La portería es demasiado pequeña para lo grande que es el mazo
+  Con el mazo actual tapando casi toda la boca, meter gol —y que te lo metan— es muy difícil, y
+  una partida sin goles no es divertida. Hay que revisar la proporción entre `GOAL_WIDTH` y el
+  radio del mazo en `lib/gameConfig.ts`.

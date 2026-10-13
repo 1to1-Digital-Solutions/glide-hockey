@@ -1,7 +1,7 @@
-; Glide Hockey en Godot, con la lógica de `glide-hockey/src/lib` ejecutada por GodotJS.
+; Glide Hockey in Godot, with the logic of `glide-hockey/src/lib` run by GodotJS.
 ;
-; Mismo contrato que `xrcade/examples/hello-xrcade`: todo el contenido cuelga de
-; `games/glide-hockey/`, porque el paquete se monta sobre la raíz `res://` del hub.
+; Same contract as `xrcade/examples/hello-xrcade`: all the content hangs from
+; `games/glide-hockey/`, because the package is mounted on the hub's `res://` root.
 
 config_version=5
 
@@ -19,9 +19,9 @@ textures/vram_compression/import_s3tc_bptc=true
 
 [xr]
 
-; En macOS no hay runtime de OpenXR: con esto activado, darle a jugar desde el editor en un Mac
-; enseña un aviso modal que para el arranque. Los depots (Windows, Linux, Steam Frame) no
-; llevan la etiqueta `macos` y siguen con OpenXR.
+; On macOS there is no OpenXR runtime: with this enabled, pressing play from the editor on a Mac
+; shows a modal warning that stops the start-up. The depots (Windows, Linux, Steam Frame) do not
+; carry the `macos` tag and keep using OpenXR.
 openxr/enabled=true
 openxr/enabled.macos=false
 shaders/enabled=true

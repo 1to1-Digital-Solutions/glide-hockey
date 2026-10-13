@@ -1,24 +1,26 @@
-# Créditos del paquete de Godot
+# Credits of the Godot package
 
-Lo que viaja en el `.pck` de Glide Hockey y viene de fuera del proyecto. Es lo mismo que la web sirve
-desde `public/` (su `public/CREDITS.md`), copiado al paquete: la mesa, el disco, los mazos y el salón
-son geometría generada en código, y los efectos se renderizan del `audioEngine.ts` de la web.
+What travels in Glide Hockey's `.pck` and comes from outside the project. It is the same the web
+serves from `public/` (its `public/CREDITS.md`), copied into the package: the table, the puck, the
+mallets and the room are geometry generated in code, and the effects are rendered from the web's
+`audioEngine.ts`.
 
-## Música de fondo — `music/sala.mp3`
+## Background music — `music/sala.mp3`
 
-[Calm Ambient 1 (Synthwave 4k)](https://opengameart.org/content/calm-ambient-1-synthwave-4k), de
-The Cynic Project, publicada en OpenGameArt bajo **CC0** (dominio público). Se acredita por
-cortesía. Es la de `public/audio/sala.mp3`, byte a byte (la copia `npm run godot:sfx`).
+[Calm Ambient 1 (Synthwave 4k)](https://opengameart.org/content/calm-ambient-1-synthwave-4k), by
+The Cynic Project, published on OpenGameArt under **CC0** (public domain). It is credited as a
+courtesy. It is the one in `public/audio/sala.mp3`, byte for byte (`npm run godot:sfx` copies it).
 
-## Mandos — `mandos/`
+## Controllers — `mandos/`
 
-Los modelos y los perfiles de los mandos de Quest de
-[@webxr-input-profiles/assets](https://github.com/immersive-web/webxr-input-profiles), del grupo
-Immersive Web del W3C: los que enseña el tutorial en la mano y la ayuda junto al mazo fantasma, con
-el botón que toca encendido. Los copia `npm run godot:controllers` desde `public/webxr-profiles/`.
+The models and the profiles of the Quest controllers from
+[@webxr-input-profiles/assets](https://github.com/immersive-web/webxr-input-profiles), by the W3C's
+Immersive Web group: the ones the tutorial shows in the hand and the hint shows beside the ghost
+mallet, with the button in question lit. `npm run godot:controllers` copies them from
+`public/webxr-profiles/`.
 
-Licencia **MIT**, que exige llevar el aviso en cada copia. Va entero en `mandos/LICENSE.md`, y
-aquí:
+**MIT** licence, which requires carrying the notice in every copy. It goes whole in
+`mandos/LICENSE.md`, and here:
 
 ```
 MIT License

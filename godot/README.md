@@ -1,212 +1,223 @@
-# Glide Hockey en Godot
+# Glide Hockey in Godot
 
-El mismo juego para el hub nativo de xrcade (Steam), con **la lógica de `src/lib` sin
-reescribir**: la ejecuta GodotJS dentro del motor. Aquí solo hay escena, entrada e interfaz,
-sobre el kit común de `xrcade/godot-kit/`.
+The same game for xrcade's native hub (Steam), with **the logic of `src/lib` not rewritten**:
+GodotJS runs it inside the engine. Here there is only scene, input and interface, on top of the
+shared kit of `xrcade/godot-kit/`.
 
-**Estado: se juega entero, en plano y con visor simulado; con visor de verdad no se ha probado.**
-La mesa avanza con `advanceTable` de `matchLoop.ts` a pasos fijos de 1/60 s —la física de Godot no
-se usa—, la máquina elige sus tiros con su semilla (`opponent.ts`), y los puntos, los modos, la
-escalera del reto, los niveles y el **duelo a dos** son los de la web. Se empieza en el **menú** del
-visor de la web (`lib/xrMenuLayout.ts` sin tocar una cota): el confort del golpe recibido arriba, el
-modo —con los iconos de la web: disco, estrellas, escalera y dos discos para el duelo—, y solo lo
-que el modo pregunta (en la práctica el nivel de la máquina y a cuántos goles, o sin fin; en los
-niveles, cuál, con sus estrellas; en el desafío y en el duelo, nada), jugar en medio y salir en la
-esquina de abajo a la derecha. La partida empieza con la **cuenta atrás**, que con visor se para en su último
-segundo hasta que el mazo está en la mano y lo dice; mientras, el **marcador** de siete segmentos
-sobre la portería de la máquina, el botón de parar y el **aviso** antes de dejar la partida; al
-acabar, el **final** con los puntos (en oro si son récord), las estrellas del nivel, otra vez, menú
-y salir. Lo guardado —récords, la mejor racha sin fin, niveles y estrellas, el confort, los duelos de
-la pareja— va con el `highScore.ts`, el `progress.ts` y el `duelTally.ts` de la web sobre el guardado
-del kit en `user://`.
+**Status: it is played whole, on the flat screen and with a simulated headset; with a real headset
+it has not been tried.** The table advances with `advanceTable` of `matchLoop.ts` in fixed steps of
+1/60 s —Godot's physics is not used—, the machine chooses its shots with its seed (`opponent.ts`),
+and the points, the modes, the challenge's ladder, the levels and the **two-player duel** are the
+web's. It starts at the web's headset **menu** (`lib/xrMenuLayout.ts` without touching a single
+measurement): the comfort of the hit taken at the top, the mode —with the web's icons: puck, stars,
+ladder and two pucks for the duel—, and only what the mode asks (in practice the machine's level
+and up to how many goals, or endless; in the levels, which one, with its stars; in the challenge
+and in the duel, nothing), play in the middle and exit in the bottom right corner. The match starts
+with the **countdown**, which with a headset stops on its last second until the mallet is in the
+hand, and says so; meanwhile, the seven-segment **scoreboard** above the machine's goal, the stop
+button and the **prompt** before leaving the match; at the end, the **game over** panel with the
+points (in gold if they are a record), the level's stars, play again, menu and exit. What is saved
+—records, the best endless streak, levels and stars, the comfort, the pair's duels— goes with the
+web's `highScore.ts`, `progress.ts` and `duelTally.ts` on top of the kit's save in `user://`.
 
-**El duelo** (`lib/duel.ts`, tal cual): dos personas se pasan el mando y cada una juega una partida
-contra la misma máquina —Media, a 7 y con la misma semilla (`Duel.seed`)—; gana quien le saque más
-ventaja (goles a favor menos en contra) y con la misma es empate. El final de la partida del primero
-es el **traspaso**, escrito como en la web (`dibujarElDuelo`): «Jugador 1: 7–0 · Pásale el mando a
-Jugador 2», y el botón ancho empieza la del segundo; el de la segunda dice quién gana, las dos
-ventajas y cuántos duelos lleva la pareja, y **suena a ganar** (`finalSuenaAGanar`). El marcador
-enseña en su fila de abajo el número de quien tiene el mando. Sin récord ni aviso al salón.
+**The duel** (`lib/duel.ts`, as it is): two people pass the controller and each plays a match
+against the same machine —«Media», up to 7 and with the same seed (`Duel.seed`)—; whoever gets the
+bigger margin over it (goals for minus goals against) wins, and with the same one it is a tie. The
+end of the first one's match is the **handover**, written as on the web (`drawDuel`): «Jugador 1:
+7–0 · Pásale el mando a Jugador 2», and the wide button starts the second one's; the end of the
+second says who wins, the two margins and how many duels the pair has played, and **sounds like a
+win** (`endSoundsLikeWin`). The scoreboard shows in its bottom row the number of whoever has the
+controller. No record and no notice to the hall.
 
-Alrededor está **el salón recreativo de la web** (`Room.tsx`): la moqueta con sus bandas, tres
-paredes con zócalo, el techo, los dos neones del fondo (a la altura que deja libre el cartel:
-`NEONES_DEL_FONDO`), diez recreativas apagadas con su cartel
-encendido y el halo bajo la mesa. Con **tu habitación** —el escenario del salón (`xrcade:scenery`),
-que el botón de la ventana del menú alterna— y un visor con paso de cámara, la sala se esconde y el
-fondo se vuelve transparente (`Escenario` del kit); sin realidad aumentada el botón sale apagado y
-se ve la sala.
+Around it is **the web's arcade room** (`Room.tsx`): the carpet with its stripes, three walls with
+trim, the ceiling, the two neons at the back (at the height the sign leaves free: `BACK_NEONS`),
+ten switched-off arcade machines with their lit sign and the halo under the table. With **your
+room** —the hall's scenery (`xrcade:scenery`), which the window button of the menu toggles— and a
+headset with camera passthrough, the room is hidden and the background turns transparent (the
+kit's `SceneryRig`); without augmented reality the button comes up disabled and the room is seen.
 
-Con visor usa **la gramática XR del kit** (`@kit/runtime/xr/player`): la mesa se planta donde la
-presta el salón, baja a los ojos de quien juega sentado y gira con el stick de la mano libre, y la
-**interfaz sube con los ojos** sobre el mundo (`uiRiseOverWorld`, el `XRUiHeight` de la web); el
-mazo se coge con el puño (o un pellizco) de cualquier mano, con la buena por delante, manteniendo o
-con un toque. Como en la web, **el mazo no cuelga del puño**: va sobre la mesa, donde el puño la
-sobrevuela, y golpea con la velocidad de la mano (`inHand` de `matchLoop.ts`). Vibra con las
-recetas de `tactos.ts` en la mano que lo lleva: el golpe al disco con su fuerza, el gol y el final.
-El gol en contra es además el **golpe que recibe el cuerpo** (`lib/golpeRecibido.ts` y
-`golEnContra.ts`): viñeta, sacudida de la sala, cámara lenta de la mesa, paso bajo en el bus del
-juego y el háptico común, con el confort que se elija. La columna va a 55° a la izquierda y
-agrandada, y el **tutorial** de la web sale la primera vez a la altura de la vista y a 32° a la
-derecha, a un lado del cartel y del marcador para no taparlos (`sitioDelTutorial`; en plano, de frente). **El mando de verdad** (los
-modelos de Quest, `MandoDeVerdad` del kit) va en las dos manos: con el agarre encendido mientras la
-cuenta atrás espera el mazo —el paso de coger se supera ahí, antes de que el tutorial llegue a
-salir, como en `XRCountdown`— y con el botón de cada paso del tutorial; los dos se turnan el mismo
-modelo (`MandoCompartido`). Las **ayudas** de la web (`guionDeAyudas.ts` sobre `ayudas.ts`, tal
-cual) enseñan el gesto sin letras y se van solas: las huellas a los pies, el mazo fantasma empujando
-hasta tocar el disco, el mando de verdad a un palmo de él con el agarre latiendo, y la marca calcada
-en la portería contraria. En plano, el mazo sigue al ratón y la columna va a un lado de la mesa, de
-cara a la cámara; las ayudas y el tutorial, como en la web, solo con visor.
+With a headset it uses **the kit's XR grammar** (`@kit/runtime/xr/player`): the table is planted
+where the hall lends it, drops to the eyes of whoever plays seated and turns with the free hand's
+stick, and the **interface rises with the eyes** over the world (`uiRiseOverWorld`, the web's
+`XRUiHeight`); the mallet is grabbed with the fist (or a pinch) of either hand, with the dominant
+one first, holding or with one tap. As on the web, **the mallet does not hang from the fist**: it
+goes on the table, where the fist hovers over it, and hits with the speed of the hand (`inHand` of
+`matchLoop.ts`). It vibrates with the recipes of `hapticFeedback.ts` in the hand that carries it:
+the hit on the puck with its strength, the goal and the ending. The goal against is also the **hit
+the body takes** (`lib/hitFeedback.ts` and `goalAgainst.ts`): vignette, shake of the room, slow
+motion of the table, low-pass on the game's bus and the shared haptic, with whichever comfort is
+chosen. The column goes at 55° to the left and enlarged, and the web's **tutorial** comes up the
+first time at eye height and at 32° to the right, to one side of the sign and of the scoreboard so
+as not to cover them (`tutorialPlacement`; on the flat screen, straight ahead). **The real
+controller** (the Quest models, the kit's `RealController`) goes in both hands: with the grip lit
+while the countdown waits for the mallet —the grab step is passed there, before the tutorial ever
+comes up, as in `XRCountdown`— and with the button of each step of the tutorial; the two take
+turns with the same model (`SharedController`). The web's **hints** (`hintScript.ts` on top of
+`hints.ts`, as they are) show the gesture without letters and leave by themselves: the footprints
+at the feet, the ghost mallet pushing until it touches the puck, the real controller a hand's
+breadth from it with the grip throbbing, and the mark traced on the opposite goal. On the flat
+screen, the mallet follows the mouse and the column goes to one side of the table, facing the
+camera; the hints and the tutorial, as on the web, only with a headset.
 
-Suena con los efectos de la web renderizados de su `audioEngine.ts` (el golpe y el rebote a tres
-fuerzas, el gol, ganar, perder, el récord y los tres listones de medalla, y el roce del disco en
-bucle siguiendo su velocidad) y
-con su música y su fundido; el idioma y los volúmenes son los del salón, del guardado.
+It sounds with the web's effects rendered from its `audioEngine.ts` (the strike and the bounce at
+three strengths, the goal, winning, losing, the record and the three medal thresholds, and the
+puck's slide in a loop following its speed) and with its music and its fade; the language and the
+volumes are the hall's, from the save.
 
-**El menú abre en el reto** y **el objetivo se lee encima del marcador del fondo**
-(`interfaz/cartel.ts`): el cartel de la web con lo que dice `objetivo.ts` y en el sitio de
-`cartelDelMarcador.ts` —la misión en la primera cuenta atrás; lo que se lleva, la ronda y lo que
-vale el próximo gol mientras se juega; lo que faltó al acabar—, del mismo tamaño en el ojo que en
-la web; el marcador calla lo que el cartel ya dice (los puntos y la ronda) y se queda con los goles.
-El menú dice de cada modo si cuenta para medalla, y el que la da lleva un disco dorado en su botón.
-Al cruzar un listón el cartel cambia de color, crece y vuelve, suena (`medal-*`) y se nota en la
-mano del mazo. **Los listones de medalla los pasa el salón nativo** en el metadato `goal` de su
-autoload `XRcade`: `objetivoDelSalon` (`main.ts`) lo lee con el lector del kit (`objetivoDe`, el de
-`base.objetivo()`) y se lo da a `Partida`, igual que la web recibe la prop `objetivo`. Con él el
-cartel dice los listones, celebra las medallas y fuera del modo del récord dice que no cuenta; con
-el juego suelto dice la misión y el récord guardado, y fuera del reto no se cuelga.
+**The menu opens on the challenge** and **the goal is read above the back scoreboard**
+(`ui/sign.ts`): the web's sign with what `goal.ts` says and in the place of `scoreboardSign.ts`
+—the mission in the first countdown; what has been scored so far, the round and what the next goal
+is worth while playing; what was missing at the end—, the same size in the eye as on the web; the
+scoreboard omits what the sign already says (the points and the round) and keeps the goals. The
+menu says of each mode whether it counts for a medal, and the one that gives it carries a golden
+puck on its button. On crossing a threshold the sign changes colour, grows and comes back, sounds
+(`medal-*`) and is felt in the mallet's hand. **The medal thresholds are passed by the native
+hall** in the `goal` metadata of its `XRcade` autoload: `hallGoal` (`main.ts`) reads it with the
+kit's reader (`goalFrom`, that of `base.objetivo()`) and gives it to `Match`, just as the web
+receives the `goal` prop. With it the sign says the thresholds, celebrates the medals and outside
+the record's mode says it does not count; with the game on its own it says the mission and the
+saved record, and outside the challenge it is not hung.
 
-**El reto del salón** (`semilla.ts`): con `-- --reto=<semilla>`, o si el autoload `XRcade` lleva
-el metadato `challenge_seed`, se entra directo en el reto con los tiros de la máquina sacados
-de esa semilla (`semillaDeLaMesa`); al acabar cada partida con puntuación se imprime
-`GH-RESULTADO {modo, puntos, reto}` y, si el salón tiene `report_result(json)`, se le llama. **El
-hub nativo todavía no pasa retos ni recoge resultados**: son los enganches para cuando lo haga.
+**The hall's challenge** (`seed.ts`): with `-- --reto=<seed>`, or if the `XRcade` autoload carries
+the `challenge_seed` metadata, it goes straight into the challenge with the machine's shots drawn
+from that seed (`tableSeed`); at the end of each scored match it prints
+`GH-RESULTADO {mode, points, challenge}` and, if the hall has `report_result(json)`, it is called.
+**The native hub does not pass challenges or collect results yet**: these are the hooks for when
+it does.
 
-Por qué existe y qué se midió: `xrcade/docs/salir-en-steam.md`, sección 4.
+Why it exists and what was measured: `xrcade/docs/salir-en-steam.md`, section 4.
 
-## Qué hay
+## What is here
 
-| Ruta | Qué es |
+| Path | What it is |
 |---|---|
-| `scene/main.ts` | La escena: la mesa de `Table.tsx`, el disco, los mazos, la entrada (visor, ratón, jugador automático), el sonido, lo que se siente, el escenario, la altura de la interfaz y el mando de verdad en las manos |
-| `scene/mundo/` | El salón de `Room.tsx` (`sala.ts`, con mallas múltiples como los `instancedMesh` de la web) y las ayudas de `Ayudas.tsx` (`ayudas.ts`), con las piezas del kit |
-| `scene/juego/` | El jugador automático (`bot.ts`), el golpe recibido (`golpe.ts`) y lo que suena y se siente de cada fotograma (`sucesos.ts`, lo que de `haptics.ts` y `audioEngine.ts` no entra en el motor) |
-| `scene/interfaz/partida.ts` | La sesión: el `gameStore.ts` de la web sin React (qué se elige, la fase, el marcador, el reto, lo que se guarda) |
-| `scene/interfaz/` | El menú, el marcador y la cuenta atrás, el final, el aviso de salir y el tutorial, con las cotas de la web (`reparto.ts` copia las que en la web viven en componentes de React) |
-| `scene/**/*.motor.test.ts` | La sesión contra las reglas del store de la web; los paneles medidos con el instrumento de la web (`legibilidad.ts`, `panelReading.ts`, `exitCorner.ts`) en los dos idiomas —también con «Tu habitación» escrito— y pulsados con el ratón; el salón, la sala y tu habitación, y las ayudas contra el guion y las cotas de la web: corren con los tests de dominio |
-| `godot-kit.json` | Para el kit: el id, el repo (`..`), **la versión del kit** (`kit`, un tag de xrcade) y qué sonidos se renderizan del `audioEngine.ts` |
-| `games/glide-hockey/mandos/`, `CREDITS.md` | Los mandos de Quest (`npm run godot:controllers`, de `public/webxr-profiles/`) con su licencia MIT, y los créditos del paquete. Se versionan; el preset «pack» incluye los `.json`, la licencia y los créditos |
-| `games/glide-hockey/` | Lo que va en el `.pck`; `tests/` se queda fuera al exportar |
-| `games/glide-hockey/sfx/`, `music/` | Los efectos renderizados (`npm run godot:sfx`) y la música de `public/audio/`. Se versionan |
-| `games/glide-hockey/tests/partida_auto.*` | Una partida automática contra la máquina hasta el final: goles de los dos lados, marcador, sonidos, golpe recibido, resultado al salón; el reto con la semilla del salón, sin listones y con los del metadato `goal` en el cartel; y un duelo entero a dos (las dos partidas con la misma semilla y a 7, el traspaso, quién gana por la ventaja, el marcador de la pareja, sin récord ni aviso al salón, y los cierres «como le fue» y «ganar») |
-| `games/glide-hockey/tests/menu_raton.*` | La escena de verdad con clics del ratón: elegir modo, jugar, Escape, volver al menú desde el aviso y salir |
-| `games/glide-hockey/tests/xr_mando.*` | Dos partidas con visor simulado (mandos de mentira del kit): diestro sentado en el salón que tarda en coger el mazo, y zurdo de pie con un toque. La mano que coge, la cuenta que espera al mazo con el agarre encendido en los dos mandos, la altura del mundo y de la interfaz, el anclaje, el giro, los pulsos, las cuatro ayudas (y ninguna al acabar), el tutorial con el mando de verdad en las dos manos y la sala |
-| `tests/run.sh` | Todo lo del motor de una vez (`npm run godot:test`) |
+| `scene/main.ts` | The scene: the table of `Table.tsx`, the puck, the mallets, the input (headset, mouse, automatic player), the sound, what is felt, the scenery, the interface's height and the real controller in the hands |
+| `scene/world/` | The arcade room of `Room.tsx` (`room.ts`, with multimeshes like the web's `instancedMesh`) and the hints of `Hints.tsx` (`hints.ts`), with the kit's parts |
+| `scene/game/` | The automatic player (`bot.ts`), the hit taken (`hitFeedback.ts`) and what sounds and is felt of each frame (`events.ts`, what of `haptics.ts` and `audioEngine.ts` does not go into the engine) |
+| `scene/ui/match.ts` | The session: the web's `gameStore.ts` without React (what is chosen, the phase, the scoreboard, the challenge, what is saved) |
+| `scene/ui/` | The menu, the scoreboard and the countdown, the game over panel, the exit prompt and the tutorial, with the web's measurements (`layout.ts` copies the ones that on the web live in React components) |
+| `scene/**/*.engine.test.ts` | The session against the rules of the web's store; the panels measured with the web's instrument (`legibility.ts`, `panelReading.ts`, `exitCorner.ts`) in both languages —also with «Tu habitación» written— and pressed with the mouse; the arcade room, the room and your room, and the hints against the web's script and measurements: they run with the domain tests |
+| `godot-kit.json` | For the kit: the id, the repo (`..`), **the kit's version** (`kit`, an xrcade tag) and which sounds are rendered from `audioEngine.ts` |
+| `games/glide-hockey/mandos/`, `CREDITS.md` | The Quest controllers (`npm run godot:controllers`, from `public/webxr-profiles/`) with their MIT licence, and the package's credits. They are versioned; the «pack» preset includes the `.json` files, the licence and the credits |
+| `games/glide-hockey/` | What goes in the `.pck`; `tests/` stays out on export |
+| `games/glide-hockey/sfx/`, `music/` | The rendered effects (`npm run godot:sfx`) and the music of `public/audio/`. They are versioned |
+| `games/glide-hockey/tests/auto_run.*` | An automatic match against the machine to the end: goals on both sides, scoreboard, sounds, hit taken, result to the hall; the challenge with the hall's seed, without thresholds and with those of the `goal` metadata on the sign; and a whole two-player duel (the two matches with the same seed and up to 7, the handover, who wins by margin, the pair's tally, no record and no notice to the hall, and the endings «how it went» and «win») |
+| `games/glide-hockey/tests/menu_mouse.*` | The real scene with mouse clicks: choosing a mode, playing, Escape, going back to the menu from the prompt and exiting |
+| `games/glide-hockey/tests/xr_controller.*` | Two matches with a simulated headset (the kit's fake controllers): right-handed, seated in the hall and late grabbing the mallet, and left-handed, standing with one tap. The hand that grabs, the countdown that waits for the mallet with the grip lit on both controllers, the height of the world and of the interface, the anchor, the turn, the pulses, the four hints (and none at the end), the tutorial with the real controller in both hands and the room |
+| `tests/run.sh` | Everything of the engine at once (`npm run godot:test`) |
 
-**Qué tests entran en el motor** lo decide el kit por el grafo de imports: 37 de los 51 ficheros de
-`src/lib`, más los del kit y los del port: **695 tests**. `npm run godot:build -- --list-tests`
-dice cuáles y por qué no los otros 14 (los que usan `vi`, los que tocan `window` en el propio test,
-`textos.test.ts` que lee el disco). `haptics.ts` y `audioEngine.ts` no entran porque el segundo abre
-un `AudioContext`: por eso `scene/juego/sucesos.ts` copia `impactStrength` y los sucesos de la
-mano; si pasaran a un fichero sin navegador, esa copia se borraría.
+**Which tests go into the engine** is decided by the kit from the import graph: 37 of the 51 files
+of `src/lib`, plus the kit's and the port's: **695 tests**. `npm run godot:build -- --list-tests`
+says which ones and why not the other 14 (those that use `vi`, those that touch `window` in the
+test itself, `textos.test.ts` which reads the disk). `haptics.ts` and `audioEngine.ts` do not go in
+because the second opens an `AudioContext`: that is why `scene/game/events.ts` copies
+`impactStrength` and the hand's events; if they moved to a file with no browser, that copy would
+be deleted.
 
-## Cómo se usa
+## How it is used
 
-Hace falta el editor de Godot 4.7.1 **compilado con GodotJS** (`xrcade/scripts/godotjs/`), en
-`$GODOT`, y el repo de xrcade al lado (`../xrcade`). Desde esta carpeta:
+It needs the Godot 4.7.1 editor **built with GodotJS** (`xrcade/scripts/godotjs/`), in `$GODOT`,
+and the xrcade repo next to this one (`../xrcade`). From this folder:
 
 ```sh
-(cd .. && GODOT=$GODOT npm run godot:test)     # todo lo del motor, de una vez
-(cd .. && npm run godot:build -- --tests)      # escena y tests → games/glide-hockey/
-$GODOT --headless --editor --generate-types --path .   # typings/ para comprobar tipos
+(cd .. && GODOT=$GODOT npm run godot:test)     # everything of the engine, at once
+(cd .. && npm run godot:build -- --tests)      # scene and tests → games/glide-hockey/
+$GODOT --headless --editor --generate-types --path .   # typings/ to check types
 ../node_modules/.bin/tsc -p tsconfig.json
 $GODOT --headless --path . --import
 $GODOT --headless --xr-mode off --path . res://games/glide-hockey/tests/domain_tests.tscn
 
-# Los efectos, del audioEngine.ts de la web (Chromium), y comprobarlos; los mandos de Quest
+# The effects, from the web's audioEngine.ts (Chromium), and checking them; the Quest controllers
 (cd .. && npm run godot:sfx)
 (cd .. && npm run godot:sfx -- --check)
 (cd .. && npm run godot:controllers)
 
-# Una partida automática contra la máquina (práctica, Imposible, a 7): imprime WAM-RESULT con el
-# marcador y el coste por fotograma. `--dificultad=` y `--goles=` para otra; `--duelo`, un duelo entero
+# An automatic match against the machine (practice, «Imposible», up to 7): it prints WAM-RESULT with
+# the score and the cost per frame. `--difficulty=` and `--goals=` for another; `--duel`, a whole duel
 $GODOT --headless --xr-mode off --fixed-fps 72 --path . -- --autoplay
-$GODOT --headless --xr-mode off --fixed-fps 72 --path . -- --autoplay --duelo
+$GODOT --headless --xr-mode off --fixed-fps 72 --path . -- --autoplay --duel
 
-# El reto con una semilla
+# The challenge with a seed
 $GODOT --xr-mode off --path . -- --reto=4242
 
-# Jugar en plano con el ratón (Escape para parar o salir); `--lang=es|en`, `--tutorial`, `--ayudas`,
-# `--habitacion` (tu habitación sin visor, para ver lo que se quita)
+# Playing on the flat screen with the mouse (Escape to stop or exit); `--lang=es|en`, `--tutorial`,
+# `--ayudas`, `--habitacion` (your room without a headset, to see what is removed)
 $GODOT --xr-mode off --path .
-# Capturas: el menú (`--modo=duel` lo deja con ese modo elegido), a mitad de partida y el final
-# (con `--duelo`, el traspaso)
+# Screenshots: the menu (`--mode=duel` leaves it with that mode chosen), mid-match and the ending
+# (with `--duel`, the handover)
 $GODOT --xr-mode off --path . -- --shot-menu=/tmp/menu.png --lang=es
-$GODOT --xr-mode off --path . -- --shot-menu=/tmp/menu-duelo.png --modo=duel --lang=es
-$GODOT --xr-mode off --fixed-fps 60 --path . -- --autoplay --duelo --shot-final=/tmp/traspaso.png --lang=es
-$GODOT --xr-mode off --fixed-fps 60 --path . -- --autoplay --shot=/tmp/partida.png
+$GODOT --xr-mode off --path . -- --shot-menu=/tmp/menu-duel.png --mode=duel --lang=es
+$GODOT --xr-mode off --fixed-fps 60 --path . -- --autoplay --duel --shot-final=/tmp/handover.png --lang=es
+$GODOT --xr-mode off --fixed-fps 60 --path . -- --autoplay --shot=/tmp/match.png
 $GODOT --xr-mode off --fixed-fps 60 --path . -- --autoplay --shot-final=/tmp/final.png
-# Las ayudas recién empezada la partida: en plano, o con el visor simulado (la cámara es la cabeza de
-# mentira; `--cabeceo=-50` es desde donde las mira `e2e/ayudas.spec.ts`, `--mirar=<grados>` la gira)
-$GODOT --xr-mode off --fixed-fps 60 --path . -- --shot-ayudas=/tmp/ayudas.png
-$GODOT --xr-mode off --fixed-fps 60 --resolution 1280x720 --path . -- --visor-simulado --cabeceo=-50 --shot-ayudas=/tmp/ayudas-visor.png
+# The hints with the match just started: on the flat screen, or with the simulated headset (the
+# camera is the fake head; `--pitch=-50` is from where `e2e/hints.spec.ts` looks at them,
+# `--mirar=<degrees>` turns it)
+$GODOT --xr-mode off --fixed-fps 60 --path . -- --shot-hints=/tmp/hints.png
+$GODOT --xr-mode off --fixed-fps 60 --resolution 1280x720 --path . -- --visor-simulado --pitch=-50 --shot-hints=/tmp/hints-headset.png
 
-# El .pck para el hub (ejecuta antes el build)
+# The .pck for the hub (run the build first)
 GODOT=$GODOT ../../xrcade/scripts/pack-game.sh "$PWD" glide-hockey
 ```
 
-**La versión del kit está fijada** en `godot-kit.json` (`"kit": "v0.20.0"`). El día a día no la
-mira: `npm run godot:build`, `godot:test` y `pack-game.sh --local` usan el checkout de al lado
-(`../xrcade/godot-kit`). El `.pck` que va al salón sí: `npm run game:pack` de xrcade saca el kit de
-ese tag y no del checkout, y `hub:build` y `godot:quest` no lo llevan si salió con otro. Para usar
-algo nuevo del kit, se sube `kit` a un tag de xrcade que lo traiga antes de publicar el juego
+**The kit's version is pinned** in `godot-kit.json` (`"kit": "v0.20.0"`). Day-to-day work does not
+look at it: `npm run godot:build`, `godot:test` and `pack-game.sh --local` use the checkout next to
+this one (`../xrcade/godot-kit`). The `.pck` that goes to the hall does: xrcade's
+`npm run game:pack` takes the kit from that tag and not from the checkout, and `hub:build` and
+`godot:quest` do not carry it if it was built with another. To use something new from the kit,
+`kit` is raised to an xrcade tag that brings it before publishing the game
 (`xrcade/docs/anadir-un-juego.md`, «La versión del kit»).
 
-Glide Hockey está en el catálogo del hub de visor (`targets.godot` en
-`xrcade/registry/games/glide-hockey.json`): `npm run godot:test` de xrcade lo empaqueta desde aquí
-y comprueba que el hub lo monta, le cede la pantalla y vuelve al salón con Escape.
+Glide Hockey is in the catalogue of the headset hub (`targets.godot` in
+`xrcade/registry/games/glide-hockey.json`): xrcade's `npm run godot:test` packages it from here and
+checks that the hub mounts it, hands it the screen and goes back to the hall with Escape.
 
-## Lo que se sabe y lo que falta
+## What is known and what is missing
 
-- **Coste por fotograma** (escena entera: mano, mesa, sonido, golpe recibido, pintar e interfaz),
-  partida automática a 72 fps: ~75–105 µs de media según lo cargada que esté la máquina y 0,4–2 ms
-  de pico jugando en macOS (M5 Pro, QuickJS). Medido alternando con la versión sin sala ni ayudas,
-  suman **~5–8 µs** (95 → 103): el escenario pregunta al visor cada medio segundo, las ayudas
-  apagadas no tocan el motor y la sala es quieta. Con visor simulado y el jugador automático
-  dentro, ~140–160 µs; con las plantillas release en Docker, 95 µs y 0,8 ms en Linux arm64 y 147 µs y 1,1 ms
-  en Linux x86_64 emulado. El único fotograma caro es el del final (6–7 ms en macOS): escribe el
-  guardado en disco y monta el panel.
-- **La misma semilla no da la misma partida en todas las plataformas**: la mesa es caótica y las
-  funciones de `Math` (`hypot`, `atan2`…) salen de la libm de cada sistema, así que la partida
-  automática acaba 7–1 en macOS y Linux arm64 y 7–0 en Linux x86_64. Dentro de una plataforma se
-  repite exacta. Para el reto entre plataformas, la semilla iguala las decisiones de la máquina,
-  no cada rebote.
-- **La puntería de la interfaz solo lleva los botones que se ven** (`apuntables` en
-  `interfaz.ts`): la del kit repinta cada fotograma todos los que tiene, y con los treinta de este
-  juego la interfaz costaba más que la mesa (105 µs de 170).
-- **El tutorial lleva las letras y los botones de la web** (`MEDIDAS_DEL_TUTORIAL`: contador y
-  botones a 36 mm, botones de 37 cm): va sobre la mesa, a 1,2 m de los ojos, donde las de Hole
-  Patrol se quedaban en 1°.
-- **La luz no es la receta del kit** (`tonoComoLaWeb`): la escena lleva su sol y su ambiental de
-  antes, sin el tono ACES de la web, y por eso la moqueta, las paredes y el tablero salen algo más
-  claros y con menos contraste que en las capturas de la web. Ajustarla es mirar capturas, como en
-  Tower Tumble; aquí no se ha tocado.
-- **Dos rarezas de la web copiadas tal cual**: la moqueta está centrada en los pies y no en la mesa
-  (entre su borde y la pared del fondo queda 1,2 m sin suelo, que el fondo oscuro disimula), y las
-  pantallas de las recreativas de los lados se inclinan hacia un costado (el `Euler(inclinación,
-  giro, 0)` de three compone en orden XYZ). Si se corrigen, es en `Room.tsx` y aquí a la vez.
-- **Sin visor no se ven las huellas en la captura en plano**: la cámara de la web mira la mesa y
-  deja los pies fuera del cuadro; con `--visor-simulado --cabeceo=-50` sí.
-- **No está**: el precalentado de shaders (`Calentar`), el mapa de reflejos de la mesa
-  (`useRoomEnvironment`) ni la sonda de la escena para los e2e de la web.
-- **El duelo contra el jugador automático acaba siempre en empate**: juega igual las dos partidas
-  contra la misma máquina, y la semilla compartida hace que saque lo mismo (7–0 y 7–0 en Media). Es
-  lo que el test comprueba; que gane uno u otro según la ventaja lo prueban `duel.test.ts` y
-  `partida.motor.test.ts`.
-- **Lo que solo puede decir el visor**, además de lo de `salir-en-steam.md` 4.2 y 4.3: que el mazo
-  se coja al acercar el puño al pomo (18,6 cm desde el pomo, en 3D; la web mide solo en el plano de
-  la mesa), que golpear con la mano se sienta como en la web, que la cuenta atrás parada en el 1
-  con el aviso se entienda, que el golpe recibido del gol en contra no maree con el confort normal,
-  la vibración del final (0,6 durante 220 ms), el mando de verdad del perfil de OpenXR en cada mano
-  (con el agarre encendido donde toca en la cuenta atrás), las ayudas a su tamaño (el mando junto
-  al fantasma, a 1,5 veces), la interfaz a la altura de los ojos y tu habitación con el paso de
-  cámara de verdad (`XR_ENV_BLEND_MODE_ALPHA_BLEND`).
+- **Cost per frame** (the whole scene: hand, table, sound, hit taken, painting and interface),
+  automatic match at 72 fps: ~75–105 µs on average depending on how loaded the machine is and
+  0.4–2 ms at peak while playing on macOS (M5 Pro, QuickJS). Measured alternating with the version
+  without the room or the hints, they add **~5–8 µs** (95 → 103): the scenery asks the headset
+  every half second, the hints when off do not touch the engine and the room is still. With a
+  simulated headset and the automatic player inside, ~140–160 µs; with the release templates in
+  Docker, 95 µs and 0.8 ms on Linux arm64 and 147 µs and 1.1 ms on emulated Linux x86_64. The only
+  expensive frame is that of the ending (6–7 ms on macOS): it writes the save to disk and mounts
+  the panel.
+- **The same seed does not give the same match on every platform**: the table is chaotic and the
+  `Math` functions (`hypot`, `atan2`…) come from each system's libm, so the automatic match ends
+  7–1 on macOS and Linux arm64 and 7–0 on Linux x86_64. Within one platform it repeats exactly.
+  For the challenge across platforms, the seed evens out the machine's decisions, not every
+  bounce.
+- **The interface's aim only carries the buttons that are seen** (`apuntables` in `ui.ts`): the
+  kit's repaints every frame all the ones it has, and with the thirty of this game the interface
+  cost more than the table (105 µs of 170).
+- **The tutorial carries the web's letters and buttons** (`TUTORIAL_SIZES`: counter and buttons at
+  36 mm, buttons of 37 cm): it goes over the table, at 1.2 m from the eyes, where those of Hole
+  Patrol stayed at 1°.
+- **The light is not the kit's recipe** (`webToneMapping`): the scene carries its earlier sun and
+  ambient light, without the web's ACES tone mapping, and that is why the carpet, the walls and the
+  top come out somewhat lighter and with less contrast than in the web's screenshots. Adjusting it
+  means looking at screenshots, as in Tower Tumble; here it has not been touched.
+- **Two quirks of the web copied as they are**: the carpet is centred on the feet and not on the
+  table (between its edge and the back wall there is 1.2 m with no floor, which the dark background
+  hides), and the screens of the arcade machines on the sides tilt toward one flank (three's
+  `Euler(tilt, rotation, 0)` composes in XYZ order). If they are corrected, it is in `Room.tsx` and
+  here at the same time.
+- **Without a headset the footprints are not seen in the flat-screen screenshot**: the web's camera
+  looks at the table and leaves the feet out of the frame; with `--visor-simulado --pitch=-50` they
+  are.
+- **Not here**: the shader prewarm (`PrewarmShaders`), the table's reflection map
+  (`useRoomEnvironment`) or the scene probe for the web's e2e.
+- **The duel against the automatic player always ends in a tie**: it plays both matches the same
+  against the same machine, and the shared seed makes it get the same (7–0 and 7–0 on «Media»). It
+  is what the test checks; that one or the other wins by margin is proven by `duel.test.ts` and
+  `match.engine.test.ts`.
+- **What only the headset can tell**, besides what is in `salir-en-steam.md` 4.2 and 4.3: that the
+  mallet is grabbed on bringing the fist close to the knob (18.6 cm from the knob, in 3D; the web
+  measures only in the plane of the table), that hitting with the hand feels as on the web, that
+  the countdown stopped on the 1 with the notice is understood, that the hit taken of the goal
+  against is not dizzying with the normal comfort, the vibration of the ending (0.6 for 220 ms),
+  the real controller of the OpenXR profile in each hand (with the grip lit where it should be in
+  the countdown), the hints at their size (the controller beside the ghost, at 1.5 times), the
+  interface at eye height and your room with real camera passthrough
+  (`XR_ENV_BLEND_MODE_ALPHA_BLEND`).

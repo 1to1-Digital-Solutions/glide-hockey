@@ -1,34 +1,34 @@
 import { describe, expect, it } from 'vitest'
-import { MENU_EN, MENU_ES, plural } from './palabras'
+import { MENU_EN, MENU_ES, plural } from './menuWords'
 import { TEXT_KEYS, texto, type TextKey } from './textos'
 
 /**
- * Las palabras comunes del salón, dichas igual en todos los juegos.
+ * The hall's common words, said the same way in every game.
  *
- * Es el mismo fichero en todos: el diccionario del juego puede no usar alguna, pero la que use
- * tiene que decirla como las demás cabinas.
+ * It is the same file in all of them: the game's dictionary may not use some of them, but the one
+ * it does use has to say it like the other cabinets.
  */
 
-describe('las frases comunes del menú', () => {
-  it('cada una tiene su traducción, y son las de siempre', () => {
-    for (const frase of Object.values(MENU_EN)) expect(MENU_ES[frase]).toBeTruthy()
+describe('the common phrases of the menu', () => {
+  it('each one has its translation, and they are the usual ones', () => {
+    for (const phrase of Object.values(MENU_EN)) expect(MENU_ES[phrase]).toBeTruthy()
     expect(MENU_ES['Another challenge']).toBe('Otro reto')
     expect(MENU_ES.Duel).toBe('Duelo')
     expect(MENU_ES['Hold B or Y to exit']).toBe('Mantén B o Y para salir')
   })
 
-  it('el juego que usa una la dice como el salón', () => {
-    const distintas = TEXT_KEYS.filter((clave) => clave in MENU_ES).flatMap((clave) => {
-      const comun = MENU_ES[clave as keyof typeof MENU_ES]
-      return texto('es', clave as TextKey) === comun ? [] : [`${clave}: «${texto('es', clave as TextKey)}», no «${comun}»`]
+  it('the game that uses one says it like the hall', () => {
+    const different = TEXT_KEYS.filter((key) => key in MENU_ES).flatMap((key) => {
+      const common = MENU_ES[key as keyof typeof MENU_ES]
+      return texto('es', key as TextKey) === common ? [] : [`${key}: «${texto('es', key as TextKey)}», not «${common}»`]
     })
 
-    expect(distintas).toEqual([])
+    expect(different).toEqual([])
   })
 })
 
-describe('el plural', () => {
-  it('solo el uno va en singular, en los dos idiomas', () => {
+describe('the plural', () => {
+  it('only one is singular, in both languages', () => {
     expect(plural(1, '{n} basket', '{n} baskets')).toBe('{n} basket')
     expect(plural(2, '{n} basket', '{n} baskets')).toBe('{n} baskets')
     expect(plural(0, '{n} basket', '{n} baskets')).toBe('{n} baskets')

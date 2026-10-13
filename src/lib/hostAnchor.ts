@@ -1,52 +1,53 @@
 /**
- * El anclaje que presta el anfitrión: dónde planta el mundo del juego y con qué rumbo.
+ * The anchor the host lends: where it plants the game's world and with what heading.
  *
- * **Por qué no siempre vale la mirada.** Un juego solo en su web abre él la sesión y no sabe
- * nada de quien entra, así que planta el decorado delante de donde mira: es lo único que
- * garantiza que no salga por la espalda. Dentro del salón ya se sabe más —el arco de cabinas
- * lleva plantado un rato, con su sitio y su rumbo—, y ahí la mirada es la peor de las dos
- * pistas: para elegir una cabina de las de la izquierda hay que girar la cabeza, y anclando a
- * eso el juego sale girado hacia donde se giró, o sea de lado respecto del cuerpo. Con el
- * visor puesto eso obliga a girarse entero o a recentrar la sala, que es lo que se reportó.
+ * **Why the gaze is not always good enough.** A game alone on its web opens the session itself and
+ * knows nothing about whoever enters, so it plants the stage in front of where they look: it is the
+ * only thing that guarantees it does not come out behind their back. Inside the hall more is already
+ * known —the arc of cabinets has been planted for a while, with its place and its heading—, and there
+ * the gaze is the worse of the two clues: to choose one of the cabinets on the left you have to turn
+ * your head, and anchoring to that the game comes out turned towards where you turned, that is,
+ * sideways with respect to the body. With the headset on that forces you to turn round entirely or to
+ * recentre the room, which is what was reported.
  *
- * Así que el anfitrión puede prestar el suyo, y el juego lo usa **solo en la primera
- * colocación**: a partir de ahí manda la mirada. Recentrar recoloca el espacio de referencia
- * entero y deja lo prestado apuntando a donde ya no hay nada, así que el gesto que recoloca
- * la sala tiene que ganar a los dos.
+ * So the host can lend its own, and the game uses it **only in the first
+ * placement**: from then on the gaze rules. Recentring relocates the whole reference
+ * space and leaves what was lent pointing to where there is no longer anything, so the gesture that
+ * relocates the room has to beat both.
  *
- * Lo que NO se hereda es la altura: la pone cada juego —la mesa, el tee, el suelo del prado—
- * y el anfitrión solo sabe del suelo.
+ * What is NOT inherited is the height: each game sets it —the table, the tee, the ground of the
+ * meadow— and the host only knows about the floor.
  *
- * Es el mismo fichero en los trece juegos y en el salón (lo vigila `comunes.py`): es el
- * contrato entre los dos lados, y una copia que se aparte cambiaría en silencio dónde
- * aparece el juego, sin romper nada que se vea desde una pantalla.
+ * It is the same file in the thirteen games and in the hall (`comunes.py` watches it): it is the
+ * contract between the two sides, and a copy that drifted would silently change where
+ * the game appears, without breaking anything that can be seen from a screen.
  */
 
-/** Dónde se planta el mundo: el punto del suelo y el rumbo de su frente. */
+/** Where the world is planted: the point of the floor and the heading of its front. */
 export interface Placement {
-  /** En el espacio del origen que pone el anfitrión, en metros. */
+  /** In the space of the origin the host sets, in metres. */
   x: number
   z: number
-  /** Adónde mira el frente de la escena (su −Z), en radianes sobre el eje vertical. */
+  /** Where the front of the scene (its −Z) faces, in radians about the vertical axis. */
   yaw: number
 }
 
-/** El anclaje tal y como se lo pasa el anfitrión a la escena que monta. */
+/** The anchor just as the host passes it to the scene it mounts. */
 export interface HostAnchor {
-  /** Los pies de quien juega, en el espacio del anfitrión: `[x, y, z]`, en metros. */
+  /** The feet of whoever plays, in the host's space: `[x, y, z]`, in metres. */
   position: readonly [number, number, number]
-  /** El rumbo de su frente, en radianes sobre el eje vertical. */
+  /** The heading of their front, in radians about the vertical axis. */
   yaw: number
 }
 
 /**
- * Con qué se planta el mundo esta vez.
+ * What the world is planted with this time.
  *
- * @param lent Lo que presta el anfitrión mientras no se haya usado. `null` si no presta nada
- *   —la web propia del juego— o si ya se gastó en la primera colocación, que es lo que deja
- *   mandar a la mirada en cuanto se recentra la sala.
- * @param feet Dónde están los pies de quien juega ahora.
- * @param gazeYaw El rumbo que sale de su mirada ahora.
+ * @param lent What the host lends as long as it has not been used. `null` if it lends nothing
+ *   —the game's own web— or if it was already spent in the first placement, which is what lets
+ *   the gaze rule as soon as the room is recentred.
+ * @param feet Where the feet of whoever plays are now.
+ * @param gazeYaw The heading that comes out of their gaze now.
  */
 export function entryPlacement(
   lent: HostAnchor | null | undefined,

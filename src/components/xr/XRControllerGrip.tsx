@@ -10,7 +10,7 @@ import {
 import type { ComponentProps } from 'react'
 import type { Object3D } from 'three'
 
-import { useManoOcupada } from './manosOcupadas'
+import { useHandBusy } from './busyHands'
 
 /**
  * El mando dentro del visor: su sitio en el espacio y sus punteros, **sin modelo**.
@@ -71,7 +71,7 @@ export function XRControllerGrip({
   rayo?: Exclude<ComponentProps<typeof DefaultXRInputSourceRayPointer>['rayModel'], boolean | undefined>
 }) {
   const state = useXRInputSourceStateContext('controller')
-  const ocupada = useManoOcupada(state.inputSource.handedness as 'left' | 'right' | undefined)
+  const ocupada = useHandBusy(state.inputSource.handedness as 'left' | 'right' | undefined)
 
   return (
     <>

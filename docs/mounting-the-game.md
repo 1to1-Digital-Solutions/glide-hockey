@@ -64,7 +64,7 @@ el de siempre.
   (`semillaDeLaMesa` en `lib/opponent.ts`), así que perder goles en una ronda
   no cambia los tiros de la siguiente. El resto de la mesa es física en pasos
   fijos, sin azar. El reto se lee al montar; para otro, se monta otra escena.
-- **`onTerminar?: (resultado: Resultado) => void`**: se llama **una vez** al
+- **`onFinish?: (resultado: Resultado) => void`**: se llama **una vez** al
   acabar cada partida —prueba, niveles o reto—, justo donde se guarda el
   récord, con `{ modo, puntos, reto }`: el modo (`practice`, `levels`,
   `challenge`), los puntos de la partida aunque no sean récord y `reto: true`
@@ -74,7 +74,7 @@ el de siempre.
   es su final.
   El duelo a dos **no se cuenta**: sus goles son de dos personas, no de quien
   lleva el visor, y no tiene récord.
-- **`objetivo?: Objetivo`** (el tipo de `src/lib/objetivo.ts`, exportado por el paquete; solo en
+- **`objetivo?: Objetivo`** (el tipo de `src/lib/goal.ts`, exportado por el paquete; solo en
   `<GlideHockeyScene>`): `{ medallas: { bronce, plata, oro }, mejorEs: 'mas' | 'menos', unidad,
   record, modo }`. Con él, el **cartel de encima del marcador del fondo** dice qué hay que
   superar: en la primera cuenta atrás, la misión y los tres listones; jugando, el listón que
@@ -84,7 +84,7 @@ el de siempre.
   este navegador. `unidad` llega ya en el idioma de quien juega. El menú abre siempre en el reto.
 
 ```tsx
-<GlideHockeyScene reto={{ semilla: 20260925 }} onTerminar={apuntarPartida} onExit={volverAlSalon} />
+<GlideHockeyScene reto={{ semilla: 20260925 }} onFinish={apuntarPartida} onExit={volverAlSalon} />
 ```
 
 ## Con su propio Canvas: `<GlideHockey>`
@@ -189,7 +189,7 @@ misma clave que escribe el salón (`place` o `room`, y `place` si no hay nada). 
 juego lo pueden cambiar, pero escriben esa clave: hay una sola preferencia, y fuera del salón
 funciona igual en el origen de la web del juego. La clave propia del juego,
 `glide-hockey:scenery`, no la escribe nadie: se borra al montar el estado de la partida, sin
-trasladarla (ver `src/lib/ajustes.ts` y `src/lib/scenery.ts`).
+trasladarla (ver `src/lib/settings.ts` y `src/lib/scenery.ts`).
 
 La mano buena del salón (`xrcade:hand`) **no la lee**: el mazo se coge con la mano que esté
 libre y se cambia de mano a media partida (`MalletHand`), así que no importa cuál sea la

@@ -26,7 +26,7 @@ fi
 # El tope de cada ejecución del motor (un motor colgado es un fallo y no una tanda que no acaba) y
 # la búsqueda de errores de script en su salida (uno en tiempo de ejecución no para el motor, y el
 # test salía en verde): comunes a todos los juegos, en el kit.
-source "$REPO/../xrcade/godot-kit/runner/tope.sh"
+source "$REPO/../xrcade/godot-kit/runner/timeout.sh"
 
 (cd "$REPO" && npm run --silent godot:build -- --tests)
 con_tope "$TOPE_GODOT" "$GODOT_BIN" --headless --xr-mode off --path "$PROJECT" --import >/dev/null 2>&1 || true

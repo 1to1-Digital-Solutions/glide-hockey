@@ -1,39 +1,39 @@
 /**
- * La cuenta de «mantener pulsado para salir»: la misma que el salón (`xrcade/src/lib/salon/holdToExit.ts`
- * y, en Godot, `godot/scripts/hold_to_exit.gd` y el kit), un segundo sostenido. Montado en el salón
- * la lleva el salón; en la web propia del juego, `components/xr/AroDeSalir.tsx`.
+ * The count of «hold to exit»: the same as the hall's (`xrcade/src/lib/salon/holdToExit.ts`
+ * and, in Godot, `godot/scripts/hold_to_exit.gd` and the kit), one sustained second. Mounted in the hall,
+ * the hall keeps it; on the game's own web, `components/xr/ExitRing.tsx`.
  *
- * Es larga a propósito: un toque suelto se da sin querer —al agarrar, al apoyar la mano— y sacar a
- * alguien de la partida por eso sería peor que no ofrecer salida. Y se ve: mientras se sostiene, un
- * aro se llena delante de los ojos (`AroDeSalir.tsx`), que es lo que dice que se está haciendo bien.
+ * It is long on purpose: a stray tap happens by accident —when grabbing, when resting the hand— and taking
+ * someone out of the run for that would be worse than offering no exit. And it shows: while it is held, a
+ * ring fills in front of the eyes (`ExitRing.tsx`), which is what says it is being done right.
  *
- * Sin `window`, sin React y sin three, para probarla sin navegador.
+ * Without `window`, without React and without three, to test it without a browser.
  */
 
-/** Cuánto hay que sostener el botón, en segundos. */
+/** How long the button has to be held, in seconds. */
 export const HOLD_TO_EXIT_SECONDS = 1
 
 /**
- * Los botones que, sostenidos, sacan del juego: el B y el Y de los mandos de Quest, los mismos
- * que en Godot (que además acepta el de menú, que el navegador del visor se queda). Ningún juego
- * los usa.
+ * The buttons that, held, take you out of the game: the B and the Y of the Quest controllers, the same
+ * as in Godot (which also accepts the menu one, which the headset's browser keeps for itself). No game
+ * uses them.
  */
 export const EXIT_BUTTONS = ['b-button', 'y-button'] as const
 
 export interface HoldToExit {
-  /** Lo sostenido, en segundos. */
+  /** What has been held, in seconds. */
   readonly held: number
-  /** Si ya se disparó: hasta soltar no vuelve a dispararse. */
+  /** Whether it has already fired: until release it does not fire again. */
   readonly fired: boolean
 }
 
 export const HOLD_IDLE: HoldToExit = { held: 0, fired: false }
 
 /**
- * Un fotograma de la cuenta: con el botón sostenido o no, y lo que ha pasado. `exit` es `true`
- * exactamente en el fotograma en que se completa; después, aunque se siga apretando, no vuelve a
- * dispararse hasta soltar y volver a pulsar. `progress` va de 0 a 1, y es 0 al dispararse: el aro
- * se va cuando se sale.
+ * One frame of the count: with the button held or not, and what has happened. `exit` is `true`
+ * exactly in the frame in which it completes; afterwards, even if it keeps being pressed, it does not
+ * fire again until it is released and pressed again. `progress` goes from 0 to 1, and is 0 on firing: the ring
+ * goes away when exiting.
  */
 export function holdStep(
   state: HoldToExit,

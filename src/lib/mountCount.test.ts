@@ -1,40 +1,40 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { apuntarProgramas, contarMontaje, isMontajesRequested } from './montajes'
+import { recordPrograms, countMount, isMountCountRequested } from './mountCount'
 
 afterEach(() => {
-  delete window.__montajes
-  delete window.__programas
+  delete window.__mounts
+  delete window.__programs
 })
 
-describe('contar montajes', () => {
-  it('no cuenta nada si nadie lo ha pedido', () => {
-    expect(isMontajesRequested()).toBe(false)
-    contarMontaje('mundo')
-    expect(window.__montajes).toBeUndefined()
+describe('counting mounts', () => {
+  it('counts nothing if nobody has asked for it', () => {
+    expect(isMountCountRequested()).toBe(false)
+    countMount('world')
+    expect(window.__mounts).toBeUndefined()
   })
 
-  it('y cuenta cada vez, por separado, si se pide', () => {
-    window.__montajes = {}
-    expect(isMontajesRequested()).toBe(true)
+  it('and counts every time, separately, if it is asked for', () => {
+    window.__mounts = {}
+    expect(isMountCountRequested()).toBe(true)
 
-    contarMontaje('mundo')
-    contarMontaje('mundo')
-    contarMontaje('escena')
+    countMount('world')
+    countMount('world')
+    countMount('scene')
 
-    expect(window.__montajes).toEqual({ mundo: 2, escena: 1 })
+    expect(window.__mounts).toEqual({ world: 2, scene: 1 })
   })
 })
 
-describe('apuntar los programas compilados', () => {
-  it('tampoco apunta nada si nadie lo ha pedido', () => {
-    apuntarProgramas(21)
-    expect(window.__programas).toBeUndefined()
+describe('recording the compiled programs', () => {
+  it('records nothing either if nobody has asked for it', () => {
+    recordPrograms(21)
+    expect(window.__programs).toBeUndefined()
   })
 
-  it('y apunta el último número si se pide', () => {
-    window.__montajes = {}
-    apuntarProgramas(18)
-    apuntarProgramas(21)
-    expect(window.__programas).toBe(21)
+  it('and records the last number if it is asked for', () => {
+    window.__mounts = {}
+    recordPrograms(18)
+    recordPrograms(21)
+    expect(window.__programs).toBe(21)
   })
 })

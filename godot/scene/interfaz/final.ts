@@ -17,17 +17,17 @@
  */
 import { Node3D, Vector3 } from 'godot'
 
-import type { Punto2 } from '@kit/lib/ui/salida'
-import { Boton } from '@kit/runtime/ui/boton'
-import { botonDeSalir, iconoDeJugar } from '@kit/runtime/ui/iconos'
-import { figura, pintar, placa } from '@kit/runtime/ui/malla'
+import type { Point2 } from '@kit/lib/ui/exit'
+import { Button } from '@kit/runtime/ui/button'
+import { exitButton, playIcon } from '@kit/runtime/ui/icons'
+import { shape, paint, plate } from '@kit/runtime/ui/mesh'
 import { Panel } from '@kit/runtime/ui/panel'
-import type { Punteria } from '@kit/runtime/ui/punteria'
+import type { PointerAim } from '@kit/runtime/ui/pointerAim'
 
-import type { Lang } from '@/lib/ajustes'
+import type { Lang } from '@/lib/settings'
 import type { RunOutcome } from '@/lib/gameMode'
 import type { Stars } from '@/lib/levels'
-import { PALETA } from '@/lib/paleta'
+import { COMMON_PALETTE } from '@/lib/commonPalette'
 import { PALETTE } from '@/lib/palette'
 import { traductor } from '@/lib/textos'
 
@@ -58,8 +58,8 @@ export interface EstadoDelFinal {
 }
 
 /** Tres rayas: el icono de volver al menú (`XRMenuIcon`). */
-export function triangulosDelMenu(lado = 0.05): Punto2[] {
-  const puntos: Punto2[] = []
+export function triangulosDelMenu(lado = 0.05): Point2[] {
+  const puntos: Point2[] = []
   for (const fila of [-1, 0, 1]) {
     const y = fila * lado * 0.32
     const alto = lado * 0.16
@@ -74,15 +74,15 @@ export function triangulosDelMenu(lado = 0.05): Punto2[] {
 export class FinalDeLaPartida {
   readonly panel: Panel
   readonly nodo: Node3D
-  readonly otraVez: Boton
-  readonly menu: Boton
-  readonly salir: Boton
+  readonly otraVez: Button
+  readonly menu: Button
+  readonly salir: Button
   readonly puntos = new Cifras(CIFRA_DEL_FINAL, PALETTE.foreground)
-  private readonly franja = placa(0.5, 0.06, PALETA.acierto, 1)
-  private readonly estrellas: ReturnType<typeof figura>[] = []
+  private readonly franja = plate(0.5, 0.06, COMMON_PALETTE.hit, 1)
+  private readonly estrellas: ReturnType<typeof shape>[] = []
   private pintado = ''
 
-  constructor(acciones: { otraVez(): void; menu(): void; salir(): void }, punteria: Punteria) {
+  constructor(acciones: { otraVez(): void; menu(): void; salir(): void }, punteria: PointerAim) {
     this.panel = new Panel({ ancho: FINAL.width, alto: FINAL.height, fondo: PALETTE.background, opacidad: 0.86 })
     this.nodo = this.panel.nodo
     this.franja.position = new Vector3(0, 0.13, -0.01)
@@ -90,17 +90,17 @@ export class FinalDeLaPartida {
     this.puntos.nodo.position = new Vector3(0, 0.02, 0.004)
     this.nodo.add_child(this.puntos.nodo)
     for (let i = 0; i < 3; i++) {
-      const rombo = figura(triangulosDeRombo(0.022), DIM)
+      const rombo = shape(triangulosDeRombo(0.022), DIM)
       rombo.position = new Vector3((i - 1) * 0.045, -0.055, 0.004)
       this.nodo.add_child(rombo)
       this.estrellas.push(rombo)
     }
-    this.otraVez = this.panel.boton(new Boton({ id: 'final:again', caja: CAJAS_DEL_FINAL.again, color: PALETTE.primary, alPulsar: () => acciones.otraVez() }))
-    this.otraVez.dibujo(iconoDeJugar(0.045, PALETTE.primaryInk), PALETTE.primaryInk)
-    this.menu = this.panel.boton(new Boton({ id: 'final:menu', caja: CAJAS_DEL_FINAL.menu, color: PALETTE.rail, opacidad: 0.8, alPulsar: () => acciones.menu() }))
-    this.menu.dibujo(figura(triangulosDelMenu(), DIM), DIM)
+    this.otraVez = this.panel.boton(new Button({ id: 'final:again', caja: CAJAS_DEL_FINAL.again, color: PALETTE.primary, alPulsar: () => acciones.otraVez() }))
+    this.otraVez.dibujo(playIcon(0.045, PALETTE.primaryInk), PALETTE.primaryInk)
+    this.menu = this.panel.boton(new Button({ id: 'final:menu', caja: CAJAS_DEL_FINAL.menu, color: PALETTE.rail, opacidad: 0.8, alPulsar: () => acciones.menu() }))
+    this.menu.dibujo(shape(triangulosDelMenu(), DIM), DIM)
     this.salir = this.panel.boton(
-      botonDeSalir({ id: 'final:exit', caja: CAJAS_DEL_FINAL.exit, color: PALETTE.rail, opacidad: 0.8, flecha: PALETTE.foreground, alPulsar: () => acciones.salir() }),
+      exitButton({ id: 'final:exit', caja: CAJAS_DEL_FINAL.exit, color: PALETTE.rail, opacidad: 0.8, flecha: PALETTE.foreground, alPulsar: () => acciones.salir() }),
     )
     punteria.anadir(this.otraVez, this.menu, this.salir)
     this.nodo.visible = false
@@ -115,13 +115,13 @@ export class FinalDeLaPartida {
     this.franja.visible = duelo == null
     this.puntos.nodo.visible = duelo == null
     const gano = estado.outcome === 'won'
-    const franja = gano ? PALETA.acierto : PALETA.fallo
-    pintar(this.franja, franja)
-    this.puntos.pintar(estado.puntos, estado.esRecord ? PALETA.oro : PALETTE.foreground)
+    const franja = gano ? COMMON_PALETTE.hit : COMMON_PALETTE.miss
+    paint(this.franja, franja)
+    this.puntos.pintar(estado.puntos, estado.esRecord ? COMMON_PALETTE.gold : PALETTE.foreground)
     for (const [i, rombo] of this.estrellas.entries()) {
       rombo.visible = estado.nivel != null
       const ganada = i < (estado.nivel?.stars ?? 0)
-      pintar(rombo, ganada ? PALETA.oro : DIM, ganada ? 1 : 0.35)
+      paint(rombo, ganada ? COMMON_PALETTE.gold : DIM, ganada ? 1 : 0.35)
     }
     const titulo =
       estado.nivel != null

@@ -3,8 +3,8 @@ import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GameContext, useGameStoreValue } from './gameStore'
 import { useGameAudio } from './useGameAudio'
-import { DEFAULT_VOLUMES } from './ajustes'
-import { setVolume } from './ajustesCliente'
+import { DEFAULT_VOLUMES } from './settings'
+import { setVolume } from './settingsClient'
 
 /**
  * Lo que se comprueba aquí es lo único que el hook añade sobre el reproductor

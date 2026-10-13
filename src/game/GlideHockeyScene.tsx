@@ -4,9 +4,9 @@ import { GameProvider } from '../components/GameProvider'
 import { GameWorld } from '../components/game/GameWorld'
 import { setAssetsBase } from '../lib/assets'
 import type { HostAnchor } from '../lib/hostAnchor'
-import type { Objetivo } from '../lib/objetivo'
-import { fijarNombreDelJuego } from '../lib/plantillaDelMenu'
-import type { Resultado, Reto } from '../lib/semilla'
+import type { Goal } from '../lib/goal'
+import { setGameName } from '../lib/menuTemplate'
+import type { GameResult, Challenge } from '../lib/seed'
 import { ExitProvider } from './exit'
 
 export interface GlideHockeySceneProps {
@@ -17,7 +17,7 @@ export interface GlideHockeySceneProps {
    *
    * Los perfiles los pide el store de WebXR, que aquí es del anfitrión: hay que
    * crearlo con `baseAssetPath` apuntando a `<assetsBase>/webxr-profiles/` o el
-   * jugador se queda sin mandos (ver `docs/montar-el-juego.md`).
+   * jugador se queda sin mandos (ver `docs/mounting-the-game.md`).
    */
   assetsBase?: string
   /**
@@ -45,25 +45,25 @@ export interface GlideHockeySceneProps {
    * misma semilla, misma máquina en cada ronda. Sin él, el juego abre su menú y
    * juega como siempre.
    */
-  reto?: Reto
+  challenge?: Challenge
   /**
    * Se llama una vez al acabar cada partida —no al dejarla a medias—, con el
    * modo, los puntos aunque no sean récord, si era la partida del `reto` y, si se estrenó
    * alguna, las hazañas (`hazanas`: nombres de API de los logros de Steam).
    */
-  onTerminar?: (resultado: Resultado) => void
+  onFinish?: (resultado: GameResult) => void
   /**
    * Qué hay que superar: los tres listones de medalla del juego, la marca de quien juega y el
    * modo en que cuentan. Con él, el cartel de encima del marcador dice qué listón falta y cuánto
    * queda; sin él, la misión y el récord guardado en este navegador.
    */
-  objetivo?: Objetivo
+  goal?: Goal
   /**
    * Cómo se llama la cabina en el salón (el `name` de su manifiesto): es lo que dicen el menú y la
    * portada (`nombreDelJuego` de `plantillaDelMenu.ts`). Sin él, el del `package.json` con
    * mayúsculas, que coincide con el del catálogo.
    */
-  nombre?: string
+  name?: string
 }
 
 /**
@@ -78,12 +78,12 @@ export interface GlideHockeySceneProps {
  * Para montarlo con su interfaz 2D y su propia sesión —lo que quiere una página
  * web normal— está `<GlideHockey>`, que es esta escena con un Canvas alrededor.
  *
- * El contrato completo, en `docs/montar-el-juego.md`.
+ * El contrato completo, en `docs/mounting-the-game.md`.
  */
-export function GlideHockeyScene({ assetsBase, anchor, onExit, reto, onTerminar, objetivo, nombre }: GlideHockeySceneProps) {
+export function GlideHockeyScene({ assetsBase, anchor, onExit, challenge: reto, onFinish, goal: objetivo, name: nombre }: GlideHockeySceneProps) {
   // Antes que los hijos, por lo mismo que la base de ficheros: el menú lo lee desde el primer
   // fotograma, y fijarlo dos veces con el mismo nombre no cambia nada.
-  fijarNombreDelJuego(nombre)
+  setGameName(nombre)
   // Durante el render y no en un efecto: el store de WebXR resuelve su base de
   // ficheros la primera vez que alguien lo pide, que puede ser antes de que
   // corra ningún efecto. Escribir la misma base dos veces no cambia nada, así
@@ -91,7 +91,7 @@ export function GlideHockeyScene({ assetsBase, anchor, onExit, reto, onTerminar,
   if (assetsBase !== undefined) setAssetsBase(assetsBase)
 
   return (
-    <GameProvider reto={reto} onTerminar={onTerminar} objetivo={objetivo}>
+    <GameProvider reto={reto} onFinish={onFinish} objetivo={objetivo}>
       <ExitProvider onExit={onExit}>
         <GameWorld anchor={anchor} />
       </ExitProvider>

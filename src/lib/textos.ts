@@ -19,14 +19,14 @@
  * cookie del arcade (ver `ajustes.ts`).
  */
 
-import type { Lang } from './ajustes'
-import { OBJETIVO_ES } from './objetivo'
-import { MENU_ES } from './palabras'
+import type { Lang } from './settings'
+import { GOAL_ES } from './goal'
+import { MENU_ES } from './menuWords'
 
 const ES = {
   // El cartel del objetivo, común a todos los juegos del salón. Lo primero, para que lo que el
   // juego ya decía por su cuenta no choque.
-  ...OBJETIVO_ES,
+  ...GOAL_ES,
   // Los botones y estados comunes del salón (`palabras.ts`), dichos igual en todos los juegos.
   ...MENU_ES,
   // Y lo que este juego le da: la misión del reto y lo que queda (`cartelDelMarcador.ts`).

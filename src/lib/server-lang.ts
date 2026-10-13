@@ -1,25 +1,25 @@
 import { cookies, headers } from 'next/headers'
 
-import { DEFAULT_LANG, LANG_COOKIE, asLang, langFromSystem, type Lang } from './ajustes'
+import { DEFAULT_LANG, LANG_COOKIE, asLang, langFromSystem, type Lang } from './settings'
 
 /**
- * El idioma con el que hay que pintar esta petición.
+ * The language this request has to be painted in.
  *
- * Lo elige quien juega en el menú de xrcade y viaja en una cookie (ver
- * `ajustes.ts`), así que aquí se lee para que el HTML salga ya en su idioma.
- * Pintar en inglés y traducir al hidratar sería el desajuste que React prohíbe,
- * además de un parpadeo.
+ * Whoever plays chooses it in the xrcade menu and it travels in a cookie (see
+ * `settings.ts`), so it is read here for the HTML to come out already in their language.
+ * Painting in English and translating on hydration would be the mismatch React forbids,
+ * besides a flicker.
  *
- * Sin elegir, el del sistema, como el salón.
+ * With none chosen, the system's, like the hall.
  *
- * Solo lo usa el juego servido por su cuenta: montado dentro del arcade, el
- * documento es el de xrcade y el `lang` lo pone él.
+ * Only the game served on its own uses it: mounted inside the hall, the
+ * document is xrcade's and it sets the `lang`.
  */
-export async function idiomaDeLaPeticion(): Promise<Lang> {
-  const galletas = await cookies()
-  const elegido = asLang(galletas.get(LANG_COOKIE)?.value)
-  if (elegido !== null) return elegido
-  // Sin cookie —quien llega por primera vez—, el del navegador (`Accept-Language`), que es el
-  // mismo que lee el cliente en `navigator.languages`.
+export async function requestLang(): Promise<Lang> {
+  const cookieJar = await cookies()
+  const chosen = asLang(cookieJar.get(LANG_COOKIE)?.value)
+  if (chosen !== null) return chosen
+  // With no cookie —whoever arrives for the first time—, the browser's (`Accept-Language`), which is the
+  // same one the client reads in `navigator.languages`.
   return langFromSystem((await headers()).get('accept-language')) ?? DEFAULT_LANG
 }

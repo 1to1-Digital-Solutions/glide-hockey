@@ -2,7 +2,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { marcarManoOcupada, soltarLasManos } from './manosOcupadas'
+import { markHandBusy, releaseHands } from './busyHands'
 
 /**
  * El mando de la web propia del juego (`XRControllerGrip`): **el rayo se apaga con la mano
@@ -35,7 +35,7 @@ const { XRControllerGrip } = await import('./XRControllerGrip')
 
 afterEach(() => {
   cleanup()
-  act(() => soltarLasManos())
+  act(() => releaseHands())
   rayos.length = 0
   agarres.length = 0
 })
@@ -50,9 +50,9 @@ describe('el mando de la web propia', () => {
 
   it('con algo en esa mano, el rayo y el cursor se apagan; al soltar vuelven', () => {
     render(<XRControllerGrip />)
-    act(() => marcarManoOcupada('right', true))
+    act(() => markHandBusy('right', true))
     expect(rayos.at(-1)).toMatchObject({ makeDefault: true, rayModel: false, cursorModel: false })
-    act(() => marcarManoOcupada('right', false))
+    act(() => markHandBusy('right', false))
     expect(rayos.at(-1)?.rayModel).toBeTruthy()
     expect(rayos.at(-1)?.cursorModel).toBe(true)
   })
@@ -61,13 +61,13 @@ describe('el mando de la web propia', () => {
     render(<XRControllerGrip agarre={false} rayo={{ maxLength: 3, opacity: 0.9 }} />)
     expect(agarres).toEqual([])
     expect(rayos.at(-1)?.rayModel).toEqual({ maxLength: 3, opacity: 0.9 })
-    act(() => marcarManoOcupada('right', true))
+    act(() => markHandBusy('right', true))
     expect(rayos.at(-1)?.rayModel).toBe(false)
   })
 
   it('la otra mano ocupada no apaga el rayo de esta', () => {
     render(<XRControllerGrip />)
-    act(() => marcarManoOcupada('left', true))
+    act(() => markHandBusy('left', true))
     expect(rayos.at(-1)?.rayModel).toBeTruthy()
   })
 })

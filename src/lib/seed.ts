@@ -1,47 +1,49 @@
 /**
- * El azar del reto, con semilla: lo que hace que dos personas jueguen la misma partida.
+ * The challenge's randomness, seeded: what makes two people play the same run.
  *
- * Es el mismo fichero en todos los juegos del salón (`comunes.py` lo vigila). El salón le pasa a
- * la escena un `reto` con una semilla —el reto del día, o el código de «reta mi puntuación»— y
- * todo lo que el reto sortea sale de aquí en vez de `Math.random`: qué plato sale, hacia dónde
- * lanza la máquina, cuándo asoma el topo. Misma semilla, misma partida.
+ * It is the same file in every game of the hall (`comunes.py` watches over it). The hall passes
+ * the scene a `challenge` with a seed —the challenge of the day, or the code of «reta mi
+ * puntuación»— and everything the challenge draws comes from here instead of `Math.random`: which
+ * clay comes out, where the machine throws, when the mole peeks out. Same seed, same run.
  *
- * Todo es puro: ni React, ni three, ni reloj. En Godot, el mismo algoritmo da los mismos números.
+ * Everything is pure: no React, no three, no clock. In Godot, the same algorithm gives the same
+ * numbers.
  */
 
-/** Lo que el salón le pasa a la escena para jugar un reto concreto. */
-export type Reto = {
-  /** Entero de 32 bits sin signo. */
-  readonly semilla: number
+/** What the hall passes the scene to play one specific challenge. */
+export type Challenge = {
+  /** Unsigned 32-bit integer. */
+  readonly seed: number
 }
 
-/** Lo que la escena le cuenta al salón al acabar una partida con puntuación. */
-export type Resultado = {
-  /** El modo tal como lo llama el juego (`challenge`, `classic`, `match`…). */
-  readonly modo: string
-  /** Los puntos de esta partida, aunque no sean récord, en la unidad del récord del manifiesto. */
-  readonly puntos: number
-  /** Si la partida era el `reto` que pasó el salón. */
-  readonly reto: boolean
+/** What the scene tells the hall when a run with a score ends. */
+export type GameResult = {
+  /** The mode as the game calls it (`challenge`, `classic`, `match`…). */
+  readonly mode: string
+  /** The points of this run, even if they are not a record, in the unit of the manifest's record. */
+  readonly points: number
+  /** Whether the run was the `challenge` the hall passed. */
+  readonly challenge: boolean
   /**
-   * Las hazañas conseguidas por primera vez en esta partida, por su nombre de API de Steam
-   * (`docs/logros-de-steam.md` del salón). Opcional porque la mayoría de partidas no estrena
-   * ninguna y hay juegos que no tienen: el salón es quien las filtra, las guarda y las anuncia.
+   * The feats achieved for the first time in this run, by their Steam API name
+   * (`docs/logros-de-steam.md` of the hall). Optional because most runs unlock none and there
+   * are games that have none: the hall is the one that filters, stores and announces them.
    */
-  readonly hazanas?: readonly string[]
+  readonly feats?: readonly string[]
 }
 
 /**
- * Un generador de números en [0, 1) a partir de una semilla (mulberry32).
+ * A generator of numbers in [0, 1) from a seed (mulberry32).
  *
- * Mulberry32 porque es corto, rápido y ya era el que usaban los juegos que sembraban algo: pasa
- * las pruebas estadísticas que importan para sortear platos y topos, que no es criptografía.
+ * Mulberry32 because it is short, fast and was already the one used by the games that seeded
+ * something: it passes the statistical tests that matter for drawing clays and moles, which is
+ * not cryptography.
  */
-export function azarDesde(semilla: number): () => number {
-  let estado = semilla >>> 0
+export function randomFrom(seed: number): () => number {
+  let state = seed >>> 0
   return () => {
-    estado = (estado + 0x6d2b79f5) >>> 0
-    let t = estado
+    state = (state + 0x6d2b79f5) >>> 0
+    let t = state
     t = Math.imul(t ^ (t >>> 15), t | 1)
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
@@ -49,23 +51,23 @@ export function azarDesde(semilla: number): () => number {
 }
 
 /**
- * Una semilla derivada de otra y de unos cuantos enteros (la ronda, el número de palo…).
+ * A seed derived from another one and from a few integers (the round, the stick number…).
  *
- * Para que cada ronda del reto tenga su propio azar sin depender de cuántos números se sacaron en
- * la anterior: si un jugador falla y el otro no, la ronda siguiente sigue siendo la misma para los
- * dos. Mezcla con la constante de Knuth y un paso de mulberry32, que reparte bien semillas
- * consecutivas.
+ * So that each round of the challenge has its own randomness without depending on how many
+ * numbers were drawn in the previous one: if one player misses and the other does not, the next
+ * round is still the same for both. It mixes with Knuth's constant and one step of mulberry32,
+ * which spreads consecutive seeds well.
  */
-export function semillaDe(semilla: number, ...partes: readonly number[]): number {
-  let h = semilla >>> 0
-  for (const parte of partes) {
-    h = Math.imul(h ^ (parte >>> 0), 0x9e3779b1) >>> 0
+export function deriveSeed(seed: number, ...parts: readonly number[]): number {
+  let h = seed >>> 0
+  for (const part of parts) {
+    h = Math.imul(h ^ (part >>> 0), 0x9e3779b1) >>> 0
     h = (h ^ (h >>> 16)) >>> 0
   }
-  return Math.floor(azarDesde(h)() * 4294967296) >>> 0
+  return Math.floor(randomFrom(h)() * 4294967296) >>> 0
 }
 
-/** Una semilla nueva para cuando no hay reto: la partida normal sigue siendo distinta cada vez. */
-export function semillaAlAzar(): number {
+/** A new seed for when there is no challenge: the normal run is still different every time. */
+export function randomSeed(): number {
   return Math.floor(Math.random() * 4294967296) >>> 0
 }

@@ -1,93 +1,93 @@
 import { describe, expect, it } from 'vitest'
 
-import { grabStep, startGrab, stepGrab } from './agarre'
+import { grabStep, startGrab, stepGrab } from './grab'
 
 /**
- * Las dos formas de sujetar lo que se coge.
+ * The two ways of holding what is taken.
  *
- * `hold` es el gesto de siempre y no puede cambiar ni un fotograma: es lo que enseña el
- * tutorial y lo que hace todo el mundo. `toggle` existe para quien no puede mantener el
- * gatillo apretado el gesto entero, y lo que hay que probar de él es justo lo que se
- * equivoca al escribirlo: que **soltar el botón no cuente**, porque si contara el mismo
- * toque cogería y soltaría, y no se podría coger nada.
+ * `hold` is the usual gesture and cannot change by a single frame: it is what the tutorial
+ * teaches and what everybody does. `toggle` exists for whoever cannot keep the trigger
+ * squeezed for the whole gesture, and what has to be tested about it is just what one gets
+ * wrong when writing it: that **releasing the button does not count**, because if it counted
+ * the same tap would take and release, and nothing could be taken.
  */
 
-describe('manteniendo el gatillo', () => {
-  it('apretar coge y soltar suelta', () => {
+describe('holding the trigger', () => {
+  it('squeezing takes and releasing releases', () => {
     expect(grabStep(true, false, 'hold')).toBe('take')
     expect(grabStep(false, true, 'hold')).toBe('release')
   })
 
-  it('y lo que no viene a cuento no hace nada', () => {
-    // Apretar con algo ya en la mano, o soltar con la mano vacía: pasa cuando el botón
-    // repite el evento o cuando el juego no dejaba coger todavía.
+  it('and what is beside the point does nothing', () => {
+    // Squeezing with something already in the hand, or releasing with the hand empty: it
+    // happens when the button repeats the event or when the game was not letting you take yet.
     expect(grabStep(true, true, 'hold')).toBe('nothing')
     expect(grabStep(false, false, 'hold')).toBe('nothing')
   })
 })
 
-describe('con un toque', () => {
-  it('un toque coge y el siguiente suelta', () => {
+describe('with one tap', () => {
+  it('one tap takes and the next one releases', () => {
     expect(grabStep(true, false, 'toggle')).toBe('take')
     expect(grabStep(true, true, 'toggle')).toBe('release')
   })
 
-  it('soltar el botón no cuenta', () => {
-    // Es todo el asunto: contando el evento de soltar, el primer toque cogería y soltaría
-    // en el mismo gesto y no se podría jugar.
+  it('releasing the button does not count', () => {
+    // It is the whole point: counting the release event, the first tap would take and release
+    // in the same gesture and one could not play.
     expect(grabStep(false, false, 'toggle')).toBe('nothing')
     expect(grabStep(false, true, 'toggle')).toBe('nothing')
   })
 
-  it('un gesto entero: coger, mover y soltar, sin mantener nada', () => {
+  it('a whole gesture: take, move and release, without holding anything', () => {
     let holding = false
-    const pasos: string[] = []
-    // Apretar y soltar el botón, dos veces: es lo que hace la mano de verdad.
+    const steps: string[] = []
+    // Squeezing and releasing the button, twice: it is what the hand really does.
     for (const pressed of [true, false, true, false]) {
-      const paso = grabStep(pressed, holding, 'toggle')
-      if (paso === 'take') holding = true
-      if (paso === 'release') holding = false
-      pasos.push(paso)
+      const step = grabStep(pressed, holding, 'toggle')
+      if (step === 'take') holding = true
+      if (step === 'release') holding = false
+      steps.push(step)
     }
 
-    expect(pasos).toEqual(['take', 'nothing', 'release', 'nothing'])
+    expect(steps).toEqual(['take', 'nothing', 'release', 'nothing'])
     expect(holding).toBe(false)
   })
 })
 
-describe('mirando el botón en cada fotograma', () => {
-  /** Corre unos cuantos fotogramas con el botón como se le diga. */
-  function fotogramas(botones: boolean[], mode: 'hold' | 'toggle') {
+describe('looking at the button every frame', () => {
+  /** Runs a few frames with the button as it is told. */
+  function frames(buttons: boolean[], mode: 'hold' | 'toggle') {
     let state = startGrab()
-    const llevado: boolean[] = []
-    for (const pressed of botones) {
+    const carried: boolean[] = []
+    for (const pressed of buttons) {
       state = stepGrab(state, pressed, mode)
-      llevado.push(state.holding)
+      carried.push(state.holding)
     }
-    return llevado
+    return carried
   }
 
-  it('manteniendo, se lleva algo exactamente mientras el botón esté apretado', () => {
-    expect(fotogramas([false, true, true, true, false, false], 'hold')).toEqual([
+  it('holding, something is carried exactly while the button is squeezed', () => {
+    expect(frames([false, true, true, true, false, false], 'hold')).toEqual([
       false, true, true, true, false, false,
     ])
   })
 
-  it('con un toque, lo que cuenta es que el botón pase a estar apretado', () => {
-    // Un toque son varios fotogramas con el botón apretado, no uno: sin mirar el flanco,
-    // el agarre se encendería y apagaría a noventa por segundo.
-    expect(fotogramas([false, true, true, true, false, false], 'toggle')).toEqual([
+  it('with one tap, what counts is that the button becomes squeezed', () => {
+    // One tap is several frames with the button squeezed, not one: without looking at the edge,
+    // the grab would turn on and off ninety times a second.
+    expect(frames([false, true, true, true, false, false], 'toggle')).toEqual([
       false, true, true, true, true, true,
     ])
   })
 
-  it('y el toque siguiente lo suelta', () => {
-    expect(fotogramas([true, false, true, false], 'toggle')).toEqual([
+  it('and the next tap releases it', () => {
+    expect(frames([true, false, true, false], 'toggle')).toEqual([
       true, true, false, false,
     ])
   })
 
-  it('empieza con la mano vacía', () => {
+  it('starts with the hand empty', () => {
     expect(startGrab()).toEqual({ holding: false, wasPressed: false })
   })
 })

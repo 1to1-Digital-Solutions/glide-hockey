@@ -10,302 +10,303 @@ import {
 import { Box3, Group, Matrix4, Mesh, Object3D, Vector3, type Material, type Texture } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
-import { COMPONENTE_DEL_BOTON, type BotonDelMando } from '../../lib/tutorial'
+import { COMPONENTE_DEL_BOTON, type ControllerButton } from '../../lib/tutorial'
 import { NO_RAYCAST } from '../raycast'
 
 /**
- * El mando de verdad, a tamaño real y encima del que se tiene en la mano.
+ * The real controller, at real size and on top of the one held in the hand.
  *
- * **Qué problema resuelve.** El tutorial pide «mantén el botón de agarre» y dibuja un mando a
- * trazos en el panel (`mandoDibujado.ts`). Eso ya es mejor que la frase sola, pero sigue
- * habiendo que traducir de un dibujo plano a lo que se tiene en la mano, que con el visor
- * puesto no se ve: el mando no se dibuja (`xrStore.ts`, `model: false`). Esto quita la
- * traducción: **el botón se enciende donde de verdad está**, sobre el propio mando, a su
- * tamaño y en su sitio. Se probó antes a meter el modelo dentro del panel y no sirve —a un
- * metro y en 7 cm de alto es un borrón blanco—; puesto en la mano se mira y ya está.
+ * **What problem it solves.** The tutorial asks «mantén el botón de agarre» and draws a controller
+ * in strokes on the panel (`drawnController.ts`). That is already better than the sentence alone,
+ * but you still have to translate from a flat drawing to what you hold in your hand, which with
+ * the headset on cannot be seen: the controller is not drawn (`xrStore.ts`, `model: false`). This
+ * removes the translation: **the button lights up where it really is**, on the controller itself,
+ * at its size and in its place. Putting the model inside the panel was tried before and it is no
+ * use —at a metre and 7 cm tall it is a white blur—; placed in the hand you look at it and that is it.
  *
- * **Solo mientras el paso lo pide.** Se monta durante el paso que nombra un botón y se va con
- * él. Un mando pintado encima del mando todo el rato estorbaría justo a lo que el juego va:
- * mirarse las manos.
+ * **Only while the step asks for it.** It is mounted during the step that names a button and
+ * leaves with it. A controller painted on top of the controller all the time would get in the way
+ * of exactly what the game is about: looking at your hands.
  *
- * **Y es un añadido, no un requisito.** El `.glb` solo se copia para los mandos de Quest
- * (`scripts/sync-xr-profiles.mjs`). Con cualquier otro —o sin red, o si el fichero falla— no
- * pasa nada: no se monta y queda el dibujo del panel, que es lo que había.
+ * **And it is an extra, not a requirement.** The `.glb` is only copied for the Quest controllers
+ * (`scripts/sync-xr-profiles.mjs`). With any other —or with no network, or if the file fails—
+ * nothing happens: it is not mounted and the panel's drawing remains, which is what there was.
  *
- * **Dónde se cuelga da igual.** El sitio del mando lo da WebXR en el espacio del origen, así
- * que el grupo se coloca deshaciendo lo que le hayan hecho sus padres —el anclaje del mundo,
- * la altura de juego—. Colgado tal cual dentro del anclaje, el mando aparecería girado y
- * desplazado respecto a la mano, que es el único sitio donde no puede estar.
+ * **Where it hangs does not matter.** The controller's place is given by WebXR in the origin's
+ * space, so the group is placed by undoing whatever its parents have done to it —the world's
+ * anchoring, the play height—. Hung as is inside the anchoring, the controller would appear turned
+ * and displaced relative to the hand, which is the only place where it cannot be.
  *
- * **O junto al gesto** (`junto`). Las ayudas visuales enseñan el objeto fantasma —la bola que
- * hay que coger— y eso dice *qué* coger, pero no *con qué botón*. Con `junto`, el mando no va
- * sobre la mano sino **al lado del fantasma**, en las coordenadas del padre y a la escala que se
- * pida, con el botón latiendo. Así no se pinta encima de la copia que pone el tutorial en la
- * mano —dos copias del mismo `.glb` en el mismo sitio se pisan— y la ayuda puede enseñarlo
- * desde la primera vez. El modelo sigue siendo el del mando que se tiene en esa mano.
+ * **Or beside the gesture** (`beside`). The visual hints show the ghost object —the ball that
+ * has to be picked up— and that says *what* to pick up, but not *with which button*. With `beside`,
+ * the controller does not go on the hand but **next to the ghost**, in the parent's coordinates and
+ * at the scale that is asked for, with the button throbbing. That way it is not painted on top of
+ * the copy the tutorial puts in the hand —two copies of the same `.glb` in the same place overlap—
+ * and the hint can show it from the very first time. The model is still that of the controller
+ * held in that hand.
  */
 
-/** Uno para todo el juego: el `.glb` se pide una vez por sesión y como mucho. */
-const cargador = new GLTFLoader()
+/** One for the whole game: the `.glb` is requested once per session at most. */
+const loader = new GLTFLoader()
 
-/** Dónde está un botón dentro del modelo y cómo de grande es, en metros. */
-interface SitioDelBoton {
-  centro: Vector3
-  radio: number
+/** Where a button is inside the model and how big it is, in metres. */
+interface ButtonPlacement {
+  center: Vector3
+  radius: number
 }
 
-/** El modelo ya listo para pintar, con el sitio del botón que toca encender. */
-interface ModeloDelMando {
-  /** El mando entero, tal y como viene del `.glb`. */
-  raiz: Object3D
-  /** Dónde cae el botón dentro del modelo, o `null` si ese mando no lo tiene. */
-  boton: SitioDelBoton | null
+/** The model ready to paint, with the place of the button that has to light up. */
+interface ControllerModel {
+  /** The whole controller, just as it comes from the `.glb`. */
+  root: Object3D
+  /** Where the button falls inside the model, or `null` if that controller does not have it. */
+  button: ButtonPlacement | null
 }
 
 /**
- * Cómo se llama en el `.glb` la pieza que se mueve al apretar ese botón.
+ * What the part that moves when that button is pressed is called in the `.glb`.
  *
- * Se pregunta por `visualResponses` y **no por `rootNodeName`**, que es lo que parece: en los
- * mandos de Quest ese nombre no existe en el modelo y la búsqueda devuelve nada. El nodo que
- * sí está es el que el perfil anima entre su posición suelta y su posición apretada, y está
- * justo donde está el botón, que es lo único que hace falta aquí.
+ * It is asked through `visualResponses` and **not through `rootNodeName`**, which is what it looks
+ * like: on the Quest controllers that name does not exist in the model and the search returns
+ * nothing. The node that is there is the one the profile animates between its released position
+ * and its pressed position, and it is right where the button is, which is all that is needed here.
  */
-export function nodoDelBoton(
+export function buttonNode(
   layout: XRControllerState['layout'],
-  componente: string,
+  component: string,
 ): string | null {
-  const pieza = layout.components[componente]
-  if (pieza == null) return null
-  const [respuesta] = Object.values(pieza.visualResponses)
-  return respuesta?.valueNodeName ?? null
+  const part = layout.components[component]
+  if (part == null) return null
+  const [response] = Object.values(part.visualResponses)
+  return response?.valueNodeName ?? null
 }
 
 /**
- * Dónde está esa pieza dentro del modelo, y cuánto abulta.
+ * Where that part is inside the model, and how bulky it is.
  *
- * **Se mide la geometría, no el nodo.** El nodo que nombra el perfil es el *pivote* del
- * botón —el eje sobre el que gira al apretarlo—, y en los mandos de Quest está a dos
- * centímetros y medio por delante del botón, arriba, junto al joystick: marcar ahí señalaba
- * a otra cosa. La caja de lo que cuelga de él sí cae donde está el botón, y de paso dice
- * cómo de grande tiene que ser la marca para que lo cubra sin taparle medio mando.
+ * **The geometry is measured, not the node.** The node the profile names is the button's
+ * *pivot* —the axis it turns about when pressed—, and on the Quest controllers it is two
+ * and a half centimetres in front of the button, at the top, next to the joystick: marking there
+ * pointed at something else. The box of what hangs from it does fall where the button is, and
+ * along the way it says how big the mark has to be to cover it without hiding half the controller.
  */
-export function sitioDelNodo(raiz: Object3D, nombre: string): SitioDelBoton | null {
-  const pieza = raiz.getObjectByName(nombre)
-  if (pieza == null) return null
-  raiz.updateWorldMatrix(true, true)
-  const caja = new Box3().setFromObject(pieza)
-  if (caja.isEmpty()) return null
-  const centro = caja.getCenter(new Vector3())
-  const medidas = caja.getSize(new Vector3())
-  centro.applyMatrix4(new Matrix4().copy(raiz.matrixWorld).invert())
-  return { centro, radio: Math.max(medidas.x, medidas.y, medidas.z) * 0.6 }
+export function nodePlacement(root: Object3D, name: string): ButtonPlacement | null {
+  const part = root.getObjectByName(name)
+  if (part == null) return null
+  root.updateWorldMatrix(true, true)
+  const box = new Box3().setFromObject(part)
+  if (box.isEmpty()) return null
+  const center = box.getCenter(new Vector3())
+  const size = box.getSize(new Vector3())
+  center.applyMatrix4(new Matrix4().copy(root.matrixWorld).invert())
+  return { center, radius: Math.max(size.x, size.y, size.z) * 0.6 }
 }
 
 /**
- * Suelta de la GPU lo que trajo el `.glb`: cada geometría, cada material y sus texturas.
+ * Disposes from the GPU what the `.glb` brought: every geometry, every material and its textures.
  *
- * **Hace falta porque nadie más lo hace.** El modelo se pinta con `<primitive>`, que R3F no
- * libera al quitarlo, y cada montaje carga el `.glb` entero, nuevo —el cargador no guarda
- * nada—. Medido en el anfitrión de hole-patrol (`e2e/memoria.spec.ts`): sin soltarlo, cada
- * visita a la cabina dejaba seis geometrías, una textura y veintitrés búferes de WebGL más, sin
- * techo. Soltar dos veces algo ya soltado no hace nada.
+ * **It is needed because nobody else does it.** The model is painted with `<primitive>`, which R3F
+ * does not free when removing it, and every mount loads the whole `.glb`, anew —the loader keeps
+ * nothing—. Measured on hole-patrol's host (`e2e/memoria.spec.ts`): without disposing of it, every
+ * visit to the cabinet left six more geometries, one texture and twenty-three WebGL buffers, with
+ * no ceiling. Disposing twice of something already disposed does nothing.
  */
-export function soltarElModelo(raiz: Object3D): void {
-  raiz.traverse((parte) => {
-    const malla = parte as Mesh
-    if (malla.isMesh !== true) return
-    malla.geometry.dispose()
-    const materiales: Material[] = Array.isArray(malla.material) ? malla.material : [malla.material]
-    for (const material of materiales) {
-      for (const valor of Object.values(material)) {
-        if ((valor as Texture | null)?.isTexture === true) (valor as Texture).dispose()
+export function disposeModel(root: Object3D): void {
+  root.traverse((part) => {
+    const mesh = part as Mesh
+    if (mesh.isMesh !== true) return
+    mesh.geometry.dispose()
+    const materials: Material[] = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+    for (const material of materials) {
+      for (const value of Object.values(material)) {
+        if ((value as Texture | null)?.isTexture === true) (value as Texture).dispose()
       }
       material.dispose()
     }
   })
 }
 
-/** Lo último que se cargó, y para qué mando y qué botón se pidió. */
-interface LoCargado {
-  ruta: string
-  nodo: string | null
-  modelo: ModeloDelMando
+/** The last thing that was loaded, and for which controller and which button it was requested. */
+interface LoadedModel {
+  path: string
+  node: string | null
+  model: ControllerModel
 }
 
 /**
- * Carga el modelo del mando, o `null` mientras no lo haya.
+ * Loads the controller's model, or `null` while there is none.
  *
- * **Cargado a mano y no con `useLoadXRControllerModel`** —que también existe— porque ese
- * suspende, y un `.glb` que no está (otro mando, otro visor) sale por el camino del error: ahí
- * lo que hace falta es no montar nada, no una pantalla de fallo encima del tutorial.
+ * **Loaded by hand and not with `useLoadXRControllerModel`** —which also exists— because that one
+ * suspends, and a `.glb` that is not there (another controller, another headset) comes out through
+ * the error path: what is needed there is to mount nothing, not a failure screen over the tutorial.
  *
- * Lo cargado se guarda **con la petición que lo trajo**, y se devuelve solo si sigue siendo la
- * que se pide. Así cambiar de mano o de paso no enseña un fotograma del modelo anterior y no
- * hace falta borrarlo a mano al empezar.
+ * What was loaded is kept **with the request that brought it**, and is returned only if it is still
+ * the one being asked for. That way changing hand or step does not show a frame of the previous
+ * model and there is no need to clear it by hand at the start.
  *
- * **Y se suelta al irse** (`soltarElModelo`): al cambiar de mando o de botón, o al desmontar. Para
- * entonces ya no se pinta —la petición ya no es la suya y aquí se devuelve `null`—. Lo que llegue
- * cuando ya no se quiere se suelta nada más llegar.
+ * **And it is disposed of on leaving** (`disposeModel`): on changing controller or button, or on
+ * unmounting. By then it is no longer painted —the request is no longer its own and `null` is
+ * returned here—. Whatever arrives when it is no longer wanted is disposed of as soon as it arrives.
  */
-function useModeloDelMando(ruta: string | null, nodo: string | null): ModeloDelMando | null {
-  const [cargado, setCargado] = useState<LoCargado | null>(null)
+function useControllerModel(path: string | null, node: string | null): ControllerModel | null {
+  const [loaded, setLoaded] = useState<LoadedModel | null>(null)
 
   useEffect(() => {
-    if (ruta == null) return
-    let vivo = true
-    let cargada: Object3D | null = null
-    cargador
-      .loadAsync(ruta)
+    if (path == null) return
+    let alive = true
+    let loadedRoot: Object3D | null = null
+    loader
+      .loadAsync(path)
       .then((gltf) => {
-        const raiz = gltf.scene
-        if (!vivo) {
-          soltarElModelo(raiz)
+        const root = gltf.scene
+        if (!alive) {
+          disposeModel(root)
           return
         }
-        cargada = raiz
-        // **Invisible al rayo, entero.** El puntero nace en esta misma mano: una malla que
-        // conteste al rayo aquí se lo come en el primer centímetro y deja sin poder apuntar
-        // a nada. `raycast` se pone pieza a pieza porque ponerlo en la raíz no baja.
-        raiz.traverse((parte) => {
-          parte.raycast = NO_RAYCAST
+        loadedRoot = root
+        // **Invisible to the ray, entirely.** The pointer is born in this same hand: a mesh that
+        // answers the ray here swallows it in the first centimetre and leaves it unable to aim
+        // at anything. `raycast` is set part by part because setting it on the root does not go down.
+        root.traverse((part) => {
+          part.raycast = NO_RAYCAST
         })
-        const boton = nodo == null ? null : sitioDelNodo(raiz, nodo)
-        setCargado({ ruta, nodo, modelo: { raiz, boton } })
+        const button = node == null ? null : nodePlacement(root, node)
+        setLoaded({ path, node, model: { root, button } })
       })
-      // Desenlace previsto, no un fallo: este visor trae un mando del que no se copió el
-      // modelo. Sin nada que enseñar, el dibujo del panel sigue diciendo cuál es el botón.
+      // An expected outcome, not a failure: this headset brings a controller whose model was not
+      // copied. With nothing to show, the panel's drawing keeps saying which button it is.
       .catch(() => {})
     return () => {
-      vivo = false
-      if (cargada != null) soltarElModelo(cargada)
+      alive = false
+      if (loadedRoot != null) disposeModel(loadedRoot)
     }
-  }, [ruta, nodo])
+  }, [path, node])
 
-  if (cargado == null || cargado.ruta !== ruta || cargado.nodo !== nodo) return null
-  return cargado.modelo
+  if (loaded == null || loaded.path !== path || loaded.node !== node) return null
+  return loaded.model
 }
 
-/** Se reaprovechan en cada fotograma: una matriz nueva por frame es basura que recoger. */
-const EN_EL_ORIGEN = new Matrix4()
-const DESDE_EL_PADRE = new Matrix4()
+/** They are reused on every frame: a new matrix per frame is garbage to collect. */
+const IN_ORIGIN_SPACE = new Matrix4()
+const FROM_PARENT = new Matrix4()
 
-/** Dónde plantar el mando cuando va junto al gesto, en las coordenadas del padre. */
-export interface JuntoAlGesto {
+/** Where to plant the controller when it goes beside the gesture, in the parent's coordinates. */
+export interface BesideGesture {
   readonly position: readonly [number, number, number]
-  /** Euler XYZ en radianes. Lo que conviene: el botón de cara a quien mira. */
+  /** Euler XYZ in radians. What suits best: the button facing whoever looks. */
   readonly rotation?: readonly [number, number, number]
-  /** El mando mide unos 12 cm; a más de un metro se agradece crecerlo. */
-  readonly escala?: number
+  /** The controller measures about 12 cm; at more than a metre it helps to grow it. */
+  readonly scale?: number
 }
 
-export function MandoDeVerdad({
-  mano,
-  boton,
-  junto,
+export function RealController({
+  hand,
+  button,
+  beside,
 }: {
-  /** De qué mano es el mando que hay que enseñar. */
-  mano: XRHandedness
-  /** Qué botón se enciende, o `null` para no encender ninguno. */
-  boton: BotonDelMando | null
-  /** Si se da, el mando va aquí y no sobre la mano (ver arriba). */
-  junto?: JuntoAlGesto
+  /** Which hand the controller that has to be shown belongs to. */
+  hand: XRHandedness
+  /** Which button lights up, or `null` to light up none. */
+  button: ControllerButton | null
+  /** If given, the controller goes here and not on the hand (see above). */
+  beside?: BesideGesture
 }) {
-  const mando = useXRInputSourceState('controller', mano)
-  const grupo = useRef<Group>(null)
+  const controller = useXRInputSourceState('controller', hand)
+  const group = useRef<Group>(null)
 
-  const nodo = useMemo(() => {
-    if (mando == null || boton == null) return null
-    return nodoDelBoton(mando.layout, COMPONENTE_DEL_BOTON[boton])
-  }, [mando, boton])
-  const modelo = useModeloDelMando(mando?.layout.assetPath ?? null, nodo)
+  const node = useMemo(() => {
+    if (controller == null || button == null) return null
+    return buttonNode(controller.layout, COMPONENTE_DEL_BOTON[button])
+  }, [controller, button])
+  const model = useControllerModel(controller?.layout.assetPath ?? null, node)
 
-  // El puño, no el rayo: el modelo está dibujado en el espacio del puño, que es de donde
-  // cuelga el mando de verdad.
-  const situar = useGetXRSpaceMatrix(mando?.inputSource.gripSpace)
+  // The grip, not the ray: the model is drawn in the grip's space, which is where the real
+  // controller hangs from.
+  const locate = useGetXRSpaceMatrix(controller?.inputSource.gripSpace)
 
-  // Antes que nadie (prioridad negativa, como la propia librería), para que el mando ya esté
-  // puesto cuando se pinte el fotograma. Negativa no le quita a R3F el pintado: solo ordena.
-  useFrame((_estado, _delta, frame) => {
-    const nodo3d = grupo.current
-    if (nodo3d == null || junto != null) return
-    const puesto = situar?.(EN_EL_ORIGEN, frame) ?? false
-    nodo3d.visible = puesto
-    if (!puesto) return
+  // Before anyone else (negative priority, like the library itself), so that the controller is
+  // already in place when the frame is painted. Negative does not take the painting away from
+  // R3F: it only orders.
+  useFrame((_state, _delta, frame) => {
+    const node3d = group.current
+    if (node3d == null || beside != null) return
+    const placed = locate?.(IN_ORIGIN_SPACE, frame) ?? false
+    node3d.visible = placed
+    if (!placed) return
 
-    // `EN_EL_ORIGEN` está en el espacio que pone el anfitrión (su `<XROrigin>`, en el cero de
-    // la escena). Lo que este grupo necesita es su matriz **local**, así que se le quita lo
-    // que pongan sus padres: así vale colgado donde sea, también dentro del anclaje del mundo.
-    const padre = nodo3d.parent
-    if (padre == null) return
-    padre.updateWorldMatrix(true, false)
-    nodo3d.matrix.multiplyMatrices(
-      DESDE_EL_PADRE.copy(padre.matrixWorld).invert(),
-      EN_EL_ORIGEN,
+    // `IN_ORIGIN_SPACE` is in the space the host sets (its `<XROrigin>`, at the zero of the
+    // scene). What this group needs is its **local** matrix, so whatever its parents set is
+    // taken off it: that way it works hung anywhere, also inside the world's anchoring.
+    const parent = node3d.parent
+    if (parent == null) return
+    parent.updateWorldMatrix(true, false)
+    node3d.matrix.multiplyMatrices(
+      FROM_PARENT.copy(parent.matrixWorld).invert(),
+      IN_ORIGIN_SPACE,
     )
   }, -100)
 
-  if (modelo == null) return null
+  if (model == null) return null
 
-  if (junto != null) {
+  if (beside != null) {
     return (
       <group
-        position={junto.position as [number, number, number]}
-        rotation={(junto.rotation ?? [0, 0, 0]) as [number, number, number]}
-        scale={junto.escala ?? 1}
+        position={beside.position as [number, number, number]}
+        rotation={(beside.rotation ?? [0, 0, 0]) as [number, number, number]}
+        scale={beside.scale ?? 1}
       >
-        <primitive object={modelo.raiz} />
-        {modelo.boton != null ? <BotonEncendido boton={modelo.boton} /> : null}
+        <primitive object={model.root} />
+        {model.button != null ? <LitButton button={model.button} /> : null}
       </group>
     )
   }
 
   return (
-    <group ref={grupo} matrixAutoUpdate={false}>
-      <primitive object={modelo.raiz} />
-      {modelo.boton != null ? <BotonEncendido boton={modelo.boton} /> : null}
+    <group ref={group} matrixAutoUpdate={false}>
+      <primitive object={model.root} />
+      {model.button != null ? <LitButton button={model.button} /> : null}
     </group>
   )
 }
 
 /**
- * De qué color se enciende el botón.
+ * What colour the button lights up in.
  *
- * Escrito aquí y no sacado de la paleta del juego a propósito: lo que hay debajo no es el
- * decorado del juego, es un mando de plástico blanco con una tapa negra, y la marca tiene que
- * separarse de los dos. Un ámbar encendido lo hace en ambos; el color del juego, en la mitad
- * de ellos, no.
+ * Written here and not taken from the game's palette on purpose: what is underneath is not the
+ * game's stage, it is a white plastic controller with a black cap, and the mark has to stand
+ * out from both. A lit amber does so on both; the game's colour, on half of them, does not.
  */
-const COLOR_DE_LA_MARCA = '#ffc233'
+const MARK_COLOR = '#ffc233'
 
-/** Cuánto y cómo de rápido late, para que se vea que es la marca y no una pieza más. */
-const LATIDO = { fuerza: 0.18, velocidad: 5 }
+/** How much and how fast it throbs, so that it is seen to be the mark and not one more part. */
+const THROB = { strength: 0.18, speed: 5 }
 
 /**
- * La marca sobre el botón que toca.
+ * The mark on the button in question.
  *
- * **Se pinta por delante de todo** (`depthTest={false}`): el punto que el perfil anima está
- * dentro de la carcasa, y sin esto la marca quedaría enterrada en el plástico justo cuando
- * hace falta verla.
+ * **It is painted in front of everything** (`depthTest={false}`): the point the profile animates is
+ * inside the shell, and without this the mark would be buried in the plastic just when
+ * it needs to be seen.
  */
-function BotonEncendido({ boton }: { boton: SitioDelBoton }) {
+function LitButton({ button }: { button: ButtonPlacement }) {
   const halo = useRef<Mesh>(null)
 
   useFrame(({ clock }) => {
     const node = halo.current
     if (node == null) return
-    node.scale.setScalar(1 + LATIDO.fuerza * Math.sin(clock.elapsedTime * LATIDO.velocidad))
+    node.scale.setScalar(1 + THROB.strength * Math.sin(clock.elapsedTime * THROB.speed))
   })
 
   return (
-    <group position={boton.centro}>
+    <group position={button.center}>
       <mesh raycast={NO_RAYCAST} renderOrder={11}>
-        <sphereGeometry args={[boton.radio * 0.45, 12, 12]} />
-        <meshBasicMaterial color={COLOR_DE_LA_MARCA} depthTest={false} toneMapped={false} />
+        <sphereGeometry args={[button.radius * 0.45, 12, 12]} />
+        <meshBasicMaterial color={MARK_COLOR} depthTest={false} toneMapped={false} />
       </mesh>
       <mesh ref={halo} raycast={NO_RAYCAST} renderOrder={10}>
-        <sphereGeometry args={[boton.radio, 16, 16]} />
+        <sphereGeometry args={[button.radius, 16, 16]} />
         <meshBasicMaterial
-          color={COLOR_DE_LA_MARCA}
+          color={MARK_COLOR}
           transparent
           opacity={0.35}
           depthTest={false}

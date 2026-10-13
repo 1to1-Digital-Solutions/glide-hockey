@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { dibujarLosNombres } from './XRMenu'
-import { ALTO_DE_LINEA } from './canvasPanel'
-import { lienzoQueApunta, problemasDeLegibilidad, type Escrito } from './legibilidad'
+import { LINE_HEIGHT } from './canvasPanel'
+import { recordingCanvas, legibilityProblems, type DrawnText } from './legibility'
 import { MENU_BOXES, MENU_PANEL, MENU_RECORD_X, MENU_ROW, MENU_TEXT } from '../../lib/xrMenuLayout'
 import { GAME_MODE_HINTS, GAME_MODE_LABELS, GAME_MODE_ORDER } from '../../lib/gameMode'
-import { SCENERIES } from '../../lib/ajustes'
+import { SCENERIES } from '../../lib/settings'
 import { SCENERY_LABELS } from '../../lib/scenery'
 import {
   EYE_HEIGHTS,
@@ -22,8 +22,8 @@ import { panelPoints, tablePoints, whatThePanelHides } from '../../lib/panelOccl
 import { REFERENCE_EYE_HEIGHT, uiRiseOverWorld, worldRise } from '../../lib/uiHeight'
 import { HALF_WIDTH } from '../../lib/puckPhysics'
 import { traductor } from '../../lib/textos'
-import { MENU_EN } from '../../lib/palabras'
-import { GRADOS_DEL_MENU, fijarNombreDelJuego, gradosDelFrente, nombreDelJuego } from '../../lib/plantillaDelMenu'
+import { MENU_EN } from '../../lib/menuWords'
+import { MENU_DEGREES, setGameName, degreesFromFront, gameName } from '../../lib/menuTemplate'
 import { SCOREBOARD_SIZE } from './XRHud'
 import { PANEL_HEIGHT, PANEL_WIDTH } from './XRTutorial'
 import {
@@ -55,14 +55,14 @@ const VISTAS = vistasDelPanel(XR_UI.menu, XR_UI_ROTATION.menu)
  * Todo lo que puede escribir el panel: cada modo y decorado, con «Más opciones» plegado y
  * desplegado, en los dos idiomas.
  */
-function todosLosMomentos(): { donde: string; escritos: Escrito[] }[] {
-  const momentos: { donde: string; escritos: Escrito[] }[] = []
+function todosLosMomentos(): { donde: string; escritos: DrawnText[] }[] {
+  const momentos: { donde: string; escritos: DrawnText[] }[] = []
   for (const lang of IDIOMAS) {
     for (const masOpciones of [true, false]) {
       for (const levels of [false, true]) {
         for (const gameMode of GAME_MODE_ORDER) {
           for (const scenery of SCENERIES) {
-            const { ctx, escritos } = lienzoQueApunta()
+            const { ctx, drawnTexts: escritos } = recordingCanvas()
             dibujarLosNombres(ctx, traductor(lang), levels, gameMode, scenery, null, masOpciones)
             const plegado = masOpciones ? '' : ' plegado'
             momentos.push({ donde: `${lang} ${levels ? 'niveles' : 'práctica'} ${gameMode} ${scenery}${plegado}`, escritos })
@@ -80,9 +80,9 @@ describe('los nombres de las filas del menú se leen', () => {
       expect(escritos.length, 'no se ha medido nada').toBeGreaterThan(0)
       // Medidos como se pintan: la columna entera va escalada (`ESCALA_DE_LA_COLUMNA`).
       const escalados = aLaEscalaDeLaColumna(escritos)
-      const distancia = Math.max(...VISTAS.map(({ pose, ojos }) => worstReadingDistance(escalados, pose, ojos, ALTO_DE_LINEA)))
+      const distancia = Math.max(...VISTAS.map(({ pose, ojos }) => worstReadingDistance(escalados, pose, ojos, LINE_HEIGHT)))
       const panel = { width: MENU_PANEL.width * ESCALA_DE_LA_COLUMNA, height: MENU_PANEL.height * ESCALA_DE_LA_COLUMNA }
-      expect(problemasDeLegibilidad(escalados, { panel, distancia }), donde).toEqual([])
+      expect(legibilityProblems(escalados, { panel, distance: distancia }), donde).toEqual([])
     }
   })
 
@@ -94,49 +94,49 @@ describe('los nombres de las filas del menú se leen', () => {
     for (const lang of IDIOMAS) {
       const t = traductor(lang)
       for (const gameMode of GAME_MODE_ORDER) {
-        const { ctx, escritos } = lienzoQueApunta()
+        const { ctx, drawnTexts: escritos } = recordingCanvas()
         dibujarLosNombres(ctx, t, false, gameMode, 'place')
         const frase = t(GAME_MODE_HINTS[gameMode])
-        expect(escritos.some((e) => frase.startsWith(e.texto.trim())), `${lang} ${gameMode}`).toBe(true)
+        expect(escritos.some((e) => frase.startsWith(e.text.trim())), `${lang} ${gameMode}`).toBe(true)
       }
       for (const scenery of SCENERIES) {
-        const { ctx, escritos } = lienzoQueApunta()
+        const { ctx, drawnTexts: escritos } = recordingCanvas()
         dibujarLosNombres(ctx, t, false, 'practice', scenery, null, true)
-        expect(escritos.map((e) => e.texto), `${lang} ${scenery}`).toContain(t(SCENERY_LABELS[scenery]))
+        expect(escritos.map((e) => e.text), `${lang} ${scenery}`).toContain(t(SCENERY_LABELS[scenery]))
       }
     }
   })
 })
 
 describe('el menú se llama como la cabina', () => {
-  afterEach(() => fijarNombreDelJuego(null))
+  afterEach(() => setGameName(null))
 
   it('arriba a la izquierda, sin traducir, sin pisar «Más opciones» ni salirse, en los dos idiomas', () => {
     // El del paquete y el que pasa el salón (el `name` del catálogo, hoy el mismo).
     for (const nombre of [null, 'Glide Hockey']) {
-      fijarNombreDelJuego(nombre)
+      setGameName(nombre)
       for (const { donde, escritos } of todosLosMomentos()) {
-        const titulo = escritos.find((e) => e.texto === nombreDelJuego())
+        const titulo = escritos.find((e) => e.text === gameName())
         expect(titulo, `${donde} ${nombre}`).toBeDefined()
-        expect(titulo!.alto / ALTO_DE_LINEA, `${donde} ${nombre}`).toBeCloseTo(MENU_TEXT.title, 9)
+        expect(titulo!.height / LINE_HEIGHT, `${donde} ${nombre}`).toBeCloseTo(MENU_TEXT.title, 9)
         expect(titulo!.y).toBeCloseTo(MENU_ROW.title, 9)
         const mas = MENU_BOXES['mas opciones']
-        expect(titulo!.x + titulo!.ancho / 2, `${donde} ${nombre}`).toBeLessThan(mas.position[0] - mas.size[0] / 2)
+        expect(titulo!.x + titulo!.width / 2, `${donde} ${nombre}`).toBeLessThan(mas.position[0] - mas.size[0] / 2)
         const escalados = aLaEscalaDeLaColumna(escritos)
         const panel = { width: MENU_PANEL.width * ESCALA_DE_LA_COLUMNA, height: MENU_PANEL.height * ESCALA_DE_LA_COLUMNA }
-        expect(problemasDeLegibilidad(escalados, { panel }), `${donde} ${nombre}`).toEqual([])
+        expect(legibilityProblems(escalados, { panel }), `${donde} ${nombre}`).toEqual([])
         for (const vista of VISTAS) {
-          expect(unreadableTexts(escalados, vista.pose, vista.ojos, ALTO_DE_LINEA), `${donde} ${nombre}, ${vista.donde}`).toEqual([])
+          expect(unreadableTexts(escalados, vista.pose, vista.ojos, LINE_HEIGHT), `${donde} ${nombre}, ${vista.donde}`).toEqual([])
         }
       }
     }
   })
 
   it('el que pasa el salón manda sobre el del paquete', () => {
-    fijarNombreDelJuego('Air Hockey')
-    const { ctx, escritos } = lienzoQueApunta()
+    setGameName('Air Hockey')
+    const { ctx, drawnTexts: escritos } = recordingCanvas()
     dibujarLosNombres(ctx, traductor('es'), false, 'challenge')
-    expect(escritos.map((e) => e.texto)).toContain('Air Hockey')
+    expect(escritos.map((e) => e.text)).toContain('Air Hockey')
   })
 })
 
@@ -144,15 +144,15 @@ describe('cada modo lleva su nombre', () => {
   it('debajo de su icono, dentro de su botón y sin encogerse, en los dos idiomas', () => {
     for (const lang of IDIOMAS) {
       const t = traductor(lang)
-      const { ctx, escritos } = lienzoQueApunta()
+      const { ctx, drawnTexts: escritos } = recordingCanvas()
       dibujarLosNombres(ctx, t, false, 'challenge')
       for (const modo of GAME_MODE_ORDER) {
-        const nombre = escritos.find((e) => e.texto === t(GAME_MODE_LABELS[modo]))
+        const nombre = escritos.find((e) => e.text === t(GAME_MODE_LABELS[modo]))
         expect(nombre, `${lang} ${modo}`).toBeDefined()
         const { position, size } = MENU_BOXES[`modo ${modo}`]
-        expect(Math.abs(nombre!.x - position[0]) * 2 + nombre!.ancho, `${lang} ${modo} a lo ancho`).toBeLessThanOrEqual(size[0])
-        expect(Math.abs(nombre!.y - position[1]) * 2 + nombre!.alto, `${lang} ${modo} a lo alto`).toBeLessThanOrEqual(size[1] + 1e-9)
-        expect(nombre!.alto / ALTO_DE_LINEA).toBeCloseTo(MENU_TEXT.mode, 9)
+        expect(Math.abs(nombre!.x - position[0]) * 2 + nombre!.width, `${lang} ${modo} a lo ancho`).toBeLessThanOrEqual(size[0])
+        expect(Math.abs(nombre!.y - position[1]) * 2 + nombre!.height, `${lang} ${modo} a lo alto`).toBeLessThanOrEqual(size[1] + 1e-9)
+        expect(nombre!.height / LINE_HEIGHT).toBeCloseTo(MENU_TEXT.mode, 9)
       }
     }
   })
@@ -163,11 +163,11 @@ describe('el menú dice de cada modo si cuenta para medalla', () => {
     for (const lang of IDIOMAS) {
       const t = traductor(lang)
       for (const gameMode of GAME_MODE_ORDER) {
-        const { ctx, escritos } = lienzoQueApunta()
+        const { ctx, drawnTexts: escritos } = recordingCanvas()
         dibujarLosNombres(ctx, t, gameMode === 'levels', gameMode, 'place')
         const frase = t(gameMode === 'challenge' ? 'Counts for a medal' : 'Does not count for a medal')
-        const escrita = escritos.find((e) => e.texto === frase)
-        const rotulo = escritos.find((e) => e.texto === t('Mode'))!
+        const escrita = escritos.find((e) => e.text === frase)
+        const rotulo = escritos.find((e) => e.text === t('Mode'))!
         expect(escrita, `${lang} ${gameMode}`).toBeDefined()
         expect(escrita!.y).toBeCloseTo(rotulo.y)
         expect(escrita!.x).toBeGreaterThan(rotulo.x)
@@ -176,20 +176,20 @@ describe('el menú dice de cada modo si cuenta para medalla', () => {
   })
 
   it('y si el salón saca las medallas de otro modo, el reto tampoco cuenta', () => {
-    const { ctx, escritos } = lienzoQueApunta()
-    const otro = { medallas: { bronce: 1, plata: 2, oro: 3 }, mejorEs: 'mas', unidad: 'points', record: null, modo: 'levels' } as const
+    const { ctx, drawnTexts: escritos } = recordingCanvas()
+    const otro = { medals: { bronze: 1, silver: 2, gold: 3 }, better: 'higher', unit: 'points', record: null, mode: 'levels' } as const
     dibujarLosNombres(ctx, traductor('en'), false, 'challenge', 'place', otro)
-    expect(escritos.map((e) => e.texto)).toContain('Does not count for a medal')
+    expect(escritos.map((e) => e.text)).toContain('Does not count for a medal')
   })
 })
 
 describe('el menú empieza por el modo, y solo la práctica pregunta', () => {
   /** Los nombres de las filas que se pintan con ese modo. */
   function filas(gameMode: (typeof GAME_MODE_ORDER)[number], masOpciones = true): string[] {
-    const { ctx, escritos } = lienzoQueApunta()
+    const { ctx, drawnTexts: escritos } = recordingCanvas()
     dibujarLosNombres(ctx, traductor('en'), gameMode === 'levels', gameMode, 'place', null, masOpciones)
     return escritos
-      .map((e) => e.texto)
+      .map((e) => e.text)
       .filter((texto) => ['Mode', 'Level', 'Goals', 'Stage', 'When hit', 'More options', 'Fewer options'].includes(texto))
   }
 
@@ -215,15 +215,15 @@ describe('el menú empieza por el modo, y solo la práctica pregunta', () => {
   it('«Más opciones» y «Menos opciones» caben en su botón, en los dos idiomas', () => {
     for (const lang of IDIOMAS) {
       for (const masOpciones of [false, true]) {
-        const { ctx, escritos } = lienzoQueApunta()
+        const { ctx, drawnTexts: escritos } = recordingCanvas()
         const t = traductor(lang)
         dibujarLosNombres(ctx, t, false, 'practice', 'place', null, masOpciones)
-        const texto = t(masOpciones ? MENU_EN.menosOpciones : MENU_EN.masOpciones)
-        const escrito = escritos.find((e) => e.texto === texto)
+        const texto = t(masOpciones ? MENU_EN.fewerOptions : MENU_EN.moreOptions)
+        const escrito = escritos.find((e) => e.text === texto)
         expect(escrito, `${lang} ${texto}`).toBeDefined()
         const { position, size } = MENU_BOXES['mas opciones']
-        expect(Math.abs(escrito!.x - position[0]) * 2 + escrito!.ancho, `${lang} ${texto}`).toBeLessThanOrEqual(size[0])
-        expect(escrito!.alto / ALTO_DE_LINEA).toBeCloseTo(MENU_TEXT.toggle, 9)
+        expect(Math.abs(escrito!.x - position[0]) * 2 + escrito!.width, `${lang} ${texto}`).toBeLessThanOrEqual(size[0])
+        expect(escrito!.height / LINE_HEIGHT).toBeCloseTo(MENU_TEXT.toggle, 9)
       }
     }
   })
@@ -237,14 +237,14 @@ describe('cada letra del menú se lee de un vistazo', () => {
   it(`ninguna baja de ${MIN_READING_DEGREES}°, en ningún momento, idioma ni altura de ojos`, () => {
     for (const { donde, escritos } of todosLosMomentos()) {
       for (const vista of VISTAS) {
-        expect(unreadableTexts(aLaEscalaDeLaColumna(escritos), vista.pose, vista.ojos, ALTO_DE_LINEA), `${donde}, ${vista.donde}`).toEqual([])
+        expect(unreadableTexts(aLaEscalaDeLaColumna(escritos), vista.pose, vista.ojos, LINE_HEIGHT), `${donde}, ${vista.donde}`).toEqual([])
       }
     }
   })
 
   it('y todas se escriben con un tamaño de la lista, sin encogerse', () => {
     for (const { donde, escritos } of todosLosMomentos()) {
-      expect(sizesOffList(escritos, ALTO_DE_LINEA, Object.values(MENU_TEXT)), donde).toEqual([])
+      expect(sizesOffList(escritos, LINE_HEIGHT, Object.values(MENU_TEXT)), donde).toEqual([])
     }
   })
 
@@ -259,11 +259,11 @@ describe('cada letra del menú se lee de un vistazo', () => {
     // Lo único escrito dentro de un botón es el nombre de cada modo, en el suyo, y «Más opciones»
     // (o «Menos»), en el suyo.
     const nombresDeLosModos = new Set(IDIOMAS.flatMap((lang) => GAME_MODE_ORDER.map((modo) => traductor(lang)(GAME_MODE_LABELS[modo]))))
-    const delPliegue = new Set(IDIOMAS.flatMap((lang) => [MENU_EN.masOpciones, MENU_EN.menosOpciones].map((frase) => traductor(lang)(frase))))
-    const suyo = (texto: Escrito, boton: { x: number; y: number; width: number; height: number }) =>
+    const delPliegue = new Set(IDIOMAS.flatMap((lang) => [MENU_EN.moreOptions, MENU_EN.fewerOptions].map((frase) => traductor(lang)(frase))))
+    const suyo = (texto: DrawnText, boton: { x: number; y: number; width: number; height: number }) =>
       centreInside(texto, boton) &&
-      ((nombresDeLosModos.has(texto.texto) && Math.abs(boton.y - MENU_ROW.mode) < 1e-9) ||
-        (delPliegue.has(texto.texto) && Math.abs(boton.y - MENU_ROW.title) < 1e-9))
+      ((nombresDeLosModos.has(texto.text) && Math.abs(boton.y - MENU_ROW.mode) < 1e-9) ||
+        (delPliegue.has(texto.text) && Math.abs(boton.y - MENU_ROW.title) < 1e-9))
     for (const { donde, escritos } of todosLosMomentos()) {
       expect(textsOnButtons(escritos, botones, suyo), donde).toEqual([])
     }
@@ -271,16 +271,16 @@ describe('cada letra del menú se lee de un vistazo', () => {
 
   it('el control: el nombre del decorado a 24 mm, con el panel a 1,45 m, no llegaba', () => {
     const { escritos } = todosLosMomentos().find(({ donde }) => donde === 'es práctica practice place')!
-    const decorado = escritos.find((e) => e.texto === traductor('es')(SCENERY_LABELS.place))!
+    const decorado = escritos.find((e) => e.text === traductor('es')(SCENERY_LABELS.place))!
     const [x, y] = delEspacioDelJugador([0, 0.52, -0.25])
     const comoEstaba = { position: [x, y, -1.45] as const, rotation: [-0.2, 0, 0] as const }
-    expect(unreadableTexts([{ ...decorado, alto: 0.024 * ALTO_DE_LINEA }], comoEstaba, eyesAt(1.6), ALTO_DE_LINEA)).toHaveLength(1)
+    expect(unreadableTexts([{ ...decorado, height: 0.024 * LINE_HEIGHT }], comoEstaba, eyesAt(1.6), LINE_HEIGHT)).toHaveLength(1)
   })
 })
 
 describe('dónde nace el menú', () => {
-  it(`a ${GRADOS_DEL_MENU}° o menos del frente de quien juega`, () => {
-    expect(gradosDelFrente(delEspacioDelJugador(XR_UI.menu))).toBeLessThanOrEqual(GRADOS_DEL_MENU)
+  it(`a ${MENU_DEGREES}° o menos del frente de quien juega`, () => {
+    expect(degreesFromFront(delEspacioDelJugador(XR_UI.menu))).toBeLessThanOrEqual(MENU_DEGREES)
   })
 
   it('a la distancia de la columna y a la altura de los ojos: la letra ocupa en el ojo lo mismo', () => {
@@ -322,7 +322,7 @@ describe('dónde nace el menú', () => {
   })
 
   it('el control: en la columna, a 55°, nacía fuera de la mirada', () => {
-    expect(gradosDelFrente(delEspacioDelJugador(XR_UI.panel))).toBeGreaterThan(GRADOS_DEL_MENU)
+    expect(degreesFromFront(delEspacioDelJugador(XR_UI.panel))).toBeGreaterThan(MENU_DEGREES)
   })
 })
 

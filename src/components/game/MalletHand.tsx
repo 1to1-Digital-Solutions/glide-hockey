@@ -3,15 +3,15 @@
 import { useFrame } from '@react-three/fiber'
 import { useXR, useXRInputSourceState } from '@react-three/xr'
 
-import { startGrab, stepGrab, type GrabLatch } from '../../lib/agarre'
-import { useGrabMode } from '../../lib/ajustesCliente'
-import type { GrabMode } from '../../lib/ajustes'
+import { startGrab, stepGrab, type GrabLatch } from '../../lib/grab'
+import { useGrabMode } from '../../lib/settingsClient'
+import type { GrabMode } from '../../lib/settings'
 import { isPinching } from '../../lib/pellizco'
 import { useEffect, useRef } from 'react'
 import { Vector3, type Group, type Object3D } from 'three'
 
 import { siguienteAgarre, type ManoEnLaMesa } from '../../lib/malletGrab'
-import { marcarManoOcupada, soltarLasManos } from '../xr/manosOcupadas'
+import { markHandBusy, releaseHands } from '../xr/busyHands'
 import { constrainMallet, type Vec2 } from '../../lib/puckPhysics'
 import { useGame } from '../../lib/gameStore'
 
@@ -145,15 +145,15 @@ export function MalletHand({
     // sostiene algo es justo lo contrario de lo que está pasando.
     // El primer paso del tutorial se supera cogiendo el mazo de verdad.
     if (siguiente.cogido) apuntarHito('grab')
-    marcarManoOcupada('left', siguiente.cogido && lado === 'left')
-    marcarManoOcupada('right', siguiente.cogido && lado === 'right')
+    markHandBusy('left', siguiente.cogido && lado === 'left')
+    markHandBusy('right', siguiente.cogido && lado === 'right')
     if (siguiente.cogido) onMove(constrainMallet(siguiente.destino, 'player'), true, lado)
     else if (soltado) onRelease()
   })
 
   // Al quitar la escena —volver al salón, acabar la partida— nadie lleva nada: si no, el
   // rayo se quedaría apagado en el arco, donde es lo único con lo que se elige cabina.
-  useEffect(() => () => soltarLasManos(), [])
+  useEffect(() => () => releaseHands(), [])
 
   return null
 }

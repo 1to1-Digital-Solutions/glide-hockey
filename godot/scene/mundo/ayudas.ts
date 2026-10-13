@@ -17,12 +17,12 @@
  */
 import { Node3D, Vector3, type MeshInstance3D, type StandardMaterial3D } from 'godot'
 
-import { triangulosDeArco } from '@kit/lib/ui/iconos'
-import { aro, cilindro, cuadro, malla, mallaPlana, opacidad, translucido, tumbar } from '@kit/runtime/escena/piezas'
-import type { MandoDeVerdad } from '@kit/runtime/ui/mando'
+import { arcTriangles } from '@kit/lib/ui/icons'
+import { hoop, cylinder, quad, mesh, flatMesh, opacidad, translucent, layFlat } from '@kit/runtime/scene/parts'
+import type { RealController } from '@kit/runtime/ui/controller'
 
-import type { Hand } from '@/lib/ajustes'
-import { COLOR_DE_LA_AYUDA, LATIDO, acercarse, avanzarLasAyudas, latido, pase, sinAyudas } from '@/lib/ayudas'
+import type { Hand } from '@/lib/settings'
+import { HINT_MARK_COLOR, THROB, moveToward, advanceHints, throb, sweepPhase, noHints } from '@/lib/hints'
 import { MALLET_RADIUS } from '@/lib/gameConfig'
 import {
   CALCO_Y,
@@ -67,7 +67,7 @@ export interface MomentoDeLasAyudas {
 }
 
 export class AyudasDelJuego {
-  private readonly estado = sinAyudas()
+  private readonly estado = noHints()
   private readonly fuerzas: Record<AyudaDelMazo, number> = { suelo: 0, mando: 0, gesto: 0, porteria: 0 }
   private readonly huellas: { nodo: MeshInstance3D; material: StandardMaterial3D }[] = []
   readonly fantasma = new Node3D()
@@ -83,12 +83,12 @@ export class AyudasDelJuego {
     /** El espacio de la mesa: su centro, a la altura del tablero. Ahí va lo demás. */
     mesa: Node3D,
     /** El mando de verdad junto al mazo fantasma, ya plantado con `juntoAlMazo()`, o nada. */
-    readonly mando: MandoDeVerdad | null = null,
+    readonly mando: RealController | null = null,
   ) {
     for (const h of HUELLAS) {
       // Una huella es un óvalo: el círculo de doce lados estirado a lo largo del pie.
-      const material = translucido(COLOR_DE_LA_AYUDA, 0, 3)
-      const nodo = tumbar(malla(mallaPlana(triangulosDeArco(0, 1, 0, Math.PI * 2, 12)), material), h.x, HUELLAS_Y, h.z)
+      const material = translucent(HINT_MARK_COLOR, 0, 3)
+      const nodo = layFlat(mesh(flatMesh(arcTriangles(0, 1, 0, Math.PI * 2, 12)), material), h.x, HUELLAS_Y, h.z)
       nodo.scale = new Vector3(HUELLA.ancho / 2, HUELLA.largo / 2, 1)
       nodo.visible = false
       suelo.add_child(nodo)
@@ -100,19 +100,19 @@ export class AyudasDelJuego {
     this.fantasma.set_name('MazoFantasma')
     this.fantasma.visible = false
     const pintura = () => {
-      const m = translucido(COLOR_DE_LA_AYUDA, 0, 4)
+      const m = translucent(HINT_MARK_COLOR, 0, 4)
       this.pinturaDelFantasma.push(m)
       return m
     }
-    const anilla = aro(MALLET_RADIUS, FANTASMA.grosor, pintura(), 24)
+    const anilla = hoop(MALLET_RADIUS, FANTASMA.grosor, pintura(), 24)
     anilla.position = new Vector3(0, CALCO_Y, 0)
     this.fantasma.add_child(anilla)
-    this.fantasma.add_child(cilindro(FANTASMA.mango.radio, FANTASMA.mango.radio, FANTASMA.mango.alto, pintura(), new Vector3(0, FANTASMA.mango.alto / 2, 0), 10))
+    this.fantasma.add_child(cylinder(FANTASMA.mango.radio, FANTASMA.mango.radio, FANTASMA.mango.alto, pintura(), new Vector3(0, FANTASMA.mango.alto / 2, 0), 10))
     mesa.add_child(this.fantasma)
 
     // La marca de la portería contraria, calcada en el fondo: por ahí pasa el disco.
-    this.pinturaDeLaPorteria = translucido(COLOR_DE_LA_AYUDA, 0, 4)
-    this.porteria = tumbar(cuadro(MARCA_DE_PORTERIA.ancho, MARCA_DE_PORTERIA.fondo, this.pinturaDeLaPorteria), 0, CALCO_Y, MARCA_DE_PORTERIA.z)
+    this.pinturaDeLaPorteria = translucent(HINT_MARK_COLOR, 0, 4)
+    this.porteria = layFlat(quad(MARCA_DE_PORTERIA.ancho, MARCA_DE_PORTERIA.fondo, this.pinturaDeLaPorteria), 0, CALCO_Y, MARCA_DE_PORTERIA.z)
     this.porteria.set_name('MarcaDeLaPorteria')
     this.porteria.visible = false
     mesa.add_child(this.porteria)
@@ -133,17 +133,17 @@ export class AyudasDelJuego {
   actualizar(delta: number, momento: MomentoDeLasAyudas): void {
     this.reloj += delta
     const { dando } = momento
-    const paso = avanzarLasAyudas(GUION_DE_AYUDAS, momento.hechos, this.estado, dando ? delta : 0)
+    const paso = advanceHints(GUION_DE_AYUDAS, momento.hechos, this.estado, dando ? delta : 0)
     let alguna = false
     for (const ayuda of GUION_DE_AYUDAS) {
-      const quiere = dando && paso.encendidas.has(ayuda.id) ? 1 : 0
-      this.fuerzas[ayuda.id] = acercarse(this.fuerzas[ayuda.id], quiere, delta)
+      const quiere = dando && paso.lit.has(ayuda.id) ? 1 : 0
+      this.fuerzas[ayuda.id] = moveToward(this.fuerzas[ayuda.id], quiere, delta)
       if (this.fuerzas[ayuda.id] > APAGADA) alguna = true
     }
     // Todas apagadas y ya escondidas: nada que pintar, y no se toca el motor.
     if (!alguna && this.apagadas) return
     this.apagadas = !alguna
-    const pulso = latido(this.reloj, LATIDO.fuerza)
+    const pulso = throb(this.reloj, THROB.strength)
 
     // Las huellas, latiendo: es lo que las separa de una mancha de la moqueta.
     const suelo = this.fuerzas.suelo
@@ -155,7 +155,7 @@ export class AyudasDelJuego {
     // El mazo fantasma, dando su empujón: se recoge despacio y empuja deprisa hasta tocar el disco.
     const gesto = this.fuerzas.gesto
     this.fantasma.visible = gesto > APAGADA
-    const donde = mazoFantasmaEn(pase(this.reloj, EMPUJE.periodo).avance)
+    const donde = mazoFantasmaEn(sweepPhase(this.reloj, EMPUJE.periodo).progress)
     this.fantasma.position = new Vector3(donde.x, 0, donde.z)
     for (const m of this.pinturaDelFantasma) opacidad(m, gesto * OPACIDAD_DE_LA_AYUDA.gesto * pulso)
 

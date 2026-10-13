@@ -3,61 +3,61 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useXR } from '@react-three/xr'
 import { useLayoutEffect } from 'react'
-import { apuntarProgramas } from '../../lib/montajes'
+import { recordPrograms } from '../../lib/mountCount'
 
 /**
- * Compila los shaders de la escena **antes** de que haga falta pintarlos.
+ * Compiles the scene's shaders **before** they need to be painted.
  *
- * Compilar un shader **bloquea el hilo**, y three no lo hace hasta que le toca pintar ese
- * material por primera vez. En una pantalla eso es un fotograma perdido y no se nota. A 72
- * por segundo y por ojo, es un fogonazo — y no uno: **uno por material**, repartidos por los
- * primeros fotogramas según va apareciendo cada cosa. Es el tirón que se reporta al empezar.
+ * Compiling a shader **blocks the thread**, and three does not do it until it has to paint that
+ * material for the first time. On a screen that is one lost frame and it goes unnoticed. At 72
+ * per second and per eye, it is a flash — and not one: **one per material**, spread over the
+ * first frames as each thing shows up. It is the hitch that gets reported at the start.
  *
- * `compile` no bloquea: con `KHR_parallel_shader_compile` el driver compila en paralelo. Se
- * llama de una vez para la escena entera, así que en lugar de ocho compilaciones sueltas —cada
- * una en su fotograma— hay una tanda fuera del camino del dibujo.
+ * `compile` does not block: with `KHR_parallel_shader_compile` the driver compiles in parallel. It
+ * is called once for the whole scene, so instead of eight stray compilations —each
+ * one in its own frame— there is one batch out of the way of drawing.
  *
- * **Con `compile` y no con `compileAsync`.** `compileAsync` es `compile` más una promesa que
- * three resuelve sondeando cada diez milisegundos el programa de cada material. Si entretanto
- * se desmonta uno (los botones del menú al pulsar Jugar), el sondeo lee un programa que ya no
- * existe y revienta en un temporizador: «Cannot read properties of undefined (reading
- * 'isReady')». Aquí nadie espera esa promesa, así que el sondeo sobra.
+ * **With `compile` and not with `compileAsync`.** `compileAsync` is `compile` plus a promise that
+ * three resolves by polling every ten milliseconds the program of each material. If meanwhile
+ * one is unmounted (the menu buttons when Jugar is pressed), the polling reads a program that no
+ * longer exists and blows up in a timer: «Cannot read properties of undefined (reading
+ * 'isReady')». Nobody awaits that promise here, so the polling is not needed.
  *
- * **Va montado en el mundo, no en el Canvas de la web del juego.** Ahí estuvo, y por eso no
- * calentaba nada justo donde se juega de verdad: el salón monta `<GameWorld>` dentro de su
- * propio Canvas, y todo lo que colgara del Canvas propio se quedaba en la web. Peor aún, en
- * el salón se entra en la cabina **con el visor ya puesto**: la escena nace dentro de una
- * sesión abierta y sin haber pintado un solo fotograma en pantalla, así que allí no hay nada
- * compilado de antes y se compila todo en marcha.
+ * **It is mounted in the world, not in the Canvas of the game's own web.** That is where it was,
+ * and that is why it warmed nothing right where the game is really played: the hall mounts
+ * `<GameWorld>` inside its own Canvas, and everything that hung from the game's own Canvas stayed
+ * on the web. Worse still, in the hall the cabinet is entered **with the headset already on**: the
+ * scene is born inside an open session and without having painted a single frame on screen, so
+ * there is nothing compiled from before there and everything is compiled on the go.
  *
- * **Y en un efecto de disposición** (`useLayoutEffect`), que React vacía antes de ceder el
- * control al navegador: con un efecto normal la tanda puede caer después del primer fotograma
- * de la escena, que es exactamente el fotograma que hay que salvar.
+ * **And in a layout effect** (`useLayoutEffect`), which React flushes before yielding
+ * control to the browser: with a normal effect the batch can land after the first frame
+ * of the scene, which is exactly the frame that has to be saved.
  *
- * `compile` recorre la escena **se vea o no lo que hay en ella**, así que el decorado que se
- * oculta al elegir «tu habitación» entra igual: lo que no entra es lo que se desmonta, y por
- * eso lo que cambia con el escenario se oculta en vez de quitarse.
+ * `compile` walks the scene **whether what is in it is visible or not**, so the stage that is
+ * hidden when «tu habitación» is chosen goes in all the same: what does not go in is what is
+ * unmounted, and that is why what changes with the scenery is hidden instead of removed.
  *
- * No arregla nada que no sea compilación: si el parpadeo siguiera, este componente lo
- * descarta como causa, que es la mitad del trabajo de encontrarlo.
+ * It fixes nothing that is not compilation: if the flicker went on, this component rules it
+ * out as the cause, which is half the work of finding it.
  */
-export function Calentar() {
+export function PrewarmShaders() {
   const gl = useThree((state) => state.gl)
   const scene = useThree((state) => state.scene)
   const camera = useThree((state) => state.camera)
   const mode = useXR((state) => state.mode)
 
-  // Al montarse y cada vez que se abre o se cierra una sesión: entrar al visor estrena los
-  // materiales que solo existen dentro —los paneles, el mando dibujado— y son justo los que
-  // no ha compilado nadie. Repetirlo no cuesta: three devuelve el programa que ya tiene.
+  // On mount and every time a session is opened or closed: entering the headset brings out the
+  // materials that only exist inside —the panels, the drawn controller— and they are exactly the
+  // ones nobody has compiled. Repeating it costs nothing: three returns the program it already has.
   useLayoutEffect(() => {
     gl.compile(scene, camera)
   }, [mode, gl, scene, camera])
 
-  // Cuántos programas lleva compilados, para que un test pueda decir si al entrar en la
-  // sesión todavía queda alguno por compilar (`lib/montajes.ts`).
+  // How many programs it has compiled so far, so that a test can tell whether on entering the
+  // session there is still any left to compile (`lib/mountCount.ts`).
   useFrame(() => {
-    apuntarProgramas(gl.info.programs?.length ?? 0)
+    recordPrograms(gl.info.programs?.length ?? 0)
   })
 
   return null

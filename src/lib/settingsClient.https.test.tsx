@@ -3,33 +3,33 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { LANG_COOKIE } from './ajustes'
-import { setLang } from './ajustesCliente'
+import { LANG_COOKIE } from './settings'
+import { setLang } from './settingsClient'
 
 /**
- * La cookie del idioma, servida por HTTPS.
+ * The language cookie, served over HTTPS.
  *
- * Va aparte porque `window.location` se fija al montar el entorno y no se puede
- * cambiar a mitad de un fichero: el caso sin cifrar vive en
- * `ajustesCliente.test.tsx`. Y hace falta probarlo por separado porque marcar
- * `Secure` siempre dejaría el idioma sin guardarse en desarrollo, donde el
- * juego se sirve por `http://localhost`.
+ * It lives apart because `window.location` is fixed when the environment is set
+ * up and cannot be changed halfway through a file: the unencrypted case lives in
+ * `settingsClient.test.tsx`. And it needs testing separately because always
+ * marking it `Secure` would leave the language unsaved in development, where the
+ * game is served over `http://localhost`.
  */
-describe('el idioma servido por HTTPS', () => {
-  it('se prueba de verdad sobre una ventana cifrada', () => {
-    // Sin esto, si el `@vitest-environment-options` de arriba dejara de
-    // aplicarse, el test de abajo seguiría pasando sobre `http:` sin tocar la
-    // rama que dice probar.
+describe('the language served over HTTPS', () => {
+  it('is really tested on an encrypted window', () => {
+    // Without this, if the `@vitest-environment-options` above stopped
+    // applying, the test below would keep passing over `http:` without touching
+    // the branch it claims to test.
     expect(window.location.protocol).toBe('https:')
   })
 
-  it('viaja en una cookie marcada como segura', () => {
+  it('travels in a cookie marked as secure', () => {
     setLang('es')
 
     expect(document.cookie === '' || document.cookie.includes(`${LANG_COOKIE}=es`)).toBe(true)
-    // jsdom no expone los atributos de la cookie, así que lo que se comprueba es
-    // que escribirla con `Secure` por HTTPS sigue guardándola: con el protocolo
-    // equivocado, el navegador la tiraría y `document.cookie` saldría vacío.
+    // jsdom does not expose the cookie's attributes, so what is checked is
+    // that writing it with `Secure` over HTTPS still saves it: with the wrong
+    // protocol, the browser would drop it and `document.cookie` would come out empty.
     expect(document.cookie).toContain(`${LANG_COOKIE}=es`)
   })
 })

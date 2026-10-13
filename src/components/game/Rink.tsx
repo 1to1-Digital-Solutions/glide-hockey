@@ -7,7 +7,7 @@ import { sucesosDelFotograma, type Handedness, type SucesoEnLaMano } from '../..
 import { Vector3, type Group, type PointLight, type Texture } from 'three'
 import type { RefObject } from 'react'
 import { FUERZA_DEL_GOL_EN_CONTRA, direccionDelGolEnContra } from '../../lib/golEnContra'
-import type { GolpeRecibidoHandle } from '../xr/GolpeRecibido'
+import type { HitFeedbackHandle } from '../xr/HitFeedback'
 import {
   OPPONENT_SKILLS,
   RAIL_HEIGHT,
@@ -82,7 +82,7 @@ export function Rink({
    * El golpe que recibe el cuerpo (`GolpeRecibido`, montado en `GameWorld`): se dispara con el
    * gol en contra y frena el reloj de la mesa mientras dura su cámara lenta.
    */
-  golpeRecibido?: RefObject<GolpeRecibidoHandle | null>
+  golpeRecibido?: RefObject<HitFeedbackHandle | null>
 }) {
   const {
     apuntarHito,
@@ -157,7 +157,7 @@ export function Rink({
       // La cámara lenta del golpe recibido frena **la mesa** y nada más: el disco y los mazos
       // van más despacio un instante, y la cabeza y la mano siguen a su ritmo, que es lo que
       // evita que se lea como un tirón de fotogramas.
-      delta: delta * (golpeRecibido?.current?.escalaDelReloj() ?? 1),
+      delta: delta * (golpeRecibido?.current?.timeScale() ?? 1),
       pointer: pointer.current,
       // Cogido con la mano el mazo no persigue: está donde está la mano.
       inHand: enLaMano.current,
@@ -204,7 +204,7 @@ export function Rink({
     const rinkAhora = rink.current
     if (goals.includes('opponent') && rinkAhora != null) {
       const ojos = rinkAhora.worldToLocal(state.camera.getWorldPosition(headPoint.current))
-      golpeRecibido?.current?.golpe(FUERZA_DEL_GOL_EN_CONTRA, direccionDelGolEnContra(ojos))
+      golpeRecibido?.current?.hit(FUERZA_DEL_GOL_EN_CONTRA, direccionDelGolEnContra(ojos))
     }
 
     // El disco deslizándose se oye y se ve según lo rápido que va; parado, o

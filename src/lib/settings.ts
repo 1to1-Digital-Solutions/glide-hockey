@@ -1,135 +1,135 @@
 /**
- * Los ajustes que **no** son de un juego: idioma, volúmenes, escenario, altura, agarre, giro y mano.
+ * The settings that do **not** belong to one game: language, volumes, scenery, height, grab, turn
+ * and hand.
  *
- * **El mismo fichero en los diecisiete.** Cada juego lee solo lo que usa, pero el contrato es
- * uno: `organizate/scripts/repos/comunes.py` exige que esta copia sea idéntica en todos, y
- * `xrcade/src/lib/puente-de-ajustes.test.ts` que diga lo mismo que escribe el salón.
+ * **The same file in all seventeen.** Each game reads only what it uses, but the contract is
+ * one: `organizate/scripts/repos/comunes.py` requires this copy to be identical in all of them, and
+ * `xrcade/src/lib/puente-de-ajustes.test.ts` that it says the same as what the hall writes.
  *
- * **Por qué viven fuera de cada juego.** Quien entra al arcade, elige español y
- * baja el ambiente no quiere volver a decirlo en cada cabina. Antes cada juego
- * guardaba su propio silencio (`stick-rush:muted`) y su propia música, así que
- * había doce sitios donde decir lo mismo y ninguno se enteraba de los otros.
- * Ahora hay uno solo, y el juego montado en el salón lo lee.
+ * **Why they live outside each game.** Whoever walks into the hall, picks Spanish and
+ * turns the ambience down does not want to say it again in every cabinet. Each game
+ * used to keep its own mute (`stick-rush:muted`) and its own music, so
+ * there were twelve places to say the same thing and none of them heard about the others.
+ * Now there is only one, and the game mounted in the hall reads it.
  *
- * **Cómo llega el ajuste del hub al juego.** No hay tubería: el juego se monta
- * *dentro* de la página de xrcade, así que comparten origen, y lo que se guarda
- * aquí lo lee el de al lado. Lo único que hace falta es avisar de que ha
- * cambiado, y de eso van los dos eventos de más abajo: `storage` cubre las
- * otras pestañas —que el navegador avisa solo— y `EVENTO` cubre esta misma,
- * donde el navegador no avisa.
+ * **How the hub's setting reaches the game.** There is no pipe: the game is mounted
+ * *inside* the xrcade page, so they share an origin, and what is stored
+ * here is read by the one next door. All that is needed is to tell that it has
+ * changed, and that is what the two events further down are for: `storage` covers the
+ * other tabs —which the browser notifies on its own— and `SETTINGS_EVENT` covers this very one,
+ * where the browser does not notify.
  *
- * **Por qué el idioma va en cookie y el volumen no.** El idioma se pinta en el
- * servidor: si viviera solo en `localStorage`, el HTML llegaría en inglés y el
- * navegador lo cambiaría al hidratar, que es exactamente el desajuste que React
- * prohíbe. La cookie viaja con la petición, así que el servidor ya sabe en qué
- * idioma pintar y el `<html lang>` sale bien a la primera. Los volúmenes no se
- * pintan: solo los usa el audio, que es de navegador, y ahí `localStorage` vale
- * y no engorda cada petición.
+ * **Why the language goes in a cookie and the volume does not.** The language is rendered on the
+ * server: if it lived only in `localStorage`, the HTML would arrive in English and the browser
+ * would change it on hydration, which is exactly the mismatch React forbids. The cookie travels
+ * with the request, so the server already knows which language to render in and the `<html lang>`
+ * comes out right the first time. The volumes are not rendered: only the audio uses them, which
+ * belongs to the browser, and there `localStorage` is enough and does not fatten every request.
  *
- * **Qué hay aquí y qué en `ajustesCliente.ts`.** Aquí solo lo que también
- * corre en el servidor: las claves, los valores de partida y cómo se lee cada
- * cosa. Lo que necesita `window` —el almacén al que React se suscribe, y
- * escribir— vive en el otro, que sí es de cliente. Partirlo no es manía: un
- * módulo marcado `'use client'` no se ejecuta en el servidor, y el `layout`
- * necesita el idioma **antes** de pintar para no desajustar la hidratación.
+ * **What is here and what is in `settingsClient.ts`.** Here only what also
+ * runs on the server: the keys, the starting values and how each thing is
+ * read. What needs `window` —the store React subscribes to, and
+ * writing— lives in the other one, which is a client module. Splitting it is not a whim: a
+ * module marked `'use client'` does not run on the server, and the `layout`
+ * needs the language **before** rendering so as not to mismatch the hydration.
  *
- * **Es una copia deliberada.** El mismo fichero está en xrcade y en los doce
- * juegos, con las mismas claves y los mismos valores de partida: eso es lo que
- * hace que elegir español en el arcade se note dentro de la cabina. Se duplica
- * en vez de sacarse a un paquete porque los juegos son repositorios sueltos que
- * también se despliegan por su cuenta, y un paquete más que versionar y volver
- * a publicar por cada cambio costaría más de lo que ahorra. Lo que no puede
- * pasar es que las **claves** dejen de coincidir: ahí es donde se rompería el
- * puente, en silencio.
+ * **It is a deliberate copy.** The same file is in xrcade and in the twelve
+ * games, with the same keys and the same starting values: that is what
+ * makes picking Spanish in the hall show inside the cabinet. It is duplicated
+ * instead of being pulled out into a package because the games are separate repositories that
+ * are also deployed on their own, and one more package to version and publish
+ * again for every change would cost more than it saves. What cannot
+ * happen is for the **keys** to stop matching: that is where the
+ * bridge would break, silently.
  *
- * **Qué NO decide este fichero.** Nada de lo que va dentro de una partida:
- * nivel, dificultad o modo siguen siendo de cada juego y siguen guardándose con
- * su prefijo. Aquí solo está lo que se elige una vez y vale para todos.
+ * **What this file does NOT decide.** Nothing of what goes inside a run:
+ * level, difficulty or mode still belong to each game and are still stored with
+ * its prefix. Here there is only what is chosen once and holds for all of them.
  */
 
-/** Los idiomas que hay. El inglés es la lengua de partida del arcade. */
+/** The languages there are. English is the hall's starting language. */
 export const LANGS = ['en', 'es'] as const
 export type Lang = (typeof LANGS)[number]
 
-/** Cómo se llama cada idioma en su propio idioma, que es como se elige. */
+/** What each language is called in its own language, which is how it is chosen. */
 export const LANG_LABELS: Record<Lang, string> = {
   en: 'English',
   es: 'Español',
 }
 
 /**
- * Las dos familias de sonido, separadas porque se quieren por separado.
+ * The two families of sound, separate because they are wanted separately.
  *
- * `sfx` es lo que responde a lo que haces —el golpe, el bote, el acierto— y
- * `ambience` es lo que suena de fondo aunque no hagas nada. Hay quien juega con
- * música puesta y quiere solo los efectos, y quien pone el juego de ambiente y
- * quiere lo contrario.
+ * `sfx` is what answers what you do —the hit, the bounce, the score— and
+ * `ambience` is what plays in the background even if you do nothing. Some people play with
+ * music on and want only the effects, and some put the game on as ambience and
+ * want the opposite.
  */
 export const SOUND_CHANNELS = ['sfx', 'ambience'] as const
 export type SoundChannel = (typeof SOUND_CHANNELS)[number]
 
 /**
- * Dónde se recuerda el idioma.
+ * Where the language is remembered.
  *
- * Sin dos puntos a propósito: el nombre de una cookie es un *token* de HTTP y
- * los dos puntos no lo son, así que el prefijo del arcade va con guion bajo
- * aunque las claves de almacenamiento usen `xrcade:`.
+ * Without a colon on purpose: the name of a cookie is an HTTP *token* and
+ * the colon is not one, so the hall's prefix goes with an underscore
+ * even though the storage keys use `xrcade:`.
  */
 export const LANG_COOKIE = 'xrcade_lang'
 
 /**
- * Qué se ve alrededor con el visor puesto: el sitio dibujado o tu habitación.
+ * What is seen around you with the headset on: the drawn place or your room.
  *
- * `place` es el decorado opaco de quien pinta —la sala del arcade, la bolera, el prado— y
- * `room` es la habitación de verdad, por *passthrough*, con encima solo lo que hace falta
- * para jugar. Son los mismos dos nombres con los que cada juego habla de su decorado, a
- * propósito: que el valor venga del arcade no cambia qué significa.
+ * `place` is the opaque stage of whoever renders —the hall's room, the bowling alley, the meadow—
+ * and `room` is the real room, through *passthrough*, with only what is needed to play on top of
+ * it. They are the same two names each game uses to talk about its stage, on purpose: the value
+ * coming from the hall does not change what it means.
  *
- * **Es un ajuste de lo que se pinta, no del tipo de sesión.** Decidir con él qué sesión se abre
- * tiene dos fallos, y los dos se vieron con el visor puesto. Una sesión de WebXR no cambia de
- * tipo, así que cambiar de escenario obligaría a cerrar la sesión y abrir otra: saca del visor y
- * tarda en volver. Y un juego no puede enterarse mirando el tipo de sesión, que no dice lo que
- * se eligió. Así que el anfitrión entra en `immersive-ar` siempre que el visor la tiene, y este
- * ajuste decide si se pinta el decorado: cambiarlo es instantáneo y lo lee cualquiera que monte
- * escena.
+ * **It is a setting of what is rendered, not of the session type.** Deciding with it which session
+ * is opened has two flaws, and both were seen with the headset on. A WebXR session does not change
+ * type, so changing scenery would force closing the session and opening another one: it throws you
+ * out of the headset and takes a while to come back. And a game cannot find out by looking at the
+ * session type, which does not say what was chosen. So the host enters `immersive-ar` whenever the
+ * headset has it, and this setting decides whether the stage is rendered: changing it is instant
+ * and anyone who mounts a scene reads it.
  *
- * **Y es uno solo.** Si cada juego guardara el suyo, el salón diría «realidad virtual» y la
- * cabina entraría en la habitación porque alguna vez se eligió ahí: dos preferencias que se
- * contradicen sin que nadie sepa cuál manda.
+ * **And there is only one.** If each game kept its own, the hall would say «realidad virtual» and
+ * the cabinet would enter the room because it was once chosen there: two preferences that
+ * contradict each other without anyone knowing which one rules.
  */
 export const SCENERIES = ['place', 'room'] as const
 export type Scenery = (typeof SCENERIES)[number]
 
-/** Dónde se recuerda. El prefijo es del arcade, no de un juego. */
+/** Where it is remembered. The prefix belongs to the hall, not to a game. */
 export const SCENERY_KEY = 'xrcade:scenery'
 
-/** Con qué se entra: el sitio dibujado, que es lo que se ve en cualquier pantalla. */
+/** What you come in with: the drawn place, which is what is seen on any screen. */
 export const DEFAULT_SCENERY: Scenery = 'place'
 
 /**
- * Interpreta el escenario leído del almacenamiento. Como el idioma: solo cuenta uno que
- * exista, y cualquier otra cosa cae al de partida.
+ * Parses the scenery read from storage. Like the language: only one that
+ * exists counts, and anything else falls back to the starting one.
  */
 export function parseScenery(raw: string | null | undefined): Scenery {
   return (SCENERIES as readonly string[]).includes(raw ?? '') ? (raw as Scenery) : DEFAULT_SCENERY
 }
 
-/** El escenario elegido, leído de un almacenamiento que puede no estar. */
+/** The chosen scenery, read from a storage that may not be there. */
 export function readScenery(storage: Pick<Storage, 'getItem'> | null): Scenery {
   if (storage === null) return DEFAULT_SCENERY
   try {
     return parseScenery(storage.getItem(SCENERY_KEY))
   } catch {
-    // Almacenamiento capado: se ve el sitio dibujado, que nunca deja a nadie mirando la nada.
+    // Blocked storage: the drawn place is seen, which never leaves anyone staring at nothing.
     return DEFAULT_SCENERY
   }
 }
 
 /**
- * Guarda el escenario, o lo olvida cuando vuelve a ser el de partida.
+ * Stores the scenery, or forgets it when it is the starting one again.
  *
- * @returns si quedó guardado. Un `false` no es un error: significa que este navegador no
- *   guarda nada y la elección vivirá lo que dure la visita.
+ * @returns whether it was stored. A `false` is not an error: it means this browser does not
+ *   store anything and the choice will live as long as the visit lasts.
  */
 export function writeScenery(storage: Storage | null, value: Scenery): boolean {
   if (storage === null) return false
@@ -143,35 +143,35 @@ export function writeScenery(storage: Storage | null, value: Scenery): boolean {
 }
 
 /**
- * Si quien pinta tiene que poner su decorado: **la regla que siguen el salón y los juegos**.
+ * Whether whoever renders has to put up its stage: **the rule the hall and the games follow**.
  *
- * Se quita solo cuando se ha elegido la habitación **y** la sesión es `immersive-ar`. La
- * segunda condición no sobra: en una `immersive-vr` —un visor sin passthrough— o fuera del
- * visor no hay habitación detrás, y quitar el decorado dejaría a quien juega mirando negro sin
- * saber por qué. El tipo de sesión no decide qué se ve; solo dice si la habitación se puede
- * enseñar.
+ * It is removed only when the room has been chosen **and** the session is `immersive-ar`. The
+ * second condition is not superfluous: in an `immersive-vr` —a headset without passthrough— or
+ * outside the headset there is no room behind, and removing the stage would leave the player
+ * staring at black without knowing why. The session type does not decide what is seen; it only says
+ * whether the room can be shown.
  *
- * @param sessionMode El de `useXR((state) => state.mode)`.
+ * @param sessionMode The one from `useXR((state) => state.mode)`.
  */
 export function showsPlace(sessionMode: string | null | undefined, scenery: Scenery): boolean {
   return scenery === 'place' || sessionMode !== 'immersive-ar'
 }
 
-/** Dónde se recuerda cada volumen. El prefijo es del arcade, no de un juego. */
+/** Where each volume is remembered. The prefix belongs to the hall, not to a game. */
 export const VOLUME_KEYS: Record<SoundChannel, string> = {
   sfx: 'xrcade:volume:sfx',
   ambience: 'xrcade:volume:ambience',
 }
 
-/** Con qué se entra la primera vez. */
+/** What you come in with the first time. */
 export const DEFAULT_LANG: Lang = 'en'
 export const DEFAULT_VOLUMES: Record<SoundChannel, number> = { sfx: 100, ambience: 60 }
 
-/** Los volúmenes, que es lo que va al almacenamiento. */
+/** The volumes, which is what goes to storage. */
 export interface Volumes {
-  /** Volumen de los efectos, de 0 a 100. Un 0 es «apagado». */
+  /** Volume of the effects, from 0 to 100. A 0 is «off». */
   sfx: number
-  /** Volumen del fondo, de 0 a 100. Un 0 es «apagado». */
+  /** Volume of the background, from 0 to 100. A 0 is «off». */
   ambience: number
 }
 
@@ -181,23 +181,23 @@ export const DEFAULT_VOLUME_SETTINGS: Volumes = {
 }
 
 /**
- * Interpreta un idioma venido de fuera.
+ * Parses a language that came from outside.
  *
- * La cookie es entrada externa —cualquiera puede editarla desde las
- * herramientas del navegador—, así que solo un idioma que existe cuenta
- * cualquier otra cosa cae al de partida en vez de dejar la interfaz sin
- * traducir.
+ * The cookie is external input —anyone can edit it from the
+ * browser's tools—, so only a language that exists counts
+ * anything else falls back to the starting one instead of leaving the interface
+ * untranslated.
  */
 export function parseLang(raw: string | null | undefined): Lang {
   return (LANGS as readonly string[]).includes(raw ?? '') ? (raw as Lang) : DEFAULT_LANG
 }
 
 /**
- * Interpreta un volumen leído del almacenamiento.
+ * Parses a volume read from storage.
  *
- * Solo un entero de 0 a 100 vale. Un texto, un decimal o un número fuera de
- * rango son almacenamiento manipulado o de otra versión: se cae al de partida,
- * que es lo que hacía el juego antes de guardar nada.
+ * Only an integer from 0 to 100 is valid. A text, a decimal or a number out of
+ * range are tampered storage or storage from another version: it falls back to the starting one,
+ * which is what the game did before storing anything.
  */
 export function parseVolume(raw: string | null, fallback: number): number {
   if (raw === null || !/^\d{1,3}$/.test(raw)) return fallback
@@ -206,42 +206,43 @@ export function parseVolume(raw: string | null, fallback: number): number {
 }
 
 /**
- * El idioma escrito en una cabecera `Cookie`.
+ * The language written in a `Cookie` header.
  *
- * Recibe el texto entero y no la cookie ya partida para que valga igual en el
- * servidor —donde llega así— y en el navegador, donde `document.cookie` tiene
- * esa misma forma.
+ * It takes the whole text and not the cookie already split so that it works the same on the
+ * server —where it arrives like that— and in the browser, where `document.cookie` has
+ * that same shape.
  */
 export function langFromCookies(cookieHeader: string | null | undefined): Lang {
   return chosenLang(cookieHeader) ?? DEFAULT_LANG
 }
 
 /**
- * El idioma **elegido** en esa cabecera `Cookie`, o `null` si no se ha elegido ninguno (o lo
- * escrito no es un idioma del arcade): entonces manda el del sistema (`langFromSystem`).
+ * The language **chosen** in that `Cookie` header, or `null` if none has been chosen (or what is
+ * written is not a language of the hall): then the system's one rules (`langFromSystem`).
  */
 export function chosenLang(cookieHeader: string | null | undefined): Lang | null {
   if (!cookieHeader) return null
-  for (const trozo of cookieHeader.split(';')) {
-    const [nombre, ...resto] = trozo.trim().split('=')
-    if (nombre === LANG_COOKIE) return asLang(decodeURIComponent(resto.join('=')))
+  for (const part of cookieHeader.split(';')) {
+    const [name, ...rest] = part.trim().split('=')
+    if (name === LANG_COOKIE) return asLang(decodeURIComponent(rest.join('=')))
   }
   return null
 }
 
-/** Lo escrito, si es un idioma del arcade; si no, `null`. */
+/** What is written, if it is a language of the hall; otherwise, `null`. */
 export function asLang(raw: string | null | undefined): Lang | null {
   return (LANGS as readonly string[]).includes(raw ?? '') ? (raw as Lang) : null
 }
 
 /**
- * El idioma del sistema, para quien todavía no ha elegido ninguno: el primero de los que pide
- * que el arcade tenga. Es la misma cuenta que el salón (`xrcade/src/lib/ajustes.ts`): un juego
- * abierto suelto, o montado en un salón donde nadie ha elegido idioma, arranca en el del visor.
+ * The system's language, for whoever has not chosen one yet: the first of the ones it asks for that
+ * the hall has. It is the same calculation as the hall's (`xrcade/src/lib/ajustes.ts`): a game
+ * opened on its own, or mounted in a hall where nobody has chosen a language, starts in the
+ * headset's one.
  *
- * Acepta la cabecera `Accept-Language` del servidor («es-ES,es;q=0.9,en;q=0.8», que se ordena
- * por su `q`) o la lista del navegador (`navigator.languages`, ya ordenada). Se mira solo la
- * lengua, no la región: «es-MX» es español. `null` si no pide ninguno de los del arcade.
+ * It accepts the server's `Accept-Language` header («es-ES,es;q=0.9,en;q=0.8», which is sorted by
+ * its `q`) or the browser's list (`navigator.languages`, already sorted). Only the language is
+ * looked at, not the region: «es-MX» is Spanish. `null` if it asks for none of the hall's.
  */
 export function langFromSystem(preferred: string | readonly string[] | null | undefined): Lang | null {
   if (preferred == null) return null
@@ -249,8 +250,8 @@ export function langFromSystem(preferred: string | readonly string[] | null | un
     typeof preferred === 'string'
       ? preferred
           .split(',')
-          .map((trozo, index) => {
-            const [tag = '', ...params] = trozo.trim().split(';')
+          .map((part, index) => {
+            const [tag = '', ...params] = part.trim().split(';')
             const q = params.map((p) => p.trim()).find((p) => p.startsWith('q='))
             const weight = q === undefined ? 1 : Number(q.slice(2))
             return { tag, weight: Number.isFinite(weight) ? weight : 0, index }
@@ -266,7 +267,7 @@ export function langFromSystem(preferred: string | readonly string[] | null | un
   return null
 }
 
-/** El idioma con que se pinta: el elegido en la cookie, si no el del sistema, si no el de partida. */
+/** The language it is rendered in: the one chosen in the cookie, else the system's, else the starting one. */
 export function langFor(
   cookieHeader: string | null | undefined,
   preferred: string | readonly string[] | null | undefined,
@@ -274,7 +275,7 @@ export function langFor(
   return chosenLang(cookieHeader) ?? langFromSystem(preferred) ?? DEFAULT_LANG
 }
 
-/** Los volúmenes, leídos de un almacenamiento que puede no estar. */
+/** The volumes, read from a storage that may not be there. */
 export function readVolumes(storage: Pick<Storage, 'getItem'> | null): Volumes {
   if (storage === null) return DEFAULT_VOLUME_SETTINGS
   try {
@@ -283,20 +284,20 @@ export function readVolumes(storage: Pick<Storage, 'getItem'> | null): Volumes {
       ambience: parseVolume(storage.getItem(VOLUME_KEYS.ambience), DEFAULT_VOLUMES.ambience),
     }
   } catch {
-    // Almacenamiento capado: se juega con lo de partida, y ya.
+    // Blocked storage: you play with the starting values, and that is that.
     return DEFAULT_VOLUME_SETTINGS
   }
 }
 
 /**
- * Guarda un volumen, o lo olvida cuando vuelve a ser el de partida.
+ * Stores a volume, or forgets it when it is the starting one again.
  *
- * Solo se escribe lo que se aparta de lo de partida: así el almacenamiento
- * tiene algo únicamente cuando alguien ha decidido algo, y borrarlo devuelve el
- * arcade a como venía.
+ * Only what departs from the starting values is written: that way the storage
+ * holds something solely when someone has decided something, and deleting it returns the
+ * hall to how it came.
  *
- * @returns si quedó guardado. Un `false` no es un error: significa que este
- *   navegador no guarda nada y el ajuste vivirá lo que dure la visita.
+ * @returns whether it was stored. A `false` is not an error: it means this
+ *   browser does not store anything and the setting will live as long as the visit lasts.
  */
 export function writeVolume(storage: Storage | null, channel: SoundChannel, value: number): boolean {
   if (storage === null) return false
@@ -309,44 +310,44 @@ export function writeVolume(storage: Storage | null, channel: SoundChannel, valu
   }
 }
 
-/** De 0-100 a la escala 0-1 con la que trabaja el audio del navegador. */
+/** From 0-100 to the 0-1 scale the browser's audio works with. */
 export function volumeFactor(value: number): number {
   return Math.min(100, Math.max(0, value)) / 100
 }
 
 /**
- * A qué altura se juega.
+ * At what height you play.
  *
- * **El problema.** Las cotas de los trece juegos se eligieron con una persona de pie
- * delante: el aro a 3,05 m, la diana a 1,73, la mesa de air hockey a la altura de su
- * cintura. De pie y midiendo lo que ella medía, está bien. Sentado —en una silla, en un
- * sofá, en una silla de ruedas— el mundo entero queda un palmo por encima de donde llega
- * el brazo, y no falla nada: simplemente no se puede jugar. A quien es más bajo que la
- * persona que estaba delante le pasa lo mismo en pequeño, y no tiene forma de nivelarlo,
- * al contrario que el modo, la dificultad o la mano, que sí se eligen.
+ * **The problem.** The heights of the thirteen games were chosen with a person standing
+ * in front: the hoop at 3.05 m, the board at 1.73, the air hockey table at the height of their
+ * waist. Standing and being as tall as that person was, it is fine. Seated —on a chair, on a
+ * sofa, in a wheelchair— the whole world ends up a hand span above where
+ * the arm reaches, and nothing fails: you simply cannot play. Whoever is shorter than the
+ * person who was in front gets the same on a small scale, and has no way to level it,
+ * unlike the mode, the difficulty or the hand, which are chosen.
  *
- * **Qué hace `eyes`.** Baja el mundo hasta los ojos de quien lleva el visor, que es la
- * misma corrección que ya se le hace a la interfaz inmersiva para que el menú no quede
- * fuera de la vista. No mueve al jugador —el origen es de quien monta la escena, y en el
- * salón hay un arco de cabinas plantado ahí—, mueve el decorado: la geometría que se ve es
- * idéntica y las puntuaciones no cambian, porque la relación entre el objetivo y la mano
- * es la misma.
+ * **What `eyes` does.** It lowers the world to the eyes of whoever wears the headset, which is the
+ * same correction already made to the immersive interface so that the menu does not end up out of
+ * view. It does not move the player —the origin belongs to whoever mounts the scene, and in the
+ * hall there is an arc of cabinets planted there—, it moves the stage: the geometry that is seen is
+ * identical and the scores do not change, because the relation between the target and the hand is
+ * the same.
  *
- * **Por qué es del arcade y no de cada juego.** Quien se sienta se sienta para toda la
- * visita. Decirlo trece veces, una por cabina, sería no poder decirlo.
+ * **Why it belongs to the hall and not to each game.** Whoever sits down sits down for the whole
+ * visit. Saying it thirteen times, once per cabinet, would be not being able to say it.
  */
 export const PLAY_HEIGHTS = ['standing', 'eyes'] as const
 export type PlayHeight = (typeof PLAY_HEIGHTS)[number]
 
-/** Dónde se recuerda. El prefijo es del arcade, no de un juego. */
+/** Where it is remembered. The prefix belongs to the hall, not to a game. */
 export const PLAY_HEIGHT_KEY = 'xrcade:play-height'
 
-/** De pie: el mundo donde ha estado siempre. */
+/** Standing: the world where it has always been. */
 export const DEFAULT_PLAY_HEIGHT: PlayHeight = 'standing'
 
 /**
- * Interpreta la altura leída del almacenamiento. Como el escenario: solo cuenta una
- * que exista, y cualquier otra cosa cae a la de partida.
+ * Parses the height read from storage. Like the scenery: only one
+ * that exists counts, and anything else falls back to the starting one.
  */
 export function parsePlayHeight(raw: string | null | undefined): PlayHeight {
   return (PLAY_HEIGHTS as readonly string[]).includes(raw ?? '')
@@ -354,22 +355,22 @@ export function parsePlayHeight(raw: string | null | undefined): PlayHeight {
     : DEFAULT_PLAY_HEIGHT
 }
 
-/** La altura elegida, leída de un almacenamiento que puede no estar. */
+/** The chosen height, read from a storage that may not be there. */
 export function readPlayHeight(storage: Pick<Storage, 'getItem'> | null): PlayHeight {
   if (storage === null) return DEFAULT_PLAY_HEIGHT
   try {
     return parsePlayHeight(storage.getItem(PLAY_HEIGHT_KEY))
   } catch {
-    // Almacenamiento capado: se juega de pie, que es como se jugaba antes de haber esto.
+    // Blocked storage: you play standing, which is how you played before this existed.
     return DEFAULT_PLAY_HEIGHT
   }
 }
 
 /**
- * Guarda la altura, o la olvida cuando vuelve a ser la de partida.
+ * Stores the height, or forgets it when it is the starting one again.
  *
- * @returns si quedó guardada. Un `false` no es un error: significa que este navegador no
- *   guarda nada y la elección vivirá lo que dure la visita.
+ * @returns whether it was stored. A `false` is not an error: it means this browser does not
+ *   store anything and the choice will live as long as the visit lasts.
  */
 export function writePlayHeight(storage: Storage | null, value: PlayHeight): boolean {
   if (storage === null) return false
@@ -383,54 +384,54 @@ export function writePlayHeight(storage: Storage | null, value: PlayHeight): boo
 }
 
 /**
- * Cómo se sujeta lo que se coge.
+ * How what you pick up is held.
  *
- * **El problema.** Nueve de los trece piden **mantener apretado** el gatillo durante todo
- * el gesto: el dardo, el hacha, la bola, el palo, el mazo, la cuerda del arco. Un lanzamiento
- * de bolos son tres o cuatro segundos con la mano cerrada; una partida entera son ciento y
- * pico. Quien tiene poca fuerza de agarre —artritis, temblor, una mano cansada— se queda
- * fuera del juego, y no de una parte: del gesto entero, que es el juego.
+ * **The problem.** Nine of the thirteen ask you to **keep** the trigger **squeezed** during the
+ * whole gesture: the dart, the axe, the ball, the stick, the mallet, the bowstring. A bowling throw
+ * is three or four seconds with the hand closed; a whole run is a hundred and some. Whoever has
+ * little grip strength —arthritis, tremor, a tired hand— is left out of the game, and not out of a
+ * part of it: out of the whole gesture, which is the game.
  *
- * **Qué hace `toggle`.** Un toque para cogerlo y otro para soltarlo. El gesto de en medio
- * —el brazo— es el mismo, y por eso no cambia ninguna puntuación: lo que decide el
- * lanzamiento sigue siendo la velocidad de la mano al soltar.
+ * **What `toggle` does.** One tap to pick it up and another to release it. The gesture in between
+ * —the arm— is the same, and that is why no score changes: what decides the
+ * throw is still the speed of the hand on release.
  *
- * **Por qué es del arcade y no de cada juego.** Quien no puede mantener el gatillo no puede
- * mantenerlo en ninguna cabina. Y porque cambiar de cabina ya obliga a reaprender cómo se
- * coge cada cosa: al menos que la forma de sujetarla sea la misma en todas.
+ * **Why it belongs to the hall and not to each game.** Whoever cannot hold the trigger cannot
+ * hold it in any cabinet. And because changing cabinet already forces you to relearn how each
+ * thing is picked up: at least let the way of holding it be the same in all of them.
  */
 export const GRAB_MODES = ['hold', 'toggle'] as const
 export type GrabMode = (typeof GRAB_MODES)[number]
 
-/** Dónde se recuerda. El prefijo es del arcade, no de un juego. */
+/** Where it is remembered. The prefix belongs to the hall, not to a game. */
 export const GRAB_MODE_KEY = 'xrcade:grab'
 
-/** Manteniendo, que es lo que enseñan los tutoriales y lo que espera casi todo el mundo. */
+/** Holding, which is what the tutorials teach and what almost everybody expects. */
 export const DEFAULT_GRAB_MODE: GrabMode = 'hold'
 
-/** Interpreta el agarre leído del almacenamiento: solo cuenta uno que exista. */
+/** Parses the grab read from storage: only one that exists counts. */
 export function parseGrabMode(raw: string | null | undefined): GrabMode {
   return (GRAB_MODES as readonly string[]).includes(raw ?? '')
     ? (raw as GrabMode)
     : DEFAULT_GRAB_MODE
 }
 
-/** El agarre elegido, leído de un almacenamiento que puede no estar. */
+/** The chosen grab, read from a storage that may not be there. */
 export function readGrabMode(storage: Pick<Storage, 'getItem'> | null): GrabMode {
   if (storage === null) return DEFAULT_GRAB_MODE
   try {
     return parseGrabMode(storage.getItem(GRAB_MODE_KEY))
   } catch {
-    // Almacenamiento capado: se agarra manteniendo, como se agarraba siempre.
+    // Blocked storage: you grab by holding, as you always grabbed.
     return DEFAULT_GRAB_MODE
   }
 }
 
 /**
- * Guarda el agarre, o lo olvida cuando vuelve a ser el de partida.
+ * Stores the grab, or forgets it when it is the starting one again.
  *
- * @returns si quedó guardado. Un `false` no es un error: significa que este navegador no
- *   guarda nada y la elección vivirá lo que dure la visita.
+ * @returns whether it was stored. A `false` is not an error: it means this browser does not
+ *   store anything and the choice will live as long as the visit lasts.
  */
 export function writeGrabMode(storage: Storage | null, value: GrabMode): boolean {
   if (storage === null) return false
@@ -444,55 +445,54 @@ export function writeGrabMode(storage: Storage | null, value: GrabMode): boolean
 }
 
 /**
- * Cuándo se puede girar el decorado con el stick.
+ * When the stage can be turned with the stick.
  *
- * **El problema.** Los juegos dan por hecho que uno se gira con el cuerpo: los platos de skeet
- * salen de dos casetas, los morteros del arco ocupan el claro, las cabinas de los extremos del
- * salón están a 75°. Sentado —en una silla fija, en un sofá, en una silla de ruedas— eso es
- * torcer el cuello o no llegar.
+ * **The problem.** The games take for granted that you turn with your body: the skeet clays
+ * come out of two houses, the bow's mortars fill the clearing, the cabinets at the ends of the
+ * hall are at 75°. Seated —on a fixed chair, on a sofa, in a wheelchair— that means
+ * twisting your neck or not reaching.
  *
- * **Qué hace cada valor.** `auto` gira solo cuando la altura de juego es la de sentado
- * (`eyes`): quien juega de pie se gira con el cuerpo, y un stick que moviera el mundo sin
- * querer le revolvería el estómago. `stick` gira siempre, para quien juega de pie pero no se
- * puede o no se quiere girar. Lo que gira es el decorado, nunca el jugador; cómo, en
- * `lib/giro.ts`.
+ * **What each value does.** `auto` turns only when the play height is the seated one (`eyes`):
+ * whoever plays standing turns with their body, and a stick that moved the world unintentionally
+ * would turn their stomach. `stick` always turns, for whoever plays standing but cannot or does not
+ * want to turn. What turns is the stage, never the player; how, in `lib/snapTurn.ts`.
  *
- * **Tolerante a que no esté.** Un salón anterior a este ajuste no lo escribe, y cualquier cosa
- * que no sea un valor conocido cae a `auto`: es lo que había antes de existir la opción, más el
- * giro sentado, que no estorba a nadie que esté de pie.
+ * **Tolerant of it not being there.** A hall older than this setting does not write it, and
+ * anything that is not a known value falls back to `auto`: it is what there was before the option
+ * existed, plus the seated turn, which does not bother anyone who is standing.
  */
 export const TURN_MODES = ['auto', 'stick'] as const
 export type TurnMode = (typeof TURN_MODES)[number]
 
-/** Dónde se recuerda. El prefijo es del arcade, no de un juego. */
+/** Where it is remembered. The prefix belongs to the hall, not to a game. */
 export const TURN_MODE_KEY = 'xrcade:giro'
 
-/** Solo sentado. */
+/** Only seated. */
 export const DEFAULT_TURN_MODE: TurnMode = 'auto'
 
-/** Interpreta el giro leído del almacenamiento: solo cuenta uno que exista. */
+/** Parses the turn read from storage: only one that exists counts. */
 export function parseTurnMode(raw: string | null | undefined): TurnMode {
   return (TURN_MODES as readonly string[]).includes(raw ?? '')
     ? (raw as TurnMode)
     : DEFAULT_TURN_MODE
 }
 
-/** El giro elegido, leído de un almacenamiento que puede no estar. */
+/** The chosen turn, read from a storage that may not be there. */
 export function readTurnMode(storage: Pick<Storage, 'getItem'> | null): TurnMode {
   if (storage === null) return DEFAULT_TURN_MODE
   try {
     return parseTurnMode(storage.getItem(TURN_MODE_KEY))
   } catch {
-    // Almacenamiento capado: se gira solo sentado, que es lo que no estorba a nadie.
+    // Blocked storage: it turns only seated, which is what bothers nobody.
     return DEFAULT_TURN_MODE
   }
 }
 
 /**
- * Guarda el giro, o lo olvida cuando vuelve a ser el de partida.
+ * Stores the turn, or forgets it when it is the starting one again.
  *
- * @returns si quedó guardado. Un `false` no es un error: significa que este navegador no
- *   guarda nada y la elección vivirá lo que dure la visita.
+ * @returns whether it was stored. A `false` is not an error: it means this browser does not
+ *   store anything and the choice will live as long as the visit lasts.
  */
 export function writeTurnMode(storage: Storage | null, value: TurnMode): boolean {
   if (storage === null) return false
@@ -506,59 +506,60 @@ export function writeTurnMode(storage: Storage | null, value: TurnMode): boolean
 }
 
 /**
- * Con qué mano se juega: la que lanza, golpea y apunta.
+ * Which hand you play with: the one that throws, hits and aims.
  *
- * **El problema.** Cada juego que la necesitaba la preguntaba en su menú —la pala en la mesa,
- * el bate en la jaula—, y quien es zurdo tenía que decirlo en cada cabina, entre el modo y la
- * dificultad, antes de poder jugar. Es la misma respuesta en todas: nadie cambia de mano buena
- * al cambiar de juego.
+ * **The problem.** Each game that needed it asked for it in its menu —the paddle at the table, the
+ * bat in the cage—, and whoever is left-handed had to say it in every cabinet, between the mode and
+ * the difficulty, before being able to play. It is the same answer in all of them: nobody changes
+ * dominant hand when changing game.
  *
- * **Por qué es del arcade y no de cada juego.** Por lo mismo que el escenario: se elige una vez
- * y vale para los trece, y así el menú de cada juego se queda en lo que es suyo. **Una sola
- * clave**: el juego que tenía la suya la deja de leer y la borra sin trasladarla, porque dos
- * sitios que dicen lo mismo acaban diciendo cosas distintas, y trasladarla pisaría lo elegido
- * aquí con lo que se eligió en una sola cabina.
+ * **Why it belongs to the hall and not to each game.** For the same reason as the scenery: it is
+ * chosen once and holds for the thirteen, and so each game's menu is left with what is its own. **A
+ * single key**: the game that had its own stops reading it and deletes it without migrating it,
+ * because two places that say the same thing end up saying different things, and migrating it would
+ * overwrite what was chosen here with what was chosen in a single cabinet.
  *
- * Los valores son los nombres de WebXR (`XRHandedness`) y los que ya usan los juegos que tenían
- * el ajuste: se le pasan tal cual a `@react-three/xr` para pedirle el mando de esa mano, y leer
- * este en vez del propio cambia de dónde sale el valor, no qué significa.
+ * The values are the WebXR names (`XRHandedness`) and the ones already used by the games that had
+ * the setting: they are passed as they are to `@react-three/xr` to ask it for that hand's
+ * controller, and reading this one instead of their own changes where the value comes from, not
+ * what it means.
  */
 export const HANDS = ['right', 'left'] as const
 export type Hand = (typeof HANDS)[number]
 
 /**
- * En qué orden se enseñan al elegir: izquierda a la izquierda, como se tienen las manos de
- * frente. Un selector con la derecha a la izquierda se pulsa al revés sin querer.
+ * In what order they are shown when choosing: left on the left, as hands are when seen from the
+ * front. A selector with the right one on the left gets pressed the wrong way round by mistake.
  */
 export const HAND_ORDER: readonly Hand[] = ['left', 'right']
 
-/** Dónde se recuerda. El prefijo es del arcade, no de un juego. */
+/** Where it is remembered. The prefix belongs to the hall, not to a game. */
 export const HAND_KEY = 'xrcade:hand'
 
-/** La derecha, que es la de la mayoría y con la que se construyeron los trece. */
+/** The right one, which is most people's and the one the thirteen were built with. */
 export const DEFAULT_HAND: Hand = 'right'
 
-/** Interpreta la mano leída del almacenamiento: solo cuenta una que exista. */
+/** Parses the hand read from storage: only one that exists counts. */
 export function parseHand(raw: string | null | undefined): Hand {
   return (HANDS as readonly string[]).includes(raw ?? '') ? (raw as Hand) : DEFAULT_HAND
 }
 
-/** La mano elegida, leída de un almacenamiento que puede no estar. */
+/** The chosen hand, read from a storage that may not be there. */
 export function readHand(storage: Pick<Storage, 'getItem'> | null): Hand {
   if (storage === null) return DEFAULT_HAND
   try {
     return parseHand(storage.getItem(HAND_KEY))
   } catch {
-    // Almacenamiento capado: se juega con la derecha, como se jugaba antes de haber esto.
+    // Blocked storage: you play with the right one, as you played before this existed.
     return DEFAULT_HAND
   }
 }
 
 /**
- * Guarda la mano, o la olvida cuando vuelve a ser la de partida.
+ * Stores the hand, or forgets it when it is the starting one again.
  *
- * @returns si quedó guardada. Un `false` no es un error: significa que este navegador no
- *   guarda nada y la elección vivirá lo que dure la visita.
+ * @returns whether it was stored. A `false` is not an error: it means this browser does not
+ *   store anything and the choice will live as long as the visit lasts.
  */
 export function writeHand(storage: Storage | null, value: Hand): boolean {
   if (storage === null) return false
@@ -572,32 +573,33 @@ export function writeHand(storage: Storage | null, value: Hand): boolean {
 }
 
 /**
- * Cuánto se sube o se baja el mundo **además** de la altura de juego, en centímetros.
+ * How much the world is raised or lowered **on top of** the play height, in centimetres.
  *
- * **El problema.** `standing|eyes` es un interruptor: de pie, el mundo donde se dibujó; a la
- * altura de los ojos, bajado lo que los ojos estén por debajo de la persona de referencia. Entre
- * medias no hay nada, y una silla de oficina y un sofá no ponen los ojos a la misma altura del
- * brazo, ni llega igual quien mide 1,50 que quien mide 1,90. El salón deja afinarlo de cinco en
- * cinco centímetros y este juego solo lo lee: se suma a lo que ya haga la altura de juego y sube
- * (positivo) o baja (negativo) el decorado entero, con la mano donde está.
+ * **The problem.** `standing|eyes` is a switch: standing, the world where it was drawn; at eye
+ * height, lowered by however much the eyes are below the reference person. In between there is
+ * nothing, and an office chair and a sofa do not put the eyes at the same height as the arm, nor
+ * does someone 1.50 tall reach the same as someone 1.90 tall. The hall lets you fine-tune it five
+ * centimetres at a time and this game only reads it: it is added to whatever the play height
+ * already does and raises (positive) or lowers (negative) the whole stage, with the hand where it
+ * is.
  *
- * El tope es de un palmo largo a cada lado: más allá ya no es afinar, es la otra altura de
- * juego, y un mundo treinta centímetros por encima del suelo de verdad se ve flotando.
+ * The limit is a long hand span on each side: beyond that it is no longer fine-tuning, it is the
+ * other play height, and a world thirty centimetres above the real floor looks like it is floating.
  */
 export const PLAY_HEIGHT_OFFSET_KEY = 'xrcade:play-height-offset'
 
-/** Lo más que se sube o se baja, en centímetros, a cada lado del cero. */
+/** The most it is raised or lowered, in centimetres, on each side of zero. */
 export const MAX_PLAY_HEIGHT_OFFSET = 30
 
-/** Sin tocar: el mundo donde lo pone la altura de juego, como antes de haber esto. */
+/** Untouched: the world where the play height puts it, as before this existed. */
 export const DEFAULT_PLAY_HEIGHT_OFFSET = 0
 
 /**
- * Interpreta el ajuste leído del almacenamiento.
+ * Parses the offset read from storage.
  *
- * Solo vale un entero dentro del tope. Un decimal, un texto o un número fuera de rango son
- * almacenamiento manipulado o de otra versión, y caen al cero: un mundo metro y medio por
- * encima del suelo por un valor roto es mucho peor que uno sin afinar.
+ * Only an integer within the limit is valid. A decimal, a text or a number out of range are
+ * tampered storage or storage from another version, and fall back to zero: a world a metre and a
+ * half above the floor because of a broken value is much worse than one without fine-tuning.
  */
 export function parsePlayHeightOffset(raw: string | null | undefined): number {
   if (raw == null || !/^-?\d{1,3}$/.test(raw)) return DEFAULT_PLAY_HEIGHT_OFFSET
@@ -605,39 +607,39 @@ export function parsePlayHeightOffset(raw: string | null | undefined): number {
   return Math.abs(value) <= MAX_PLAY_HEIGHT_OFFSET ? value : DEFAULT_PLAY_HEIGHT_OFFSET
 }
 
-/** El ajuste, en centímetros, leído de un almacenamiento que puede no estar. */
+/** The offset, in centimetres, read from a storage that may not be there. */
 export function readPlayHeightOffset(storage: Pick<Storage, 'getItem'> | null): number {
   if (storage === null) return DEFAULT_PLAY_HEIGHT_OFFSET
   try {
     return parsePlayHeightOffset(storage.getItem(PLAY_HEIGHT_OFFSET_KEY))
   } catch {
-    // Almacenamiento capado: sin afinar, que es como se jugaba antes de haber esto.
+    // Blocked storage: no fine-tuning, which is how you played before this existed.
     return DEFAULT_PLAY_HEIGHT_OFFSET
   }
 }
 
-/** De centímetros a los metros en los que se mueve el decorado. */
+/** From centimetres to the metres the stage moves in. */
 export function playHeightOffsetMeters(cm: number): number {
   return cm / 100
 }
 
 /**
- * **El contrato con el salón, con número**: su versión y lo que este fichero sabe leer.
+ * **The contract with the hall, with a number**: its version and what this file knows how to read.
  *
- * Cada capacidad es un ajuste del salón que un juego puede leer o no: el idioma, los volúmenes,
- * el escenario, la altura de juego y su ajuste fino, el agarre, el giro con el stick y la mano.
- * Este fichero es **el mismo en los diecisiete**, así que aquí no se dice cuáles usa cada uno:
- * eso lo declara el `package.json` de cada juego en `xrcade.capabilities`, y lo comprueba contra
- * su código `src/lib/contrato.test.ts`. El salón lee las dos cosas importando el paquete
- * instalado —no buscando texto en él— para saber qué ajustes enseñar para cada cabina y qué
- * exigir al publicar (`xrcade/docs/anadir-un-juego.md`).
+ * Each capability is a setting of the hall that a game may or may not read: the language, the
+ * volumes, the scenery, the play height and its fine offset, the grab, the turn with the stick and
+ * the hand. This file is **the same in all seventeen**, so it does not say here which ones each
+ * game uses: that is declared by each game's `package.json` in `xrcade.capabilities`, and checked
+ * against its code by `src/lib/contract.test.ts`. The hall reads both things by importing the
+ * installed package —not by searching for text in it— to know which settings to show for each
+ * cabinet and what to require on publishing (`xrcade/docs/anadir-un-juego.md`).
  *
- * **La versión sube** cuando cambia el significado de una capacidad que ya existe (otra clave,
- * otros valores); añadir una capacidad nueva no la sube, porque un salón que no la conoce
- * simplemente no la enseña.
+ * **The version goes up** when the meaning of a capability that already exists changes (another
+ * key, other values); adding a new capability does not raise it, because a hall that does not know
+ * it simply does not show it.
  */
 export const XRCADE_CONTRACT = {
-  version: 1,
+  version: 2,
   capabilities: [
     'lang',
     'volumes',
@@ -650,5 +652,5 @@ export const XRCADE_CONTRACT = {
   ] as const,
 } as const
 
-/** Un ajuste del salón que un juego puede declarar que lee. */
+/** A setting of the hall that a game can declare it reads. */
 export type XrcadeCapability = (typeof XRCADE_CONTRACT.capabilities)[number]

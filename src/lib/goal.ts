@@ -1,133 +1,135 @@
 /**
- * El objetivo de la partida, dicho de frente: qué pone el cartel en cada momento.
+ * The goal of the run, said up front: what the sign reads at each moment.
  *
- * Es el mismo fichero en todos los juegos del salón, junto con
- * `components/xr/CartelDeObjetivo.tsx`, y por eso **no importa nada del juego**: ni three, ni
- * React, ni su diccionario. Lo que es de cada juego —la frase de la misión, lo que le queda a
- * quien juega, dónde cuelga el cartel— entra por parámetros.
+ * It is the same file in every game of the hall, together with
+ * `components/xr/GoalSign.tsx`, and that is why it **imports nothing from the game**: no three, no
+ * React, not its dictionary. What belongs to each game —the mission sentence, what the player has
+ * left, where the sign hangs— comes in through parameters.
  *
- * **Cómo se monta en un juego:**
+ * **How it is mounted in a game:**
  *
- * 1. La escena recibe `objetivo?: Objetivo` del salón, igual que `reto` y `onTerminar`, y lo baja
- *    hasta donde se arma el marcador. Sin él (el juego abierto suelto) el cartel dice la misión
- *    y el récord local.
- * 2. Las frases de aquí van en inglés y son su propia clave. El diccionario del juego las
- *    aprende poniendo `...OBJETIVO_ES` **lo primero** de su objeto de traducciones (lo primero,
- *    para que una frase que el juego ya tuviera no choque).
- * 3. Con el estado de la partida se arma una `Partida` y se pide la vista, ya traducida:
- *    `cartelDeObjetivo({ objetivo, fase, puntos, mision: t(MISION), queda: '♥♥♡', cuenta }, t)`.
- *    - `fase`: `'antes'` (cuenta atrás o hasta el primer intento), `'jugando'`, `'final'`.
- *    - `puntos`: lo que se lleva, en la unidad del récord (golpes, si menos es mejor).
- *    - `queda`: lo que le queda a quien juega, ya escrito: vidas, tiros, tiempo u hoyos.
- *    - `cuenta: cuentaParaMedalla(objetivo, modo)`: `false` en la práctica y en cualquier modo
- *      que no sea el del récord; entonces `modo` es el nombre que se enseña.
- * 4. La vista se le da a `<CartelDeObjetivo>` con su sitio, su orientación y la distancia a la
- *    que se lee, y `medallaQueCelebra(partida)` en `celebra` para que festeje cada listón.
- * 5. Lo que el cartel ya dice se quita del marcador de al lado, y el panel se mide en un test
- *    con la misión del juego en los dos idiomas (`cartel.legible.test.ts` enseña cómo).
+ * 1. The scene receives `goal?: Goal` from the hall, just like `challenge` and `onFinish`, and passes
+ *    it down to where the scoreboard is built. Without it (the game opened on its own) the sign says
+ *    the mission and the local record.
+ * 2. The phrases here are in English and are their own key. The game's dictionary learns them
+ *    by putting `...GOAL_ES` **first** in its translations object (first, so that a phrase the
+ *    game already had does not clash).
+ * 3. With the state of the run a `Run` is built and the view is asked for, already translated:
+ *    `goalSign({ goal, phase, points, mission: t(MISSION), remaining: '♥♥♡', counts }, t)`.
+ *    - `phase`: `'before'` (countdown or until the first attempt), `'playing'`, `'end'`.
+ *    - `points`: what has been scored so far, in the record's unit (strokes, if lower is better).
+ *    - `remaining`: what the player has left, already written: lives, shots, time or holes.
+ *    - `counts: countsForMedal(goal, mode)`: `false` in practice and in any mode that is not
+ *      the record's; then `mode` is the name that is shown.
+ * 4. The view is given to `<GoalSign>` with its place, its orientation and the distance it is
+ *    read from, and `medalToCelebrate(run)` in `celebrate` so that it celebrates each threshold.
+ * 5. What the sign already says is removed from the scoreboard next to it, and the panel is measured
+ *    in a test with the game's mission in both languages (`goalSign.legible.test.ts` shows how).
  *
- * **El récord es el de antes de la partida**, el del salón y el local: el que había al pulsar
- * «Jugar». Uno leído después de guardar la marca nueva haría decir a la vez «¡Nuevo récord!» y
- * «Has igualado tu récord». Sin récord (`null`), la primera marca es «¡Primer récord!»; un juego
- * que ya lo celebra en su propio marcador pasa `recordAparte` para no decirlo dos veces.
+ * **The record is the one from before the run**, the hall's and the local one: the one there was
+ * when «Jugar» was pressed. One read after saving the new best would make it say «¡Nuevo récord!» and
+ * «Has igualado tu récord» at the same time. Without a record (`null`), the first best is «¡Primer
+ * récord!»; a game that already celebrates it on its own scoreboard passes `recordShownElsewhere` so
+ * as not to say it twice.
  *
- * **Al acabar, una tercera línea** (`pie`) dice por qué se acabó (`causa`, que da cada juego: «tres
- * al suelo», «ibas tarde») y cómo quedó frente al récord («Tu mejor 31»). Al cruzar un listón el
- * cartel no solo cambia de color: el título dice la medalla (`vitor`, «¡Bronce!») mientras dura la
- * celebración. Y si los puntos del récord no se cuentan como la misión («13 palos» frente a
- * «Bronce 1900»), `contable` traduce el bronce a lo que se cuenta la primera vez.
+ * **At the end, a third line** (`footer`) says why it ended (`endReason`, which each game gives: «tres
+ * al suelo», «ibas tarde») and how it stood against the record («Tu mejor 31»). On crossing a threshold
+ * the sign does not only change colour: the title says the medal (`cheer`, «¡Bronce!») while the
+ * celebration lasts. And if the record's points are not counted like the mission («13 palos» against
+ * «Bronce 1900»), `asCount` translates the bronze into what is counted the first time.
  *
- * **Las cifras se le dan como números** y el cartel las escribe como se leen en cada idioma,
- * igual que la chapa de la cabina del salón (`formatRecordValue`, en xrcade): el inglés separa
- * los miles con coma desde las cuatro cifras («7,000») y el español con punto y **desde las
- * cinco** («7000», «17.000»), que es la regla de la RAE y de CLDR, no un descuido. El separador
- * es una frase más del diccionario (`,`), así que sale del mismo traductor y no hace falta
- * decirle el idioma: de él se saca desde cuántas cifras se agrupa y el signo de los decimales.
+ * **The figures are given to it as numbers** and the sign writes them as they are read in each
+ * language, just like the plate of the hall's cabinet (`formatRecordValue`, in xrcade): English
+ * separates the thousands with a comma from four digits on («7,000») and Spanish with a dot and
+ * **from five on** («7000», «17.000»), which is the rule of the RAE and of CLDR, not an oversight.
+ * The separator is one more phrase of the dictionary (`,`), so it comes from the same translator and
+ * there is no need to tell it the language: from it comes the number of digits from which to group
+ * and the decimal sign.
  */
 
-/** Lo que el salón le pasa a la escena: los listones del juego y la marca de quien juega. */
-export type Objetivo = {
-  medallas: { bronce: number; plata: number; oro: number }
-  mejorEs: 'mas' | 'menos'
-  unidad: string
+/** What the hall passes to the scene: the game's thresholds and the player's best. */
+export type Goal = {
+  medals: { bronze: number; silver: number; gold: number }
+  better: 'higher' | 'lower'
+  unit: string
   record: number | null
-  modo: string
+  mode: string
 }
 
-export const MEDALLAS = ['bronce', 'plata', 'oro'] as const
-export type Medalla = (typeof MEDALLAS)[number]
+export const MEDALS = ['bronze', 'silver', 'gold'] as const
+export type Medal = (typeof MEDALS)[number]
 
-/** En qué momento de la partida se está. */
-export type FaseDelObjetivo = 'antes' | 'jugando' | 'final'
+/** Which moment of the run it is. */
+export type GoalPhase = 'before' | 'playing' | 'end'
 
-/** Un traductor: la frase en inglés es la clave, y los huecos van entre llaves. */
-export type Traducir = (clave: string, valores?: Record<string, string | number>) => string
+/** A translator: the phrase in English is the key, and the placeholders go between braces. */
+export type Translate = (key: string, values?: Record<string, string | number>) => string
 
-/** Lo que el juego sabe de la partida y el cartel necesita. */
-export interface Partida {
-  /** Lo que pasó el salón. Sin él, el juego está abierto suelto y no hay medallas. */
-  objetivo?: Objetivo | null
-  fase: FaseDelObjetivo
-  /** Lo que se lleva, en la unidad del récord. */
-  puntos: number
-  /** La misión en una frase, ya traducida: «Encesta hasta fallar 3 veces». */
-  mision: string
-  /** Lo que le queda a quien juega, ya escrito: vidas, tiros, tiempo, hoyos. */
-  queda?: string | null
-  /** Si esta partida cuenta para la medalla. `false` en la práctica. Por defecto, sí. */
-  cuenta?: boolean
-  /** Cómo se llama lo que se juega, ya traducido, para decir que no cuenta. */
-  modo?: string
-  /** El récord local, para cuando no hay `objetivo`. */
+/** What the game knows about the run and the sign needs. */
+export interface Run {
+  /** What the hall passed. Without it, the game is open on its own and there are no medals. */
+  goal?: Goal | null
+  phase: GoalPhase
+  /** What has been scored so far, in the record's unit. */
+  points: number
+  /** The mission in one sentence, already translated: «Encesta hasta fallar 3 veces». */
+  mission: string
+  /** What the player has left, already written: lives, shots, time, holes. */
+  remaining?: string | null
+  /** Whether this run counts for the medal. `false` in practice. By default, yes. */
+  counts?: boolean
+  /** What the thing being played is called, already translated, to say that it does not count. */
+  mode?: string
+  /** The local record, for when there is no `goal`. */
   record?: number | null
-  /** Qué es mejor, para cuando no hay `objetivo`. Por defecto, más. */
-  mejorEs?: 'mas' | 'menos'
+  /** What is better, for when there is no `goal`. By default, higher. */
+  better?: 'higher' | 'lower'
   /**
-   * Por qué se acabó, ya traducido: «Tres al suelo». Solo se dice al acabar, y corta: comparte
-   * línea con el récord, y el test del cartel de cada juego la mide.
+   * Why it ended, already translated: «Tres al suelo». It is only said at the end, and short: it
+   * shares a line with the record, and each game's sign test measures it.
    */
-  causa?: string | null
+  endReason?: string | null
   /**
-   * Lo que vale una cifra del récord en lo que se cuenta, ya traducido: `1900` → «≈ 13 palos».
-   * Para cuando la unidad del récord no es la de la misión; se dice antes de la primera partida,
-   * en lugar de la cifra del bronce (y sin la plata, para que la línea quepa entera).
+   * What a figure of the record is worth in what is counted, already translated: `1900` → «≈ 13 palos».
+   * For when the record's unit is not the mission's; it is said before the first run,
+   * instead of the bronze figure (and without the silver, so that the whole line fits).
    */
-  contable?: ((puntos: number) => string) | null
-  /** El juego ya dice el récord en su propio marcador: el cartel no lo repite. */
-  recordAparte?: boolean
+  asCount?: ((points: number) => string) | null
+  /** The game already says the record on its own scoreboard: the sign does not repeat it. */
+  recordShownElsewhere?: boolean
 }
 
-/** Lo que pinta el cartel: dos líneas como mucho y una barra. */
-export interface VistaDelCartel {
-  titulo: string
-  detalle: string | null
-  /** De 0 a 1, o `null` si no hay barra. Con «menos es mejor» es el margen que queda. */
-  barra: number | null
-  /** De qué medalla va el color: la que se persigue o la conseguida. */
-  medalla: Medalla | null
-  /** Se dice bajito: la partida no cuenta para medalla. */
-  discreto: boolean
-  /** Al acabar, la tercera línea: por qué se acabó y cómo quedó frente al récord. */
-  pie?: string
-  /** La medalla que ya es de quien juega, dicha («¡Bronce!»): el título mientras se celebra. */
-  vitor?: string
+/** What the sign paints: two lines at most and a bar. */
+export interface GoalSignView {
+  title: string
+  detail: string | null
+  /** From 0 to 1, or `null` if there is no bar. With «lower is better» it is the margin left. */
+  bar: number | null
+  /** Which medal the colour is about: the one being chased or the one earned. */
+  medal: Medal | null
+  /** It is said quietly: the run does not count for a medal. */
+  subdued: boolean
+  /** At the end, the third line: why it ended and how it stood against the record. */
+  footer?: string
+  /** The medal that is already the player's, said out loud («¡Bronce!»): the title while it is celebrated. */
+  cheer?: string
 }
 
 /**
- * Las frases del cartel en español. El inglés no se guarda: es la clave.
+ * The phrases of the sign in Spanish. The English is not stored: it is the key.
  *
- * Van aquí y no en el diccionario de cada juego para que el cartel diga lo mismo en todos; cada
- * diccionario las incluye con `...OBJETIVO_ES`.
+ * They go here and not in each game's dictionary so that the sign says the same in all of them; each
+ * dictionary includes them with `...GOAL_ES`.
  */
-export const OBJETIVO_ES = {
-  // El separador de miles, que también se traduce: «17,000» es «17.000». De él sale lo demás
-  // de cómo se escribe una cifra (`ESCRITURA`): con punto se agrupa desde las cinco cifras.
+export const GOAL_ES = {
+  // The thousands separator, which is translated too: «17,000» is «17.000». From it comes the rest
+  // of how a figure is written (`NOTATION`): with a dot it is grouped from five digits on.
   ',': '.',
   Bronze: 'Bronce',
   Silver: 'Plata',
   Gold: 'Oro',
-  'Bronze {bronce} · Silver {plata} · Gold {oro}': 'Bronce {bronce} · Plata {plata} · Oro {oro}',
-  'Gold {oro} or less · Silver {plata} · Bronze {bronce}': 'Oro {oro} o menos · Plata {plata} · Bronce {bronce}',
+  'Bronze {bronze} · Silver {silver} · Gold {gold}': 'Bronce {bronze} · Plata {silver} · Oro {gold}',
+  'Gold {gold} or less · Silver {silver} · Bronze {bronze}': 'Oro {gold} o menos · Plata {silver} · Bronce {bronze}',
   '{medal} at {target} · you have {score}': '{medal} a {target} · llevas {score}',
   '{medal} with {target} or less · you have {score}': '{medal} con {target} o menos · llevas {score}',
   'Gold · your record {record} · you have {score}': 'Oro · tu récord {record} · llevas {score}',
@@ -154,326 +156,326 @@ export const OBJETIVO_ES = {
   'Bronze!': '¡Bronce!',
   'Silver!': '¡Plata!',
   'Gold!': '¡Oro!',
-  'Bronze {contable} · Gold {oro}': 'Bronce {contable} · Oro {oro}',
-  'Gold {oro} or less · Bronze {contable}': 'Oro {oro} o menos · Bronce {contable}',
+  'Bronze {asCount} · Gold {gold}': 'Bronce {asCount} · Oro {gold}',
+  'Gold {gold} or less · Bronze {asCount}': 'Oro {gold} o menos · Bronce {asCount}',
   '{mode} · does not count for a medal': '{mode} · no cuenta para medalla',
 } as const
 
-const NOMBRE: Record<Medalla, string> = { bronce: 'Bronze', plata: 'Silver', oro: 'Gold' }
-const VITOR: Record<Medalla, string> = { bronce: 'Bronze!', plata: 'Silver!', oro: 'Gold!' }
-const FALTO: Record<Medalla, string> = {
-  bronce: '{missing} short of bronze',
-  plata: '{missing} short of silver',
-  oro: '{missing} short of gold',
+const NAME: Record<Medal, string> = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' }
+const CHEER: Record<Medal, string> = { bronze: 'Bronze!', silver: 'Silver!', gold: 'Gold!' }
+const SHORT_OF: Record<Medal, string> = {
+  bronze: '{missing} short of bronze',
+  silver: '{missing} short of silver',
+  gold: '{missing} short of gold',
 }
-const SOBRO: Record<Medalla, string> = {
-  bronce: '{extra} too many for bronze',
-  plata: '{extra} too many for silver',
-  oro: '{extra} too many for gold',
+const TOO_MANY: Record<Medal, string> = {
+  bronze: '{extra} too many for bronze',
+  silver: '{extra} too many for silver',
+  gold: '{extra} too many for gold',
 }
 
-/** Sin traductor, en inglés: rellena los huecos y nada más. */
-const EN: Traducir = (clave, valores) =>
-  valores === undefined ? clave : clave.replace(/\{(\w+)\}/g, (_, hueco: string) => String(valores[hueco]))
-
-/**
- * Cómo se escribe una cifra según el separador de miles que dé el traductor: el signo de los
- * decimales y desde cuántas cifras se agrupa. Son las reglas de la cabina del salón: con coma
- * (inglés) desde las cuatro, «1,240»; con punto (español) desde las cinco, «1240» y «12.400».
- * Un separador que no esté aquí se escribe como el del inglés.
- */
-const ESCRITURA: Record<string, { decimal: string; desde: number }> = {
-  ',': { decimal: '.', desde: 4 },
-  '.': { decimal: ',', desde: 5 },
-}
+/** Without a translator, in English: it fills in the placeholders and nothing else. */
+const EN: Translate = (key, values) =>
+  values === undefined ? key : key.replace(/\{(\w+)\}/g, (_, placeholder: string) => String(values[placeholder]))
 
 /**
- * Una cifra como se lee en ese idioma, sin `Intl`: fuera del navegador (el port a Godot) no lo
- * hay. Los miles, agrupados si la parte entera llega a las cifras que tocan; los decimales, si
- * los hubiera, hasta tres, redondeados y con el otro signo.
+ * How a figure is written according to the thousands separator the translator gives: the decimal
+ * sign and the number of digits from which it is grouped. They are the rules of the hall's cabinet:
+ * with a comma (English) from four, «1,240»; with a dot (Spanish) from five, «1240» and «12.400».
+ * A separator that is not here is written like the English one.
  */
-function cifra(valor: number, miles: string): string {
-  if (!Number.isFinite(valor)) return String(valor)
-  const { decimal, desde } = ESCRITURA[miles] ?? ESCRITURA[',']
-  // La parte entera y la decimal por separado, para que el redondeo no invente decimales.
-  const absoluto = Math.abs(valor)
-  let entera = Math.trunc(absoluto)
-  let milesimas = Math.round((absoluto - entera) * 1000)
-  if (milesimas === 1000) {
-    entera += 1
-    milesimas = 0
+const NOTATION: Record<string, { decimal: string; from: number }> = {
+  ',': { decimal: '.', from: 4 },
+  '.': { decimal: ',', from: 5 },
+}
+
+/**
+ * A figure as it is read in that language, without `Intl`: outside the browser (the port to Godot)
+ * there is none. The thousands, grouped if the whole part reaches the digits required; the decimals,
+ * if there were any, up to three, rounded and with the other sign.
+ */
+function figure(value: number, thousands: string): string {
+  if (!Number.isFinite(value)) return String(value)
+  const { decimal, from } = NOTATION[thousands] ?? NOTATION[',']
+  // The whole part and the decimal part separately, so that the rounding does not invent decimals.
+  const absolute = Math.abs(value)
+  let whole = Math.trunc(absolute)
+  let thousandths = Math.round((absolute - whole) * 1000)
+  if (thousandths === 1000) {
+    whole += 1
+    thousandths = 0
   }
-  const cifras = String(entera)
-  const agrupada = cifras.length < desde ? cifras : cifras.replace(/\B(?=(\d{3})+$)/g, miles)
-  const resto = String(milesimas).padStart(3, '0').replace(/0+$/, '')
-  return `${valor < 0 ? '-' : ''}${agrupada}${resto ? decimal + resto : ''}`
+  const digits = String(whole)
+  const grouped = digits.length < from ? digits : digits.replace(/\B(?=(\d{3})+$)/g, thousands)
+  const rest = String(thousandths).padStart(3, '0').replace(/0+$/, '')
+  return `${value < 0 ? '-' : ''}${grouped}${rest ? decimal + rest : ''}`
 }
 
-/** El traductor del juego, escribiendo las cifras de los huecos como se leen en su idioma. */
-function conMiles(t: Traducir): Traducir {
-  const miles = t(',')
-  return (clave, valores) => {
-    if (valores === undefined) return t(clave)
-    const escritos: Record<string, string | number> = {}
-    for (const [hueco, valor] of Object.entries(valores)) {
-      escritos[hueco] = typeof valor === 'number' ? cifra(valor, miles) : valor
+/** The game's translator, writing the figures of the placeholders as they are read in its language. */
+function withThousands(t: Translate): Translate {
+  const thousands = t(',')
+  return (key, values) => {
+    if (values === undefined) return t(key)
+    const written: Record<string, string | number> = {}
+    for (const [placeholder, value] of Object.entries(values)) {
+      written[placeholder] = typeof value === 'number' ? figure(value, thousands) : value
     }
-    return t(clave, escritos)
+    return t(key, written)
   }
 }
 
-/** Si `a` es mejor marca que `b`. */
-function mejor(a: number, b: number, mejorEs: 'mas' | 'menos'): boolean {
-  return mejorEs === 'mas' ? a > b : a < b
+/** Whether `a` is a better mark than `b`. */
+function isBetter(a: number, b: number, better: 'higher' | 'lower'): boolean {
+  return better === 'higher' ? a > b : a < b
 }
 
-/** Una parte de un todo, de 0 a 1. Un todo que no mide nada está entero. */
-function fraccion(parte: number, todo: number): number {
-  return todo > 0 ? Math.min(1, Math.max(0, parte / todo)) : 1
+/** A part of a whole, from 0 to 1. A whole that measures nothing is complete. */
+function fraction(part: number, total: number): number {
+  return total > 0 ? Math.min(1, Math.max(0, part / total)) : 1
 }
 
-/** Si lo que se juega es el modo del que salen las medallas. Sin objetivo no hay nada que descontar. */
-export function cuentaParaMedalla(objetivo: Objetivo | null | undefined, modo: string): boolean {
-  return objetivo == null || objetivo.modo === modo
+/** Whether what is being played is the mode the medals come from. Without a goal there is nothing to discount. */
+export function countsForMedal(goal: Goal | null | undefined, mode: string): boolean {
+  return goal == null || goal.mode === mode
 }
 
-/** La mejor medalla que da esa puntuación, o `null` si no llega a ninguna. */
-export function medallaConseguida(objetivo: Objetivo, puntos: number): Medalla | null {
-  const llega = (medalla: Medalla) =>
-    objetivo.mejorEs === 'mas' ? puntos >= objetivo.medallas[medalla] : puntos <= objetivo.medallas[medalla]
-  return [...MEDALLAS].reverse().find(llega) ?? null
+/** The best medal that score gives, or `null` if it does not reach any. */
+export function medalEarned(goal: Goal, points: number): Medal | null {
+  const reaches = (medal: Medal) =>
+    goal.better === 'higher' ? points >= goal.medals[medal] : points <= goal.medals[medal]
+  return [...MEDALS].reverse().find(reaches) ?? null
 }
 
 /**
- * El listón que se acaba de cruzar al pasar de una medalla a otra, o `null`.
+ * The threshold that has just been crossed on going from one medal to another, or `null`.
  *
- * Solo cuenta subir: con «menos es mejor» la medalla se va perdiendo golpe a golpe, y eso no se
- * celebra.
+ * Only going up counts: with «lower is better» the medal is lost stroke by stroke, and that is not
+ * celebrated.
  */
-export function listonCruzado(antes: Medalla | null, ahora: Medalla | null): Medalla | null {
-  if (ahora == null) return null
-  return antes == null || MEDALLAS.indexOf(ahora) > MEDALLAS.indexOf(antes) ? ahora : null
+export function thresholdCrossed(before: Medal | null, now: Medal | null): Medal | null {
+  if (now == null) return null
+  return before == null || MEDALS.indexOf(now) > MEDALS.indexOf(before) ? now : null
 }
 
 /**
- * La medalla que ya es de quien juega, que es la que el cartel celebra al cambiar.
+ * The medal that is already the player's, which is the one the sign celebrates when it changes.
  *
- * Con «más es mejor» se gana en cuanto se cruza el listón; con «menos es mejor» no es de nadie
- * hasta que se acaba. Sin objetivo, o en un modo que no cuenta, no hay ninguna.
+ * With «higher is better» it is won as soon as the threshold is crossed; with «lower is better» it is
+ * nobody's until it ends. Without a goal, or in a mode that does not count, there is none.
  */
-export function medallaQueCelebra(partida: Partida): Medalla | null {
-  const { objetivo, fase } = partida
-  if (objetivo == null || partida.cuenta === false || fase === 'antes') return null
-  if (objetivo.mejorEs === 'menos' && fase !== 'final') return null
-  return medallaConseguida(objetivo, partida.puntos)
+export function medalToCelebrate(run: Run): Medal | null {
+  const { goal, phase } = run
+  if (goal == null || run.counts === false || phase === 'before') return null
+  if (goal.better === 'lower' && phase !== 'end') return null
+  return medalEarned(goal, run.points)
 }
 
-/** Lo que dura la celebración de un listón, en segundos: el color; el pulso acaba antes. */
-export const SEGUNDOS_DE_FESTEJO = 1.2
-const SEGUNDOS_DE_PULSO = 0.5
-const CRECE = 0.12
+/** How long the celebration of a threshold lasts, in seconds: the colour; the pulse ends earlier. */
+export const CELEBRATION_SECONDS = 1.2
+const PULSE_SECONDS = 0.5
+const GROWTH = 0.12
 
 /**
- * Cuánto crece el cartel a esos segundos de cruzar un listón: sube y vuelve a 1 en medio
- * segundo. Es toda la celebración que se mueve: nada a pantalla completa.
+ * How much the sign grows at those seconds after crossing a threshold: it goes up and returns to 1
+ * in half a second. It is all of the celebration that moves: nothing full screen.
  */
-export function pulsoDelFestejo(segundos: number): number {
-  if (segundos <= 0 || segundos >= SEGUNDOS_DE_PULSO) return 1
-  return 1 + CRECE * Math.sin((Math.PI * segundos) / SEGUNDOS_DE_PULSO)
+export function celebrationPulse(seconds: number): number {
+  if (seconds <= 0 || seconds >= PULSE_SECONDS) return 1
+  return 1 + GROWTH * Math.sin((Math.PI * seconds) / PULSE_SECONDS)
 }
 
 /**
- * Cómo quedó la partida frente al récord de antes: lo que faltó, lo que sobró o que se ha batido.
- * Sin récord, la primera marca; un cero a más no es marca, y no se dice nada.
+ * How the run stood against the record from before: what was missing, what was over or that it has been beaten.
+ * Without a record, the first mark; a zero when higher is better is not a mark, and nothing is said.
  */
-function frenteAlRecord(record: number | null, puntos: number, mejorEs: 'mas' | 'menos', t: Traducir): string | null {
-  if (record == null) return mejorEs === 'menos' || puntos > 0 ? t('First record!') : null
-  if (puntos === record) return t('You matched your record')
-  if (mejor(puntos, record, mejorEs)) return t('New record!')
-  return mejorEs === 'mas'
-    ? t('{missing} short of your record', { missing: record - puntos })
-    : t('{extra} over your record', { extra: puntos - record })
+function againstRecord(record: number | null, points: number, better: 'higher' | 'lower', t: Translate): string | null {
+  if (record == null) return better === 'lower' || points > 0 ? t('First record!') : null
+  if (points === record) return t('You matched your record')
+  if (isBetter(points, record, better)) return t('New record!')
+  return better === 'higher'
+    ? t('{missing} short of your record', { missing: record - points })
+    : t('{extra} over your record', { extra: points - record })
 }
 
-/** La tercera línea del final, si hay algo que decir en ella. */
-function conPie(vista: VistaDelCartel, ...partes: (string | null | undefined)[]): VistaDelCartel {
-  const pie = partes.filter((parte): parte is string => parte != null && parte !== '').join(' · ')
-  return pie === '' ? vista : { ...vista, pie }
+/** The third line of the end, if there is anything to say in it. */
+function withFooter(view: GoalSignView, ...parts: (string | null | undefined)[]): GoalSignView {
+  const footer = parts.filter((part): part is string => part != null && part !== '').join(' · ')
+  return footer === '' ? view : { ...view, footer }
 }
 
-/** El juego suelto, sin salón: la misión y el récord local. */
-function sinObjetivo(partida: Partida, t: Traducir): VistaDelCartel {
-  const { fase, puntos, mision } = partida
-  const record = partida.record ?? null
-  const mejorEs = partida.mejorEs ?? 'mas'
-  const base = { barra: null, medalla: null, discreto: false }
-  if (fase === 'antes') {
-    return { ...base, titulo: mision, detalle: record == null ? null : t('Your record {record}', { record }) }
+/** The game on its own, without the hall: the mission and the local record. */
+function withoutGoal(run: Run, t: Translate): GoalSignView {
+  const { phase, points, mission } = run
+  const record = run.record ?? null
+  const better = run.better ?? 'higher'
+  const base = { bar: null, medal: null, subdued: false }
+  if (phase === 'before') {
+    return { ...base, title: mission, detail: record == null ? null : t('Your record {record}', { record }) }
   }
-  if (fase === 'final') {
-    const vista = {
+  if (phase === 'end') {
+    const view = {
       ...base,
-      titulo: t('You scored {score}', { score: puntos }),
-      detalle: partida.recordAparte === true ? null : frenteAlRecord(record, puntos, mejorEs, t),
+      title: t('You scored {score}', { score: points }),
+      detail: run.recordShownElsewhere === true ? null : againstRecord(record, points, better, t),
     }
-    return conPie(vista, partida.causa)
+    return withFooter(view, run.endReason)
   }
   return {
     ...base,
-    titulo:
+    title:
       record == null
-        ? t('You have {score}', { score: puntos })
-        : t('Your record {record} · you have {score}', { record, score: puntos }),
-    detalle: partida.queda ?? null,
-    barra: record == null ? null : mejorEs === 'mas' ? fraccion(puntos, record) : fraccion(record - puntos, record),
+        ? t('You have {score}', { score: points })
+        : t('Your record {record} · you have {score}', { record, score: points }),
+    detail: run.remaining ?? null,
+    bar: record == null ? null : better === 'higher' ? fraction(points, record) : fraction(record - points, record),
   }
 }
 
 /**
- * Antes de empezar: la misión y los tres listones. La primera vez, si el juego sabe traducirlo, el
- * bronce dicho en lo que se cuenta **en lugar de** su cifra, y el oro, sin la plata: «Bronce ≈ 7
- * palos · Oro 7000». Es lo que persigue quien empieza y hasta dónde llega el juego; con la cifra y
- * la plata, la línea encogía por debajo de la letra mínima con los ojos a 1,9 m (stick-rush).
+ * Before starting: the mission and the three thresholds. The first time, if the game knows how to
+ * translate it, the bronze said in what is counted **instead of** its figure, and the gold, without the
+ * silver: «Bronce ≈ 7 palos · Oro 7000». It is what a beginner chases and how far the game goes; with the
+ * figure and the silver, the line shrank below the minimum font with the eyes at 1.9 m (stick-rush).
  */
-function antes(objetivo: Objetivo, mision: string, t: Traducir, contable: Partida['contable']): VistaDelCartel {
-  const traducido = objetivo.record == null && contable != null ? contable(objetivo.medallas.bronce) : null
-  const mas = objetivo.mejorEs === 'mas'
+function before(goal: Goal, mission: string, t: Translate, asCount: Run['asCount']): GoalSignView {
+  const translated = goal.record == null && asCount != null ? asCount(goal.medals.bronze) : null
+  const higher = goal.better === 'higher'
   return {
-    titulo: mision,
-    detalle:
-      traducido == null
-        ? t(mas ? 'Bronze {bronce} · Silver {plata} · Gold {oro}' : 'Gold {oro} or less · Silver {plata} · Bronze {bronce}', objetivo.medallas)
+    title: mission,
+    detail:
+      translated == null
+        ? t(higher ? 'Bronze {bronze} · Silver {silver} · Gold {gold}' : 'Gold {gold} or less · Silver {silver} · Bronze {bronze}', goal.medals)
         : t(
-            mas
-              ? 'Bronze {contable} · Gold {oro}'
-              : 'Gold {oro} or less · Bronze {contable}',
-            { ...objetivo.medallas, contable: traducido },
+            higher
+              ? 'Bronze {asCount} · Gold {gold}'
+              : 'Gold {gold} or less · Bronze {asCount}',
+            { ...goal.medals, asCount: translated },
           ),
-    barra: null,
-    medalla: null,
-    discreto: false,
+    bar: null,
+    medal: null,
+    subdued: false,
   }
 }
 
-/** Jugando a más: el siguiente listón que falta; con el oro en la mano, el récord propio. */
-function jugandoAMas(objetivo: Objetivo, puntos: number, queda: string | null, t: Traducir): VistaDelCartel {
-  const { medallas, record } = objetivo
-  const siguiente = MEDALLAS.find((medalla) => puntos < medallas[medalla])
-  if (siguiente != null) {
-    const desde = siguiente === 'bronce' ? 0 : medallas[MEDALLAS[MEDALLAS.indexOf(siguiente) - 1]]
+/** Playing for higher: the next threshold still missing; with the gold in hand, one's own record. */
+function playingForHigher(goal: Goal, points: number, remaining: string | null, t: Translate): GoalSignView {
+  const { medals, record } = goal
+  const next = MEDALS.find((medal) => points < medals[medal])
+  if (next != null) {
+    const from = next === 'bronze' ? 0 : medals[MEDALS[MEDALS.indexOf(next) - 1]]
     return {
-      titulo: t('{medal} at {target} · you have {score}', {
-        medal: t(NOMBRE[siguiente]),
-        target: medallas[siguiente],
-        score: puntos,
+      title: t('{medal} at {target} · you have {score}', {
+        medal: t(NAME[next]),
+        target: medals[next],
+        score: points,
       }),
-      detalle: queda,
-      barra: fraccion(puntos - desde, medallas[siguiente] - desde),
-      medalla: siguiente,
-      discreto: false,
+      detail: remaining,
+      bar: fraction(points - from, medals[next] - from),
+      medal: next,
+      subdued: false,
     }
   }
-  const porBatir = record != null && record > medallas.oro && puntos <= record
+  const toBeat = record != null && record > medals.gold && points <= record
   return {
-    titulo: porBatir
-      ? t('Gold · your record {record} · you have {score}', { record, score: puntos })
-      : t('Gold · new record {score}', { score: puntos }),
-    detalle: queda,
-    barra: porBatir ? fraccion(puntos - medallas.oro, record - medallas.oro) : 1,
-    medalla: 'oro',
-    discreto: false,
+    title: toBeat
+      ? t('Gold · your record {record} · you have {score}', { record, score: points })
+      : t('Gold · new record {score}', { score: points }),
+    detail: remaining,
+    bar: toBeat ? fraction(points - medals.gold, record - medals.gold) : 1,
+    medal: 'gold',
+    subdued: false,
   }
 }
 
 /**
- * Jugando a menos: la mejor marca que todavía se puede hacer, con el margen que queda.
+ * Playing for lower: the best mark that can still be made, with the margin left.
  *
- * Aquí lo que se lleva solo sube, así que no hay listón que alcanzar sino uno del que no pasarse:
- * primero el récord propio, si es mejor que el oro, y después el oro, la plata y el bronce.
+ * Here what has been scored only goes up, so there is no threshold to reach but one not to go past:
+ * first one's own record, if it is better than the gold, and then the gold, the silver and the bronze.
  */
-function jugandoAMenos(objetivo: Objetivo, puntos: number, queda: string | null, t: Traducir): VistaDelCartel {
-  const { medallas, record } = objetivo
-  const base = { detalle: queda, discreto: false }
-  if (record != null && record < medallas.oro && puntos <= record) {
+function playingForLower(goal: Goal, points: number, remaining: string | null, t: Translate): GoalSignView {
+  const { medals, record } = goal
+  const base = { detail: remaining, subdued: false }
+  if (record != null && record < medals.gold && points <= record) {
     return {
       ...base,
-      titulo: t('Your record {record} · you have {score}', { record, score: puntos }),
-      barra: fraccion(record - puntos, record),
-      medalla: 'oro',
+      title: t('Your record {record} · you have {score}', { record, score: points }),
+      bar: fraction(record - points, record),
+      medal: 'gold',
     }
   }
-  const alcance = medallaConseguida(objetivo, puntos)
-  if (alcance == null) {
-    return { ...base, titulo: t('No medal within reach · you have {score}', { score: puntos }), barra: 0, medalla: null }
+  const reach = medalEarned(goal, points)
+  if (reach == null) {
+    return { ...base, title: t('No medal within reach · you have {score}', { score: points }), bar: 0, medal: null }
   }
   return {
     ...base,
-    titulo: t('{medal} with {target} or less · you have {score}', {
-      medal: t(NOMBRE[alcance]),
-      target: medallas[alcance],
-      score: puntos,
+    title: t('{medal} with {target} or less · you have {score}', {
+      medal: t(NAME[reach]),
+      target: medals[reach],
+      score: points,
     }),
-    barra: fraccion(medallas[alcance] - puntos, medallas[alcance]),
-    medalla: alcance,
+    bar: fraction(medals[reach] - points, medals[reach]),
+    medal: reach,
   }
 }
 
 /**
- * Al acabar: lo conseguido y lo que faltó, que es la frase que hace repetir; y debajo, por qué se
- * acabó y cómo quedó frente al récord de antes.
+ * At the end: what was earned and what was missing, which is the phrase that makes one play again; and
+ * below, why it ended and how it stood against the record from before.
  */
-function final(objetivo: Objetivo, partida: Partida, t: Traducir): VistaDelCartel {
-  const { puntos } = partida
-  const { medallas, mejorEs, record } = objetivo
-  const conseguida = medallaConseguida(objetivo, puntos)
-  const unit = t(objetivo.unidad)
-  const titulo =
-    conseguida == null
-      ? t('No medal · {score} {unit}', { score: puntos, unit })
-      : t('{medal} · {score} {unit}', { medal: t(NOMBRE[conseguida]), score: puntos, unit })
-  const siguiente = conseguida == null ? 'bronce' : MEDALLAS[MEDALLAS.indexOf(conseguida) + 1]
-  const marca = partida.recordAparte === true ? null : frenteAlRecord(record, puntos, mejorEs, t)
-  if (siguiente == null) {
-    return conPie({ titulo, detalle: marca, barra: null, medalla: conseguida, discreto: false }, partida.causa)
+function end(goal: Goal, run: Run, t: Translate): GoalSignView {
+  const { points } = run
+  const { medals, better, record } = goal
+  const earned = medalEarned(goal, points)
+  const unit = t(goal.unit)
+  const title =
+    earned == null
+      ? t('No medal · {score} {unit}', { score: points, unit })
+      : t('{medal} · {score} {unit}', { medal: t(NAME[earned]), score: points, unit })
+  const next = earned == null ? 'bronze' : MEDALS[MEDALS.indexOf(earned) + 1]
+  const mark = run.recordShownElsewhere === true ? null : againstRecord(record, points, better, t)
+  if (next == null) {
+    return withFooter({ title, detail: mark, bar: null, medal: earned, subdued: false }, run.endReason)
   }
-  const detalle =
-    mejorEs === 'mas'
-      ? t(FALTO[siguiente], { missing: medallas[siguiente] - puntos })
-      : t(SOBRO[siguiente], { extra: puntos - medallas[siguiente] })
-  // Sin llegar al récord, el récord a secas: «Tu mejor 31». Lo que faltó ya lo dice el detalle.
-  const frente =
-    record == null || marca == null || !mejor(record, puntos, mejorEs) ? marca : t('Your best {record}', { record })
-  return conPie({ titulo, detalle, barra: null, medalla: conseguida, discreto: false }, partida.causa, frente)
+  const detail =
+    better === 'higher'
+      ? t(SHORT_OF[next], { missing: medals[next] - points })
+      : t(TOO_MANY[next], { extra: points - medals[next] })
+  // Short of the record, the bare record: «Tu mejor 31». What was missing the detail already says.
+  const against =
+    record == null || mark == null || !isBetter(record, points, better) ? mark : t('Your best {record}', { record })
+  return withFooter({ title, detail, bar: null, medal: earned, subdued: false }, run.endReason, against)
 }
 
 /**
- * Lo que dice el cartel con esa partida, ya traducido.
+ * What the sign says with that run, already translated.
  *
- * `t` es el traductor del juego; sin él sale en inglés. Las cifras salen como se leen en cada idioma.
+ * `t` is the game's translator; without it, it comes out in English. The figures come out as they are read in each language.
  */
-export function cartelDeObjetivo(partida: Partida, traducir: Traducir = EN): VistaDelCartel {
-  const t = conMiles(traducir)
-  const { objetivo, fase, puntos, mision } = partida
-  if (partida.cuenta === false) {
+export function goalSign(run: Run, translate: Translate = EN): GoalSignView {
+  const t = withThousands(translate)
+  const { goal, phase, points, mission } = run
+  if (run.counts === false) {
     return {
-      titulo:
-        objetivo == null
-          ? mision
-          : t('{mode} · does not count for a medal', { mode: partida.modo ?? mision }),
-      detalle: null,
-      barra: null,
-      medalla: null,
-      discreto: true,
+      title:
+        goal == null
+          ? mission
+          : t('{mode} · does not count for a medal', { mode: run.mode ?? mission }),
+      detail: null,
+      bar: null,
+      medal: null,
+      subdued: true,
     }
   }
-  if (objetivo == null) return sinObjetivo(partida, t)
-  if (fase === 'antes') return antes(objetivo, mision, t, partida.contable)
-  const vista =
-    fase === 'final'
-      ? final(objetivo, partida, t)
-      : objetivo.mejorEs === 'mas'
-        ? jugandoAMas(objetivo, puntos, partida.queda ?? null, t)
-        : jugandoAMenos(objetivo, puntos, partida.queda ?? null, t)
-  const celebra = medallaQueCelebra(partida)
-  return celebra == null ? vista : { ...vista, vitor: t(VITOR[celebra]) }
+  if (goal == null) return withoutGoal(run, t)
+  if (phase === 'before') return before(goal, mission, t, run.asCount)
+  const view =
+    phase === 'end'
+      ? end(goal, run, t)
+      : goal.better === 'higher'
+        ? playingForHigher(goal, points, run.remaining ?? null, t)
+        : playingForLower(goal, points, run.remaining ?? null, t)
+  const celebrate = medalToCelebrate(run)
+  return celebrate == null ? view : { ...view, cheer: t(CHEER[celebrate]) }
 }

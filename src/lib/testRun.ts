@@ -1,42 +1,42 @@
-import type { VistaDelCartel } from './objetivo'
+import type { GoalSignView } from './goal'
 
 /**
- * La partida, manejable desde un test de navegador sin jugarla: el gancho común del salón
- * (`PartidaComun` de `e2e/support/comun.ts`).
+ * The run, drivable from a browser test without playing it: the common hook of the hall
+ * (`CommonRun` from `e2e/support/common.ts`).
  *
- * Meter goles de verdad en un e2e es llevar el mazo con el emulador y esperar a que el disco
- * entre, que depende de la máquina y de la puntería. Lo que las capturas comunes miran —el cartel
- * del objetivo antes de empezar, al cruzar el bronce y al final— no depende de cómo se marcaron
- * los puntos sino de cuántos lleva la partida, y eso se le puede dar hecho.
+ * Scoring real goals in an e2e means carrying the mallet with the emulator and waiting for the
+ * puck to go in, which depends on the machine and on the aim. What the common screenshots look at
+ * —the goal sign before starting, on crossing the bronze and at the end— does not depend on how
+ * the points were scored but on how many the run carries, and that can be handed to it ready-made.
  *
- * **La llave lleva el nombre del juego**: los diecisiete se instalan a la vez dentro del salón y el
- * hueco de `window` es uno solo; dos juegos llamando `__partida` a lo suyo se pisarían.
+ * **The key carries the name of the game**: the seventeen are installed at once inside the hall and
+ * the slot on `window` is a single one; two games calling their own thing `__run` would clobber each other.
  *
- * **Solo cuenta si alguien lo pide**: el test crea `window.__partidaGlideHockey` antes de cargar la
- * página y el estado de la partida (`gameStore.ts`) deja ahí lo que se le puede pedir. En una
- * partida de verdad esto no hace nada, que es lo que permite dejarlo puesto. Se lee de
- * `globalThis` y no de `window`: en la página son lo mismo, y así `src/lib` no se ata al navegador.
+ * **It only counts if somebody asks for it**: the test creates `window.__runGlideHockey` before loading
+ * the page and the state of the run (`gameStore.ts`) leaves there what can be asked of it. In a
+ * real run this does nothing, which is what allows leaving it in place. It is read from
+ * `globalThis` and not from `window`: on the page they are the same, and that way `src/lib` is not tied to the browser.
  */
 
-/** Lo que un test puede hacerle a la partida. */
-export interface PartidaDePrueba {
-  /** Empieza una partida del reto, el modo del récord, sin tutorial; el saque, con `score`. */
+/** What a test can do to the run. */
+export interface TestRun {
+  /** Starts a run of the challenge, the record's mode, with no tutorial; the serve, with `score`. */
   start?: () => void
-  /** Saca si no se ha sacado y fija los puntos de la partida en curso. */
-  score?: (puntos: number) => void
-  /** La acaba como si la máquina hubiera ganado la ronda: cuenta para el salón. */
+  /** Serves if it has not been served and sets the points of the run in progress. */
+  score?: (points: number) => void
+  /** Ends it as if the machine had won the round: it counts for the hall. */
   end?: () => void
-  /** Lo que dice ahora el cartel del objetivo, o `null` si no se ve. */
-  cartel?: () => VistaDelCartel | null
+  /** What the goal sign says now, or `null` if it is not showing. */
+  sign?: () => GoalSignView | null
 }
 
 declare global {
-  var __partidaGlideHockey: PartidaDePrueba | undefined
+  var __runGlideHockey: TestRun | undefined
 }
 
-/** Deja a mano lo que se puede hacer, si alguien lo ha pedido. */
-export function exponerPartida(api: Required<PartidaDePrueba>): void {
-  const partida = globalThis.__partidaGlideHockey
-  if (partida == null) return
-  Object.assign(partida, api)
+/** Leaves at hand what can be done, if somebody has asked for it. */
+export function exposeTestRun(api: Required<TestRun>): void {
+  const run = globalThis.__runGlideHockey
+  if (run == null) return
+  Object.assign(run, api)
 }

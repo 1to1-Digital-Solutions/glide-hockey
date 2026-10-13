@@ -1,55 +1,55 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { marcarManoOcupada, soltarLasManos, suscribirseAManos as suscribir } from './manosOcupadas'
+import { markHandBusy, releaseHands, subscribeToHands as subscribe } from './busyHands'
 
 /**
- * Qué mano lleva algo, que es lo que apaga el rayo de ese mando.
+ * Which hand is holding something, which is what turns that controller's ray off.
  *
- * Lo escribe el bucle de fotogramas, a noventa veces por segundo, así que lo que importa es
- * que **solo avise cuando algo cambie**: un aviso por fotograma repintaría el árbol entero
- * noventa veces por segundo por un booleano que no se ha movido.
+ * The frame loop writes it, ninety times a second, so what matters is that **it only
+ * notifies when something changes**: one notification per frame would repaint the whole tree
+ * ninety times a second for a boolean that has not moved.
  */
 
-afterEach(() => soltarLasManos())
+afterEach(() => releaseHands())
 
-describe('marcar una mano ocupada', () => {
-  it('avisa al cambiar, y no mientras siga igual', () => {
-    const oyente = vi.fn()
-    const quitar = suscribir(oyente)
+describe('marking a hand busy', () => {
+  it('notifies on change, and not while it stays the same', () => {
+    const listener = vi.fn()
+    const remove = subscribe(listener)
 
-    marcarManoOcupada('left', true)
-    marcarManoOcupada('left', true)
-    marcarManoOcupada('left', true)
+    markHandBusy('left', true)
+    markHandBusy('left', true)
+    markHandBusy('left', true)
 
-    expect(oyente).toHaveBeenCalledTimes(1)
-    quitar()
+    expect(listener).toHaveBeenCalledTimes(1)
+    remove()
   })
 
-  it('cada mano va por su lado', () => {
-    const oyente = vi.fn()
-    const quitar = suscribir(oyente)
+  it('each hand goes its own way', () => {
+    const listener = vi.fn()
+    const remove = subscribe(listener)
 
-    marcarManoOcupada('left', true)
-    marcarManoOcupada('right', true)
+    markHandBusy('left', true)
+    markHandBusy('right', true)
 
-    expect(oyente).toHaveBeenCalledTimes(2)
-    quitar()
+    expect(listener).toHaveBeenCalledTimes(2)
+    remove()
   })
 
-  it('soltarlas todas avisa una vez, y no avisa si ya estaban sueltas', () => {
-    const oyente = vi.fn()
-    const quitar = suscribir(oyente)
+  it('releasing them all notifies once, and does not notify if they were already free', () => {
+    const listener = vi.fn()
+    const remove = subscribe(listener)
 
-    soltarLasManos()
-    expect(oyente).not.toHaveBeenCalled()
+    releaseHands()
+    expect(listener).not.toHaveBeenCalled()
 
-    marcarManoOcupada('left', true)
-    marcarManoOcupada('right', true)
-    oyente.mockClear()
-    soltarLasManos()
+    markHandBusy('left', true)
+    markHandBusy('right', true)
+    listener.mockClear()
+    releaseHands()
 
-    expect(oyente).toHaveBeenCalledTimes(1)
-    quitar()
+    expect(listener).toHaveBeenCalledTimes(1)
+    remove()
   })
 })

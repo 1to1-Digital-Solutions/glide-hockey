@@ -1,53 +1,53 @@
 import { expect, test } from '@playwright/test'
 import { ENSAYO, enterHostVR, openHost } from './support/host'
 import { installXREmulator } from './support/xr'
-import { capturar, enLaPartida, mirar, objetivoDeEnsayo, partidaLista, pedirLaPartida } from './support/comun'
+import { takeScreenshot, inRun, lookToward, trialGoal, runReady, requestRun } from './support/common'
 
 /**
- * Las capturas comunes de la UX, las mismas en los diecisiete: el menú del visor mirando al frente,
- * el cartel del objetivo antes de empezar, el cartel al cruzar el bronce y el final.
+ * The common screenshots of the UX, the same in the seventeen: the headset menu looking straight ahead,
+ * the goal sign before starting, the sign when crossing bronze and the end.
  *
- * Es el mismo fichero en todos los juegos. Monta la escena en el anfitrión de prueba del juego con
- * un objetivo de ensayo (`objetivoDeEnsayo`, el bronce a 10) y la mueve con el gancho de la partida
- * (`support/comun.ts`), sin jugar: lo que se mira aquí es lo que se ve, no el gesto. Las capturas
- * van a `test-results/capturas/<juego>-<qué>.png`, para poner los diecisiete uno al lado del otro.
+ * It is the same file in every game. It mounts the scene in the game's test host with
+ * a trial goal (`trialGoal`, bronze at 10) and moves it with the run hook
+ * (`support/common.ts`), without playing: what is looked at here is what is seen, not the gesture. The screenshots
+ * go to `test-results/capturas/<game>-<what>.png`, to put the seventeen side by side.
  *
- * Lo que dice el cartel se comprueba con lo que la escena le pasa a pintar (el gancho `cartel`), en
- * inglés, que es el idioma del navegador de los tests.
+ * What the sign says is checked with what the scene hands it to paint (the `sign` hook), in
+ * English, which is the language of the tests' browser.
  */
 
 test.use({ locale: 'en-US' })
 
-test('el menú nace de frente, el cartel dice el bronce y lo celebra al cruzarlo', async ({ page }) => {
-  const objetivo = objetivoDeEnsayo(ENSAYO)
-  const { bronce, oro } = objetivo.medallas
+test('the menu is born facing forward, the sign says bronze and celebrates it when crossed', async ({ page }) => {
+  const goal = trialGoal(ENSAYO)
+  const { bronze, gold } = goal.medals
   await installXREmulator(page)
-  await pedirLaPartida(page)
-  await openHost(page, undefined, { objetivo })
+  await requestRun(page)
+  await openHost(page, undefined, { goal })
   await enterHostVR(page)
-  await expect.poll(() => partidaLista(page), { message: 'la escena no ha dejado el gancho de la partida' }).toBe(true)
+  await expect.poll(() => runReady(page), { message: 'the scene has not left the run hook' }).toBe(true)
 
-  await mirar(page, 0, 0)
-  await capturar(page, '1-menu')
+  await lookToward(page, 0, 0)
+  await takeScreenshot(page, '1-menu')
 
-  await enLaPartida(page, 'start')
+  await inRun(page, 'start')
   await expect
-    .poll(async () => (await enLaPartida(page, 'cartel'))?.detalle ?? '')
-    .toContain(ENSAYO.mejorEs === 'mas' ? `Bronze ${bronce}` : `Gold ${oro} or less`)
-  await capturar(page, '2-cartel-antes')
+    .poll(async () => (await inRun(page, 'sign'))?.detail ?? '')
+    .toContain(ENSAYO.better === 'higher' ? `Bronze ${bronze}` : `Gold ${gold} or less`)
+  await takeScreenshot(page, '2-cartel-antes')
 
-  if (ENSAYO.mejorEs === 'mas') {
-    await enLaPartida(page, 'score', 1)
-    await expect.poll(async () => (await enLaPartida(page, 'cartel'))?.titulo).toBe(`Bronze at ${bronce} · you have 1`)
-    await enLaPartida(page, 'score', bronce)
-    await expect.poll(async () => (await enLaPartida(page, 'cartel'))?.vitor).toBe('Bronze!')
+  if (ENSAYO.better === 'higher') {
+    await inRun(page, 'score', 1)
+    await expect.poll(async () => (await inRun(page, 'sign'))?.title).toBe(`Bronze at ${bronze} · you have 1`)
+    await inRun(page, 'score', bronze)
+    await expect.poll(async () => (await inRun(page, 'sign'))?.cheer).toBe('Bronze!')
   } else {
-    await enLaPartida(page, 'score', oro)
-    await expect.poll(async () => (await enLaPartida(page, 'cartel'))?.titulo).toBe(`Gold with ${oro} or less · you have ${oro}`)
+    await inRun(page, 'score', gold)
+    await expect.poll(async () => (await inRun(page, 'sign'))?.title).toBe(`Gold with ${gold} or less · you have ${gold}`)
   }
-  await capturar(page, '3-cartel-bronce')
+  await takeScreenshot(page, '3-cartel-bronce')
 
-  await enLaPartida(page, 'end')
-  await expect.poll(async () => (await enLaPartida(page, 'cartel'))?.titulo ?? '').toMatch(/^(Bronze|Gold) · /)
-  await capturar(page, '4-final')
+  await inRun(page, 'end')
+  await expect.poll(async () => (await inRun(page, 'sign'))?.title ?? '').toMatch(/^(Bronze|Gold) · /)
+  await takeScreenshot(page, '4-final')
 })

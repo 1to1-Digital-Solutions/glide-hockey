@@ -6,16 +6,16 @@ import { useMemo, useRef, useState } from 'react'
 import { Group, Mesh, MeshBasicMaterial } from 'three'
 
 import {
-  COLOR_DE_LA_AYUDA,
-  LATIDO,
-  acercarse,
-  avanzarLasAyudas,
-  latido,
-  pase,
-  sinAyudas,
-} from '../../lib/ayudas'
-import type { Hand } from '../../lib/ajustes'
-import { useHand } from '../../lib/ajustesCliente'
+  HINT_MARK_COLOR,
+  THROB,
+  moveToward,
+  advanceHints,
+  throb,
+  sweepPhase,
+  noHints,
+} from '../../lib/hints'
+import type { Hand } from '../../lib/settings'
+import { useHand } from '../../lib/settingsClient'
 import { MALLET_RADIUS, TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
 import { useGame } from '../../lib/gameStore'
 import {
@@ -32,7 +32,7 @@ import {
   type AyudaDelMazo,
   type HechoDeLasAyudas,
 } from '../../lib/guionDeAyudas'
-import { MandoDeVerdad } from '../xr/MandoDeVerdad'
+import { RealController } from '../xr/RealController'
 import { NO_RAYCAST } from '../raycast'
 
 /**
@@ -79,7 +79,7 @@ const CALCO = {
 
 /** Lo que llevan todos los materiales de una ayuda: ámbar, translúcido y sin tono. */
 const PINTURA = {
-  color: COLOR_DE_LA_AYUDA,
+  color: HINT_MARK_COLOR,
   transparent: true,
   opacity: 0,
   depthWrite: false,
@@ -121,7 +121,7 @@ export function Ayudas() {
   const junto = useMemo(() => juntoAlMazo(mano), [mano])
 
   /** El reloj de cada ayuda y cuáles se enseñan, sin pasar por el estado de React. */
-  const estado = useRef(sinAyudas())
+  const estado = useRef(noHints())
   /**
    * Lo que el guion da por hecho. Se **muta** el mismo objeto en cada fotograma en vez de armar
    * uno nuevo: noventa objetos por segundo son noventa objetos que recoger, y esto no sale de
@@ -155,13 +155,13 @@ export function Ayudas() {
     hechos.current.grab = hitos.grab
     hechos.current.hit = hitos.hit
     hechos.current.goal = hitos.goal
-    const paso = avanzarLasAyudas(GUION_DE_AYUDAS, hechos.current, estado.current, dando ? delta : 0)
+    const paso = advanceHints(GUION_DE_AYUDAS, hechos.current, estado.current, dando ? delta : 0)
     const reloj = clock.elapsedTime
-    const pulso = quieto ? 1 : latido(reloj, LATIDO.fuerza)
+    const pulso = quieto ? 1 : throb(reloj, THROB.strength)
 
     for (const ayuda of GUION_DE_AYUDAS) {
-      const quiere = dando && paso.encendidas.has(ayuda.id) ? 1 : 0
-      fuerza.current[ayuda.id] = acercarse(fuerza.current[ayuda.id], quiere, delta)
+      const quiere = dando && paso.lit.has(ayuda.id) ? 1 : 0
+      fuerza.current[ayuda.id] = moveToward(fuerza.current[ayuda.id], quiere, delta)
     }
 
     // Las huellas del suelo, latiendo: es lo que las separa de una mancha de la moqueta.
@@ -178,7 +178,7 @@ export function Ayudas() {
     const grupo = fantasma.current
     if (grupo != null) {
       grupo.visible = conGesto > 0.004
-      const avance = quieto ? 0 : pase(reloj, EMPUJE.periodo).avance
+      const avance = quieto ? 0 : sweepPhase(reloj, EMPUJE.periodo).progress
       const donde = mazoFantasmaEn(avance)
       grupo.position.set(donde.x, 0, donde.z)
     }
@@ -272,7 +272,7 @@ export function Ayudas() {
           el mismo sitio se pisan. Así sale desde la primera vez. Dentro de un grupo propio para
           apagarlo sin desmontarlo, y en las coordenadas de la mesa (`mandoJuntoAlMazo`). */}
       <group ref={mando} visible={false} position={[0, TABLE_HEIGHT, TABLE_CENTER_Z]}>
-        <MandoDeVerdad mano={mano} boton="agarre" junto={junto} />
+        <RealController hand={mano} button="agarre" beside={junto} />
       </group>
     </group>
   )

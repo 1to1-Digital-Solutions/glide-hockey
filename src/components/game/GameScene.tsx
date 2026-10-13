@@ -5,7 +5,7 @@ import { useGame } from '../../lib/gameStore'
 import { GLIDE_HOCKEY_CSS_VARIABLES } from '../../lib/palette'
 import { HUD } from '../ui/HUD'
 import { StartScreen } from '../ui/StartScreen'
-import { useLang } from '../../lib/ajustesCliente'
+import { useLang } from '../../lib/settingsClient'
 import { traductor } from '../../lib/textos'
 
 // El Canvas de R3F depende de WebGL y de `window`, así que se carga aparte y

@@ -5,9 +5,9 @@ import { PLAYER_LABELS, formatMargin, margin, type Player } from '../../lib/duel
 import { DIFFICULTY_LABELS } from '../../lib/gameConfig'
 import { GAME_MODE_LABELS, isEndless } from '../../lib/gameMode'
 import { useGame } from '../../lib/gameStore'
-import { useLang } from '../../lib/ajustesCliente'
-import { PALETA } from '../../lib/paleta'
-import { MENU_EN } from '../../lib/palabras'
+import { useLang } from '../../lib/settingsClient'
+import { COMMON_PALETTE } from '../../lib/commonPalette'
+import { MENU_EN } from '../../lib/menuWords'
 import { formatoDeCifra, traductor } from '../../lib/textos'
 import { useDuelTally } from '../../lib/useDuelTally'
 
@@ -128,11 +128,11 @@ function Scoreboard() {
         <p
           data-objetivo
           className={`rounded-xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_82%,transparent)] px-4 py-1.5 text-center text-sm backdrop-blur-sm ${
-            cartel.discreto ? 'text-white/45' : 'font-semibold text-white'
+            cartel.subdued ? 'text-white/45' : 'font-semibold text-white'
           }`}
         >
-          {cartel.titulo}
-          {cartel.detalle != null ? <span className="font-normal text-white/60"> — {cartel.detalle}</span> : null}
+          {cartel.title}
+          {cartel.detail != null ? <span className="font-normal text-white/60"> — {cartel.detail}</span> : null}
         </p>
       ) : null}
     </header>
@@ -188,12 +188,12 @@ function GameOver() {
           className="text-2xl font-bold"
           // Ganada o perdida, en el verde y el rojo comunes del salón: el cian y el rojo de la
           // mesa dicen de quién es cada cosa, no si ha salido bien.
-          style={{ color: won ? PALETA.acierto : PALETA.fallo }}
+          style={{ color: won ? COMMON_PALETTE.hit : COMMON_PALETTE.miss }}
         >
           {endless
             ? t('Game over')
             : reto
-              ? t(MENU_EN.retoTerminado)
+              ? t(MENU_EN.challengeOver)
               : levelResult
                 ? levelResult.passed
                   ? t('Level {level} cleared', { level: activeLevel })
@@ -203,7 +203,7 @@ function GameOver() {
                   : t('Game lost')}
         </h2>
         {levelResult ? (
-          <p className="mt-2 text-2xl tracking-[0.3em]" style={{ color: PALETA.oro }} aria-hidden>
+          <p className="mt-2 text-2xl tracking-[0.3em]" style={{ color: COMMON_PALETTE.gold }} aria-hidden>
             {'★'.repeat(levelResult.stars)}
             <span className="text-white/20">{'★'.repeat(3 - levelResult.stars)}</span>
           </p>
@@ -244,7 +244,7 @@ function GameOver() {
         </p>
 
         {isRecord ? (
-          <p className="mt-3 text-sm font-semibold" style={{ color: PALETA.oro }}>
+          <p className="mt-3 text-sm font-semibold" style={{ color: COMMON_PALETTE.gold }}>
             {endless ? t('New best streak!') : t('New record!')}
           </p>
         ) : endless && bestPoints > 0 ? (
@@ -279,7 +279,7 @@ function GameOver() {
             onClick={startGame}
             className="cta-gradient min-h-12 w-full rounded-xl px-6 py-3 text-base font-bold transition"
           >
-            {t(reto ? MENU_EN.otroReto : 'Again')}
+            {t(reto ? MENU_EN.anotherChallenge : 'Again')}
           </button>
           <button
             type="button"
@@ -327,7 +327,7 @@ function DuelOver() {
           className="text-2xl font-bold"
           // El final del duelo lo gana alguien de los que están delante: va en el verde de
           // acierto. El traspaso, en el color de cómo le fue contra la máquina.
-          style={{ color: duel.over || outcome === 'won' ? PALETA.acierto : PALETA.fallo }}
+          style={{ color: duel.over || outcome === 'won' ? COMMON_PALETTE.hit : COMMON_PALETTE.miss }}
         >
           {titulo}
         </h2>

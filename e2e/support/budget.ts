@@ -1,26 +1,27 @@
-import paquete from '../../package.json'
+import pkg from '../../package.json'
 
 /**
- * El presupuesto de llamadas de dibujo por fotograma que el juego declara en su manifiesto:
- * `xrcade.budget.drawCalls` de su `package.json`, fase a fase.
+ * The budget of draw calls per frame that the game declares in its manifest:
+ * `xrcade.budget.drawCalls` of its `package.json`, phase by phase.
  *
- * **Por qué no va escrito en el spec.** Los techos vivían como `const TECHO_… = 45` en cada e2e,
- * sin que nadie más pudiera leerlos: ni el salón, que tenía su propia tabla aparte, ni quien
- * quisiera saber cuánto pinta un juego sin abrir sus tests. Ahora son un dato del manifiesto,
- * junto a `xrcade.capabilities`, y el salón comprueba que estén bien escritos en
- * `npm run catalog:validate` (`xrcade/src/lib/catalog/budget.ts`, que es donde está el formato).
- * El porqué de cada cifra —el desglose de lo que se pinta— sigue en el spec que la mide.
+ * **Why it is not written in the spec.** The ceilings lived as `const TECHO_… = 45` in each e2e,
+ * with nobody else able to read them: neither the hall, which had its own separate table, nor
+ * whoever wanted to know how much a game paints without opening its tests. Now they are a piece
+ * of data of the manifest, next to `xrcade.capabilities`, and the hall checks that they are well
+ * written in `npm run catalog:validate` (`xrcade/src/lib/catalog/budget.ts`, which is where the
+ * format is). The why of each figure —the breakdown of what is painted— stays in the spec that
+ * measures it.
  *
- * Cada fase admite tres formas:
- * - un número: el techo;
- * - `{ "min", "max" }`: una banda, cuando lo medido depende de la física o del ritmo;
- * - `{ "measured", "margin" }`: la medida clavada con su margen, que es lo que avisa de que el
- *   desglose del spec se ha quedado viejo.
+ * Each phase accepts three forms:
+ * - a number: the ceiling;
+ * - `{ "min", "max" }`: a band, when what is measured depends on the physics or on the pace;
+ * - `{ "measured", "margin" }`: the measurement pinned with its margin, which is what warns that
+ *   the breakdown of the spec has gone stale.
  *
- * Es el mismo fichero en todos los juegos (`organizate/scripts/repos/comunes.py`).
+ * It is the same file in every game (`organizate/scripts/repos/comunes.py`).
  */
 
-/** Un límite ya resuelto: el techo, el suelo (cero si la fase no tiene) y la medida si la hay. */
+/** A limit already resolved: the ceiling, the floor (zero if the phase has none) and the measurement if any. */
 export interface DrawCallLimit {
   min: number
   max: number
@@ -30,12 +31,12 @@ export interface DrawCallLimit {
 const isCount = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 
-/** El límite de una fase, tal y como lo declara el `package.json`. Falla si no está o no vale. */
+/** The limit of a phase, just as the `package.json` declares it. Fails if missing or not valid. */
 export function drawCallBudget(phase: string): DrawCallLimit {
-  const raw: unknown = paquete
+  const raw: unknown = pkg
   const phases = (raw as { xrcade?: { budget?: { drawCalls?: Record<string, unknown> } } }).xrcade?.budget?.drawCalls
   const limit = phases?.[phase]
-  const where = `xrcade.budget.drawCalls.${phase} de package.json`
+  const where = `xrcade.budget.drawCalls.${phase} of package.json`
   if (isCount(limit) && limit > 0) return { min: 0, max: limit }
   if (typeof limit === 'object' && limit !== null) {
     const { min, max, measured, margin } = limit as Record<string, unknown>
@@ -46,7 +47,7 @@ export function drawCallBudget(phase: string): DrawCallLimit {
   }
   throw new Error(
     limit === undefined
-      ? `falta ${where}: el presupuesto de esta fase se declara en el manifiesto del juego`
-      : `${where} no es un techo, { "min", "max" } ni { "measured", "margin" }`,
+      ? `${where} is missing: the budget of this phase is declared in the game's manifest`
+      : `${where} is not a ceiling, { "min", "max" } nor { "measured", "margin" }`,
   )
 }

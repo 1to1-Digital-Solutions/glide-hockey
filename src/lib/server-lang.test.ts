@@ -1,61 +1,61 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { DEFAULT_LANG, LANG_COOKIE } from './ajustes'
+import { DEFAULT_LANG, LANG_COOKIE } from './settings'
 
 /**
- * El idioma con el que sale el HTML de una petición.
+ * The language the HTML of a request comes out in.
  *
- * Es lo que evita el parpadeo: si el servidor pintara siempre en inglés y el
- * navegador tradujera al hidratar, React vería dos árboles distintos y el
- * jugador vería el cambio. Por eso lo que se comprueba es que la cookie del
- * arcade llegue hasta aquí, y que una cookie manipulada no deje la página en un
- * idioma que no existe.
+ * It is what avoids the flicker: if the server always painted in English and the
+ * browser translated on hydration, React would see two different trees and the
+ * player would see the change. That is why what is checked is that the hall's
+ * cookie gets all the way here, and that a tampered cookie does not leave the page in a
+ * language that does not exist.
  *
- * `next/headers` va de mentira: solo corre dentro de una petición de Next, y lo
- * que se prueba de este módulo es qué hace con lo que le devuelve.
+ * `next/headers` is faked: it only runs inside a Next request, and what
+ * is tested of this module is what it does with what it gets back from it.
  */
 const get = vi.fn()
-const cabecera = vi.fn((): string | null => null)
+const header = vi.fn((): string | null => null)
 
 vi.mock('next/headers', () => ({
   cookies: () => Promise.resolve({ get }),
-  headers: () => Promise.resolve({ get: (nombre: string) => (nombre === 'accept-language' ? cabecera() : null) }),
+  headers: () => Promise.resolve({ get: (name: string) => (name === 'accept-language' ? header() : null) }),
 }))
 
-const { idiomaDeLaPeticion } = await import('./idioma-servidor')
+const { requestLang } = await import('./server-lang')
 
-describe('el idioma de la petición', () => {
-  it('es el que el arcade dejó en la cookie', async () => {
+describe('the language of the request', () => {
+  it('is the one the hall left in the cookie', async () => {
     get.mockReturnValue({ value: 'es' })
 
-    await expect(idiomaDeLaPeticion()).resolves.toBe('es')
+    await expect(requestLang()).resolves.toBe('es')
     expect(get).toHaveBeenCalledWith(LANG_COOKIE)
   })
 
-  it('es el de partida cuando no hay cookie', async () => {
+  it('is the default one when there is no cookie', async () => {
     get.mockReturnValue(undefined)
 
-    await expect(idiomaDeLaPeticion()).resolves.toBe(DEFAULT_LANG)
+    await expect(requestLang()).resolves.toBe(DEFAULT_LANG)
   })
 
-  it('no se fía de una cookie editada a mano', async () => {
+  it('does not trust a cookie edited by hand', async () => {
     get.mockReturnValue({ value: 'klingon' })
 
-    await expect(idiomaDeLaPeticion()).resolves.toBe(DEFAULT_LANG)
+    await expect(requestLang()).resolves.toBe(DEFAULT_LANG)
   })
 
-  it('sin elegir, es el del navegador; el elegido manda sobre él', async () => {
+  it('with none chosen, it is the browser\'s; the chosen one overrides it', async () => {
     get.mockReturnValue(undefined)
-    cabecera.mockReturnValue('es-ES,es;q=0.9,en;q=0.8')
+    header.mockReturnValue('es-ES,es;q=0.9,en;q=0.8')
 
-    await expect(idiomaDeLaPeticion()).resolves.toBe('es')
+    await expect(requestLang()).resolves.toBe('es')
 
     get.mockReturnValue({ value: 'en' })
-    await expect(idiomaDeLaPeticion()).resolves.toBe('en')
+    await expect(requestLang()).resolves.toBe('en')
 
     get.mockReturnValue(undefined)
-    cabecera.mockReturnValue('fr-FR,de;q=0.5')
-    await expect(idiomaDeLaPeticion()).resolves.toBe(DEFAULT_LANG)
-    cabecera.mockReturnValue(null)
+    header.mockReturnValue('fr-FR,de;q=0.5')
+    await expect(requestLang()).resolves.toBe(DEFAULT_LANG)
+    header.mockReturnValue(null)
   })
 })

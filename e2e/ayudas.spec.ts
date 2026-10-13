@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
 
-import { CRUCE } from '../src/lib/ayudas'
+import { CROSSFADE } from '../src/lib/hints'
 import { GUION_DE_AYUDAS } from '../src/lib/guionDeAyudas'
 import { abrirJuego } from './helpers'
-import { contarLlamadas, dejarAsentar, medianaDeLlamadas } from './support/escenario'
+import { installDrawCallCounter, letSettle, medianDrawCalls } from './support/scenery'
 import { enterVR, installXREmulator, skipTutorial, startGameInsideSession } from './support/xr'
 
 /**
@@ -16,7 +16,7 @@ import { enterVR, installXREmulator, skipTutorial, startGameInsideSession } from
  * pintarse** cuando su plazo se acaba.
  *
  * **Y se miden por lo que cuestan**, que es lo único que una ayuda deja ver desde fuera del
- * visor: las llamadas de dibujo por fotograma (`e2e/support/escenario.ts`). Una ayuda encendida
+ * visor: las llamadas de dibujo por fotograma (`e2e/support/scenery.ts`). Una ayuda encendida
  * cuesta; apagada es invisible y no cuesta nada. Eso convierte «¿sigue puesta?» en un número.
  *
  * Si se **leen** —si el fantasma se entiende como un empujón o como un borrón ámbar— no lo dice
@@ -44,7 +44,7 @@ const CAPTURAS = 'test-results/capturas'
 const A_LAS_AYUDAS = { yaw: 0, pitch: -50 }
 
 /** Lo que tarda la ayuda más paciente en irse sola, más el cruce con el que se desvanece. */
-const HASTA_QUE_SE_VAN = Math.max(...GUION_DE_AYUDAS.map((ayuda) => ayuda.caduca)) + CRUCE + 2
+const HASTA_QUE_SE_VAN = Math.max(...GUION_DE_AYUDAS.map((ayuda) => ayuda.expiresAfter)) + CROSSFADE + 2
 
 /**
  * Cuántas llamadas de dibujo por fotograma pueden costar todas las ayudas a la vez.
@@ -57,13 +57,13 @@ const TECHO_DE_LAS_AYUDAS = 60
 
 /** Deja que el cruce con el que aparecen o se van termine, que dura casi medio segundo. */
 async function dejarQueCrucen(page: import('@playwright/test').Page) {
-  await page.waitForTimeout(CRUCE * 1000 + 300)
-  await dejarAsentar(page)
+  await page.waitForTimeout(CROSSFADE * 1000 + 300)
+  await letSettle(page)
 }
 
 test.describe('Las ayudas visuales', () => {
   test.beforeEach(async ({ page }) => {
-    await contarLlamadas(page)
+    await installDrawCallCounter(page)
     await installXREmulator(page)
     await skipTutorial(page)
     await abrirJuego(page)
@@ -77,14 +77,14 @@ test.describe('Las ayudas visuales', () => {
     await page.evaluate(({ yaw, pitch }) => window.__xrTest.lookAt(yaw, pitch), A_LAS_AYUDAS)
     await dejarQueCrucen(page)
 
-    const conAyudas = await medianaDeLlamadas(page)
+    const conAyudas = await medianDrawCalls(page)
     await page.screenshot({ path: `${CAPTURAS}/ayudas-al-entrar.png` })
 
     // Se dejan caducar, que es la única forma de apagarlas sin tocar la escena. **La cabeza no
     // se mueve entre una medida y la otra.**
     await page.waitForTimeout(HASTA_QUE_SE_VAN * 1000)
-    await dejarAsentar(page)
-    const sinAyudas = await medianaDeLlamadas(page)
+    await letSettle(page)
+    const sinAyudas = await medianDrawCalls(page)
     await page.screenshot({ path: `${CAPTURAS}/ayudas-agotadas.png` })
 
     expect(conAyudas, 'las ayudas no costaron nada: ¿se están pintando?').toBeGreaterThan(sinAyudas)

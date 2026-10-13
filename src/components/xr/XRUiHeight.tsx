@@ -5,7 +5,7 @@ import { useRef, type ReactNode } from 'react'
 import { useXR } from '@react-three/xr'
 import type { Group } from 'three'
 
-import { usePlayHeight } from '../../lib/ajustesCliente'
+import { usePlayHeight } from '../../lib/settingsClient'
 import {
   hasFloorReference,
   isPlausibleEyeHeight,

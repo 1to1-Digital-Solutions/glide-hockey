@@ -17,17 +17,17 @@ import {
 import { useGame } from '../../lib/gameStore'
 import { daMedalla, fraseDeLaMedalla } from '../../lib/cartelDelMarcador'
 import { useDuelTally } from '../../lib/useDuelTally'
-import { useLang } from '../../lib/ajustesCliente'
+import { useLang } from '../../lib/settingsClient'
 import { formatoDeCifra, traductor, type TextKey } from '../../lib/textos'
-import { SCENERIES } from '../../lib/ajustes'
+import { SCENERIES } from '../../lib/settings'
 import { SCENERY_HINTS, SCENERY_LABELS } from '../../lib/scenery'
-import { CONFORTS } from '../../lib/golpeRecibido'
+import { COMFORT_LEVELS } from '../../lib/hitFeedback'
 import { CONFORT_LABELS, CONFORT_LEGEND, useConfort } from '../../lib/confort'
 import { LEVEL_COUNT, levelSpec } from '../../lib/levels'
 import { DIFFICULTY_COLORS } from '../../lib/palette'
-import { PALETA } from '../../lib/paleta'
-import { MENU_EN, plural } from '../../lib/palabras'
-import { nombreDelJuego } from '../../lib/plantillaDelMenu'
+import { COMMON_PALETTE } from '../../lib/commonPalette'
+import { MENU_EN, plural } from '../../lib/menuWords'
+import { gameName } from '../../lib/menuTemplate'
 import { useImmersiveSupport } from '../xr/useImmersiveSupport'
 import { getXrStore } from '../xr/xrStore'
 
@@ -137,7 +137,7 @@ export function StartScreen() {
         <header className="mb-6">
           {/* El nombre de la cabina (`plantillaDelMenu.ts`): no pasa por el traductor, se lee igual en los dos idiomas. */}
           <h1 className="text-glow-primary text-3xl font-bold tracking-tight sm:text-4xl">
-            {nombreDelJuego()}
+            {gameName()}
           </h1>
           <p className="mt-1.5 text-sm text-white/60">
             {t(
@@ -149,7 +149,7 @@ export function StartScreen() {
         <div className="flex flex-col gap-5">
           <fieldset className="flex flex-col gap-2">
             <legend className="sr-only">{t('Game mode')}</legend>
-            <FieldLabel>{t(MENU_EN.modo)}</FieldLabel>
+            <FieldLabel>{t(MENU_EN.mode)}</FieldLabel>
             {/* Cuatro en fila no caben en un móvil con «Práctica» dentro: dos filas de dos. */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {MODOS_DEL_MENU.map((mode) => (
@@ -161,7 +161,7 @@ export function StartScreen() {
                   {t(GAME_MODE_LABELS[mode])}
                   {/* El modo que da medalla lleva su marca, además de decirlo abajo con letras. */}
                   {daMedalla(objetivo, mode) ? (
-                    <span aria-hidden className="ml-1.5" style={{ color: PALETA.oro }}>
+                    <span aria-hidden className="ml-1.5" style={{ color: COMMON_PALETTE.gold }}>
                       ●
                     </span>
                   ) : null}
@@ -294,7 +294,7 @@ export function StartScreen() {
                     >
                       <span>{bloqueado ? '🔒' : n}</span>
                       {!bloqueado ? (
-                        <span aria-hidden className="text-[0.6rem] tracking-[0.15em]" style={{ color: PALETA.oro }}>
+                        <span aria-hidden className="text-[0.6rem] tracking-[0.15em]" style={{ color: COMMON_PALETTE.gold }}>
                           {'★'.repeat(stars)}
                           <span className="text-white/20">{'★'.repeat(3 - stars)}</span>
                         </span>
@@ -336,7 +336,7 @@ export function StartScreen() {
                 <legend className="sr-only">{t(CONFORT_LEGEND)}</legend>
                 <FieldLabel>{t(CONFORT_LEGEND)}</FieldLabel>
                 <div className="grid grid-cols-3 gap-2">
-                  {CONFORTS.map((option) => (
+                  {COMFORT_LEVELS.map((option) => (
                     <OptionButton key={option} selected={confort === option} onClick={() => setConfort(option)}>
                       {t(CONFORT_LABELS[option])}
                     </OptionButton>
@@ -355,7 +355,7 @@ export function StartScreen() {
               onClick={() => setMasOpciones(!masOpciones)}
               className="min-h-11 self-start rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white/75 transition hover:border-white/40 hover:text-white"
             >
-              {t(masOpciones ? MENU_EN.menosOpciones : MENU_EN.masOpciones)}
+              {t(masOpciones ? MENU_EN.fewerOptions : MENU_EN.moreOptions)}
             </button>
           ) : null}
         </div>

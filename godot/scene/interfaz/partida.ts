@@ -16,9 +16,9 @@
  * No toca el motor (ni `godot` ni nodos), así que se prueba entera en `partida.motor.test.ts` sin
  * montar la escena.
  */
-import { objetivoConLoJugado } from '@kit/lib/juegoBase'
+import { goalWithPlayed } from '@kit/lib/gameBase'
 
-import type { Lang } from '@/lib/ajustes'
+import type { Lang } from '@/lib/settings'
 import { AVISO_DE_QUE_CUENTA_MS, conElAvisoDeQueCuenta, loQueCallaElMarcador, partidaDelCartel } from '@/lib/cartelDelMarcador'
 import { challengeRound } from '@/lib/challenge'
 import { DUEL_SETUP, controllerHolder, duelOver, duelTurn, duelWinner, newDuel, recordMatch, type Duel, type Player } from '@/lib/duel'
@@ -27,13 +27,13 @@ import { COUNTDOWN_SECONDS, DEFAULT_GOALS, MAX_GOALS, MIN_GOALS, type Difficulty
 import { ENDLESS, isEndless, runOutcome, type GameMode, type RunOutcome } from '@/lib/gameMode'
 import { getBestEndlessStreak, getBestPoints, saveBestEndlessStreak, saveBestPoints } from '@/lib/highScore'
 import { LEVEL_COUNT, clampLevel, levelPassed, levelSpec, levelStars, type Stars } from '@/lib/levels'
-import { cartelDeObjetivo, medallaQueCelebra, type Medalla, type Objetivo, type Partida as PartidaDelObjetivo, type VistaDelCartel } from '@/lib/objetivo'
+import { goalSign, medalToCelebrate, type Medal, type Goal, type Run as PartidaDelObjetivo, type GoalSignView } from '@/lib/goal'
 import { semillaDeLaMesa } from '@/lib/opponent'
 import { getStarsList, getUnlockedLevel, saveLevelResult } from '@/lib/progress'
 import type { Scorer } from '@/lib/puckPhysics'
 import { concededPenalty, scoreConceded, scoreGoal } from '@/lib/scoring'
 import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana } from '@/lib/hazanas'
-import type { Resultado, Reto } from '@/lib/semilla'
+import type { GameResult, Challenge } from '@/lib/seed'
 import { traductorSuave } from '@/lib/textos'
 import { SIN_HITOS, apuntarHito, type TutorialHitos, type TutorialStepKey } from '@/lib/tutorial'
 
@@ -72,14 +72,14 @@ export interface VistaDelDuelo {
 
 export interface OpcionesDeLaPartida {
   /** Jugar este reto: se entra directamente en una partida del reto con su semilla. */
-  reto?: Reto | null
+  reto?: Challenge | null
   /** Se llama una vez al acabar cada partida con puntuación (no al dejarla a medias). */
-  alTerminar?: (resultado: Resultado) => void
+  alTerminar?: (resultado: GameResult) => void
   /**
    * Los listones de medalla del juego y la marca de quien juega, para el cartel de encima del
    * marcador (`objetivo.ts`). Sin él, el cartel dice la misión y el récord guardado aquí.
    */
-  objetivo?: Objetivo | null
+  objetivo?: Goal | null
 }
 
 export class Partida {
@@ -138,12 +138,12 @@ export class Partida {
    * empezar cada partida —el metadato `goal` no cambia hasta volver al salón— y no durante ella:
    * el final compara con la marca que había al empezar, como la web (`salonAlEmpezar`).
    */
-  objetivo: Objetivo | null
+  objetivo: Goal | null
   /** Lo que pasó el salón al montar el juego. */
-  private readonly objetivoDelSalon: Objetivo | null
+  private readonly objetivoDelSalon: Goal | null
   /** Lo que se le ha contado al salón desde que se montó: de ahí sube el récord del objetivo. */
-  private readonly contadas: Resultado[] = []
-  private readonly alTerminar: ((resultado: Resultado) => void) | undefined
+  private readonly contadas: GameResult[] = []
+  private readonly alTerminar: ((resultado: GameResult) => void) | undefined
   /** Las hazañas de esta partida (en el reto, de todas sus rondas): se estrenan al cerrarla. */
   private hazanas = new Set<Hazana>()
   /** La partida (su `runId`) cuyo final ya se guardó y se contó al salón. */
@@ -155,7 +155,7 @@ export class Partida {
   constructor({ reto = null, alTerminar, objetivo = null }: OpcionesDeLaPartida = {}) {
     this.objetivoDelSalon = objetivo
     this.objetivo = objetivo
-    this.semillaDelReto = reto?.semilla ?? null
+    this.semillaDelReto = reto?.seed ?? null
     this.alTerminar = alTerminar
     if (reto != null) {
       // Con el reto del salón se entra directamente a jugar, como en la web.
@@ -309,17 +309,17 @@ export class Partida {
    * Lo que dice el cartel de encima del marcador, en ese idioma, o `null` si no hay nada que
    * colgar: en el menú, y fuera del reto con el juego abierto suelto.
    */
-  cartel(lang: Lang): VistaDelCartel | null {
+  cartel(lang: Lang): GoalSignView | null {
     const partida = this.paraElCartel(lang)
     if (partida == null) return null
     const t = traductorSuave(lang)
-    return conElAvisoDeQueCuenta(cartelDeObjetivo(partida, t), this.gameMode, this.avisoQueCuenta > 0, t)
+    return conElAvisoDeQueCuenta(goalSign(partida, t), this.gameMode, this.avisoQueCuenta > 0, t)
   }
 
   /** La medalla que ya es de quien juega en esta partida: cuando sube, se celebra el listón. */
-  get medalla(): Medalla | null {
+  get medalla(): Medal | null {
     const partida = this.paraElCartel('en')
-    return partida == null ? null : medallaQueCelebra(partida)
+    return partida == null ? null : medalToCelebrate(partida)
   }
 
   /** Lo que el marcador del fondo calla porque ya lo dice el cartel (`loQueCallaElMarcador`). */
@@ -398,7 +398,7 @@ export class Partida {
     }
     this.clearRun()
     this.endedByPlayer = false
-    this.objetivo = objetivoConLoJugado(this.objetivoDelSalon, this.contadas)
+    this.objetivo = goalWithPlayed(this.objetivoDelSalon, this.contadas)
     this.recordToBeat = this.gameMode === 'practice' && this.endless ? getBestEndlessStreak() : getBestPoints(this.gameMode)
     this.unlockedAtStart = getUnlockedLevel()
     this.levelAtStart = this.selectedLevel
@@ -545,7 +545,7 @@ export class Partida {
     for (const hazana of hazanasDelPartido({ ganado: this.outcome === 'won', encajados: this.opponentGoals, sinFin: endlessRun })) {
       this.hazanas.add(hazana)
     }
-    const resultado = conHazanas({ modo: this.gameMode, puntos: this.points, reto: this.enReto }, estrenarHazanas(this.hazanas))
+    const resultado = conHazanas({ mode: this.gameMode, points: this.points, challenge: this.enReto }, estrenarHazanas(this.hazanas))
     this.contadas.push(resultado)
     this.alTerminar?.(resultado)
   }

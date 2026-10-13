@@ -6,63 +6,63 @@ import { CanvasTexture, SRGBColorSpace } from 'three'
 import { NO_RAYCAST } from '../raycast'
 
 /**
- * Un panel de interfaz pintado en un canvas 2D.
+ * A UI panel painted on a 2D canvas.
  *
- * Es la única forma de poner texto dentro del Canvas de three en este proyecto:
- * el `<Text>` de drei descarga la fuente de un CDN y la CSP del salón
- * (`connect-src 'self'`) lo bloquea, así que la partida se quedaría sin
- * marcador justo donde más falta hace, dentro del visor. `fillText` usa las
- * fuentes que ya tiene el sistema y no pide nada por la red.
+ * It is the only way to put text inside the three Canvas in this project:
+ * drei's `<Text>` downloads the font from a CDN and the hall's CSP
+ * (`connect-src 'self'`) blocks it, so the run would be left without a
+ * scoreboard right where it is needed most, inside the headset. `fillText` uses the
+ * fonts the system already has and asks for nothing over the network.
  *
- * El dibujo trabaja en METROS y con la `y` hacia arriba —las mismas
- * coordenadas con las que se colocan las cajas que recogen la pulsación—, para
- * que lo que se pinta y lo que se pulsa no puedan separarse.
+ * The drawing works in METRES and with `y` pointing up —the same
+ * coordinates with which the boxes that pick up the press are placed—, so
+ * that what is painted and what is pressed cannot drift apart.
  */
 
 /**
- * Pinta el panel **antes** de que se vea, no después.
+ * Paints the panel **before** it is seen, not after.
  *
- * El lienzo se borra entero y se vuelve a pintar en cada cambio, y el material del panel es
- * transparente —las esquinas del rectángulo redondeado lo piden—. Con un efecto normal,
- * entre el borrado y el repintado cabe un fotograma con el lienzo en blanco: el panel se ve
- * **transparente**, y en realidad aumentada eso no es negro, es la habitación de quien
- * juega. Reportado con el visor puesto: «al pulsar un botón es como que el botón desaparece
- * y se ve mi salón». Un efecto de diseño corre antes de que el navegador pinte, así que ese
- * hueco no existe.
+ * The canvas is wiped whole and painted again on every change, and the panel's material is
+ * transparent —the corners of the rounded rectangle ask for it—. With a normal effect,
+ * between the wipe and the repaint there is room for a frame with the canvas blank: the panel is
+ * seen **transparent**, and in augmented reality that is not black, it is the room of whoever
+ * is playing. Reported with the headset on: «when I press a button it is as if the button
+ * disappears and I see my living room». A layout effect runs before the browser paints, so that
+ * gap does not exist.
  *
- * En el servidor no hay nada que pintar y `useLayoutEffect` avisaría por consola; el salón
- * de xrcade prerenderiza la página que contiene el Canvas, así que allí se usa el otro.
+ * On the server there is nothing to paint and `useLayoutEffect` would warn on the console; the
+ * xrcade hall prerenders the page that contains the Canvas, so there the other one is used.
  */
-const usePintarAntesDeVer = typeof window === 'undefined' ? useEffect : useLayoutEffect
+const usePaintBeforeSeen = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
-/** Cuántos píxeles de textura por metro de panel. A un brazo de distancia se lee. */
+/** How many texture pixels per metre of panel. At arm's length it reads. */
 export const PANEL_PIXELS_PER_METER = 1024
 
 /**
- * La fuente de un texto de `size` metros, **pedida en píxeles de verdad**.
+ * The font of a text of `size` metres, **requested in real pixels**.
  *
- * El panel se dibuja en metros sobre un lienzo escalado, y la fuente se pedía igual: una letra
- * de 0,03 px ampliada mil veces. A ese tamaño el navegador calcula dónde va cada letra con
- * medidas que no valen —el Chromium de escritorio las separa de más y el del visor las amontona
- * unas encima de otras—, y lo que se medía para que cupiera tampoco era lo que se pintaba.
- * Reportado con el visor puesto: «las letras están completamente pegadas, una sobre la otra…
- * no se lee nada de las settings». Por eso el texto se escribe sin la escala a metros, con la
- * fuente a su tamaño en píxeles de la textura.
+ * The panel is drawn in metres on a scaled canvas, and the font used to be requested the same
+ * way: a 0.03 px letter enlarged a thousand times. At that size the browser works out where each
+ * letter goes with measurements that are no good —desktop Chromium spreads them too far apart and
+ * the headset's piles them on top of each other—, and what was measured so that it would fit was
+ * not what was painted either. Reported with the headset on: «the letters are completely stuck
+ * together, one on top of the other… nothing in the settings can be read». That is why the text
+ * is written without the scale to metres, with the font at its size in pixels of the texture.
  */
 export function panelFont(weight: string, size: number): string {
   return `${weight} ${size * PANEL_PIXELS_PER_METER}px system-ui, sans-serif`
 }
 
-/** Lo que mide de ancho un texto con la fuente puesta, en metros. */
+/** How wide a text measures with the font that is set, in metres. */
 function measureMeters(ctx: CanvasRenderingContext2D, text: string): number {
   return ctx.measureText(text).width / PANEL_PIXELS_PER_METER
 }
 
-/** El canvas donde se pinta el panel, del tamaño que le toca a esas medidas. */
+/** The canvas where the panel is painted, of the size those measurements call for. */
 function usePanelCanvas(width: number, height: number): HTMLCanvasElement | null {
   return useMemo(() => {
-    // El Canvas de R3F solo se monta en el navegador, pero el salón de xrcade
-    // prerenderiza la página que lo contiene.
+    // R3F's Canvas only mounts in the browser, but the xrcade hall
+    // prerenders the page that contains it.
     if (typeof document === 'undefined') return null
 
     const canvas = document.createElement('canvas')
@@ -73,21 +73,21 @@ function usePanelCanvas(width: number, height: number): HTMLCanvasElement | null
 }
 
 /**
- * Escribe una línea derecha en un dibujo con la `y` hacia arriba.
+ * Writes a straight line in a drawing with `y` pointing up.
  *
- * El texto se pinta siempre con la `y` hacia abajo, así que hay que deshacer la
- * inversión justo aquí y solo aquí; si no, todo saldría del revés.
+ * Text is always painted with `y` pointing down, so the inversion has to be
+ * undone right here and only here; otherwise everything would come out upside down.
  */
 /**
- * Lo que ocupa de alto la caja de una línea, en fracción del tamaño pedido.
+ * How tall the box of a line is, as a fraction of the requested size.
  *
- * No es el tamaño entero: entre las mayúsculas de un renglón y los rabos de las
- * letras del de abajo hay aire, y contarlo entero daría por pisadas dos líneas que
- * se leen perfectamente. Lo usa quien coloca —para saber cuánto baja lo siguiente—
- * y lo usa el instrumento que mide (`legibilidad.ts`), que lee esta misma y no una
- * copia: dos copias acabarían midiendo algo distinto de lo que se pinta.
+ * It is not the whole size: between the capitals of one line and the tails of the
+ * letters of the one below there is air, and counting it whole would take as overlapping two
+ * lines that read perfectly. It is used by whoever places —to know how far down the next thing
+ * goes— and it is used by the instrument that measures (`legibility.ts`), which reads this very
+ * one and not a copy: two copies would end up measuring something different from what is painted.
  */
-export const ALTO_DE_LINEA = 0.8
+export const LINE_HEIGHT = 0.8
 
 export function drawText(
   ctx: CanvasRenderingContext2D,
@@ -106,26 +106,26 @@ export function drawText(
     align?: CanvasTextAlign
     weight?: string
     /**
-     * Lo ancho que puede ocupar, en metros. Lo que no quepa se escribe más
-     * pequeño: aquí no hay forma de comprobar a ojo si una etiqueta cabe en su
-     * botón, y la que se sale se lee encima de la de al lado.
+     * How wide it may be, in metres. What does not fit is written
+     * smaller: here there is no way to check by eye whether a label fits in its
+     * button, and the one that sticks out is read on top of the one next to it.
      */
     maxWidth?: number
   },
 ): void {
   ctx.save()
   ctx.translate(x, y)
-  // De metros con la `y` hacia arriba a píxeles con la `y` hacia abajo: el texto se escribe a
-  // su tamaño real en la textura (ver `panelFont`).
+  // From metres with `y` pointing up to pixels with `y` pointing down: the text is written at
+  // its real size in the texture (see `panelFont`).
   ctx.scale(1 / PANEL_PIXELS_PER_METER, -1 / PANEL_PIXELS_PER_METER)
   ctx.fillStyle = color
   ctx.textAlign = align
   ctx.textBaseline = 'middle'
   ctx.font = panelFont(weight, size)
 
-  // Se encoge la letra en vez de estrecharla —que es lo que hace `fillText` con
-  // su propio máximo—: un texto condensado en un panel a un brazo de distancia
-  // se lee mucho peor que el mismo texto un punto más pequeño.
+  // The font is shrunk instead of narrowed —which is what `fillText` does with
+  // its own maximum—: a condensed text on a panel at arm's length
+  // reads much worse than the same text one point smaller.
   if (maxWidth != null) {
     const width = measureMeters(ctx, text)
     if (width > maxWidth) ctx.font = panelFont(weight, (size * maxWidth) / width)
@@ -136,44 +136,44 @@ export function drawText(
 }
 
 /**
- * Reparte un texto en las líneas que quepan de ese ancho.
+ * Splits a text into the lines that fit in that width.
  *
- * **Encoger no vale para una frase.** Una etiqueta de botón que no cabe se lee bien un punto
- * más pequeña; una frase entera encogida hasta caber de una sola línea acaba en letra de dos
- * centímetros dentro del visor, que es donde se descubrió: los tutoriales estaban escritos y
- * no se entendía ninguno.
+ * **Shrinking will not do for a sentence.** A button label that does not fit reads fine one point
+ * smaller; a whole sentence shrunk until it fits on a single line ends up in two-centimetre
+ * letters inside the headset, which is where it was discovered: the tutorials were written and
+ * none of them could be understood.
  *
- * Corta por espacios, y una palabra que no quepa ella sola se queda igualmente en su línea:
- * partirla por la mitad se lee peor que dejarla asomar.
+ * It breaks at spaces, and a word that does not fit on its own still stays on its line:
+ * splitting it down the middle reads worse than letting it stick out.
  */
 export function wrapText(
   ctx: CanvasRenderingContext2D,
   text: string,
   maxWidth: number,
 ): string[] {
-  // Mide con la fuente que tenga puesta el lienzo, que tiene que ser una de `panelFont`.
-  const palabras = text.split(/\s+/).filter((palabra) => palabra.length > 0)
-  if (palabras.length === 0) return []
+  // It measures with whatever font the canvas has set, which has to be one from `panelFont`.
+  const words = text.split(/\s+/).filter((word) => word.length > 0)
+  if (words.length === 0) return []
 
-  const lineas: string[] = []
-  let actual = palabras[0]
-  for (const palabra of palabras.slice(1)) {
-    const probada = `${actual} ${palabra}`
-    if (measureMeters(ctx, probada) <= maxWidth) actual = probada
+  const lines: string[] = []
+  let current = words[0]
+  for (const word of words.slice(1)) {
+    const candidate = `${current} ${word}`
+    if (measureMeters(ctx, candidate) <= maxWidth) current = candidate
     else {
-      lineas.push(actual)
-      actual = palabra
+      lines.push(current)
+      current = word
     }
   }
-  lineas.push(actual)
-  return lineas
+  lines.push(current)
+  return lines
 }
 
 /**
- * Escribe un texto en varias líneas, centrado en `y`.
+ * Writes a text on several lines, centred on `y`.
  *
- * `y` es el centro del bloque y no la primera línea: así una frase de dos líneas y otra de
- * una quedan en el mismo sitio, y el panel no da un salto al cambiar de tramo del tutorial.
+ * `y` is the centre of the block and not the first line: that way a two-line sentence and a
+ * one-line one end up in the same place, and the panel does not jump when the tutorial changes section.
  */
 export function drawParagraph(
   ctx: CanvasRenderingContext2D,
@@ -194,46 +194,46 @@ export function drawParagraph(
     maxWidth: number
     lineHeight?: number
     /**
-     * Dónde cae la `y` que se le da: en el centro del bloque (lo de siempre) o en su
-     * **borde de arriba**.
+     * Where the `y` it is given falls: at the centre of the block (the usual) or at its
+     * **top edge**.
      *
-     * Centrado, un párrafo que pasa de dos líneas a tres crece hacia arriba y se
-     * mete en lo que tenga encima —y con el visor puesto eso es un rótulo pisado
-     * que nadie ve hasta la sesión de pruebas—. Anclado arriba, crece solo hacia
-     * abajo y quien lo coloca sabe cuánto ocupa (`alturaDelParrafo`).
+     * Centred, a paragraph that goes from two lines to three grows upwards and
+     * runs into whatever it has above —and with the headset on that is an overlapped label
+     * that nobody sees until the test session—. Anchored at the top, it grows only
+     * downwards and whoever places it knows how much it takes up (`paragraphHeight`).
      */
     anchor?: 'middle' | 'top'
   },
 ): void {
-  const lineas = medirLineas(ctx, text, { size, weight, maxWidth })
-  const paso = size * lineHeight
-  const centrado = y + (paso * (lineas.length - 1)) / 2
-  const arriba = anchor === 'top' ? y - (size * ALTO_DE_LINEA) / 2 : centrado
-  lineas.forEach((linea, index) => {
-    drawText(ctx, linea, x, arriba - index * paso, { size, color, weight })
+  const lines = measureLines(ctx, text, { size, weight, maxWidth })
+  const step = size * lineHeight
+  const centered = y + (step * (lines.length - 1)) / 2
+  const top = anchor === 'top' ? y - (size * LINE_HEIGHT) / 2 : centered
+  lines.forEach((line, index) => {
+    drawText(ctx, line, x, top - index * step, { size, color, weight })
   })
 }
 
-/** En cuántas líneas se reparte un texto, sin pintarlo. */
-function medirLineas(
+/** Into how many lines a text is split, without painting it. */
+function measureLines(
   ctx: CanvasRenderingContext2D,
   text: string,
   { size, weight, maxWidth }: { size: number; weight: string; maxWidth: number },
 ): string[] {
   ctx.save()
   ctx.font = panelFont(weight, size)
-  const lineas = wrapText(ctx, text, maxWidth)
+  const lines = wrapText(ctx, text, maxWidth)
   ctx.restore()
-  return lineas
+  return lines
 }
 
 /**
- * Cuánto ocupa un párrafo de alto, para poder colocar lo que va debajo.
+ * How tall a paragraph is, so that what goes below can be placed.
  *
- * Hay que medirlo y no suponerlo: el mismo texto ocupa dos líneas en inglés y tres
- * en español, y lo de debajo tiene que bajar con él.
+ * It has to be measured and not assumed: the same text takes two lines in English and three
+ * in Spanish, and what is below has to go down with it.
  */
-export function alturaDelParrafo(
+export function paragraphHeight(
   ctx: CanvasRenderingContext2D,
   text: string,
   {
@@ -243,11 +243,11 @@ export function alturaDelParrafo(
     lineHeight = 1.35,
   }: { size: number; weight?: string; maxWidth: number; lineHeight?: number },
 ): number {
-  const lineas = medirLineas(ctx, text, { size, weight, maxWidth })
-  return (lineas.length - 1) * size * lineHeight + size * ALTO_DE_LINEA
+  const lines = measureLines(ctx, text, { size, weight, maxWidth })
+  return (lines.length - 1) * size * lineHeight + size * LINE_HEIGHT
 }
 
-/** Un rectángulo con las esquinas redondeadas, que es la forma de todo aquí. */
+/** A rectangle with rounded corners, which is the shape of everything here. */
 export function roundedRect(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -261,14 +261,14 @@ export function roundedRect(
 }
 
 /**
- * La placa del panel: un plano con el dibujo encima.
+ * The plate of the panel: a plane with the drawing on top.
  *
- * La textura se declara como elemento de R3F y no se crea a mano porque así la
- * libera él al desmontar: una textura de un megapíxel que nadie suelta es
- * memoria de la tarjeta gráfica que no vuelve.
+ * The texture is declared as an R3F element and not created by hand because that way
+ * R3F releases it on unmount: a one-megapixel texture that nobody lets go of is
+ * graphics card memory that does not come back.
  *
- * `draw` tiene que venir envuelto en `useCallback`: es lo que decide cuándo hay
- * que volver a pintar.
+ * `draw` has to come wrapped in `useCallback`: it is what decides when it
+ * has to be painted again.
  */
 export function CanvasPanel({
   width,
@@ -282,18 +282,19 @@ export function CanvasPanel({
   draw: (ctx: CanvasRenderingContext2D) => void
   fallbackColor: string
   /**
-   * El dibujo se mueve solo: se repinta cada fotograma, sin pasar por React.
+   * The drawing moves on its own: it is repainted every frame, without going through React.
    *
-   * Lo pide quien anima algo dentro del panel. Sin esto habría que guardar el avance en
-   * estado y `setState` a noventa hercios repinta el árbol entero del juego noventa veces por
-   * segundo, que es como se veía: la pantalla parpadeando y sin poder elegir nada.
+   * It is asked for by whoever animates something inside the panel. Without this the progress
+   * would have to be kept in state and `setState` at ninety hertz repaints the whole tree of the
+   * game ninety times per second, which is how it looked: the screen flickering and no way to
+   * choose anything.
    */
   everyFrame?: boolean
 }) {
   const canvas = usePanelCanvas(width, height)
   const texture = useRef<CanvasTexture>(null)
 
-  const pintar = useCallback(() => {
+  const paint = useCallback(() => {
     const ctx = canvas?.getContext('2d')
     if (canvas == null || ctx == null) return
 
@@ -304,35 +305,36 @@ export function CanvasPanel({
 
     draw(ctx)
 
-    // Sin esto el dibujo se queda en el canvas y no llega a la tarjeta gráfica:
-    // el panel se vería con lo que decía la primera vez.
+    // Without this the drawing stays in the canvas and does not reach the graphics card:
+    // the panel would be seen with what it said the first time.
     const map = texture.current
     if (map != null) map.needsUpdate = true
   }, [canvas, draw])
 
-  usePintarAntesDeVer(() => {
+  usePaintBeforeSeen(() => {
     if (everyFrame) return
-    pintar()
-  }, [everyFrame, pintar])
+    paint()
+  }, [everyFrame, paint])
 
-  // Un panel que se anima se repinta **por fotograma y sin pasar por React**. Es para lo que
-  // existe `everyFrame`: la demostración del gesto movía su dibujo guardando el avance en
-  // estado, y un `setState` a noventa hercios repinta el árbol entero del juego noventa veces
-  // por segundo. Eso es lo que se veía como «la pantalla parpadea y no deja seleccionar nada».
+  // A panel that is animated is repainted **per frame and without going through React**. It is
+  // what `everyFrame` exists for: the demonstration of the gesture moved its drawing by keeping
+  // the progress in state, and a `setState` at ninety hertz repaints the whole tree of the game
+  // ninety times per second. That is what was seen as «the screen flickers and will not let me
+  // select anything».
   useFrame(() => {
-    if (everyFrame) pintar()
+    if (everyFrame) paint()
   })
 
   return (
     <mesh raycast={NO_RAYCAST}>
       <planeGeometry args={[width, height]} />
       {/*
-        **Sin escribir profundidad.** El lienzo es casi todo transparente —solo hay letras—
-        pero un material transparente **sí apunta su profundidad** salvo que se le diga que
-        no, y entonces tapa lo que tenga detrás aunque no se vea nada pintado. Eso es lo que
-        dejaba el botón de jugar de glide-hockey sin su placa azul: el lienzo del panel va por
-        delante de los botones, y todo lo que quedaba detrás desaparecía. Reportado con el
-        visor puesto: «el botón de play no se ve en azul, está como sombreado».
+        **Without writing depth.** The canvas is almost all transparent —there are only letters—
+        but a transparent material **does record its depth** unless it is told
+        not to, and then it covers what it has behind even though nothing painted is seen. That is
+        what left glide-hockey's play button without its blue plate: the panel's canvas goes in
+        front of the buttons, and everything that was behind disappeared. Reported with the
+        headset on: «the play button is not seen in blue, it is as if shaded».
       */}
       <meshBasicMaterial
         transparent
@@ -354,51 +356,51 @@ export function CanvasPanel({
 }
 
 /**
- * La flecha de **salir del juego**, dibujada en el lienzo.
+ * The **exit the game** arrow, drawn on the canvas.
  *
- * **Una sola forma para los trece.** Cada juego decía «salir» a su manera: seis con la
- * palabra «Exit», tres con un aspa, dos con una puerta, uno con una puerta y una flecha, y
- * uno con un aspa llamada puerta. Y varios usan además el aspa para otra cosa —cerrar el
- * panel, volver al menú—, así que el mismo dibujo significaba dos cosas distintas según el
- * juego. Reportado con el visor puesto: «no se entiende cuál es el botón de salir del juego:
- * a veces aparece un cuadrado, otras veces pone "leave"… habría que unificarlo».
+ * **A single shape for all thirteen.** Each game said «exit» in its own way: six with the
+ * word «Exit», three with a cross, two with a door, one with a door and an arrow, and
+ * one with a cross called door. And several also use the cross for something else —closing the
+ * panel, going back to the menu—, so the same drawing meant two different things depending on
+ * the game. Reported with the headset on: «it is not clear which one is the button to exit the
+ * game: sometimes a square appears, other times it says "leave"… it should be unified».
  *
- * Es una flecha hacia atrás porque eso es lo que hace el botón: **volver al arcade**. El
- * aspa, que era la otra candidata, ya significa «cerrar esto» en varios paneles.
+ * It is a backwards arrow because that is what the button does: **go back to the hall**. The
+ * cross, which was the other candidate, already means «close this» in several panels.
  *
- * Las proporciones van en `FLECHA_DE_SALIR` para que el icono de tres dimensiones de los
- * juegos que no pintan su menú en un lienzo salga con la misma forma.
+ * The proportions go in `EXIT_ARROW` so that the three-dimensional icon of the
+ * games that do not paint their menu on a canvas comes out with the same shape.
  */
-export const FLECHA_DE_SALIR = {
-  /** La punta, a la izquierda del centro, medida en altos del icono. */
-  punta: -0.5,
-  /** Y el final del palo, a la derecha. */
-  cuerpo: 0.42,
-  /** Lo gordo que es el palo. */
-  grosor: 0.3,
-  /** Dónde empieza el palo, que es donde acaban las alas. */
-  codo: -0.06,
-  /** Lo abiertas que van las alas: la mitad del alto del icono. */
-  alas: 0.5,
+export const EXIT_ARROW = {
+  /** The tip, to the left of the centre, measured in heights of the icon. */
+  tip: -0.5,
+  /** And the end of the shaft, to the right. */
+  shaft: 0.42,
+  /** How thick the shaft is. */
+  thickness: 0.3,
+  /** Where the shaft starts, which is where the wings end. */
+  elbow: -0.06,
+  /** How wide open the wings go: half the height of the icon. */
+  wings: 0.5,
 }
 
-/** Pinta la flecha de salir centrada en `x, y`, con ese alto y ese color. */
-export function dibujarFlechaDeSalir(
+/** Paints the exit arrow centred on `x, y`, with that height and that colour. */
+export function drawExitArrow(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  alto: number,
+  height: number,
   color: string,
 ): void {
-  const { punta, cuerpo, grosor, codo, alas } = FLECHA_DE_SALIR
+  const { tip, shaft, thickness, elbow, wings } = EXIT_ARROW
   ctx.beginPath()
-  ctx.moveTo(x + punta * alto, y)
-  ctx.lineTo(x + codo * alto, y + alas * alto)
-  ctx.lineTo(x + codo * alto, y + (grosor / 2) * alto)
-  ctx.lineTo(x + cuerpo * alto, y + (grosor / 2) * alto)
-  ctx.lineTo(x + cuerpo * alto, y - (grosor / 2) * alto)
-  ctx.lineTo(x + codo * alto, y - (grosor / 2) * alto)
-  ctx.lineTo(x + codo * alto, y - alas * alto)
+  ctx.moveTo(x + tip * height, y)
+  ctx.lineTo(x + elbow * height, y + wings * height)
+  ctx.lineTo(x + elbow * height, y + (thickness / 2) * height)
+  ctx.lineTo(x + shaft * height, y + (thickness / 2) * height)
+  ctx.lineTo(x + shaft * height, y - (thickness / 2) * height)
+  ctx.lineTo(x + elbow * height, y - (thickness / 2) * height)
+  ctx.lineTo(x + elbow * height, y - wings * height)
   ctx.closePath()
   ctx.fillStyle = color
   ctx.fill()

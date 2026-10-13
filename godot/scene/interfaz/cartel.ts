@@ -14,13 +14,13 @@
  */
 import { Node3D, Vector3, type MeshInstance3D } from 'godot'
 
-import { placa } from '@kit/runtime/ui/malla'
+import { plate } from '@kit/runtime/ui/mesh'
 import { Panel } from '@kit/runtime/ui/panel'
-import { ORDEN } from '@kit/runtime/ui/texto3d'
+import { RENDER_ORDER } from '@kit/runtime/ui/text3d'
 
 import type { SitioDelCartel } from '@/lib/cartelDelMarcador'
-import { SEGUNDOS_DE_FESTEJO, listonCruzado, pulsoDelFestejo, type Medalla, type VistaDelCartel } from '@/lib/objetivo'
-import { PALETA } from '@/lib/paleta'
+import { CELEBRATION_SECONDS, thresholdCrossed, celebrationPulse, type Medal, type GoalSignView } from '@/lib/goal'
+import { COMMON_PALETTE } from '@/lib/commonPalette'
 
 import { CARTEL } from './reparto'
 
@@ -31,12 +31,12 @@ export class Cartel {
   private pintado = ''
   private escala = 1
   /** La medalla que tenía quien juega en el fotograma anterior: `undefined` hasta el primero. */
-  private medalla: Medalla | null | undefined = undefined
+  private medalla: Medal | null | undefined = undefined
   /** El listón que se está celebrando y desde cuándo, en segundos. */
-  private festejo: { medalla: Medalla; lleva: number } | null = null
+  private festejo: { medalla: Medal; lleva: number } | null = null
 
   constructor() {
-    this.panel = new Panel({ ancho: CARTEL.ancho, alto: CARTEL.alto, fondo: PALETA.fondo, opacidad: 0.88 })
+    this.panel = new Panel({ ancho: CARTEL.ancho, alto: CARTEL.alto, fondo: COMMON_PALETTE.background, opacidad: 0.88 })
     this.nodo = this.panel.nodo
     this.nodo.set_name('CartelDeObjetivo')
     this.nodo.add_child(this.barra)
@@ -54,7 +54,7 @@ export class Cartel {
   }
 
   /** La medalla cuyo listón se celebra ahora mismo, o `null`. */
-  get celebrando(): Medalla | null {
+  get celebrando(): Medal | null {
     return this.festejo?.medalla ?? null
   }
 
@@ -64,22 +64,22 @@ export class Cartel {
    * @returns La medalla cuyo listón se acaba de cruzar en este fotograma, para que la escena la
    *   haga sonar y sentir; `null` casi siempre.
    */
-  actualizar(vista: VistaDelCartel | null, medalla: Medalla | null, idioma: string, delta: number): Medalla | null {
+  actualizar(vista: GoalSignView | null, medalla: Medal | null, idioma: string, delta: number): Medal | null {
     // Recién montado no hay nada que celebrar: no se ha visto cruzar el listón.
-    const cruzada = this.medalla === undefined ? null : listonCruzado(this.medalla, medalla)
+    const cruzada = this.medalla === undefined ? null : thresholdCrossed(this.medalla, medalla)
     if (cruzada != null) this.festejo = { medalla: cruzada, lleva: 0 }
-    else if (medalla == null || (this.festejo != null && this.festejo.lleva >= SEGUNDOS_DE_FESTEJO)) this.festejo = null
+    else if (medalla == null || (this.festejo != null && this.festejo.lleva >= CELEBRATION_SECONDS)) this.festejo = null
     this.medalla = medalla
 
     this.nodo.visible = vista != null
-    const pulso = this.festejo == null ? 1 : pulsoDelFestejo(this.festejo.lleva)
+    const pulso = this.festejo == null ? 1 : celebrationPulse(this.festejo.lleva)
     this.nodo.scale = new Vector3(this.escala * pulso, this.escala * pulso, this.escala * pulso)
     if (this.festejo != null) this.festejo.lleva += delta
     if (vista != null) this.pintar(vista, idioma, this.celebrando)
     return cruzada
   }
 
-  private pintar(vista: VistaDelCartel, idioma: string, festejo: Medalla | null): void {
+  private pintar(vista: GoalSignView, idioma: string, festejo: Medal | null): void {
     const clave = `${idioma}|${festejo}|${JSON.stringify(vista)}`
     if (clave === this.pintado) return
     this.pintado = clave
@@ -93,37 +93,37 @@ export class Cartel {
 
     // Lo que hay se reparte centrado: una línea sola queda en medio, no colgada de arriba. Con el
     // pie del final son tres líneas, con la letra un poco más baja (`LETRA_CON_PIE` en la web).
-    const pie = vista.pie ?? null
+    const pie = vista.footer ?? null
     const letra = pie == null ? CARTEL : CARTEL.conPie
     const filas = [
       letra.titulo,
-      ...(vista.detalle == null ? [] : [letra.detalle]),
+      ...(vista.detail == null ? [] : [letra.detalle]),
       ...(pie == null ? [] : [letra.detalle]),
-      ...(vista.barra == null ? [] : [CARTEL.barra]),
+      ...(vista.bar == null ? [] : [CARTEL.barra]),
     ]
     let y = (filas.reduce((suma, fila) => suma + fila, 0) + letra.aire * (filas.length - 1)) / 2
 
     // Mientras se celebra, el título dice la medalla: el color solo no se entiende.
-    panel.escribir(festejo != null && vista.vitor != null ? vista.vitor : vista.titulo, 0, y - letra.titulo / 2, {
+    panel.escribir(festejo != null && vista.cheer != null ? vista.cheer : vista.title, 0, y - letra.titulo / 2, {
       alto: letra.titulo,
-      color: festejo != null ? PALETA[festejo] : vista.discreto ? PALETA.textoSuave : PALETA.texto,
+      color: festejo != null ? COMMON_PALETTE[festejo] : vista.subdued ? COMMON_PALETTE.mutedText : COMMON_PALETTE.text,
       anchoMax: CARTEL.anchoUtil,
     })
     y -= letra.titulo + letra.aire
 
-    for (const linea of [vista.detalle, pie]) {
+    for (const linea of [vista.detail, pie]) {
       if (linea == null) continue
-      panel.escribir(linea, 0, y - letra.detalle / 2, { alto: letra.detalle, color: PALETA.textoSuave, anchoMax: CARTEL.anchoUtil })
+      panel.escribir(linea, 0, y - letra.detalle / 2, { alto: letra.detalle, color: COMMON_PALETTE.mutedText, anchoMax: CARTEL.anchoUtil })
       y -= letra.detalle + letra.aire
     }
 
-    if (vista.barra != null) {
+    if (vista.bar != null) {
       const centro = y - CARTEL.barra / 2
-      this.anadir(placa(CARTEL.anchoUtil, CARTEL.barra, PALETA.borde, 1, ORDEN.placa), 0, centro)
-      const lleno = CARTEL.anchoUtil * vista.barra
-      const acento = festejo ?? vista.medalla
+      this.anadir(plate(CARTEL.anchoUtil, CARTEL.barra, COMMON_PALETTE.border, 1, RENDER_ORDER.placa), 0, centro)
+      const lleno = CARTEL.anchoUtil * vista.bar
+      const acento = festejo ?? vista.medal
       if (lleno > 0) {
-        this.anadir(placa(lleno, CARTEL.barra, acento == null ? PALETA.acento : PALETA[acento], 1, ORDEN.dibujo), -CARTEL.anchoUtil / 2 + lleno / 2, centro)
+        this.anadir(plate(lleno, CARTEL.barra, acento == null ? COMMON_PALETTE.accent : COMMON_PALETTE[acento], 1, RENDER_ORDER.dibujo), -CARTEL.anchoUtil / 2 + lleno / 2, centro)
       }
     }
   }

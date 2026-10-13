@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { SCENERIES, readScenery } from './ajustes'
+import { SCENERIES, readScenery } from './settings'
 import { OWN_SCENERY_KEY, SCENERY_HINTS, SCENERY_LABELS, forgetOwnScenery } from './scenery'
 
 /**

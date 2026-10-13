@@ -36,7 +36,7 @@ que el botón de la ventana del menú alterna— y un visor con paso de cámara,
 fondo se vuelve transparente (`Escenario` del kit); sin realidad aumentada el botón sale apagado y
 se ve la sala.
 
-Con visor usa **la gramática XR del kit** (`@kit/runtime/xr/jugador`): la mesa se planta donde la
+Con visor usa **la gramática XR del kit** (`@kit/runtime/xr/player`): la mesa se planta donde la
 presta el salón, baja a los ojos de quien juega sentado y gira con el stick de la mano libre, y la
 **interfaz sube con los ojos** sobre el mundo (`uiRiseOverWorld`, el `XRUiHeight` de la web); el
 mazo se coge con el puño (o un pellizco) de cualquier mano, con la buena por delante, manteniendo o
@@ -94,7 +94,7 @@ Por qué existe y qué se midió: `xrcade/docs/salir-en-steam.md`, sección 4.
 | `scene/interfaz/` | El menú, el marcador y la cuenta atrás, el final, el aviso de salir y el tutorial, con las cotas de la web (`reparto.ts` copia las que en la web viven en componentes de React) |
 | `scene/**/*.motor.test.ts` | La sesión contra las reglas del store de la web; los paneles medidos con el instrumento de la web (`legibilidad.ts`, `panelReading.ts`, `exitCorner.ts`) en los dos idiomas —también con «Tu habitación» escrito— y pulsados con el ratón; el salón, la sala y tu habitación, y las ayudas contra el guion y las cotas de la web: corren con los tests de dominio |
 | `godot-kit.json` | Para el kit: el id, el repo (`..`), **la versión del kit** (`kit`, un tag de xrcade) y qué sonidos se renderizan del `audioEngine.ts` |
-| `games/glide-hockey/mandos/`, `CREDITS.md` | Los mandos de Quest (`npm run godot:mandos`, de `public/webxr-profiles/`) con su licencia MIT, y los créditos del paquete. Se versionan; el preset «pack» incluye los `.json`, la licencia y los créditos |
+| `games/glide-hockey/mandos/`, `CREDITS.md` | Los mandos de Quest (`npm run godot:controllers`, de `public/webxr-profiles/`) con su licencia MIT, y los créditos del paquete. Se versionan; el preset «pack» incluye los `.json`, la licencia y los créditos |
 | `games/glide-hockey/` | Lo que va en el `.pck`; `tests/` se queda fuera al exportar |
 | `games/glide-hockey/sfx/`, `music/` | Los efectos renderizados (`npm run godot:sfx`) y la música de `public/audio/`. Se versionan |
 | `games/glide-hockey/tests/partida_auto.*` | Una partida automática contra la máquina hasta el final: goles de los dos lados, marcador, sonidos, golpe recibido, resultado al salón; el reto con la semilla del salón, sin listones y con los del metadato `goal` en el cartel; y un duelo entero a dos (las dos partidas con la misma semilla y a 7, el traspaso, quién gana por la ventaja, el marcador de la pareja, sin récord ni aviso al salón, y los cierres «como le fue» y «ganar») |
@@ -125,7 +125,7 @@ $GODOT --headless --xr-mode off --path . res://games/glide-hockey/tests/domain_t
 # Los efectos, del audioEngine.ts de la web (Chromium), y comprobarlos; los mandos de Quest
 (cd .. && npm run godot:sfx)
 (cd .. && npm run godot:sfx -- --check)
-(cd .. && npm run godot:mandos)
+(cd .. && npm run godot:controllers)
 
 # Una partida automática contra la máquina (práctica, Imposible, a 7): imprime WAM-RESULT con el
 # marcador y el coste por fotograma. `--dificultad=` y `--goles=` para otra; `--duelo`, un duelo entero

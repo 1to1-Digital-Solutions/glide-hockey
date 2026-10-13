@@ -5,7 +5,7 @@
  * Los perfiles de mando de WebXR no viajan en el código: son ficheros que el
  * navegador pide por HTTP al entrar en el visor. Una aplicación que monte Air
  * Hockey tiene que servirlos desde su propio sitio y decirle dónde con la
- * opción `assetsBase` (ver `docs/montar-el-juego.md`).
+ * opción `assetsBase` (ver `docs/mounting-the-game.md`).
  *
  * Uso, desde el proyecto que lo consume:
  *

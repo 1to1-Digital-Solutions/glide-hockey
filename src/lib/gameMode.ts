@@ -22,7 +22,7 @@
  * interfaz solo lo pinta, igual que con la puntuación.
  */
 
-import { conElRetoPrimero, filasDelMenu, type PapelDeLaFila } from './plantillaDelMenu'
+import { challengeFirst, foldRows, type RowRole } from './menuTemplate'
 
 export type GameMode = 'practice' | 'levels' | 'challenge' | 'duel'
 
@@ -36,7 +36,7 @@ export const GAME_MODE_ORDER: GameMode[] = ['practice', 'levels', 'challenge', '
  * Los modos en la fila «Modo» de los dos menús, con el reto —el que da medalla— el primero, como
  * pide la plantilla común (`conElRetoPrimero` de `plantillaDelMenu.ts`); los demás, en su orden.
  */
-export const MODOS_DEL_MENU: readonly GameMode[] = conElRetoPrimero(GAME_MODE_ORDER, (modo) => modo === 'challenge')
+export const MODOS_DEL_MENU: readonly GameMode[] = challengeFirst(GAME_MODE_ORDER, (modo) => modo === 'challenge')
 
 /**
  * Las filas del menú que dependen del modo, en los tres menús (el del visor, la portada y Godot):
@@ -65,11 +65,11 @@ export function filasDelModo(mode: GameMode, masOpciones: boolean): FilasDelModo
   if (practica) filas.push('maquina')
   if (practica || mode === 'levels') filas.push('goles')
   filas.push('ajustes')
-  const papel = (fila: FilaDelMenu): PapelDeLaFila => (fila === 'modo' || (fila === 'goles' && mode === 'levels') ? 'modo' : 'otra')
+  const papel = (fila: FilaDelMenu): RowRole => (fila === 'modo' || (fila === 'goles' && mode === 'levels') ? 'mode' : 'other')
   const enReto = mode === 'challenge'
   return {
-    filas: new Set(filasDelMenu(filas, papel, { masOpciones, enReto }).filas),
-    plegable: filasDelMenu(filas, papel, { masOpciones: false, enReto }).plegadas > 0,
+    filas: new Set(foldRows(filas, papel, { moreOptions: masOpciones, inChallenge: enReto }).rows),
+    plegable: foldRows(filas, papel, { moreOptions: false, inChallenge: enReto }).folded > 0,
   }
 }
 

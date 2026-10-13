@@ -9,17 +9,17 @@ import {
   MIN_GOALS,
 } from '../../lib/gameConfig'
 import { useGame } from '../../lib/gameStore'
-import { useLang } from '../../lib/ajustesCliente'
+import { useLang } from '../../lib/settingsClient'
 import { traductor, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
 import { GAME_MODE_HINTS, GAME_MODE_LABELS, MODOS_DEL_MENU, filasDelModo, type GameMode } from '../../lib/gameMode'
 import { daMedalla, fraseDeLaMedalla } from '../../lib/cartelDelMarcador'
-import type { Objetivo } from '../../lib/objetivo'
+import type { Goal } from '../../lib/goal'
 import { LEVEL_COUNT } from '../../lib/levels'
-import { MENU_EN } from '../../lib/palabras'
-import { nombreDelJuego } from '../../lib/plantillaDelMenu'
+import { MENU_EN } from '../../lib/menuWords'
+import { gameName } from '../../lib/menuTemplate'
 import { DIFFICULTY_COLORS, PALETTE } from '../../lib/palette'
-import { PALETA } from '../../lib/paleta'
+import { COMMON_PALETTE } from '../../lib/commonPalette'
 import {
   LEVEL_BAR_BOTTOM,
   LEVEL_BUTTON,
@@ -37,9 +37,9 @@ import {
   MENU_ROW_LABEL_SIZE,
   levelBarHeight,
 } from '../../lib/xrMenuLayout'
-import { CONFORTS, type Confort } from '../../lib/golpeRecibido'
+import { COMFORT_LEVELS, type Comfort } from '../../lib/hitFeedback'
 import { CONFORT_LEGEND, useConfort } from '../../lib/confort'
-import type { Scenery } from '../../lib/ajustes'
+import type { Scenery } from '../../lib/settings'
 import { SCENERY_LABELS } from '../../lib/scenery'
 import { useExit } from '../../game/exit'
 import {
@@ -99,7 +99,7 @@ const MARCA_DE_MEDALLA = 0.011
 
 
 /** Tres estrellas —rombos— por nivel: las ganadas, encendidas. */
-function StarsRow({ lit, size = 0.02, color = PALETA.oro }: { lit: number; size?: number; color?: string }) {
+function StarsRow({ lit, size = 0.02, color = COMMON_PALETTE.gold }: { lit: number; size?: number; color?: string }) {
   return (
     <group>
       {[0, 1, 2].map((i) => (
@@ -161,7 +161,7 @@ function ModeIcon({ mode, lit }: { mode: GameMode; lit: boolean }) {
  * El dibujo de cada confort, **por forma**: apagado es un aro tachado; suave, un punto con una
  * onda; entero, un punto con dos. Se cuentan las ondas sin distinguir colores.
  */
-function ConfortIcon({ confort, lit }: { confort: Confort; lit: boolean }) {
+function ConfortIcon({ confort, lit }: { confort: Comfort; lit: boolean }) {
   const color = lit ? PALETTE.foreground : DIM_COLOR
   if (confort === 'off') {
     return (
@@ -207,7 +207,7 @@ export function dibujarLosNombres(
   levels: boolean,
   gameMode: GameMode = 'practice',
   scenery: Scenery = 'place',
-  objetivo: Objetivo | null = null,
+  objetivo: Goal | null = null,
   masOpciones = false,
 ): void {
   // Solo la práctica pregunta el nivel de la máquina y los goles; en niveles, la fila de los
@@ -215,7 +215,7 @@ export function dibujarLosNombres(
   // no es del modo, solo con «Más opciones» desplegado.
   const { filas: hay, plegable } = filasDelModo(gameMode, masOpciones)
   const filas: (readonly [number, string])[] = [
-    [ROW.mode, t(MENU_EN.modo)],
+    [ROW.mode, t(MENU_EN.mode)],
     ...(hay.has('maquina') ? [[ROW.level, t('Level')] as const] : []),
     ...(hay.has('goles') ? [[ROW.goals, levels ? t('Stage') : t('Goals')] as const] : []),
   ]
@@ -223,7 +223,7 @@ export function dibujarLosNombres(
   // propio y no se traduce. Con él se reconoce el menú como el de las otras cabinas.
   const izquierda = -PANEL.width / 2 + 0.05
   const mas = MENU_BOXES['mas opciones']
-  drawText(ctx, nombreDelJuego(), izquierda, ROW.title, {
+  drawText(ctx, gameName(), izquierda, ROW.title, {
     size: MENU_TEXT.title,
     color: PALETTE.foreground,
     align: 'left',
@@ -232,7 +232,7 @@ export function dibujarLosNombres(
   // «Más opciones» —o «Menos», desplegado— sobre su botón, si hay algo plegado en este modo.
   if (plegable) {
     const { position, size } = mas
-    drawText(ctx, t(masOpciones ? MENU_EN.menosOpciones : MENU_EN.masOpciones), position[0], ROW.title, {
+    drawText(ctx, t(masOpciones ? MENU_EN.fewerOptions : MENU_EN.moreOptions), position[0], ROW.title, {
       size: MENU_TEXT.toggle,
       color: PALETTE.foreground,
       maxWidth: size[0] - 0.01,
@@ -275,7 +275,7 @@ export function dibujarLosNombres(
   // los botones de los que habla. En dorado el que cuenta, que además lleva su marca en el botón.
   drawText(ctx, t(fraseDeLaMedalla(objetivo, gameMode)), PANEL.width / 2 - 0.05, ROW.mode + ROW_LABEL_RISE, {
     size: MENU_TEXT.medal,
-    color: daMedalla(objetivo, gameMode) ? PALETA.oro : DIM_COLOR,
+    color: daMedalla(objetivo, gameMode) ? COMMON_PALETTE.gold : DIM_COLOR,
     align: 'right',
     maxWidth: MENU_MEDAL_WIDTH,
   })
@@ -385,7 +385,7 @@ function MenuAbierto() {
 
       {/* Cuánto se nota un gol en contra (`lib/golpeRecibido.ts`). Aquí y no solo en la web
           porque es con el visor puesto cuando se sabe si marea. Detrás de «Más opciones». */}
-      {hay.has('ajustes') && CONFORTS.map((opcion) => {
+      {hay.has('ajustes') && COMFORT_LEVELS.map((opcion) => {
         const selected = opcion === confort
         return (
           <XRPressable key={opcion} box={MENU_BOXES[`confort ${opcion}`]} onSelect={() => setConfort(opcion)}>
@@ -422,7 +422,7 @@ function MenuAbierto() {
             {daMedalla(objetivo, mode) ? (
               <mesh position={[MODE_BUTTON[0] / 2 - MARCA_DE_MEDALLA * 1.6, MODE_BUTTON[1] / 2 - MARCA_DE_MEDALLA * 1.6, 0.002]}>
                 <circleGeometry args={[MARCA_DE_MEDALLA, 20]} />
-                <meshBasicMaterial color={PALETA.oro} toneMapped={false} />
+                <meshBasicMaterial color={COMMON_PALETTE.gold} toneMapped={false} />
               </mesh>
             ) : null}
           </XRPressable>

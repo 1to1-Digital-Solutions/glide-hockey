@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { PALETTE } from '../lib/palette'
-import { contraste, PALETA } from '../lib/paleta'
+import { contrast, COMMON_PALETTE } from '../lib/commonPalette'
 
 /**
  * Que ningún color que **signifique algo** se escriba suelto en la interfaz.
@@ -37,7 +37,7 @@ const FICHEROS: string[] = [
  * y el test lo dice.
  */
 const EXCEPCIONES: Record<string, string> = {
-  'src/components/xr/MandoDeVerdad.tsx':
+  'src/components/xr/RealController.tsx':
     'Es el mismo fichero en todos los juegos (`comunes.py`): su marca amarilla es la de las ' +
     'ayudas (`lib/ayudas.ts`, también común) y se cambia en todos a la vez, no desde un juego.',
 }
@@ -100,8 +100,8 @@ describe('los colores comunes sobre los paneles de la sala', () => {
   // azul de la sala y los botones del de las bandas, y es sobre ellos donde se pintan el final,
   // las estrellas y el récord.
   it.each([PALETTE.background, PALETTE.rail])('se leen sobre %s (4,5:1)', (panel) => {
-    for (const nombre of ['acierto', 'fallo', 'aviso', 'oro', 'acento', 'textoSuave'] as const) {
-      expect(contraste(PALETA[nombre], panel), nombre).toBeGreaterThanOrEqual(4.5)
+    for (const nombre of ['hit', 'miss', 'warning', 'gold', 'accent', 'mutedText'] as const) {
+      expect(contrast(COMMON_PALETTE[nombre], panel), nombre).toBeGreaterThanOrEqual(4.5)
     }
   })
 })

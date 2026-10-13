@@ -2,10 +2,10 @@ import { act, cleanup, render } from '@testing-library/react'
 import { useEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { LANG_COOKIE } from '../../lib/ajustes'
+import { LANG_COOKIE } from '../../lib/settings'
 import { MAX_GOALS } from '../../lib/gameConfig'
 import { useGame, type GameStore } from '../../lib/gameStore'
-import { frasesEnIngles } from '../../lib/sinIngles'
+import { englishPhrases } from '../../lib/noEnglish'
 import { TEXT_KEYS, texto } from '../../lib/textos'
 import { GameProvider } from '../GameProvider'
 import { HUD } from './HUD'
@@ -63,7 +63,7 @@ describe('en español no se escapa nada en inglés', () => {
       </GameProvider>,
     )
     expect(document.body.textContent).toContain('Jugar')
-    expect(frasesEnIngles(loQueSeLee(), CLAVES)).toEqual([])
+    expect(englishPhrases(loQueSeLee(), CLAVES)).toEqual([])
 
     // El menú abre en el reto, que es el modo que da medalla.
     expect(juego!.gameMode).toBe('challenge')
@@ -72,12 +72,12 @@ describe('en español no se escapa nada en inglés', () => {
     for (let i = 0; i < 10 && juego!.gameState === 'countdown'; i += 1) act(() => void vi.advanceTimersByTime(1000))
     act(() => juego!.scorePlayer())
     expect(juego!.gameState).toBe('playing')
-    expect(frasesEnIngles(loQueSeLee(), CLAVES)).toEqual([])
+    expect(englishPhrases(loQueSeLee(), CLAVES)).toEqual([])
 
     for (let i = 0; i < MAX_GOALS && juego!.gameState === 'playing'; i += 1) act(() => juego!.scoreOpponent())
     expect(juego!.gameState).toBe('finished')
     expect(document.body.textContent).toContain('Reto terminado')
     expect(document.body.textContent).toContain('Otro reto')
-    expect(frasesEnIngles(loQueSeLee(), CLAVES)).toEqual([])
+    expect(englishPhrases(loQueSeLee(), CLAVES)).toEqual([])
   })
 })

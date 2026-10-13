@@ -22,7 +22,7 @@
     "src/lib",
     "public",
     "scripts/copy-assets.mjs",
-    "docs/montar-el-juego.md",
+    "docs/mounting-the-game.md",
     "!**/*.test.ts",
     "!**/*.test.tsx"
   ],
@@ -41,8 +41,8 @@
     ],
     "budget": {
       "drawCalls": {
-        "mesa": 40,
-        "cartel-del-objetivo": {
+        "table": 40,
+        "goal-sign": {
           "min": 1,
           "max": 2
         }
@@ -64,7 +64,7 @@
     "coverage": "vitest run --coverage",
     "godot:build": "node ../xrcade/godot-kit/build.mjs --project godot",
     "godot:sfx": "node ../xrcade/godot-kit/render-sfx.mjs --project godot",
-    "godot:mandos": "node ../xrcade/godot-kit/mandos.mjs --project godot",
+    "godot:controllers": "node ../xrcade/godot-kit/controllers.mjs --project godot",
     "godot:test": "godot/tests/run.sh"
   },
   "peerDependencies": {

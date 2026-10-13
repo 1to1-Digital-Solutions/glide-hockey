@@ -1,15 +1,15 @@
 import path from 'node:path'
 import { expect, type Page } from '@playwright/test'
 import type { HostAnchor } from '../../src/lib/hostAnchor'
-import type { Objetivo } from '../../src/lib/objetivo'
-import type { Ensayo } from './comun'
+import type { Goal } from '../../src/lib/goal'
+import type { Trial } from './common'
 import { HOST_BUNDLE } from './globalSetup'
 
 /**
  * El récord de este juego para las capturas comunes (`capturas.spec.ts`): el reto, como lo dice
- * `onTerminar`, y más es mejor.
+ * `onFinish`, y más es mejor.
  */
-export const ENSAYO: Ensayo = { modo: 'challenge', mejorEs: 'mas' }
+export const ENSAYO: Trial = { mode: 'challenge', better: 'higher' }
 
 /** Donde el salón sirve los estáticos de este juego. */
 export const ASSETS_BASE = '/juegos/glide-hockey/'
@@ -20,7 +20,7 @@ const BUNDLE_PATH = '/anfitrion-de-prueba.js'
 const PUBLIC_DIR = path.join(process.cwd(), 'public')
 
 /** El HTML del anfitrión. */
-function html(anchor: HostAnchor | undefined, aLaCarta: boolean, reto?: number, objetivo?: Objetivo): string {
+function html(anchor: HostAnchor | undefined, aLaCarta: boolean, reto?: number, objetivo?: Goal): string {
   const anclaje = anchor === undefined ? '' : ` data-anchor='${JSON.stringify(anchor)}'`
   const cabina = aLaCarta ? ` data-cabina="a-la-carta"` : ''
   const conReto = reto === undefined ? '' : ` data-reto="${reto}"`
@@ -62,7 +62,7 @@ export interface HostOptions {
   /** La semilla del reto que pasa el salón: la escena entra ya jugándolo (`reto`). */
   reto?: number
   /** Los listones de medalla que pasa el salón, para el cartel del objetivo (`objetivo`). */
-  objetivo?: Objetivo
+  goal?: Goal
 }
 
 /**
@@ -77,7 +77,7 @@ export interface HostOptions {
 export async function openHost(
   page: Page,
   anchor?: HostAnchor,
-  { aLaCarta = false, reto, objetivo }: HostOptions = {},
+  { aLaCarta = false, reto, goal: objetivo }: HostOptions = {},
 ): Promise<TestHost> {
   const csp = (await page.request.get('/')).headers()['content-security-policy']
   expect(csp, 'el servidor no devolvió política de seguridad').toBeTruthy()

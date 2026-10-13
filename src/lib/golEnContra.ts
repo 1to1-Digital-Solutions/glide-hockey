@@ -1,4 +1,4 @@
-import type { Punto3 } from './golpeRecibido'
+import type { Point3 } from './hitFeedback'
 import { HALF_LENGTH } from './puckPhysics'
 
 /**
@@ -20,6 +20,6 @@ export const FUERZA_DEL_GOL_EN_CONTRA = 0.3
  *
  * @param cabeza dónde están los ojos, en coordenadas de la mesa.
  */
-export function direccionDelGolEnContra(cabeza: Punto3): Punto3 {
+export function direccionDelGolEnContra(cabeza: Point3): Point3 {
   return { x: -cabeza.x, y: -cabeza.y, z: HALF_LENGTH - cabeza.z }
 }

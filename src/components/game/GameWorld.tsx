@@ -1,17 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useRef } from 'react'
-import { GolpeRecibido, type GolpeRecibidoHandle } from '../xr/GolpeRecibido'
+import { HitFeedback, type HitFeedbackHandle } from '../xr/HitFeedback'
 import { useConfort } from '../../lib/confort'
 import { XRUiHeight } from '../xr/XRUiHeight'
 import { useXR } from '@react-three/xr'
 import { MARCADOR_DEL_FONDO, SONIDO_DEL_LISTON, sitioDelTutorial } from '../../lib/cartelDelMarcador'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
-import { contarMontaje } from '../../lib/montajes'
+import { countMount } from '../../lib/mountCount'
 import { finalSuenaAGanar } from '../../lib/duel'
 import { useGame } from '../../lib/gameStore'
-import { listonCruzado, type Medalla } from '../../lib/objetivo'
-import { showsPlace } from '../../lib/ajustes'
+import { thresholdCrossed, type Medal } from '../../lib/goal'
+import { showsPlace } from '../../lib/settings'
 import {
   EYE_HEIGHTS,
   distanceFromEyes,
@@ -38,7 +38,7 @@ import { XRTutorial } from '../xr/XRTutorial'
 import { XRSessionController } from '../xr/XRSessionController'
 import { Ayudas } from './Ayudas'
 import { CartelDelMarcador } from './CartelDelMarcador'
-import { Calentar } from './Calentar'
+import { PrewarmShaders } from './PrewarmShaders'
 import { Rink } from './Rink'
 import { Backdrop } from './Backdrop'
 import { ROOM_BACKDROP, Room } from './Room'
@@ -194,11 +194,11 @@ export function vistasDelPanel(
  * Unos textos apuntados en el lienzo de la columna, llevados a la escala a la que se pinta
  * (`ESCALA_DE_LA_COLUMNA`): es lo que miden los `*.legible.test.ts` de lo que va en ella.
  */
-export function aLaEscalaDeLaColumna<T extends { x: number; y: number; ancho: number; alto: number }>(
+export function aLaEscalaDeLaColumna<T extends { x: number; y: number; width: number; height: number }>(
   escritos: readonly T[],
 ): T[] {
   const k = ESCALA_DE_LA_COLUMNA
-  return escritos.map((e) => ({ ...e, x: e.x * k, y: e.y * k, ancho: e.ancho * k, alto: e.alto * k }))
+  return escritos.map((e) => ({ ...e, x: e.x * k, y: e.y * k, width: e.width * k, height: e.height * k }))
 }
 
 export interface GameWorldProps {
@@ -225,7 +225,7 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
   // Cuántas veces se monta el mundo, cuando alguien lo está contando (`lib/montajes.ts`).
   // Montarlo dos veces al entrar en la sesión **es** el parpadeo que se reporta del visor.
   useEffect(() => {
-    contarMontaje('mundo')
+    countMount('mundo')
   }, [])
 
   const {
@@ -249,7 +249,7 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
   useGameMusic()
   const haptics = useGameHaptics()
   // El golpe recibido: la mesa lo dispara con el gol en contra (`Rink`) y lo pinta este.
-  const golpeRecibido = useRef<GolpeRecibidoHandle>(null)
+  const golpeRecibido = useRef<HitFeedbackHandle>(null)
   const [confort] = useConfort()
   // Lo que se oye y lo que se siente van por separado: suena todo lo que pasa en la mesa —el
   // roce, la banda, el golpe de la máquina—, pero en la mano solo lo que toca la mano: el golpe
@@ -271,7 +271,7 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
     // El final del duelo suena a ganar: lo gana uno de los dos que están delante (`duel.ts`).
     const gana = finalSuenaAGanar(duelAcabado, { scored: totalPlayerGoals, conceded: totalOpponentGoals })
     play(gana ? 'win' : 'loss')
-    haptics.sentir({ tipo: 'final' })
+    haptics.sentir({ tipo: 'end' })
     if (isRecord) play('record')
   }, [gameState, play, haptics, isRecord, totalPlayerGoals, totalOpponentGoals, duelAcabado])
 
@@ -280,12 +280,12 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
   // y no en el cartel porque también lo oye quien juega sin visor, que no lo tiene colgado.
   const medallaDeAntes = useRef(medalla)
   useEffect(() => {
-    const cruzado = listonCruzado(medallaDeAntes.current, medalla)
+    const cruzado = thresholdCrossed(medallaDeAntes.current, medalla)
     medallaDeAntes.current = medalla
     if (cruzado != null) play(SONIDO_DEL_LISTON[cruzado])
   }, [medalla, play])
   // Y en la mano del mazo, cuando el cartel lo celebra.
-  const sentirElListon = useCallback((cruzado: Medalla) => haptics.sentir({ tipo: 'liston', medalla: cruzado }), [haptics])
+  const sentirElListon = useCallback((cruzado: Medal) => haptics.sentir({ tipo: 'liston', medalla: cruzado }), [haptics])
 
   // Los reflejos de la mesa y del disco, calculados una vez (ver el hook).
   const environment = useRoomEnvironment()
@@ -340,16 +340,16 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
         {/* La sala es el decorado que se sacude con el golpe recibido: la mesa no, que el mazo
             va en la mano y se despegaría de ella. La cámara no se toca nunca. El movimiento
             reducido lo mira el propio componente: el salón no lo manda (`lib/ajustes.ts`). */}
-        <GolpeRecibido
+        <HitFeedback
           ref={golpeRecibido}
-          confort={confort}
-          filtrar={filtrar}
-          vibrar={haptics.pulsar}
+          comfort={confort}
+          applyFilter={filtrar}
+          vibrate={haptics.pulsar}
         >
           <group visible={!passthrough} pointerEvents={passthrough ? 'none' : undefined}>
             <Room />
           </group>
-        </GolpeRecibido>
+        </HitFeedback>
 
         {/* Lo que enseña a jugar sin una sola letra: las huellas del suelo, el mazo
             fantasma, la portería marcada y el mando con su botón encendido. Va **fuera** del
@@ -417,7 +417,7 @@ export function GameWorld({ hasDomUi = false, anchor }: GameWorldProps) {
       {/* Calienta los shaders de la escena, y va AQUÍ y no en el Canvas de la web del
           juego: el salón monta esto y no aquello, así que colgado de allí no se
           precalentaba nada justo donde se juega de verdad. */}
-      <Calentar />
+      <PrewarmShaders />
     </XRWorldHeight>
   )
 }

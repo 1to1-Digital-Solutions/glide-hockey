@@ -1,92 +1,93 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import paquete from '../../package.json'
+import pkg from '../../package.json'
 import {
-  GRADOS_DEL_MENU,
-  conElRetoPrimero,
-  filasDelMenu,
-  fijarNombreDelJuego,
-  gradosDelFrente,
-  nombreDelJuego,
-  nombreDesdeElId,
-  type PapelDeLaFila,
-} from './plantillaDelMenu'
+  MENU_DEGREES,
+  challengeFirst,
+  foldRows,
+  setGameName,
+  degreesFromFront,
+  gameName,
+  nameFromId,
+  type RowRole,
+} from './menuTemplate'
 
 /**
- * La plantilla del menú, la misma en todos los juegos: el nombre, el orden de las filas y dónde
- * nace el menú. Lo de cada juego —qué filas tiene y dónde cuelga su panel— lo mide su guardián.
+ * The menu template, the same in every game: the name, the order of the rows and where the menu
+ * spawns. What belongs to each game —which rows it has and where its panel hangs— is measured by
+ * its guard.
  */
 
-afterEach(() => fijarNombreDelJuego(null))
+afterEach(() => setGameName(null))
 
-describe('el nombre del juego en su menú', () => {
-  it('sin salón, el del paquete con mayúsculas, que es el del catálogo', () => {
-    expect(nombreDesdeElId('axe-throwing')).toBe('Axe Throwing')
-    expect(nombreDesdeElId('minigolf')).toBe('Minigolf')
-    expect(nombreDesdeElId('-raro--id-')).toBe('Raro Id')
-    expect(nombreDelJuego()).toBe(nombreDesdeElId(paquete.name))
+describe('the name of the game in its menu', () => {
+  it('without the hall, that of the package capitalised, which is that of the catalogue', () => {
+    expect(nameFromId('axe-throwing')).toBe('Axe Throwing')
+    expect(nameFromId('minigolf')).toBe('Minigolf')
+    expect(nameFromId('-odd--id-')).toBe('Odd Id')
+    expect(gameName()).toBe(nameFromId(pkg.name))
   })
 
-  it('con salón, el nombre de la cabina; uno vacío no cuenta', () => {
-    fijarNombreDelJuego('  Cabina de prueba ')
-    expect(nombreDelJuego()).toBe('Cabina de prueba')
-    fijarNombreDelJuego('   ')
-    expect(nombreDelJuego()).toBe(nombreDesdeElId(paquete.name))
-    fijarNombreDelJuego('Cabina de prueba')
-    fijarNombreDelJuego(undefined)
-    expect(nombreDelJuego()).toBe(nombreDesdeElId(paquete.name))
+  it('with the hall, the name of the cabinet; an empty one does not count', () => {
+    setGameName('  Test cabinet ')
+    expect(gameName()).toBe('Test cabinet')
+    setGameName('   ')
+    expect(gameName()).toBe(nameFromId(pkg.name))
+    setGameName('Test cabinet')
+    setGameName(undefined)
+    expect(gameName()).toBe(nameFromId(pkg.name))
   })
 })
 
-describe('las filas del menú', () => {
-  const FILAS: { clave: string; papel: PapelDeLaFila }[] = [
-    { clave: 'mano', papel: 'otra' },
-    { clave: 'rival', papel: 'jugadores' },
-    { clave: 'dificultad', papel: 'otra' },
-    { clave: 'modo', papel: 'modo' },
+describe('the rows of the menu', () => {
+  const ROWS: { key: string; role: RowRole }[] = [
+    { key: 'hand', role: 'other' },
+    { key: 'opponent', role: 'players' },
+    { key: 'difficulty', role: 'other' },
+    { key: 'mode', role: 'mode' },
   ]
-  const papel = (fila: (typeof FILAS)[number]) => fila.papel
-  const claves = (filas: readonly { clave: string }[]) => filas.map((fila) => fila.clave)
+  const role = (row: (typeof ROWS)[number]) => row.role
+  const keys = (rows: readonly { key: string }[]) => rows.map((row) => row.key)
 
-  it('«Modo» primero, después «Jugadores», y lo demás plegado', () => {
-    const plegado = filasDelMenu(FILAS, papel, { masOpciones: false })
-    expect(claves(plegado.filas)).toEqual(['modo', 'rival'])
-    expect(plegado.plegadas).toBe(2)
+  it('«Modo» first, then «Jugadores», and the rest folded', () => {
+    const folded = foldRows(ROWS, role, { moreOptions: false })
+    expect(keys(folded.rows)).toEqual(['mode', 'opponent'])
+    expect(folded.folded).toBe(2)
   })
 
-  it('con «Más opciones», lo demás detrás, en el orden en que venía', () => {
-    const abierto = filasDelMenu(FILAS, papel, { masOpciones: true })
-    expect(claves(abierto.filas)).toEqual(['modo', 'rival', 'mano', 'dificultad'])
-    expect(abierto.plegadas).toBe(0)
+  it('with «Más opciones», the rest behind, in the order it came in', () => {
+    const unfolded = foldRows(ROWS, role, { moreOptions: true })
+    expect(keys(unfolded.rows)).toEqual(['mode', 'opponent', 'hand', 'difficulty'])
+    expect(unfolded.folded).toBe(0)
   })
 
-  it('con el reto elegido no hay nada que desplegar: es una partida fija', () => {
-    expect(filasDelMenu(FILAS, papel, { masOpciones: false, enReto: true })).toEqual({
-      filas: [FILAS[3], FILAS[1]],
-      plegadas: 0,
+  it('with the challenge chosen there is nothing to unfold: it is a fixed run', () => {
+    expect(foldRows(ROWS, role, { moreOptions: false, inChallenge: true })).toEqual({
+      rows: [ROWS[3], ROWS[1]],
+      folded: 0,
     })
-    expect(claves(filasDelMenu(FILAS, papel, { masOpciones: true, enReto: true }).filas)).toEqual(['modo', 'rival'])
+    expect(keys(foldRows(ROWS, role, { moreOptions: true, inChallenge: true }).rows)).toEqual(['mode', 'opponent'])
   })
 
-  it('el reto, el primero de los modos', () => {
-    expect(conElRetoPrimero(['practica', 'tiempo', 'reto', 'niveles'], (modo) => modo === 'reto')).toEqual([
-      'reto',
-      'practica',
-      'tiempo',
-      'niveles',
+  it('the challenge, the first of the modes', () => {
+    expect(challengeFirst(['practice', 'time', 'challenge', 'levels'], (mode) => mode === 'challenge')).toEqual([
+      'challenge',
+      'practice',
+      'time',
+      'levels',
     ])
   })
 })
 
-describe('dónde nace el menú del visor', () => {
-  it('se mide en horizontal desde el frente, sin signo', () => {
-    expect(gradosDelFrente([0, 1.4, -1.2])).toBeCloseTo(0)
-    expect(gradosDelFrente([-1, 1.4, -1])).toBeCloseTo(45)
-    expect(gradosDelFrente([1, 0.2, -1])).toBeCloseTo(45)
-    expect(gradosDelFrente([0, 1.4, 1])).toBeCloseTo(180)
+describe('where the headset menu spawns', () => {
+  it('is measured horizontally from the front, unsigned', () => {
+    expect(degreesFromFront([0, 1.4, -1.2])).toBeCloseTo(0)
+    expect(degreesFromFront([-1, 1.4, -1])).toBeCloseTo(45)
+    expect(degreesFromFront([1, 0.2, -1])).toBeCloseTo(45)
+    expect(degreesFromFront([0, 1.4, 1])).toBeCloseTo(180)
   })
 
-  it('el listón: a treinta grados o menos', () => {
-    expect(GRADOS_DEL_MENU).toBe(30)
-    expect(gradosDelFrente([Math.tan(Math.PI / 6), 1.4, -1])).toBeLessThanOrEqual(GRADOS_DEL_MENU + 1e-9)
+  it('the threshold: at thirty degrees or less', () => {
+    expect(MENU_DEGREES).toBe(30)
+    expect(degreesFromFront([Math.tan(Math.PI / 6), 1.4, -1])).toBeLessThanOrEqual(MENU_DEGREES + 1e-9)
   })
 })

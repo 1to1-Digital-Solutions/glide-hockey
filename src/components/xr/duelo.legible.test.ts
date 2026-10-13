@@ -10,8 +10,8 @@ import {
 import { traductor } from '../../lib/textos'
 import { ESCALA_DE_LA_COLUMNA, XR_UI, XR_UI_ROTATION, aLaEscalaDeLaColumna, vistasDelPanel } from '../game/GameWorld'
 import { DUEL_TEXT, GAME_OVER_BOXES, GAME_OVER_SIZE, dibujarElDuelo } from './XRHud'
-import { ALTO_DE_LINEA } from './canvasPanel'
-import { lienzoQueApunta, problemasDeLegibilidad, type Escrito } from './legibilidad'
+import { LINE_HEIGHT } from './canvasPanel'
+import { recordingCanvas, legibilityProblems, type DrawnText } from './legibility'
 
 /**
  * El final de una partida del duelo, medido en vez de mirado.
@@ -50,15 +50,15 @@ const EMPATE: DuelView = { ...GANADO, matches: [{ scored: 7, conceded: 5 }, { sc
 const MUCHOS = { wins: [123, 99] as const, ties: 42 }
 
 /** Lo que escribe el final del duelo en cada momento y en los dos idiomas, sin escalar. */
-function todosLosFinales(): { donde: string; escritos: Escrito[] }[] {
-  const finales: { donde: string; escritos: Escrito[] }[] = []
+function todosLosFinales(): { donde: string; escritos: DrawnText[] }[] {
+  const finales: { donde: string; escritos: DrawnText[] }[] = []
   for (const lang of IDIOMAS) {
     for (const [nombre, duelo] of [
       ['traspaso', TRASPASO],
       ['ganado', GANADO],
       ['empate', EMPATE],
     ] as const) {
-      const { ctx, escritos } = lienzoQueApunta()
+      const { ctx, drawnTexts: escritos } = recordingCanvas()
       dibujarElDuelo(ctx, traductor(lang), duelo, { scored: 7, conceded: 5 }, MUCHOS)
       finales.push({ donde: `${lang} ${nombre}`, escritos })
     }
@@ -72,30 +72,30 @@ describe('el final de una partida del duelo', () => {
     for (const { donde, escritos } of todosLosFinales()) {
       expect(escritos.length, 'no se ha medido nada').toBeGreaterThan(0)
       const escalados = aLaEscalaDeLaColumna(escritos)
-      const distancia = Math.max(...VISTAS.map(({ pose, ojos }) => worstReadingDistance(escalados, pose, ojos, ALTO_DE_LINEA)))
-      expect(problemasDeLegibilidad(escalados, { panel, distancia }), donde).toEqual([])
+      const distancia = Math.max(...VISTAS.map(({ pose, ojos }) => worstReadingDistance(escalados, pose, ojos, LINE_HEIGHT)))
+      expect(legibilityProblems(escalados, { panel, distance: distancia }), donde).toEqual([])
     }
   })
 
   it('en el traspaso dice a quién le toca, y al final quién gana', () => {
     const t = traductor('es')
 
-    const traspaso = lienzoQueApunta()
+    const traspaso = recordingCanvas()
     dibujarElDuelo(traspaso.ctx, t, TRASPASO, { scored: 7, conceded: 5 }, MUCHOS)
-    const dichoEnElTraspaso = traspaso.escritos.map((e) => e.texto).join(' ')
+    const dichoEnElTraspaso = traspaso.drawnTexts.map((e) => e.text).join(' ')
     expect(dichoEnElTraspaso).toContain('Jugador 1: 7–5')
     expect(dichoEnElTraspaso).toContain('Pásale el mando a Jugador 2.')
 
-    const final = lienzoQueApunta()
+    const final = recordingCanvas()
     dibujarElDuelo(final.ctx, t, GANADO, { scored: 7, conceded: 2 }, MUCHOS)
-    const dicho = final.escritos.map((e) => e.texto).join(' ')
+    const dicho = final.drawnTexts.map((e) => e.text).join(' ')
     expect(dicho).toContain('Gana Jugador 2')
     expect(dicho).toContain('Jugador 1: 7–5 (+2)')
     expect(dicho).toContain('Jugador 2: 7–2 (+5)')
 
-    const empate = lienzoQueApunta()
+    const empate = recordingCanvas()
     dibujarElDuelo(empate.ctx, t, EMPATE, { scored: 4, conceded: 2 }, MUCHOS)
-    expect(empate.escritos.map((e) => e.texto).join(' ')).toContain('Empate')
+    expect(empate.drawnTexts.map((e) => e.text).join(' ')).toContain('Empate')
   })
 })
 
@@ -104,7 +104,7 @@ describe('cada letra del final del duelo se lee de un vistazo', () => {
     for (const { donde, escritos } of todosLosFinales()) {
       for (const vista of VISTAS) {
         expect(
-          unreadableTexts(aLaEscalaDeLaColumna(escritos), vista.pose, vista.ojos, ALTO_DE_LINEA),
+          unreadableTexts(aLaEscalaDeLaColumna(escritos), vista.pose, vista.ojos, LINE_HEIGHT),
           `${donde}, ${vista.donde}`,
         ).toEqual([])
       }
@@ -113,7 +113,7 @@ describe('cada letra del final del duelo se lee de un vistazo', () => {
 
   it('y todas se escriben con un tamaño de la lista, sin encogerse', () => {
     for (const { donde, escritos } of todosLosFinales()) {
-      expect(sizesOffList(escritos, ALTO_DE_LINEA, Object.values(DUEL_TEXT)), donde).toEqual([])
+      expect(sizesOffList(escritos, LINE_HEIGHT, Object.values(DUEL_TEXT)), donde).toEqual([])
     }
   })
 

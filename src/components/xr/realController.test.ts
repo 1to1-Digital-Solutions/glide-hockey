@@ -13,140 +13,140 @@ import {
 } from 'three'
 
 import { COMPONENTE_DEL_BOTON, TUTORIAL_BUTTONS } from '../../lib/tutorial'
-import { nodoDelBoton, sitioDelNodo, soltarElModelo } from './MandoDeVerdad'
+import { buttonNode, nodePlacement, disposeModel } from './RealController'
 
 /**
- * Que el mando que enseña el tutorial se pueda enseñar de verdad.
+ * That the controller the tutorial shows can really be shown.
  *
- * Nada de esto se ve fallar jugando: si el identificador del botón no existe en el perfil, o
- * si el `.glb` no se copió, el tutorial **no avisa** —se queda sin modelo y sigue, que es lo
- * que tiene que hacer con un mando desconocido—. Así que se comprueba aquí, contra los
- * ficheros que de verdad se sirven.
+ * None of this is seen failing while playing: if the button's identifier does not exist in the
+ * profile, or if the `.glb` was not copied, the tutorial **gives no warning** —it is left without
+ * a model and carries on, which is what it has to do with an unknown controller—. So it is checked
+ * here, against the files that are really served.
  */
 
-const PERFILES = join(process.cwd(), 'public/webxr-profiles')
+const PROFILES = join(process.cwd(), 'public/webxr-profiles')
 
 /**
- * De qué mandos hay modelo servido.
+ * Which controllers have a served model.
  *
- * Se mira lo que hay y no se escribe la lista: la decide `scripts/sync-xr-profiles.mjs`, y
- * una copia aquí sería otra lista que mantener —y que se quedaría atrás justo el día que se
- * añada un mando—.
+ * What is there is looked at and the list is not written: `scripts/sync-xr-profiles.mjs` decides
+ * it, and a copy here would be another list to maintain —and one that would fall behind on the
+ * very day a controller is added—.
  */
-const CON_MODELO = readdirSync(PERFILES).filter((id) =>
-  existsSync(join(PERFILES, id, 'right.glb')),
+const WITH_MODEL = readdirSync(PROFILES).filter((id) =>
+  existsSync(join(PROFILES, id, 'right.glb')),
 )
 
-function layoutDe(id: string, mano: 'left' | 'right') {
-  const perfil = JSON.parse(readFileSync(join(PERFILES, id, 'profile.json'), 'utf8'))
-  return perfil.layouts[mano]
+function layoutOf(id: string, hand: 'left' | 'right') {
+  const profile = JSON.parse(readFileSync(join(PROFILES, id, 'profile.json'), 'utf8'))
+  return profile.layouts[hand]
 }
 
-describe('el modelo del mando servido con el juego', () => {
-  it('está el del visor del arcade', () => {
-    // Sin esto, el juego pasaría los tests sin haber ejecutado nunca `sync:xr-profiles`, y el
-    // tutorial se quedaría sin modelo también en el visor con el que se prueba.
-    expect(CON_MODELO).toContain('meta-quest-touch-plus')
+describe('the controller model served with the game', () => {
+  it('the one for the headset of the hall is there', () => {
+    // Without this, the game would pass the tests without ever having run `sync:xr-profiles`, and
+    // the tutorial would be left without a model also on the headset it is tested with.
+    expect(WITH_MODEL).toContain('meta-quest-touch-plus')
   })
 
-  it.each(CON_MODELO)('%s viaja con las dos manos', (id) => {
-    expect(existsSync(join(PERFILES, id, 'left.glb'))).toBe(true)
-    expect(existsSync(join(PERFILES, id, 'right.glb'))).toBe(true)
+  it.each(WITH_MODEL)('%s travels with both hands', (id) => {
+    expect(existsSync(join(PROFILES, id, 'left.glb'))).toBe(true)
+    expect(existsSync(join(PROFILES, id, 'right.glb'))).toBe(true)
   })
 })
 
-describe('qué pieza del modelo se enciende', () => {
-  it.each(CON_MODELO)('en %s, cada botón de la lección tiene su nodo', (id) => {
-    for (const mano of ['left', 'right'] as const) {
-      const layout = layoutDe(id, mano)
-      for (const boton of Object.values(TUTORIAL_BUTTONS)) {
-        if (boton == null) continue
-        expect(nodoDelBoton(layout, COMPONENTE_DEL_BOTON[boton])).toBeTruthy()
+describe('which part of the model lights up', () => {
+  it.each(WITH_MODEL)('on %s, every button of the lesson has its node', (id) => {
+    for (const hand of ['left', 'right'] as const) {
+      const layout = layoutOf(id, hand)
+      for (const button of Object.values(TUTORIAL_BUTTONS)) {
+        if (button == null) continue
+        expect(buttonNode(layout, COMPONENTE_DEL_BOTON[button])).toBeTruthy()
       }
     }
   })
 
-  it('un mando sin ese botón no da nodo, y el tutorial se queda con el dibujo', () => {
-    const layout = layoutDe('generic-trigger', 'right')
-    expect(nodoDelBoton(layout, COMPONENTE_DEL_BOTON.gatillo)).toBeTruthy()
-    expect(nodoDelBoton(layout, COMPONENTE_DEL_BOTON.agarre)).toBeNull()
+  it('a controller without that button gives no node, and the tutorial keeps the drawing', () => {
+    const layout = layoutOf('generic-trigger', 'right')
+    expect(buttonNode(layout, COMPONENTE_DEL_BOTON.gatillo)).toBeTruthy()
+    expect(buttonNode(layout, COMPONENTE_DEL_BOTON.agarre)).toBeNull()
   })
 
-  it('no es `rootNodeName`, que es lo que parece y en Quest no está en el modelo', () => {
-    // El control del fallo: el primer intento buscó la pieza por ahí y no la encontró nunca.
-    const layout = layoutDe('meta-quest-touch-plus', 'right')
-    const componente = layout.components[COMPONENTE_DEL_BOTON.agarre]
-    expect(nodoDelBoton(layout, COMPONENTE_DEL_BOTON.agarre)).not.toBe(componente.rootNodeName)
+  it('it is not `rootNodeName`, which is what it looks like and on Quest is not in the model', () => {
+    // The control for the failure: the first attempt looked for the part that way and never found it.
+    const layout = layoutOf('meta-quest-touch-plus', 'right')
+    const component = layout.components[COMPONENTE_DEL_BOTON.agarre]
+    expect(buttonNode(layout, COMPONENTE_DEL_BOTON.agarre)).not.toBe(component.rootNodeName)
   })
 })
 
-describe('dónde se pone la marca dentro del modelo', () => {
-  /** Un mando de mentira: el pivote lejos del botón, y el botón colgando de él. */
-  function modeloDeMentira(): Object3D {
-    const raiz = new Group()
-    const pivote = new Object3D()
-    pivote.name = 'boton_pressed_value'
-    pivote.position.set(0, 0.013, -0.025)
-    const boton = new Mesh(new BoxGeometry(0.01, 0.02, 0.01))
-    boton.position.set(0, -0.013, 0.04)
-    pivote.add(boton)
-    raiz.add(pivote)
-    return raiz
+describe('where the mark is put inside the model', () => {
+  /** A fake controller: the pivot far from the button, and the button hanging from it. */
+  function fakeModel(): Object3D {
+    const root = new Group()
+    const pivot = new Object3D()
+    pivot.name = 'button_pressed_value'
+    pivot.position.set(0, 0.013, -0.025)
+    const button = new Mesh(new BoxGeometry(0.01, 0.02, 0.01))
+    button.position.set(0, -0.013, 0.04)
+    pivot.add(button)
+    root.add(pivot)
+    return root
   }
 
-  it('cae en la pieza, no en el pivote que la mueve', () => {
-    // El control del fallo: marcando el nodo que nombra el perfil, la marca salía dos
-    // centímetros y medio por delante del botón, arriba, al lado del joystick.
-    const sitio = sitioDelNodo(modeloDeMentira(), 'boton_pressed_value')
-    expect(sitio).not.toBeNull()
-    expect(sitio!.centro.y).toBeCloseTo(0, 6)
-    expect(sitio!.centro.z).toBeCloseTo(0.015, 6)
+  it('falls on the part, not on the pivot that moves it', () => {
+    // The control for the failure: marking the node the profile names, the mark came out two
+    // and a half centimetres in front of the button, at the top, next to the joystick.
+    const placement = nodePlacement(fakeModel(), 'button_pressed_value')
+    expect(placement).not.toBeNull()
+    expect(placement!.center.y).toBeCloseTo(0, 6)
+    expect(placement!.center.z).toBeCloseTo(0.015, 6)
   })
 
-  it('el halo se ajusta a lo que abulta la pieza', () => {
-    const sitio = sitioDelNodo(modeloDeMentira(), 'boton_pressed_value')
-    expect(sitio!.radio).toBeCloseTo(0.02 * 0.6, 6)
+  it('the halo fits how bulky the part is', () => {
+    const placement = nodePlacement(fakeModel(), 'button_pressed_value')
+    expect(placement!.radius).toBeCloseTo(0.02 * 0.6, 6)
   })
 
-  it('un nodo que no está en el modelo no da sitio', () => {
-    expect(sitioDelNodo(modeloDeMentira(), 'no_existe')).toBeNull()
+  it('a node that is not in the model gives no placement', () => {
+    expect(nodePlacement(fakeModel(), 'does_not_exist')).toBeNull()
   })
 
-  it('un nodo sin geometría debajo tampoco', () => {
-    const raiz = new Group()
-    const vacio = new Object3D()
-    vacio.name = 'boton_pressed_value'
-    raiz.add(vacio)
-    expect(sitioDelNodo(raiz, 'boton_pressed_value')).toBeNull()
+  it('nor does a node with no geometry underneath', () => {
+    const root = new Group()
+    const empty = new Object3D()
+    empty.name = 'button_pressed_value'
+    root.add(empty)
+    expect(nodePlacement(root, 'button_pressed_value')).toBeNull()
   })
 })
 
-describe('al irse, el modelo suelta lo suyo', () => {
-  it('cada geometría, cada material y sus texturas, también con varios materiales y anidado', () => {
-    const soltado: string[] = []
-    const apuntar = (nombre: string) => () => soltado.push(nombre)
-    const textura = new Texture()
-    textura.addEventListener('dispose', apuntar('textura'))
-    const cuerpo = new Mesh(new BoxGeometry(), new MeshStandardMaterial({ map: textura }))
-    cuerpo.geometry.addEventListener('dispose', apuntar('cuerpo'))
-    cuerpo.material.addEventListener('dispose', apuntar('material del cuerpo'))
-    const tapa = new Mesh(new BoxGeometry(), [new MeshBasicMaterial(), new MeshBasicMaterial()])
-    tapa.geometry.addEventListener('dispose', apuntar('tapa'))
-    for (const material of tapa.material) material.addEventListener('dispose', apuntar('material de la tapa'))
-    const raiz = new Group()
-    const pieza = new Object3D()
-    pieza.add(tapa)
-    raiz.add(cuerpo, pieza)
+describe('on leaving, the model disposes of what is its own', () => {
+  it('every geometry, every material and its textures, also with several materials and nested', () => {
+    const disposed: string[] = []
+    const record = (name: string) => () => disposed.push(name)
+    const texture = new Texture()
+    texture.addEventListener('dispose', record('texture'))
+    const body = new Mesh(new BoxGeometry(), new MeshStandardMaterial({ map: texture }))
+    body.geometry.addEventListener('dispose', record('body'))
+    body.material.addEventListener('dispose', record('material of the body'))
+    const cap = new Mesh(new BoxGeometry(), [new MeshBasicMaterial(), new MeshBasicMaterial()])
+    cap.geometry.addEventListener('dispose', record('cap'))
+    for (const material of cap.material) material.addEventListener('dispose', record('material of the cap'))
+    const root = new Group()
+    const part = new Object3D()
+    part.add(cap)
+    root.add(body, part)
 
-    soltarElModelo(raiz)
+    disposeModel(root)
 
-    expect(soltado.sort()).toEqual([
-      'cuerpo',
-      'material de la tapa',
-      'material de la tapa',
-      'material del cuerpo',
-      'tapa',
-      'textura',
+    expect(disposed.sort()).toEqual([
+      'body',
+      'cap',
+      'material of the body',
+      'material of the cap',
+      'material of the cap',
+      'texture',
     ])
   })
 })

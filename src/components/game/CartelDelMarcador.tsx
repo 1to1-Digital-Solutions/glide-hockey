@@ -1,15 +1,15 @@
 'use client'
 
-import { CartelDeObjetivo, proporcionDelCartel } from '../xr/CartelDeObjetivo'
+import { GoalSign, signAspect } from '../xr/GoalSign'
 import { sitioDelCartel } from '../../lib/cartelDelMarcador'
 import { useGame } from '../../lib/gameStore'
-import type { Medalla } from '../../lib/objetivo'
+import type { Medal } from '../../lib/goal'
 
 /**
  * Dónde cuelga el cartel, con las medidas del cartel de verdad: encima del marcador del fondo
  * (`sitioDelCartel`). Fuera del componente para que los tests lo midan donde queda.
  */
-export const SITIO_DEL_CARTEL = sitioDelCartel(proporcionDelCartel())
+export const SITIO_DEL_CARTEL = sitioDelCartel(signAspect())
 
 /**
  * El cartel del objetivo, colgado encima del marcador del fondo.
@@ -23,19 +23,19 @@ export const SITIO_DEL_CARTEL = sitioDelCartel(proporcionDelCartel())
  * @param alCelebrar Lo que el juego hace al cruzar un listón: el golpe en la mano del mazo. El
  *   sonido lo pone la escena, que lo oye también quien juega sin visor.
  */
-export function CartelDelMarcador({ alCelebrar }: { alCelebrar?: (medalla: Medalla) => void }) {
+export function CartelDelMarcador({ alCelebrar }: { alCelebrar?: (medalla: Medal) => void }) {
   const { cartel, medalla } = useGame()
 
   if (cartel == null) return null
 
   return (
-    <CartelDeObjetivo
-      vista={cartel}
+    <GoalSign
+      view={cartel}
       position={SITIO_DEL_CARTEL.position}
       rotation={SITIO_DEL_CARTEL.rotation}
-      distancia={SITIO_DEL_CARTEL.distancia}
-      celebra={medalla}
-      alCelebrar={alCelebrar}
+      distance={SITIO_DEL_CARTEL.distancia}
+      celebrate={medalla}
+      onCelebrate={alCelebrar}
     />
   )
 }

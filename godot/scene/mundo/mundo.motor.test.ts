@@ -15,10 +15,10 @@
 import { Environment, Node3D } from 'godot'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { Escenario, type VistaDeLaHabitacion } from '@kit/runtime/escena/escenario'
-import { MandoDeVerdad } from '@kit/runtime/ui/mando'
+import { SceneryRig, type RoomView } from '@kit/runtime/scene/scenery'
+import { RealController } from '@kit/runtime/ui/controller'
 
-import { MAXIMO } from '@/lib/ayudas'
+import { MAX_EXPIRY } from '@/lib/hints'
 import { MALLET_RADIUS, PUCK_RADIUS, TABLE_CENTER_Z } from '@/lib/gameConfig'
 import {
   AYUDAS_QUE_OCUPAN_LA_MESA,
@@ -63,7 +63,7 @@ describe('la sala y tu habitación', () => {
   let entorno: Environment
   let transparente: boolean[]
   let passthrough: boolean
-  const vista: VistaDeLaHabitacion = {
+  const vista: RoomView = {
     hayPassthrough: () => passthrough,
     transparente: (si) => transparente.push(si),
   }
@@ -78,7 +78,7 @@ describe('la sala y tu habitación', () => {
   afterEach(() => sala.nodo.free())
 
   it('sin realidad aumentada se ve la sala aunque el salón pida la habitación', () => {
-    const escenario = new Escenario({ mostrar: (si) => sala.mostrar(si), vista })
+    const escenario = new SceneryRig({ mostrar: (si) => sala.mostrar(si), vista })
     gameStorage()!.setItem('xrcade:scenery', 'room')
     escenario.actualizar()
     expect(escenario.hayHabitacion).toBe(false)
@@ -89,7 +89,7 @@ describe('la sala y tu habitación', () => {
 
   it('con ella, la habitación: la sala se esconde sin desmontarse y el fondo no tapa', () => {
     passthrough = true
-    const escenario = new Escenario({ mostrar: (si) => sala.mostrar(si), vista })
+    const escenario = new SceneryRig({ mostrar: (si) => sala.mostrar(si), vista })
     escenario.alternar()
     escenario.actualizar()
     expect(escenario.elegido).toBe('room')
@@ -115,7 +115,7 @@ describe('las ayudas, con el guion de la web', () => {
     suelo = new Node3D()
     mesa = new Node3D()
     suelo.add_child(mesa)
-    ayudas = new AyudasDelJuego(suelo, mesa, new MandoDeVerdad({ mano: 'right', dir: DIR_DE_LOS_MANDOS, perfil: () => 'meta-quest-touch-plus', junto: juntoAlMazo() }))
+    ayudas = new AyudasDelJuego(suelo, mesa, new RealController({ mano: 'right', dir: DIR_DE_LOS_MANDOS, perfil: () => 'meta-quest-touch-plus', junto: juntoAlMazo() }))
   })
   afterEach(() => suelo.free())
 
@@ -150,9 +150,9 @@ describe('las ayudas, con el guion de la web', () => {
   })
 
   it('ninguna se queda puesta: pasado el plazo más largo, todas fuera aunque no se haga nada', () => {
-    correr(MAXIMO + 1, { tanda: true, grab: true })
+    correr(MAX_EXPIRY + 1, { tanda: true, grab: true })
     expect(ayudas.visibles()).toEqual([])
-    expect(Math.max(...GUION_DE_AYUDAS.map((a) => a.caduca))).toBeLessThanOrEqual(MAXIMO)
+    expect(Math.max(...GUION_DE_AYUDAS.map((a) => a.expiresAfter))).toBeLessThanOrEqual(MAX_EXPIRY)
   })
 
   it('sin visor no se enseñan ni corren sus plazos', () => {

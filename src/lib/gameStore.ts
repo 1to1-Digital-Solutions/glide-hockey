@@ -11,8 +11,8 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { volumeFactor, type Scenery } from './ajustes'
-import { setScenery as setArcadeScenery, useLang, useScenery, useVolumes } from './ajustesCliente'
+import { volumeFactor, type Scenery } from './settings'
+import { setScenery as setArcadeScenery, useLang, useScenery, useVolumes } from './settingsClient'
 import { AVISO_DE_QUE_CUENTA_MS, conElAvisoDeQueCuenta, loQueCallaElMarcador, partidaDelCartel } from './cartelDelMarcador'
 import { challengeRound } from './challenge'
 import {
@@ -57,10 +57,10 @@ import {
 } from './progress'
 import { migrateLegacyKeysOnce } from './legacyKeys'
 import { conHazanas, estrenarHazanas, hazanasDelPartido, type Hazana } from './hazanas'
-import { cartelDeObjetivo, medallaQueCelebra, type Medalla, type Objetivo, type VistaDelCartel } from './objetivo'
+import { goalSign, medalToCelebrate, type Medal, type Goal, type GoalSignView } from './goal'
 import { semillaDeLaMesa } from './opponent'
-import { exponerPartida } from './partidaDePrueba'
-import type { Resultado, Reto } from './semilla'
+import { exposeTestRun } from './testRun'
+import type { GameResult, Challenge } from './seed'
 import { forgetOwnScenery } from './scenery'
 import { gameStorage } from './storage'
 import { type Scorer } from './puckPhysics'
@@ -120,18 +120,18 @@ export interface OpcionesDelSalon {
    * tiros de la máquina sacados de la semilla. Se lee al montar; otro reto es
    * otro montaje.
    */
-  reto?: Reto
+  reto?: Challenge
   /**
    * Se llama una vez al acabar cada partida con puntuación (no al dejarla a medias), con las
    * hazañas que se estrenan en ella (`hazanas.ts`).
    */
-  onTerminar?: (resultado: Resultado) => void
+  onFinish?: (resultado: GameResult) => void
   /**
    * Los listones de medalla del juego y la marca de quien juega, para el cartel de encima del
    * marcador (`objetivo.ts`). Sin él —el juego abierto suelto— el cartel dice la misión y el
    * récord local.
    */
-  objetivo?: Objetivo
+  objetivo?: Goal
 }
 
 export interface GameStore {
@@ -197,14 +197,14 @@ export interface GameStore {
   outcome: RunOutcome | null
 
   /** Lo que pasó el salón, o `null` con el juego abierto suelto: los menús dicen qué modo da medalla. */
-  objetivo: Objetivo | null
+  objetivo: Goal | null
   /**
    * Lo que dice el cartel de encima del marcador (`objetivo.ts`), o `null` si no hay nada que
    * colgar: en el menú, y fuera del reto con el juego abierto suelto.
    */
-  cartel: VistaDelCartel | null
+  cartel: GoalSignView | null
   /** La medalla que ya es de quien juega en esta partida: cuando sube, se celebra el listón. */
-  medalla: Medalla | null
+  medalla: Medal | null
   /** Lo que el marcador del fondo calla porque ya lo dice el cartel (`loQueCallaElMarcador`). */
   callado: { puntos: boolean; ronda: boolean }
 
@@ -350,7 +350,7 @@ export function clampGoalTarget(goals: number): number {
   return Math.min(MAX_GOALS, Math.max(MIN_GOALS, Math.round(goals)))
 }
 
-export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSalon = {}): GameStore {
+export function useGameStoreValue({ reto, onFinish, objetivo }: OpcionesDelSalon = {}): GameStore {
   // Lo guardado cuando el juego se llamaba `air-hockey`, traído a las claves de ahora.
   // Durante el render y no en un efecto: el récord y los niveles se leen más abajo con
   // `useSyncExternalStore`, que lee ya en esta misma pasada (ver `lib/legacyKeys.ts`).
@@ -384,7 +384,7 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
   const [runId, setRunId] = useState(reto != null ? 1 : 0)
   // El reto se mira una sola vez, al montar: es lo que decide con qué se arranca.
   const [enReto, setEnReto] = useState(reto != null)
-  const [semillaDelReto] = useState(() => reto?.semilla ?? null)
+  const [semillaDelReto] = useState(() => reto?.seed ?? null)
   // Ronda del reto. Vive aquí y no se deriva porque es lo único que sobrevive
   // de una partida a la siguiente dentro del mismo reto.
   const [challengeRoundNumber, setChallengeRoundNumber] = useState(1)
@@ -421,7 +421,7 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
   const [recordToBeat, setRecordToBeat] = useState(() =>
     reto != null ? getBestPoints(MODO_DEL_RETO) : 0,
   )
-  // Y el del salón, por lo mismo: al acabar, el salón sube el suyo (`onTerminar`) y el cartel
+  // Y el del salón, por lo mismo: al acabar, el salón sube el suyo (`onFinish`) y el cartel
   // diría «Has igualado tu récord» de la partida que lo acaba de batir (`objetivo.ts`).
   const recordDelSalon = objetivo?.record ?? null
   const salonVivo = useRef(recordDelSalon)
@@ -634,10 +634,10 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
   // El aviso se lee del último render y no entra en las dependencias: un
   // anfitrión que pasa una función nueva en cada render no tiene por qué rehacer
   // nada.
-  const avisar = useRef(onTerminar)
+  const avisar = useRef(onFinish)
   useEffect(() => {
-    avisar.current = onTerminar
-  }, [onTerminar])
+    avisar.current = onFinish
+  }, [onFinish])
 
   // Cada modo guarda lo suyo al terminar: puntos, racha o estrellas. Guardar
   // solo hace algo si mejora lo que había, así que repetirlo no cambia nada. Se
@@ -663,7 +663,7 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
       hazanasDeLaPartida.current.add(hazana)
     }
     const nuevas = estrenarHazanas(hazanasDeLaPartida.current)
-    avisar.current?.(conHazanas({ modo: gameMode, puntos: points, reto: enReto }, nuevas))
+    avisar.current?.(conHazanas({ mode: gameMode, points: points, challenge: enReto }, nuevas))
   }, [gameState, gameMode, duelMode, points, bestStreak, endlessRun, levelResult, activeLevel, runId, enReto, outcome, opponentGoals])
 
   // El cartel de encima del marcador: qué hay que superar y cuánto falta. Se arma ya traducido,
@@ -689,10 +689,10 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
     [objetivo, salonAlEmpezar, gameMode, gameState, challengeRoundNumber, goles, points, streak, recordToBeat, t],
   )
   const cartel = useMemo(
-    () => (partida == null ? null : conElAvisoDeQueCuenta(cartelDeObjetivo(partida, t), gameMode, avisoQueCuenta, t)),
+    () => (partida == null ? null : conElAvisoDeQueCuenta(goalSign(partida, t), gameMode, avisoQueCuenta, t)),
     [partida, t, gameMode, avisoQueCuenta],
   )
-  const medalla = partida == null ? null : medallaQueCelebra(partida)
+  const medalla = partida == null ? null : medalToCelebrate(partida)
   const callado = useMemo(() => loQueCallaElMarcador(partida), [partida])
 
   // La marca de este modo: puntos, o la racha en la partida sin fin. En Niveles
@@ -811,7 +811,7 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
     cartelVivo.current = cartel
   }, [cartel])
   useEffect(() => {
-    exponerPartida({
+    exposeTestRun({
       start: () => {
         // El reto, sin el tutorial delante: sus pasos, dados por hechos.
         setGameModeState(MODO_DEL_RETO)
@@ -827,7 +827,7 @@ export function useGameStoreValue({ reto, onTerminar, objetivo }: OpcionesDelSal
         setCountdown(0)
         setOpponentGoals(activeGoalTarget)
       },
-      cartel: () => cartelVivo.current,
+      sign: () => cartelVivo.current,
     })
   }, [arrancar, activeGoalTarget])
 

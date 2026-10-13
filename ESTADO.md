@@ -86,7 +86,7 @@ npm run test:e2e         # Playwright; puerto E2E_PORT o PORT (3100 por defecto)
 |---|---|
 | Por qué está algo así | `docs/historial.md` (no se lee al empezar) |
 | El contrato con xrcade | `docs/xrcade.md` |
-| Montar el juego en otra aplicación | `docs/montar-el-juego.md` |
+| Montar el juego en otra aplicación | `docs/mounting-the-game.md` |
 | El port a Godot y sus comandos | `godot/README.md` |
 | Qué probar con el visor | `organizate/docs/pendiente-de-visor.md` |
 | Reglas comunes (XR, arquitectura, git) | `.claude/rules/` |

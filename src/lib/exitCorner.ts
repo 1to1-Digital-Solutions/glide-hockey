@@ -1,29 +1,30 @@
 /**
- * Dónde va la salida en el panel de ajustes, y qué le falla cuando no está ahí.
+ * Where the exit goes in the settings panel, and what is wrong with it when it is not there.
  *
- * **La esquina de abajo a la derecha, la misma en los trece.** El dibujo ya se unificó —es la
- * flecha de volver de `FLECHA_DE_SALIR`— pero el **sitio** no: nueve juegos la tenían al final
- * de la fila de abajo, tres en la punta izquierda de esa fila y uno a media altura, en una
- * columna lateral. Con el visor puesto eso se nota como que hay que buscarla en cada cabina.
- * Reportado así: «el botón para salir debería estar siempre en el mismo sitio en el menú de
- * config (abajo siempre, o siempre a la izquierda o siempre a la derecha). Que depende del
- * juego, está en un lado o en otro».
+ * **The bottom right corner, the same in the thirteen.** The drawing was already unified —it is
+ * the back arrow of `EXIT_ARROW`— but the **place** was not: nine games had it at the end
+ * of the bottom row, three at the left tip of that row and one at mid height, in a
+ * side column. With the headset on that is felt as having to look for it in each cabinet.
+ * Reported like this: "the button to exit should always be in the same place in the config
+ * menu (always at the bottom, or always on the left or always on the right). It depends on
+ * the game, it is on one side or on the other".
  *
- * **Por qué abajo a la derecha y no otra.** Dos razones, y ninguna es estética:
+ * **Why bottom right and not another.** Two reasons, and neither is aesthetic:
  *
- * - Es donde ya estaba en nueve de los trece. Mover cuatro deja intacto lo que ya se sabe de
- *   memoria; elegir la otra punta habría obligado a reaprender nueve juegos para arreglar tres.
- * - Es la **fila de las acciones**, la que se mira al acabar de elegir: jugar está en medio de
- *   esa fila, así que salir no obliga a recorrer el panel con el rayo, solo a llegar al final
- *   de la fila que ya se está mirando. Fuera de esa fila —a media altura, en una columna— se
- *   cruza con lo que se está eligiendo y se pulsa sin querer, que es lo que ya enseñó el aviso
- *   de dejar la ronda.
+ * - It is where it already was in nine of the thirteen. Moving four leaves untouched what is
+ *   already known by heart; choosing the other tip would have forced relearning nine games to
+ *   fix three.
+ * - It is the **row of the actions**, the one looked at when done choosing: play is in the middle
+ *   of that row, so exiting does not force sweeping the panel with the ray, only reaching the
+ *   end of the row already being looked at. Outside that row —at mid height, in a column— it
+ *   crosses what is being chosen and gets pressed by accident, which is what the notice
+ *   about leaving the round already taught.
  *
- * Como en `legibilidad.ts`, esto **devuelve frases y no un `false`**: un test que solo dijera
- * «la salida está mal» obligaría a abrir el reparto para saber qué mirar.
+ * As in `legibility.ts`, this **returns sentences and not a `false`**: a test that only said
+ * "the exit is wrong" would force opening the layout to know what to look at.
  */
 
-/** Un botón del panel, en metros y desde el centro de la placa. */
+/** A button of the panel, in metres and from the centre of the plate. */
 export interface PanelBox {
   readonly x: number
   readonly y: number
@@ -31,61 +32,61 @@ export interface PanelBox {
   readonly height: number
 }
 
-/** Lo que mide la placa, para saber si la salida se sale por el borde. */
+/** What the plate measures, to know whether the exit sticks out over the edge. */
 export interface PanelSize {
   readonly width: number
   readonly height: number
 }
 
 /**
- * El aire que se le permite a la comparación, en metros.
+ * The slack the comparison is allowed, in metres.
  *
- * Los repartos calculan posiciones con divisiones y sumas de constantes, así que dos botones
- * de la misma fila pueden no caer en la misma `y` por una milésima. Medio milímetro no es una
- * fila distinta y no tiene por qué serlo aquí.
+ * The layouts compute positions with divisions and sums of constants, so two buttons
+ * of the same row may not land on the same `y` by a thousandth. Half a millimetre is not a
+ * different row and has no reason to be one here.
  */
-const PELO = 0.0005
+const TOLERANCE = 0.0005
 
-export function problemasDeLaSalida(
-  salida: PanelBox,
-  resto: readonly PanelBox[],
+export function exitProblems(
+  exit: PanelBox,
+  rest: readonly PanelBox[],
   panel: PanelSize,
 ): string[] {
-  const problemas: string[] = []
+  const problems: string[] = []
 
-  if (salida.x <= 0) {
-    problemas.push(
-      `la salida está en la mitad izquierda del panel (x=${salida.x.toFixed(3)}): va a la derecha`,
+  if (exit.x <= 0) {
+    problems.push(
+      `the exit is in the left half of the panel (x=${exit.x.toFixed(3)}): it goes to the right`,
     )
   }
 
-  // Su fila es la que se solapa con ella de alto: las filas de arriba pueden llegar más a la
-  // derecha —son filas de opciones que ocupan el panel entero— y eso no es un problema.
-  const suFila = resto.filter(
-    (otro) => Math.abs(otro.y - salida.y) < (otro.height + salida.height) / 2 - PELO,
+  // Its row is the one that overlaps it in height: the rows above may reach further to the
+  // right —they are rows of options that take up the whole panel— and that is not a problem.
+  const ownRow = rest.filter(
+    (other) => Math.abs(other.y - exit.y) < (other.height + exit.height) / 2 - TOLERANCE,
   )
-  const masALaDerecha = suFila.filter(
-    (otro) => otro.x + otro.width / 2 > salida.x + salida.width / 2 + PELO,
+  const furtherRight = ownRow.filter(
+    (other) => other.x + other.width / 2 > exit.x + exit.width / 2 + TOLERANCE,
   )
-  if (masALaDerecha.length > 0) {
-    problemas.push(
-      `hay ${masALaDerecha.length} botón(es) de su misma fila más a la derecha que la salida: tiene que ser el último de la fila`,
+  if (furtherRight.length > 0) {
+    problems.push(
+      `there are ${furtherRight.length} button(s) of its own row further right than the exit: it has to be the last one of the row`,
     )
   }
 
-  const masAbajo = resto.filter((otro) => otro.y < salida.y - PELO)
-  if (masAbajo.length > 0) {
-    problemas.push(
-      `hay ${masAbajo.length} botón(es) por debajo de la salida: va en la fila de abajo del panel`,
+  const below = rest.filter((other) => other.y < exit.y - TOLERANCE)
+  if (below.length > 0) {
+    problems.push(
+      `there are ${below.length} button(s) below the exit: it goes in the bottom row of the panel`,
     )
   }
 
-  if (salida.x + salida.width / 2 > panel.width / 2 + PELO) {
-    problemas.push('la salida se sale del panel por la derecha')
+  if (exit.x + exit.width / 2 > panel.width / 2 + TOLERANCE) {
+    problems.push('the exit sticks out of the panel on the right')
   }
-  if (salida.y - salida.height / 2 < -panel.height / 2 - PELO) {
-    problemas.push('la salida se sale del panel por abajo')
+  if (exit.y - exit.height / 2 < -panel.height / 2 - TOLERANCE) {
+    problems.push('the exit sticks out of the panel at the bottom')
   }
 
-  return problemas
+  return problems
 }

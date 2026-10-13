@@ -1,314 +1,314 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  CONFORTS,
-  CONFORT_DE_PARTIDA,
-  DURACION_DEL_GOLPE,
-  EN_REPOSO,
-  GOLPE,
-  GOLPES_A_LA_VEZ,
-  SIN_CAPAS,
-  capasDelGolpe,
-  corteEn,
-  escalaDelRelojEn,
-  estadoDelGolpe,
-  formaDeLaSacudida,
-  formaDeLaVineta,
-  guardarConfort,
-  ladoEnLaVista,
-  leerConfort,
-  parseConfort,
-  pulsosDelGolpe,
-  sacudidaEn,
-  sumarGolpe,
-  unitaria,
-  vinetaEn,
-  type Golpe,
-} from './golpeRecibido'
-import { RECETAS } from './tactos'
+  COMFORT_LEVELS,
+  DEFAULT_COMFORT,
+  HIT_DURATION,
+  AT_REST,
+  HIT,
+  MAX_CONCURRENT_HITS,
+  NO_LAYERS,
+  layersForHit,
+  cutoffAt,
+  timeScaleAt,
+  hitState,
+  shakeShape,
+  vignetteShape,
+  writeComfort,
+  sideInView,
+  readComfort,
+  parseComfort,
+  hitPulses,
+  shakeAt,
+  addHit,
+  unitVector,
+  vignetteAt,
+  type Hit,
+} from './hitFeedback'
+import { HAPTIC_RECIPES } from './hapticFeedback'
 
-/** Un almacenamiento de mentira, con fallos a demanda. */
-function almacen(inicial: Record<string, string> = {}, { rompe = false } = {}) {
-  const datos = new Map(Object.entries(inicial))
+/** A fake storage, with failures on demand. */
+function fakeStorage(initial: Record<string, string> = {}, { fails = false } = {}) {
+  const data = new Map(Object.entries(initial))
   return {
-    datos,
+    data,
     getItem: (k: string) => {
-      if (rompe) throw new Error('capado')
-      return datos.get(k) ?? null
+      if (fails) throw new Error('locked down')
+      return data.get(k) ?? null
     },
     setItem: (k: string, v: string) => {
-      if (rompe) throw new Error('capado')
-      datos.set(k, v)
+      if (fails) throw new Error('locked down')
+      data.set(k, v)
     },
     removeItem: (k: string) => {
-      if (rompe) throw new Error('capado')
-      datos.delete(k)
+      if (fails) throw new Error('locked down')
+      data.delete(k)
     },
-  } as unknown as Storage & { datos: Map<string, string> }
+  } as unknown as Storage & { data: Map<string, string> }
 }
 
-/** Recorre una curva a pasos de un milisegundo desde antes del golpe hasta después de apagarse. */
-function muestreo(f: (edad: number) => number): number[] {
-  const valores: number[] = []
-  for (let ms = -20; ms <= DURACION_DEL_GOLPE * 1000 + 50; ms += 1) valores.push(f(ms / 1000))
-  return valores
+/** Walks a curve in steps of one millisecond from before the hit until after it has faded out. */
+function sampling(f: (age: number) => number): number[] {
+  const values: number[] = []
+  for (let ms = -20; ms <= HIT_DURATION * 1000 + 50; ms += 1) values.push(f(ms / 1000))
+  return values
 }
 
-const DE_FRENTE = { x: 0, y: 0, z: -1 }
+const HEAD_ON = { x: 0, y: 0, z: -1 }
 
-function golpe(inicio: number, fuerza = 1, direccion = DE_FRENTE): Golpe {
-  return { inicio, capas: capasDelGolpe(fuerza, 'normal'), direccion, lado: { x: -1, y: 0 } }
+function hitAt(start: number, strength = 1, direction = HEAD_ON): Hit {
+  return { start, layers: layersForHit(strength, 'normal'), direction, side: { x: -1, y: 0 } }
 }
 
-describe('el ajuste de confort', () => {
-  it('son tres, en inglés porque se guardan, y se entra con el golpe entero', () => {
-    // Escritos a mano: si cambian, cambia lo que hay guardado en el navegador de quien juega.
-    expect(CONFORTS).toEqual(['off', 'gentle', 'normal'])
-    expect(CONFORT_DE_PARTIDA).toBe('normal')
+describe('the comfort setting', () => {
+  it('there are three, in English because they are stored, and one starts with the whole hit', () => {
+    // Written by hand: if they change, what is stored in the player's browser changes.
+    expect(COMFORT_LEVELS).toEqual(['off', 'gentle', 'normal'])
+    expect(DEFAULT_COMFORT).toBe('normal')
   })
 
-  it('lee solo lo que existe, y lo demás cae al de partida', () => {
-    expect(parseConfort('off')).toBe('off')
-    expect(parseConfort('gentle')).toBe('gentle')
-    expect(parseConfort('apagado')).toBe('normal')
-    expect(parseConfort(null)).toBe('normal')
-    expect(parseConfort(undefined)).toBe('normal')
+  it('reads only what exists, and anything else falls back to the default', () => {
+    expect(parseComfort('off')).toBe('off')
+    expect(parseComfort('gentle')).toBe('gentle')
+    expect(parseComfort('apagado')).toBe('normal')
+    expect(parseComfort(null)).toBe('normal')
+    expect(parseComfort(undefined)).toBe('normal')
   })
 
-  it('se lee y se guarda con la clave del juego, y el de partida no ocupa sitio', () => {
-    const s = almacen()
-    expect(leerConfort(s, 'juego:confort')).toBe('normal')
-    expect(guardarConfort(s, 'juego:confort', 'gentle')).toBe(true)
-    expect(s.datos.get('juego:confort')).toBe('gentle')
-    expect(leerConfort(s, 'juego:confort')).toBe('gentle')
-    expect(guardarConfort(s, 'juego:confort', 'normal')).toBe(true)
-    expect(s.datos.has('juego:confort')).toBe(false)
+  it('is read and stored under the key of the game, and the default takes up no room', () => {
+    const s = fakeStorage()
+    expect(readComfort(s, 'juego:confort')).toBe('normal')
+    expect(writeComfort(s, 'juego:confort', 'gentle')).toBe(true)
+    expect(s.data.get('juego:confort')).toBe('gentle')
+    expect(readComfort(s, 'juego:confort')).toBe('gentle')
+    expect(writeComfort(s, 'juego:confort', 'normal')).toBe(true)
+    expect(s.data.has('juego:confort')).toBe(false)
   })
 
-  it('sin almacenamiento, o con uno capado, sigue jugando con el de partida', () => {
-    expect(leerConfort(null, 'x')).toBe('normal')
-    expect(guardarConfort(null, 'x', 'off')).toBe(false)
-    const capado = almacen({}, { rompe: true })
-    expect(leerConfort(capado, 'x')).toBe('normal')
-    expect(guardarConfort(capado, 'x', 'off')).toBe(false)
+  it('without storage, or with one locked down, it keeps playing with the default', () => {
+    expect(readComfort(null, 'x')).toBe('normal')
+    expect(writeComfort(null, 'x', 'off')).toBe(false)
+    const lockedDown = fakeStorage({}, { fails: true })
+    expect(readComfort(lockedDown, 'x')).toBe('normal')
+    expect(writeComfort(lockedDown, 'x', 'off')).toBe(false)
   })
 })
 
-describe('de la fuerza a las capas', () => {
-  it('con el confort apagado no hace nada: ni se ve, ni se mueve, ni se oye, ni vibra', () => {
-    for (const fuerza of [0, 0.3, 1]) {
-      for (const reducido of [false, true]) {
-        const capas = capasDelGolpe(fuerza, 'off', reducido)
-        expect(capas).toEqual(SIN_CAPAS)
-        expect(pulsosDelGolpe(capas)).toEqual([])
-        expect(muestreo((e) => vinetaEn(capas, e)).every((v) => v === 0)).toBe(true)
-        expect(muestreo((e) => sacudidaEn(capas, DE_FRENTE, e).z).every((v) => v === 0)).toBe(true)
-        expect(muestreo((e) => escalaDelRelojEn(capas, e)).every((v) => v === 1)).toBe(true)
-        expect(muestreo((e) => corteEn(capas, e)).every((v) => v === GOLPE.filtro.abierto)).toBe(true)
+describe('from the strength to the layers', () => {
+  it('with comfort turned off it does nothing: it is not seen, does not move, is not heard, does not vibrate', () => {
+    for (const strength of [0, 0.3, 1]) {
+      for (const reduced of [false, true]) {
+        const layers = layersForHit(strength, 'off', reduced)
+        expect(layers).toEqual(NO_LAYERS)
+        expect(hitPulses(layers)).toEqual([])
+        expect(sampling((e) => vignetteAt(layers, e)).every((v) => v === 0)).toBe(true)
+        expect(sampling((e) => shakeAt(layers, HEAD_ON, e).z).every((v) => v === 0)).toBe(true)
+        expect(sampling((e) => timeScaleAt(layers, e)).every((v) => v === 1)).toBe(true)
+        expect(sampling((e) => cutoffAt(layers, e)).every((v) => v === HIT.filter.open)).toBe(true)
       }
     }
   })
 
-  it('el golpe entero, con la fuerza máxima, llega a las cifras de la tabla', () => {
-    expect(capasDelGolpe(1, 'normal')).toEqual({ vineta: 0.9, sacudida: 1, lenta: 1, filtro: 1, haptico: 1 })
+  it('the whole hit, with the maximum strength, reaches the figures of the table', () => {
+    expect(layersForHit(1, 'normal')).toEqual({ vignette: 0.9, shake: 1, slowMo: 1, filter: 1, haptic: 1 })
   })
 
-  it('en suave, todo a la mitad salvo el háptico, que lleva la fuerza', () => {
-    const entero = capasDelGolpe(0.8, 'normal')
-    const suave = capasDelGolpe(0.8, 'gentle')
-    expect(suave.vineta).toBeCloseTo(entero.vineta / 2)
-    expect(suave.sacudida).toBeCloseTo(entero.sacudida / 2)
-    expect(suave.lenta).toBeCloseTo(entero.lenta / 2)
-    expect(suave.filtro).toBeCloseTo(entero.filtro / 2)
-    expect(suave.haptico).toBe(0.8)
+  it('in gentle, everything at half except the haptic, which carries the strength', () => {
+    const whole = layersForHit(0.8, 'normal')
+    const gentle = layersForHit(0.8, 'gentle')
+    expect(gentle.vignette).toBeCloseTo(whole.vignette / 2)
+    expect(gentle.shake).toBeCloseTo(whole.shake / 2)
+    expect(gentle.slowMo).toBeCloseTo(whole.slowMo / 2)
+    expect(gentle.filter).toBeCloseTo(whole.filter / 2)
+    expect(gentle.haptic).toBe(0.8)
   })
 
-  it('más fuerza, más de todo; y el golpe más flojo también se ve', () => {
-    const flojo = capasDelGolpe(0, 'normal')
-    const medio = capasDelGolpe(0.5, 'normal')
-    const fuerte = capasDelGolpe(1, 'normal')
-    expect(flojo.vineta).toBeCloseTo(GOLPE.vineta.suelo * GOLPE.vineta.maximo)
-    expect(flojo.sacudida).toBe(0)
-    expect(medio.vineta).toBeGreaterThan(flojo.vineta)
-    expect(fuerte.vineta).toBeGreaterThan(medio.vineta)
-    expect(medio.sacudida).toBeGreaterThan(0)
-    expect(fuerte.sacudida).toBeGreaterThan(medio.sacudida)
+  it('more strength, more of everything; and the weakest hit is seen too', () => {
+    const weak = layersForHit(0, 'normal')
+    const medium = layersForHit(0.5, 'normal')
+    const strong = layersForHit(1, 'normal')
+    expect(weak.vignette).toBeCloseTo(HIT.vignette.floor * HIT.vignette.max)
+    expect(weak.shake).toBe(0)
+    expect(medium.vignette).toBeGreaterThan(weak.vignette)
+    expect(strong.vignette).toBeGreaterThan(medium.vignette)
+    expect(medium.shake).toBeGreaterThan(0)
+    expect(strong.shake).toBeGreaterThan(medium.shake)
   })
 
-  it('la fuerza fuera de rango se acota: pasarse no oscurece de más ni mueve más', () => {
-    expect(capasDelGolpe(3, 'normal')).toEqual(capasDelGolpe(1, 'normal'))
-    expect(capasDelGolpe(-1, 'normal')).toEqual(capasDelGolpe(0, 'normal'))
+  it('the strength out of range is clamped: going over does not darken more or move more', () => {
+    expect(layersForHit(3, 'normal')).toEqual(layersForHit(1, 'normal'))
+    expect(layersForHit(-1, 'normal')).toEqual(layersForHit(0, 'normal'))
   })
 
-  it('con el movimiento reducido: sin sacudida ni cámara lenta, viñeta suave, y el háptico sigue', () => {
-    for (const confort of ['gentle', 'normal'] as const) {
-      const capas = capasDelGolpe(1, confort, true)
-      expect(capas.sacudida).toBe(0)
-      expect(capas.lenta).toBe(0)
-      expect(capas.vineta).toBeCloseTo(capasDelGolpe(1, 'gentle').vineta)
-      expect(capas.haptico).toBe(1)
-      expect(capas.filtro).toBeGreaterThan(0)
-      expect(muestreo((e) => sacudidaEn(capas, DE_FRENTE, e).z).every((v) => v === 0)).toBe(true)
-      expect(muestreo((e) => escalaDelRelojEn(capas, e)).every((v) => v === 1)).toBe(true)
+  it('with reduced motion: no shake and no slow motion, gentle vignette, and the haptic goes on', () => {
+    for (const comfort of ['gentle', 'normal'] as const) {
+      const layers = layersForHit(1, comfort, true)
+      expect(layers.shake).toBe(0)
+      expect(layers.slowMo).toBe(0)
+      expect(layers.vignette).toBeCloseTo(layersForHit(1, 'gentle').vignette)
+      expect(layers.haptic).toBe(1)
+      expect(layers.filter).toBeGreaterThan(0)
+      expect(sampling((e) => shakeAt(layers, HEAD_ON, e).z).every((v) => v === 0)).toBe(true)
+      expect(sampling((e) => timeScaleAt(layers, e)).every((v) => v === 1)).toBe(true)
     }
   })
 
-  it('el háptico es la receta común de golpe recibido, en las dos manos', () => {
-    const pulsos = pulsosDelGolpe(capasDelGolpe(1, 'gentle'))
-    expect(pulsos.map((p) => p.mano).sort()).toEqual(['left', 'right'])
-    for (const p of pulsos) {
-      expect(p.intensidad).toBe(RECETAS.golpeRecibido.maximo)
-      expect(p.ms).toBe(RECETAS.golpeRecibido.ms)
-      expect(p.retardo).toBe(0)
+  it('the haptic is the shared recipe of hit taken, in both hands', () => {
+    const pulses = hitPulses(layersForHit(1, 'gentle'))
+    expect(pulses.map((p) => p.hand).sort()).toEqual(['left', 'right'])
+    for (const p of pulses) {
+      expect(p.intensity).toBe(HAPTIC_RECIPES.hitTaken.max)
+      expect(p.ms).toBe(HAPTIC_RECIPES.hitTaken.ms)
+      expect(p.delay).toBe(0)
     }
   })
 })
 
-describe('las curvas en el tiempo', () => {
-  it('la viñeta sube en la entrada, cae en curva y se queda en cero', () => {
-    const { entrada, salida } = GOLPE.vineta
-    expect(formaDeLaVineta(-0.01)).toBe(0)
-    expect(formaDeLaVineta(0)).toBe(0)
-    expect(formaDeLaVineta(entrada / 2)).toBeCloseTo(0.5)
-    expect(formaDeLaVineta(entrada)).toBe(1)
-    // Cae en curva: a mitad de la salida ya va por un cuarto.
-    expect(formaDeLaVineta(entrada + salida / 2)).toBeCloseTo(0.25)
-    expect(formaDeLaVineta(entrada + salida)).toBe(0)
-    // Nunca pasa de 1 y, una vez arriba, solo baja.
-    const valores = muestreo(formaDeLaVineta)
-    expect(Math.max(...valores)).toBe(1)
-    const pico = valores.indexOf(1)
-    for (let i = pico + 1; i < valores.length; i += 1) expect(valores[i]).toBeLessThanOrEqual(valores[i - 1])
+describe('the curves over time', () => {
+  it('the vignette rises during the fade-in, falls along a curve and stays at zero', () => {
+    const { fadeIn, fadeOut } = HIT.vignette
+    expect(vignetteShape(-0.01)).toBe(0)
+    expect(vignetteShape(0)).toBe(0)
+    expect(vignetteShape(fadeIn / 2)).toBeCloseTo(0.5)
+    expect(vignetteShape(fadeIn)).toBe(1)
+    // It falls along a curve: halfway through the fade-out it is already down to a quarter.
+    expect(vignetteShape(fadeIn + fadeOut / 2)).toBeCloseTo(0.25)
+    expect(vignetteShape(fadeIn + fadeOut)).toBe(0)
+    // It never goes past 1 and, once up there, it only goes down.
+    const values = sampling(vignetteShape)
+    expect(Math.max(...values)).toBe(1)
+    const peak = values.indexOf(1)
+    for (let i = peak + 1; i < values.length; i += 1) expect(values[i]).toBeLessThanOrEqual(values[i - 1])
   })
 
-  it('la sacudida arranca en cero, oscila amortiguada y acaba exactamente en su sitio', () => {
-    const { dura, hercios } = GOLPE.sacudida
-    expect(formaDeLaSacudida(0)).toBe(0)
-    expect(formaDeLaSacudida(-0.1)).toBe(0)
-    expect(formaDeLaSacudida(dura)).toBe(0)
-    expect(formaDeLaSacudida(dura + 1)).toBe(0)
-    // El primer cuarto de onda va hacia el golpe, y el siguiente medio vuelve y se pasa.
-    expect(formaDeLaSacudida(1 / (4 * hercios))).toBeGreaterThan(0)
-    expect(formaDeLaSacudida(3 / (4 * hercios))).toBeLessThan(0)
-    // Cada cresta, más baja que la anterior.
-    const crestas = [0, 1, 2].map((n) => Math.abs(formaDeLaSacudida((n + 0.25) / hercios)))
-    expect(crestas[1]).toBeLessThan(crestas[0])
-    expect(crestas[2]).toBeLessThan(crestas[1])
-    // Sin saltos: de un milisegundo al siguiente no se mueve más de lo que se mueve un muelle.
-    const valores = muestreo(formaDeLaSacudida)
-    for (let i = 1; i < valores.length; i += 1) expect(Math.abs(valores[i] - valores[i - 1])).toBeLessThan(0.08)
+  it('the shake starts at zero, oscillates damped and ends exactly in its place', () => {
+    const { duration, hertz } = HIT.shake
+    expect(shakeShape(0)).toBe(0)
+    expect(shakeShape(-0.1)).toBe(0)
+    expect(shakeShape(duration)).toBe(0)
+    expect(shakeShape(duration + 1)).toBe(0)
+    // The first quarter wave goes towards the hit, and the next half comes back and overshoots.
+    expect(shakeShape(1 / (4 * hertz))).toBeGreaterThan(0)
+    expect(shakeShape(3 / (4 * hertz))).toBeLessThan(0)
+    // Each crest, lower than the one before.
+    const crests = [0, 1, 2].map((n) => Math.abs(shakeShape((n + 0.25) / hertz)))
+    expect(crests[1]).toBeLessThan(crests[0])
+    expect(crests[2]).toBeLessThan(crests[1])
+    // No jumps: from one millisecond to the next it does not move more than a spring moves.
+    const values = sampling(shakeShape)
+    for (let i = 1; i < values.length; i += 1) expect(Math.abs(values[i] - values[i - 1])).toBeLessThan(0.08)
   })
 
-  it('el decorado se mueve centímetro y medio como mucho, y hacia donde viene el golpe', () => {
-    const capas = capasDelGolpe(1, 'normal')
-    const desdeLaIzquierda = { x: -1, y: 0, z: 0 }
-    const valores = muestreo((e) => sacudidaEn(capas, desdeLaIzquierda, e).x)
-    const mayor = Math.max(...valores.map(Math.abs))
-    expect(mayor).toBeLessThanOrEqual(GOLPE.sacudida.amplitud)
-    expect(mayor).toBeGreaterThan(GOLPE.sacudida.amplitud / 2)
-    // Lo primero, hacia la izquierda: hacia allí se va el mundo cuando a uno lo empujan desde allí.
-    expect(sacudidaEn(capas, desdeLaIzquierda, 1 / (4 * GOLPE.sacudida.hercios)).x).toBeLessThan(0)
-    // Solo a lo largo de la dirección.
-    expect(muestreo((e) => sacudidaEn(capas, desdeLaIzquierda, e).y).every((v) => v === 0)).toBe(true)
+  it('the stage moves a centimetre and a half at most, and towards where the hit comes from', () => {
+    const layers = layersForHit(1, 'normal')
+    const fromTheLeft = { x: -1, y: 0, z: 0 }
+    const values = sampling((e) => shakeAt(layers, fromTheLeft, e).x)
+    const largest = Math.max(...values.map(Math.abs))
+    expect(largest).toBeLessThanOrEqual(HIT.shake.amplitude)
+    expect(largest).toBeGreaterThan(HIT.shake.amplitude / 2)
+    // First of all, to the left: that is where the world goes when one is shoved from there.
+    expect(shakeAt(layers, fromTheLeft, 1 / (4 * HIT.shake.hertz)).x).toBeLessThan(0)
+    // Only along the direction.
+    expect(sampling((e) => shakeAt(layers, fromTheLeft, e).y).every((v) => v === 0)).toBe(true)
   })
 
-  it('la cámara lenta se queda un instante y vuelve a 1 sin tirón', () => {
-    const capas = capasDelGolpe(1, 'normal')
-    const { escala, quieta, vuelta } = GOLPE.lenta
-    expect(escalaDelRelojEn(capas, -0.01)).toBe(1)
-    expect(escalaDelRelojEn(capas, 0)).toBeCloseTo(escala)
-    expect(escalaDelRelojEn(capas, quieta / 2)).toBeCloseTo(escala)
-    expect(escalaDelRelojEn(capas, quieta + vuelta / 2)).toBeCloseTo((1 + escala) / 2)
-    expect(escalaDelRelojEn(capas, quieta + vuelta)).toBe(1)
-    const valores = muestreo((e) => escalaDelRelojEn(capas, e))
-    expect(Math.min(...valores)).toBeCloseTo(escala)
-    expect(Math.max(...valores)).toBe(1)
-    for (let i = 1; i < valores.length; i += 1) expect(Math.abs(valores[i] - valores[i - 1])).toBeLessThan(0.75)
-    // Menos de la mitad del reloj parado del parón de golpe más largo que se conoce.
-    expect(quieta).toBeLessThan(0.167 / 2)
+  it('the slow motion holds for an instant and returns to 1 without a jerk', () => {
+    const layers = layersForHit(1, 'normal')
+    const { scale, hold, recovery } = HIT.slowMo
+    expect(timeScaleAt(layers, -0.01)).toBe(1)
+    expect(timeScaleAt(layers, 0)).toBeCloseTo(scale)
+    expect(timeScaleAt(layers, hold / 2)).toBeCloseTo(scale)
+    expect(timeScaleAt(layers, hold + recovery / 2)).toBeCloseTo((1 + scale) / 2)
+    expect(timeScaleAt(layers, hold + recovery)).toBe(1)
+    const values = sampling((e) => timeScaleAt(layers, e))
+    expect(Math.min(...values)).toBeCloseTo(scale)
+    expect(Math.max(...values)).toBe(1)
+    for (let i = 1; i < values.length; i += 1) expect(Math.abs(values[i] - values[i - 1])).toBeLessThan(0.75)
+    // Less than half of the stopped clock of the longest hit stop known.
+    expect(hold).toBeLessThan(0.167 / 2)
   })
 
-  it('en suave, el reloj frena la mitad', () => {
-    expect(escalaDelRelojEn(capasDelGolpe(1, 'gentle'), 0)).toBeCloseTo(1 - (1 - GOLPE.lenta.escala) / 2)
+  it('in gentle, the clock slows down half as much', () => {
+    expect(timeScaleAt(layersForHit(1, 'gentle'), 0)).toBeCloseTo(1 - (1 - HIT.slowMo.scale) / 2)
   })
 
-  it('el filtro cierra hasta el corte, se queda y vuelve a abrirse del todo', () => {
-    const capas = capasDelGolpe(1, 'normal')
-    const { corte, abierto, quieto, vuelta } = GOLPE.filtro
-    expect(corteEn(capas, -0.01)).toBe(abierto)
-    expect(corteEn(capas, 0)).toBeCloseTo(corte)
-    expect(corteEn(capas, quieto / 2)).toBeCloseTo(corte)
-    // A mitad de la vuelta está a medio camino en octavas, no en hercios.
-    expect(corteEn(capas, quieto + vuelta / 2)).toBeCloseTo(Math.sqrt(corte * abierto))
-    expect(corteEn(capas, quieto + vuelta)).toBe(abierto)
-    // En suave, a medio camino en octavas.
-    expect(corteEn(capasDelGolpe(1, 'gentle'), 0)).toBeCloseTo(Math.sqrt(corte * abierto))
+  it('the filter closes down to the cutoff, holds and opens fully again', () => {
+    const layers = layersForHit(1, 'normal')
+    const { cutoff, open, hold, recovery } = HIT.filter
+    expect(cutoffAt(layers, -0.01)).toBe(open)
+    expect(cutoffAt(layers, 0)).toBeCloseTo(cutoff)
+    expect(cutoffAt(layers, hold / 2)).toBeCloseTo(cutoff)
+    // Halfway through the recovery it is halfway in octaves, not in hertz.
+    expect(cutoffAt(layers, hold + recovery / 2)).toBeCloseTo(Math.sqrt(cutoff * open))
+    expect(cutoffAt(layers, hold + recovery)).toBe(open)
+    // In gentle, halfway in octaves.
+    expect(cutoffAt(layersForHit(1, 'gentle'), 0)).toBeCloseTo(Math.sqrt(cutoff * open))
   })
 })
 
-describe('de dónde viene, en la vista', () => {
-  it('de frente no tiene lado; por la izquierda, la izquierda; por arriba, arriba', () => {
-    expect(ladoEnLaVista({ x: 0, y: 0, z: -1 })).toEqual({ x: 0, y: 0 })
-    expect(ladoEnLaVista({ x: -2, y: 0, z: 0 })).toEqual({ x: -1, y: 0 })
-    expect(ladoEnLaVista({ x: 0, y: 3, z: 0 })).toEqual({ x: 0, y: 1 })
-    const diagonal = ladoEnLaVista({ x: 1, y: 0, z: -1 })
+describe('where it comes from, in the view', () => {
+  it('head-on it has no side; from the left, the left; from above, above', () => {
+    expect(sideInView({ x: 0, y: 0, z: -1 })).toEqual({ x: 0, y: 0 })
+    expect(sideInView({ x: -2, y: 0, z: 0 })).toEqual({ x: -1, y: 0 })
+    expect(sideInView({ x: 0, y: 3, z: 0 })).toEqual({ x: 0, y: 1 })
+    const diagonal = sideInView({ x: 1, y: 0, z: -1 })
     expect(diagonal.x).toBeCloseTo(Math.SQRT1_2)
-    expect(ladoEnLaVista({ x: 0, y: 0, z: 0 })).toEqual({ x: 0, y: 0 })
+    expect(sideInView({ x: 0, y: 0, z: 0 })).toEqual({ x: 0, y: 0 })
   })
 
-  it('una dirección se deja de largo 1, y sin dirección el golpe es sordo, hacia abajo', () => {
-    expect(unitaria({ x: 0, y: 0, z: -5 })).toEqual({ x: 0, y: 0, z: -1 })
-    expect(unitaria(null)).toEqual({ x: 0, y: -1, z: 0 })
-    expect(unitaria(undefined)).toEqual({ x: 0, y: -1, z: 0 })
-    expect(unitaria({ x: 0, y: 0, z: 0 })).toEqual({ x: 0, y: -1, z: 0 })
+  it('a direction is left at length 1, and without a direction the hit is dull, downwards', () => {
+    expect(unitVector({ x: 0, y: 0, z: -5 })).toEqual({ x: 0, y: 0, z: -1 })
+    expect(unitVector(null)).toEqual({ x: 0, y: -1, z: 0 })
+    expect(unitVector(undefined)).toEqual({ x: 0, y: -1, z: 0 })
+    expect(unitVector({ x: 0, y: 0, z: 0 })).toEqual({ x: 0, y: -1, z: 0 })
   })
 })
 
-describe('varios golpes a la vez', () => {
-  it('sin golpes, en reposo', () => {
-    expect(estadoDelGolpe([], 3)).toBe(EN_REPOSO)
+describe('several hits at once', () => {
+  it('without hits, at rest', () => {
+    expect(hitState([], 3)).toBe(AT_REST)
   })
 
-  it('todo vuelve a cero: pasado el golpe, el reposo exacto y ningún golpe vivo', () => {
-    const golpes = [golpe(10, 1, { x: -1, y: 0, z: 0 })]
-    const durante = estadoDelGolpe(golpes, 10.05)
-    expect(durante.vineta).toBeGreaterThan(0)
-    expect(durante.escala).toBeLessThan(1)
-    expect(durante.corte).toBeLessThan(GOLPE.filtro.abierto)
-    expect(durante.vivos).toHaveLength(1)
-    const despues = estadoDelGolpe(golpes, 10 + DURACION_DEL_GOLPE)
-    expect(despues).toBe(EN_REPOSO)
-    // Y justo antes de acabar, ya prácticamente nada.
-    const casi = estadoDelGolpe(golpes, 10 + DURACION_DEL_GOLPE - 0.001)
-    expect(casi.vineta).toBeLessThan(1e-4)
-    expect(casi.escala).toBe(1)
-    expect(casi.corte).toBe(GOLPE.filtro.abierto)
-    expect(Math.hypot(casi.sacudida.x, casi.sacudida.y, casi.sacudida.z)).toBe(0)
+  it('everything returns to zero: once the hit is over, the exact rest and no live hit', () => {
+    const hits = [hitAt(10, 1, { x: -1, y: 0, z: 0 })]
+    const during = hitState(hits, 10.05)
+    expect(during.vignette).toBeGreaterThan(0)
+    expect(during.timeScale).toBeLessThan(1)
+    expect(during.cutoff).toBeLessThan(HIT.filter.open)
+    expect(during.live).toHaveLength(1)
+    const after = hitState(hits, 10 + HIT_DURATION)
+    expect(after).toBe(AT_REST)
+    // And just before it ends, practically nothing already.
+    const almost = hitState(hits, 10 + HIT_DURATION - 0.001)
+    expect(almost.vignette).toBeLessThan(1e-4)
+    expect(almost.timeScale).toBe(1)
+    expect(almost.cutoff).toBe(HIT.filter.open)
+    expect(Math.hypot(almost.shake.x, almost.shake.y, almost.shake.z)).toBe(0)
   })
 
-  it('la viñeta es la más oscura, con su lado; las sacudidas se suman; reloj y filtro, los más frenados', () => {
-    const viejo: Golpe = { ...golpe(0, 1), lado: { x: 1, y: 0 } }
-    const nuevo: Golpe = { ...golpe(0.2, 0.2), lado: { x: -1, y: 0 } }
-    const estado = estadoDelGolpe([viejo, nuevo], 0.25)
-    const soloViejo = estadoDelGolpe([viejo], 0.25)
-    const soloNuevo = estadoDelGolpe([nuevo], 0.25)
-    expect(estado.vineta).toBe(Math.max(soloViejo.vineta, soloNuevo.vineta))
-    expect(estado.lado).toEqual(soloViejo.vineta > soloNuevo.vineta ? viejo.lado : nuevo.lado)
-    expect(estado.sacudida.z).toBeCloseTo(soloViejo.sacudida.z + soloNuevo.sacudida.z)
-    expect(estado.escala).toBe(Math.min(soloViejo.escala, soloNuevo.escala))
-    expect(estado.corte).toBe(Math.min(soloViejo.corte, soloNuevo.corte))
+  it('the vignette is the darkest one, with its side; the shakes are added; clock and filter, the most slowed', () => {
+    const older: Hit = { ...hitAt(0, 1), side: { x: 1, y: 0 } }
+    const newer: Hit = { ...hitAt(0.2, 0.2), side: { x: -1, y: 0 } }
+    const state = hitState([older, newer], 0.25)
+    const onlyOlder = hitState([older], 0.25)
+    const onlyNewer = hitState([newer], 0.25)
+    expect(state.vignette).toBe(Math.max(onlyOlder.vignette, onlyNewer.vignette))
+    expect(state.side).toEqual(onlyOlder.vignette > onlyNewer.vignette ? older.side : newer.side)
+    expect(state.shake.z).toBeCloseTo(onlyOlder.shake.z + onlyNewer.shake.z)
+    expect(state.timeScale).toBe(Math.min(onlyOlder.timeScale, onlyNewer.timeScale))
+    expect(state.cutoff).toBe(Math.min(onlyOlder.cutoff, onlyNewer.cutoff))
   })
 
-  it('se olvidan los que ya no aportan y nunca se siguen más de los que caben', () => {
-    let golpes: Golpe[] = []
-    for (let i = 0; i < GOLPES_A_LA_VEZ + 3; i += 1) golpes = sumarGolpe(golpes, golpe(i * 0.01))
-    expect(golpes).toHaveLength(GOLPES_A_LA_VEZ)
-    expect(golpes[0].inicio).toBeCloseTo(0.03)
-    const estado = estadoDelGolpe([golpe(0), golpe(DURACION_DEL_GOLPE)], DURACION_DEL_GOLPE + 0.01)
-    expect(estado.vivos.map((g) => g.inicio)).toEqual([DURACION_DEL_GOLPE])
+  it('the ones that no longer contribute are forgotten and never more are tracked than fit', () => {
+    let hits: Hit[] = []
+    for (let i = 0; i < MAX_CONCURRENT_HITS + 3; i += 1) hits = addHit(hits, hitAt(i * 0.01))
+    expect(hits).toHaveLength(MAX_CONCURRENT_HITS)
+    expect(hits[0].start).toBeCloseTo(0.03)
+    const state = hitState([hitAt(0), hitAt(HIT_DURATION)], HIT_DURATION + 0.01)
+    expect(state.live.map((g) => g.start)).toEqual([HIT_DURATION])
   })
 
-  it('la cifra más larga manda en lo que dura un golpe', () => {
-    expect(DURACION_DEL_GOLPE).toBeCloseTo(GOLPE.vineta.entrada + GOLPE.vineta.salida)
+  it('the longest figure rules how long a hit lasts', () => {
+    expect(HIT_DURATION).toBeCloseTo(HIT.vignette.fadeIn + HIT.vignette.fadeOut)
   })
 })

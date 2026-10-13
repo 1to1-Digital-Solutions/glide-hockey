@@ -24,24 +24,24 @@
  */
 import { Node3D, Vector3 } from 'godot'
 
-import { desplazar, triangulosDeArco, triangulosDeTrazo } from '@kit/lib/ui/iconos'
-import type { Punto2 } from '@kit/lib/ui/salida'
-import { Boton } from '@kit/runtime/ui/boton'
-import { barra, botonDeSalir, iconoDeJugar, iconoDeSigno } from '@kit/runtime/ui/iconos'
-import { figura, pintar } from '@kit/runtime/ui/malla'
+import { offset, arcTriangles, strokeTriangles } from '@kit/lib/ui/icons'
+import type { Point2 } from '@kit/lib/ui/exit'
+import { Button } from '@kit/runtime/ui/button'
+import { barra, exitButton, playIcon, plusMinusIcon } from '@kit/runtime/ui/icons'
+import { shape, paint } from '@kit/runtime/ui/mesh'
 import { Panel } from '@kit/runtime/ui/panel'
-import type { Punteria } from '@kit/runtime/ui/punteria'
+import type { PointerAim } from '@kit/runtime/ui/pointerAim'
 
-import type { Lang, Scenery } from '@/lib/ajustes'
+import type { Lang, Scenery } from '@/lib/settings'
 import { daMedalla, fraseDeLaMedalla } from '@/lib/cartelDelMarcador'
 import { DIFFICULTY_ORDER, MAX_GOALS, MIN_GOALS, type Difficulty } from '@/lib/gameConfig'
 import { GAME_MODE_HINTS, GAME_MODE_LABELS, MODOS_DEL_MENU, filasDelModo, type GameMode } from '@/lib/gameMode'
-import { CONFORTS, type Confort } from '@/lib/golpeRecibido'
+import { COMFORT_LEVELS, type Comfort } from '@/lib/hitFeedback'
 import { LEVEL_COUNT, type Stars } from '@/lib/levels'
-import type { Objetivo } from '@/lib/objetivo'
-import { MENU_EN } from '@/lib/palabras'
-import { nombreDelJuego } from '@/lib/plantillaDelMenu'
-import { PALETA } from '@/lib/paleta'
+import type { Goal } from '@/lib/goal'
+import { MENU_EN } from '@/lib/menuWords'
+import { gameName } from '@/lib/menuTemplate'
+import { COMMON_PALETTE } from '@/lib/commonPalette'
 import { DIFFICULTY_COLORS, PALETTE } from '@/lib/palette'
 import { SCENERY_LABELS } from '@/lib/scenery'
 import { traductor, type TextKey } from '@/lib/textos'
@@ -67,7 +67,7 @@ import { Cifras } from './cifras'
 import type { Caja } from './reparto'
 
 /** Lo apagado o secundario: el neutro suave del salón (`DIM_COLOR` de `XRUi.tsx`). */
-export const DIM = PALETA.textoSuave
+export const DIM = COMMON_PALETTE.mutedText
 
 /** El nombre de la fila del confort (`CONFORT_LEGEND` de `lib/confort.ts`, que es de React). */
 export const LEYENDA_DEL_CONFORT: TextKey = 'When hit'
@@ -87,9 +87,9 @@ export function cajaDe(box: MenuBox): Caja {
  * La ventana del decorado (`XRSceneryIcon` de la web, a 5 cm): el marco siempre, y dentro el cristal
  * entero (la sala, cerrada) o solo el travesaño (tu habitación, abierta).
  */
-export function triangulosDeLaVentana(habitacion: boolean, lado = 0.05): { marco: Punto2[]; dentro: Punto2[] } {
+export function triangulosDeLaVentana(habitacion: boolean, lado = 0.05): { marco: Point2[]; dentro: Point2[] } {
   const g = lado * 0.12
-  const rect = (x: number, y: number, ancho: number, alto: number): Punto2[] => {
+  const rect = (x: number, y: number, ancho: number, alto: number): Point2[] => {
     const a = ancho / 2
     const b = alto / 2
     return [[x - a, y - b], [x + a, y - b], [x + a, y + b], [x - a, y - b], [x + a, y + b], [x - a, y + b]]
@@ -104,21 +104,21 @@ export function triangulosDeLaVentana(habitacion: boolean, lado = 0.05): { marco
 }
 
 /** Tres rombos, las estrellas de un nivel (`StarsRow`): una punta de dos milímetros no se ve. */
-export function triangulosDeRombo(lado: number): Punto2[] {
+export function triangulosDeRombo(lado: number): Point2[] {
   const r = lado * 0.71
   return [[0, -r], [r, 0], [0, r], [0, -r], [0, r], [-r, 0]]
 }
 
 /** Un rectángulo de `ancho × alto` centrado en `(x, y)`. */
-function rectangulo(x: number, y: number, ancho: number, alto: number): Punto2[] {
+function rectangulo(x: number, y: number, ancho: number, alto: number): Point2[] {
   const a = ancho / 2
   const b = alto / 2
   return [[x - a, y - b], [x + a, y - b], [x + a, y + b], [x - a, y - b], [x + a, y + b], [x - a, y + b]]
 }
 
 /** Un círculo lleno de `radio`, centrado en `(x, y)`. */
-function circulo(radio: number, x = 0, y = 0, lados = 24): Punto2[] {
-  return desplazar(triangulosDeArco(0, radio, 0, Math.PI * 2, lados), x, y)
+function circulo(radio: number, x = 0, y = 0, lados = 24): Point2[] {
+  return offset(arcTriangles(0, radio, 0, Math.PI * 2, lados), x, y)
 }
 
 /**
@@ -126,22 +126,22 @@ function circulo(radio: number, x = 0, y = 0, lados = 24): Punto2[] {
  * estrellas los niveles, una escalera el reto y dos discos el duelo —el dibujo del duelo de
  * table-tennis—.
  */
-export function triangulosDelModo(modo: GameMode): Punto2[] {
+export function triangulosDelModo(modo: GameMode): Point2[] {
   if (modo === 'practice') return circulo(0.032)
-  if (modo === 'levels') return [0, 1, 2].flatMap((i) => desplazar(triangulosDeRombo(0.02), (i - 1) * 0.02 * 1.9, 0))
+  if (modo === 'levels') return [0, 1, 2].flatMap((i) => offset(triangulosDeRombo(0.02), (i - 1) * 0.02 * 1.9, 0))
   if (modo === 'duel') return [...circulo(0.022, -0.03, 0, 20), ...circulo(0.022, 0.03, 0, 20)]
   return [0, 1, 2].flatMap((paso) => rectangulo((paso - 1) * 0.03, -0.024 + paso * 0.016, 0.024, 0.016 + paso * 0.032))
 }
 
 /** El icono de cada confort (`ConfortIcon`): tachado, una onda o dos. */
-export function triangulosDelConfort(confort: Confort): Punto2[] {
+export function triangulosDelConfort(confort: Comfort): Point2[] {
   if (confort === 'off') {
     const d = 0.035 / Math.SQRT2
-    return [...triangulosDeArco(0.024, 0.032), ...triangulosDeTrazo([[-d, -d], [d, d]], 0.008)]
+    return [...arcTriangles(0.024, 0.032), ...strokeTriangles([[-d, -d], [d, d]], 0.008)]
   }
   const ondas = confort === 'gentle' ? 1 : 2
-  const puntos = triangulosDeArco(0, 0.01, 0, Math.PI * 2, 16)
-  for (let i = 0; i < ondas; i++) puntos.push(...triangulosDeArco(0.02 + i * 0.014, 0.026 + i * 0.014))
+  const puntos = arcTriangles(0, 0.01, 0, Math.PI * 2, 16)
+  for (let i = 0; i < ondas; i++) puntos.push(...arcTriangles(0.02 + i * 0.014, 0.026 + i * 0.014))
   return puntos
 }
 
@@ -158,13 +158,13 @@ export interface EstadoDelMenu {
   estrellas: readonly Stars[]
   /** El récord del modo elegido; cero si no hay ninguno que batir. */
   record: number
-  confort: Confort
+  confort: Comfort
   /** Si el visor da realidad aumentada: sin ella no hay habitación y el botón se apaga. */
   habitacion: boolean
   /** El escenario que tiene elegido el salón: la sala o tu habitación. */
   escenario: Scenery
   /** Lo que pasó el salón, o `null`: de él sale qué modo da medalla. */
-  objetivo: Objetivo | null
+  objetivo: Goal | null
   /** Si «Más opciones» está desplegado: es de la interfaz, y se pliega al volver al menú. */
   masOpciones: boolean
 }
@@ -172,7 +172,7 @@ export interface EstadoDelMenu {
 export interface AccionesDelMenu {
   elegirModo(modo: GameMode): void
   elegirDificultad(dificultad: Difficulty): void
-  elegirConfort(confort: Confort): void
+  elegirConfort(confort: Comfort): void
   /** −1 o +1: un gol en la práctica, un nivel en los niveles. */
   mover(signo: -1 | 1): void
   sinFin(): void
@@ -187,60 +187,60 @@ export interface AccionesDelMenu {
 export class MenuDelJuego {
   readonly panel: Panel
   readonly nodo: Node3D
-  readonly botones = new Map<string, Boton>()
+  readonly botones = new Map<string, Button>()
   private readonly barras = new Map<Difficulty, ReturnType<typeof barra>>()
-  private readonly iconosDelConfort = new Map<Confort, ReturnType<typeof figura>>()
-  private readonly iconosDelModo = new Map<GameMode, ReturnType<typeof figura>>()
+  private readonly iconosDelConfort = new Map<Comfort, ReturnType<typeof shape>>()
+  private readonly iconosDelModo = new Map<GameMode, ReturnType<typeof shape>>()
   /** La marca del modo que da medalla: un disco dorado en la esquina de su botón. */
-  private readonly marcasDeMedalla = new Map<GameMode, ReturnType<typeof figura>>()
-  private readonly aroDelSinFin: ReturnType<typeof figura>
-  private readonly aroDeLosGoles: ReturnType<typeof figura>
-  private readonly estrellas: ReturnType<typeof figura>[] = []
+  private readonly marcasDeMedalla = new Map<GameMode, ReturnType<typeof shape>>()
+  private readonly aroDelSinFin: ReturnType<typeof shape>
+  private readonly aroDeLosGoles: ReturnType<typeof shape>
+  private readonly estrellas: ReturnType<typeof shape>[] = []
   /** La ventana del decorado: el marco y los dos interiores, la sala y tu habitación. */
-  private readonly ventana: { marco: ReturnType<typeof figura>; place: ReturnType<typeof figura>; room: ReturnType<typeof figura> }
+  private readonly ventana: { marco: ReturnType<typeof shape>; place: ReturnType<typeof shape>; room: ReturnType<typeof shape> }
   readonly goles = new Cifras(CIFRAS_DEL_MENU.goles, PALETTE.foreground)
   readonly nivel = new Cifras(CIFRAS_DEL_MENU.nivel, PALETTE.foreground)
   readonly total = new Cifras(CIFRAS_DEL_MENU.total, DIM)
   readonly record = new Cifras(CIFRAS_DEL_MENU.record, DIM)
 
-  constructor(acciones: AccionesDelMenu, punteria: Punteria) {
+  constructor(acciones: AccionesDelMenu, punteria: PointerAim) {
     this.panel = new Panel({ ancho: MENU_PANEL.width, alto: MENU_PANEL.height, fondo: PALETTE.background, opacidad: 0.86 })
     this.nodo = this.panel.nodo
 
-    for (const confort of CONFORTS) {
+    for (const confort of COMFORT_LEVELS) {
       const b = this.anadir(`confort ${confort}`, PALETTE.rail, 0.7, () => acciones.elegirConfort(confort))
-      this.iconosDelConfort.set(confort, b.dibujo(figura(triangulosDelConfort(confort), DIM), DIM))
+      this.iconosDelConfort.set(confort, b.dibujo(shape(triangulosDelConfort(confort), DIM), DIM))
     }
     for (const modo of MODOS_DEL_MENU) {
       const b = this.anadir(`modo ${modo}`, PALETTE.rail, 0.7, () => acciones.elegirModo(modo))
       // El icono, subido para dejarle al nombre la franja de abajo del botón (`MENU_MODE_ICON_RISE`).
-      this.iconosDelModo.set(modo, b.dibujo(figura(desplazar(triangulosDelModo(modo), 0, MENU_MODE_ICON_RISE), DIM), DIM))
+      this.iconosDelModo.set(modo, b.dibujo(shape(offset(triangulosDelModo(modo), 0, MENU_MODE_ICON_RISE), DIM), DIM))
       const esquina = [MENU_BUTTON.mode[0] / 2 - MARCA_DE_MEDALLA * 1.6, MENU_BUTTON.mode[1] / 2 - MARCA_DE_MEDALLA * 1.6] as const
-      this.marcasDeMedalla.set(modo, b.dibujo(figura(circulo(MARCA_DE_MEDALLA, esquina[0], esquina[1], 20), PALETA.oro), PALETA.oro))
+      this.marcasDeMedalla.set(modo, b.dibujo(shape(circulo(MARCA_DE_MEDALLA, esquina[0], esquina[1], 20), COMMON_PALETTE.gold), COMMON_PALETTE.gold))
     }
     DIFFICULTY_ORDER.forEach((nivel, i) => {
       const b = this.anadir(`nivel ${nivel}`, PALETTE.rail, 0.85, () => acciones.elegirDificultad(nivel))
       const alto = levelBarHeight(i, DIFFICULTY_ORDER.length)
       this.barras.set(nivel, b.dibujo(barra(0.05, alto, LEVEL_BAR_BOTTOM, DIM), DIM))
     })
-    this.anadir('menos', PALETTE.rail, 0.8, () => acciones.mover(-1)).dibujo(iconoDeSigno('menos', 0.04, PALETTE.foreground), PALETTE.foreground)
-    this.anadir('mas', PALETTE.rail, 0.8, () => acciones.mover(1)).dibujo(iconoDeSigno('mas', 0.04, PALETTE.foreground), PALETTE.foreground)
+    this.anadir('menos', PALETTE.rail, 0.8, () => acciones.mover(-1)).dibujo(plusMinusIcon('menos', 0.04, PALETTE.foreground), PALETTE.foreground)
+    this.anadir('mas', PALETTE.rail, 0.8, () => acciones.mover(1)).dibujo(plusMinusIcon('mas', 0.04, PALETTE.foreground), PALETTE.foreground)
     const sinFin = this.anadir('sin fin', PALETTE.rail, 0.8, () => acciones.sinFin())
-    this.aroDelSinFin = sinFin.dibujo(figura(triangulosDeArco(0.018, 0.028), DIM), DIM)
+    this.aroDelSinFin = sinFin.dibujo(shape(arcTriangles(0.018, 0.028), DIM), DIM)
     // El decorado: la sala o tu habitación. Sin realidad aumentada se ve apagado con lo que está
     // puesto al lado, como en la web.
     const escenario = this.anadir('escenario', PALETTE.rail, 0.8, () => acciones.alternarEscenario())
     const cerrada = triangulosDeLaVentana(false)
     this.ventana = {
-      marco: escenario.dibujo(figura(cerrada.marco, DIM), DIM),
-      place: escenario.dibujo(figura(cerrada.dentro, DIM), DIM),
-      room: escenario.dibujo(figura(triangulosDeLaVentana(true).dentro, DIM), DIM),
+      marco: escenario.dibujo(shape(cerrada.marco, DIM), DIM),
+      place: escenario.dibujo(shape(cerrada.dentro, DIM), DIM),
+      room: escenario.dibujo(shape(triangulosDeLaVentana(true).dentro, DIM), DIM),
     }
     escenario.apagado = true
     // «Más opciones»: lo escrito va en el panel, como los rótulos.
     this.anadir('mas opciones', PALETTE.rail, 0.8, () => acciones.masOpciones())
-    this.anadir('jugar', PALETTE.primary, 1, () => acciones.jugar()).dibujo(iconoDeJugar(0.045, PALETTE.primaryInk), PALETTE.primaryInk)
-    const salir = botonDeSalir({
+    this.anadir('jugar', PALETTE.primary, 1, () => acciones.jugar()).dibujo(playIcon(0.045, PALETTE.primaryInk), PALETTE.primaryInk)
+    const salir = exitButton({
       caja: cajaDe(MENU_BOXES.salir),
       color: PALETTE.rail,
       opacidad: 0.8,
@@ -260,11 +260,11 @@ export class MenuDelJuego {
     colgar(this.nivel.nodo, -0.03, MENU_ROW.goals + 0.01)
     colgar(this.total.nodo, 0.07, MENU_ROW.goals + 0.01)
     colgar(this.record.nodo, MENU_RECORD_X, MENU_ROW.record)
-    this.aroDeLosGoles = figura(triangulosDeArco(0.03, 0.045, 0, Math.PI * 2, 32), PALETTE.foreground)
+    this.aroDeLosGoles = shape(arcTriangles(0.03, 0.045, 0, Math.PI * 2, 32), PALETTE.foreground)
     colgar(this.aroDeLosGoles, 0, MENU_ROW.goals)
     const lado = 0.016
     for (let i = 0; i < 3; i++) {
-      const rombo = figura(triangulosDeRombo(lado), DIM)
+      const rombo = shape(triangulosDeRombo(lado), DIM)
       colgar(rombo, (i - 1) * lado * 1.9, MENU_ROW.goals - 0.07)
       this.estrellas.push(rombo)
     }
@@ -272,14 +272,14 @@ export class MenuDelJuego {
     punteria.anadir(...this.botones.values())
   }
 
-  private anadir(id: string, color: string, opacidad: number, alPulsar: () => void): Boton {
-    const boton = new Boton({ id, caja: cajaDe(MENU_BOXES[id]), color, opacidad, alPulsar })
+  private anadir(id: string, color: string, opacidad: number, alPulsar: () => void): Button {
+    const boton = new Button({ id, caja: cajaDe(MENU_BOXES[id]), color, opacidad, alPulsar })
     this.panel.boton(boton)
     this.botones.set(id, boton)
     return boton
   }
 
-  boton(id: string): Boton {
+  boton(id: string): Button {
     return this.botones.get(id)!
   }
 
@@ -295,7 +295,7 @@ export class MenuDelJuego {
     masOpciones.nodo.visible = plegable
     masOpciones.colorear(estado.masOpciones ? PALETTE.primaryDeep : PALETTE.rail, estado.masOpciones ? 0.95 : 0.8)
 
-    for (const confort of CONFORTS) {
+    for (const confort of COMFORT_LEVELS) {
       this.boton(`confort ${confort}`).nodo.visible = ajustes
       const elegido = confort === estado.confort
       this.boton(`confort ${confort}`).colorear(elegido ? PALETTE.primaryDeep : PALETTE.rail, elegido ? 0.95 : 0.7)
@@ -338,7 +338,7 @@ export class MenuDelJuego {
     for (const [i, rombo] of this.estrellas.entries()) {
       rombo.visible = niveles
       const ganada = i < (estado.estrellas[estado.nivel - 1] ?? 0)
-      pintar(rombo, ganada ? PALETA.oro : DIM, ganada ? 1 : 0.35)
+      paint(rombo, ganada ? COMMON_PALETTE.gold : DIM, ganada ? 1 : 0.35)
     }
     this.record.nodo.visible = estado.record > 0 && !niveles
     this.record.pintar(estado.record)
@@ -358,7 +358,7 @@ export class MenuDelJuego {
     // El nombre de la cabina, arriba a la izquierda, hasta el botón de «Más opciones»: un nombre
     // propio, sin traducir (`XRMenu.tsx`).
     const cajaDeMas = MENU_BOXES['mas opciones']
-    panel.escribir(nombreDelJuego(), izquierda, MENU_ROW.title, {
+    panel.escribir(gameName(), izquierda, MENU_ROW.title, {
       alto: MENU_TEXT.title,
       color: PALETTE.foreground,
       alinear: 'left',
@@ -367,7 +367,7 @@ export class MenuDelJuego {
     // «Más opciones» —o «Menos», desplegado— sobre su botón, si hay algo plegado en este modo.
     if (plegable) {
       const { position, size } = cajaDeMas
-      panel.escribir(t(estado.masOpciones ? MENU_EN.menosOpciones : MENU_EN.masOpciones), position[0], MENU_ROW.title, {
+      panel.escribir(t(estado.masOpciones ? MENU_EN.fewerOptions : MENU_EN.moreOptions), position[0], MENU_ROW.title, {
         alto: MENU_TEXT.toggle,
         color: PALETTE.foreground,
         anchoMax: size[0] - 0.01,
@@ -382,7 +382,7 @@ export class MenuDelJuego {
       })
     }
     const filas: (readonly [number, TextKey])[] = [
-      [MENU_ROW.mode, MENU_EN.modo],
+      [MENU_ROW.mode, MENU_EN.mode],
       ...(practica ? [[MENU_ROW.level, 'Level'] as const] : []),
       ...(filaDeGoles ? [[MENU_ROW.goals, niveles ? 'Stage' : 'Goals'] as const] : []),
     ]
@@ -406,7 +406,7 @@ export class MenuDelJuego {
     // Si el modo elegido cuenta para medalla, en la línea del rótulo «Modo» y a su derecha.
     panel.escribir(t(fraseDeLaMedalla(estado.objetivo, estado.modo)), MENU_PANEL.width / 2 - 0.05, MENU_ROW.mode + MENU_ROW_LABEL_RISE, {
       alto: MENU_TEXT.medal,
-      color: daMedalla(estado.objetivo, estado.modo) ? PALETA.oro : DIM,
+      color: daMedalla(estado.objetivo, estado.modo) ? COMMON_PALETTE.gold : DIM,
       alinear: 'right',
       anchoMax: MENU_MEDAL_WIDTH,
     })

@@ -1,96 +1,96 @@
 /**
- * La plantilla del menú del salón: cómo se llama el juego en su menú, en qué orden van las filas y
- * dónde nace el menú en el visor.
+ * The hall's menu template: what the game is called in its menu, in what order the rows go and
+ * where the menu spawns in the headset.
  *
- * Es el mismo fichero en todos los juegos, junto a `palabras.ts`, y por lo mismo: cada juego
- * ordenaba distinto Modo / Contra quién / A dos / Dificultad, «Reto» iba en cuatro sitios del menú,
- * el menú se llamaba «Axe» o «Pins» cuando la cabina decía «Axe Throwing» o «Bowling», y nacía a
- * 60° de la mirada en un juego y de frente en el de al lado. Quien pasa de una cabina a otra tiene
- * que encontrar el mismo menú.
+ * It is the same file in every game, next to `menuWords.ts`, and for the same reason: each game
+ * ordered Modo / Contra quién / A dos / Dificultad differently, «Reto» went in four places of the
+ * menu, the menu was called «Axe» or «Pins» when the cabinet said «Axe Throwing» or «Bowling», and
+ * it spawned 60° away from the gaze in one game and straight ahead in the one next to it. Whoever
+ * goes from one cabinet to another has to find the same menu.
  *
- * **Cómo se usa.**
+ * **How it is used.**
  *
- * - **El nombre.** La escena recibe `nombre` del salón (el `name` del manifiesto) y lo fija con
- *   `fijarNombreDelJuego(nombre)` al montarse, como `setAssetsBase`; el menú del visor, la portada y
- *   el `<title>` de la web dicen `nombreDelJuego()`. Sin salón —la web propia del juego— es el `name`
- *   de su `package.json` con mayúsculas: `axe-throwing` es «Axe Throwing», que es como lo llama el
- *   catálogo. En Godot lo fija `main.ts` con `base.nombre()` del kit (el metadato `game_name`). Es un
- *   nombre propio: no se traduce.
- * - **Las filas.** Primero «Modo» (`MENU_EN.modo`), con el reto, el que da medalla, el primero de
- *   sus opciones (`conElRetoPrimero`); después «Jugadores» (`MENU_EN.jugadores`), solo o a dos; y lo
- *   demás detrás de «Más opciones», plegado hasta que se pida (`filasDelMenu`). El reto es una
- *   partida fija, así que con él elegido lo plegado no se enseña aunque se pida: no hay nada que
- *   elegir que cuente.
- * - **Dónde nace.** El menú del visor nace a `GRADOS_DEL_MENU` o menos del frente de quien juega y
- *   se aparta al empezar. El guardián del menú de cada juego (`xrLayout`/`menuLayout`) lo mide con
- *   `gradosDelFrente` sobre el sitio del panel en la fase de menú.
+ * - **The name.** The scene receives `name` from the hall (the `name` of the manifest) and sets it
+ *   with `setGameName(name)` when it mounts, like `setAssetsBase`; the headset menu, the cover and
+ *   the `<title>` of the web say `gameName()`. Without the hall —the game's own web— it is the
+ *   `name` of its `package.json` capitalised: `axe-throwing` is «Axe Throwing», which is what the
+ *   catalogue calls it. In Godot `main.ts` sets it with the kit's `base.nombre()` (the `game_name`
+ *   metadata). It is a proper name: it is not translated.
+ * - **The rows.** First «Modo» (`MENU_EN.mode`), with the challenge, the one that gives a medal,
+ *   the first of its options (`challengeFirst`); then «Jugadores» (`MENU_EN.players`), solo or
+ *   two-player; and the rest behind «Más opciones», folded until it is asked for (`foldRows`). The
+ *   challenge is a fixed run, so with it chosen what is folded is not shown even if it is asked
+ *   for: there is nothing to choose that counts.
+ * - **Where it spawns.** The headset menu spawns at `MENU_DEGREES` or less from the front of
+ *   whoever plays and moves aside on start. The menu guard of each game (`xrLayout`/`menuLayout`)
+ *   measures it with `degreesFromFront` on the place of the panel in the menu phase.
  *
- * Sin nada del navegador ni del motor: se porta a Godot tal cual.
+ * With nothing of the browser or of the engine: it is ported to Godot as is.
  */
 
-import paquete from '../../package.json'
+import pkg from '../../package.json'
 
-/** El nombre que ha pasado el salón, o `null` en la web propia del juego. */
-let delSalon: string | null = null
+/** The name the hall has passed, or `null` in the game's own web. */
+let fromHall: string | null = null
 
-/** Lo llama la escena al montarse con la prop `nombre` (o `main.ts` en Godot con `base.nombre()`). */
-export function fijarNombreDelJuego(nombre: string | null | undefined): void {
-  delSalon = typeof nombre === 'string' && nombre.trim() !== '' ? nombre.trim() : null
+/** The scene calls it when it mounts with the `name` prop (or `main.ts` in Godot with `base.nombre()`). */
+export function setGameName(name: string | null | undefined): void {
+  fromHall = typeof name === 'string' && name.trim() !== '' ? name.trim() : null
 }
 
-/** El nombre a partir del id del paquete: cada palabra con mayúscula, sin guiones. */
-export function nombreDesdeElId(id: string): string {
+/** The name from the id of the package: each word capitalised, without hyphens. */
+export function nameFromId(id: string): string {
   return id
     .split('-')
-    .filter((palabra) => palabra !== '')
-    .map((palabra) => palabra[0].toUpperCase() + palabra.slice(1))
+    .filter((word) => word !== '')
+    .map((word) => word[0].toUpperCase() + word.slice(1))
     .join(' ')
 }
 
-/** Cómo se llama el juego en su menú: el nombre de la cabina del salón, o el de su paquete. */
-export function nombreDelJuego(): string {
-  return delSalon ?? nombreDesdeElId(paquete.name)
+/** What the game is called in its menu: the name of the hall's cabinet, or that of its package. */
+export function gameName(): string {
+  return fromHall ?? nameFromId(pkg.name)
 }
 
-/** Qué papel tiene una fila del menú en la plantilla. */
-export type PapelDeLaFila = 'modo' | 'jugadores' | 'otra'
+/** What role a row of the menu has in the template. */
+export type RowRole = 'mode' | 'players' | 'other'
 
-/** Lo que se enseña del menú: las filas, ya en orden, y cuántas quedan detrás de «Más opciones». */
-export interface FilasDelMenu<F> {
-  filas: F[]
-  /** Las que no se enseñan; con cero, el menú no lleva el botón de «Más opciones». */
-  plegadas: number
+/** What is shown of the menu: the rows, already in order, and how many stay behind «Más opciones». */
+export interface FoldedRows<F> {
+  rows: F[]
+  /** The ones that are not shown; with zero, the menu does not carry the «Más opciones» button. */
+  folded: number
 }
 
 /**
- * Las filas del menú en el orden de la plantilla: «Modo», «Jugadores» y lo demás, cada grupo en el
- * orden en que venía. Lo demás solo con `masOpciones` (lo ha pedido quien juega) y nunca con el reto
- * elegido (`enReto`): es una partida fija.
+ * The rows of the menu in the order of the template: «Modo», «Jugadores» and the rest, each group in
+ * the order it came in. The rest only with `moreOptions` (whoever plays has asked for it) and never
+ * with the challenge chosen (`inChallenge`): it is a fixed run.
  */
-export function filasDelMenu<F>(
-  filas: readonly F[],
-  papel: (fila: F) => PapelDeLaFila,
-  { masOpciones, enReto = false }: { masOpciones: boolean; enReto?: boolean },
-): FilasDelMenu<F> {
-  const de = (cual: PapelDeLaFila) => filas.filter((fila) => papel(fila) === cual)
-  const principales = [...de('modo'), ...de('jugadores')]
-  const otras = enReto ? [] : de('otra')
-  return masOpciones ? { filas: [...principales, ...otras], plegadas: 0 } : { filas: principales, plegadas: otras.length }
+export function foldRows<F>(
+  rows: readonly F[],
+  role: (row: F) => RowRole,
+  { moreOptions, inChallenge = false }: { moreOptions: boolean; inChallenge?: boolean },
+): FoldedRows<F> {
+  const withRole = (which: RowRole) => rows.filter((row) => role(row) === which)
+  const main = [...withRole('mode'), ...withRole('players')]
+  const others = inChallenge ? [] : withRole('other')
+  return moreOptions ? { rows: [...main, ...others], folded: 0 } : { rows: main, folded: others.length }
 }
 
-/** Las opciones de la fila «Modo» con el reto, el que da medalla, el primero; las demás, como venían. */
-export function conElRetoPrimero<O>(opciones: readonly O[], esReto: (opcion: O) => boolean): O[] {
-  return [...opciones.filter(esReto), ...opciones.filter((opcion) => !esReto(opcion))]
+/** The options of the «Modo» row with the challenge, the one that gives a medal, first; the rest, as they came. */
+export function challengeFirst<O>(options: readonly O[], isChallenge: (option: O) => boolean): O[] {
+  return [...options.filter(isChallenge), ...options.filter((option) => !isChallenge(option))]
 }
 
-/** Lo más que se aparta del frente el menú del visor al nacer, en grados. */
-export const GRADOS_DEL_MENU = 30
+/** The most the headset menu moves away from the front when it spawns, in degrees. */
+export const MENU_DEGREES = 30
 
 /**
- * Cuánto se aparta un sitio del frente de quien juega, en grados y en horizontal: el ángulo entre
- * −Z (delante) y el sitio visto desde arriba, sin signo. Las cotas, desde los pies, como las de los
- * paneles (`[derecha, altura, fondo]`). Lo que queda detrás está a más de 90°.
+ * How far a place is from the front of whoever plays, in degrees and horizontally: the angle between
+ * −Z (ahead) and the place seen from above, unsigned. The coordinates, from the feet, like those of
+ * the panels (`[right, height, depth]`). What is behind is at more than 90°.
  */
-export function gradosDelFrente([x, , z]: readonly [number, number, number]): number {
+export function degreesFromFront([x, , z]: readonly [number, number, number]): number {
   return (Math.atan2(Math.abs(x), -z) * 180) / Math.PI
 }

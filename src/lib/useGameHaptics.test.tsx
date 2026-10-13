@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { type HapticSession } from './haptics'
-import { RECETAS } from './tactos'
+import { HAPTIC_RECIPES } from './hapticFeedback'
 import { useGameHaptics } from './useGameHaptics'
 
 /**
@@ -53,7 +53,7 @@ describe('useGameHaptics', () => {
     result.current.noteHand('left')
     result.current.sentir({ tipo: 'golpe', fuerza: 1 })
     expect(xr.left).toHaveBeenCalledTimes(1)
-    vi.advanceTimersByTime(RECETAS.impacto.ms)
+    vi.advanceTimersByTime(HAPTIC_RECIPES.impact.ms)
 
     expect(xr.left).toHaveBeenCalledTimes(2)
     expect(xr.right).not.toHaveBeenCalled()
@@ -101,8 +101,8 @@ describe('useGameHaptics', () => {
     withHeadset()
     const { result } = renderHook(() => useGameHaptics())
 
-    result.current.pulsar({ mano: 'left', intensidad: 0.6, ms: 220, retardo: 0 })
-    result.current.pulsar({ mano: 'right', intensidad: 0.6, ms: 220, retardo: 0 })
+    result.current.pulsar({ hand: 'left', intensity: 0.6, ms: 220, delay: 0 })
+    result.current.pulsar({ hand: 'right', intensity: 0.6, ms: 220, delay: 0 })
 
     expect(xr.left).toHaveBeenCalledWith(0.6, 220)
     expect(xr.right).toHaveBeenCalledWith(0.6, 220)

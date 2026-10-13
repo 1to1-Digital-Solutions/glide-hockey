@@ -115,8 +115,8 @@ describe('lo que se guarda y lo que se cuenta al salón', () => {
   })
 
   it('el resultado solo lleva el campo cuando se estrena alguna', () => {
-    const resultado = { modo: 'practice', puntos: 300, reto: false }
+    const resultado = { mode: 'practice', points: 300, challenge: false }
     expect(conHazanas(resultado, [])).toEqual(resultado)
-    expect(conHazanas(resultado, ['GH_SHUTOUT'])).toEqual({ ...resultado, hazanas: ['GH_SHUTOUT'] })
+    expect(conHazanas(resultado, ['GH_SHUTOUT'])).toEqual({ ...resultado, feats: ['GH_SHUTOUT'] })
   })
 })

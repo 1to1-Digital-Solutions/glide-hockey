@@ -1,38 +1,39 @@
-import type { GrabMode } from './ajustes'
+import type { GrabMode } from './settings'
 
 /**
- * Qué hacer con cada cambio del botón de agarre, según cómo se haya elegido agarrar.
+ * What to do with each change of the grab button, depending on how one has chosen to grab.
  *
- * **El problema.** El gesto de este juego pide **mantener apretado** el gatillo de punta a
- * punta: coger, mover el brazo y soltar. Un lanzamiento son tres o cuatro segundos con la
- * mano cerrada; una partida entera, ciento y pico. Quien tiene poca fuerza de agarre
- * —artritis, temblor, una mano cansada— no se queda fuera de una parte del juego: se queda
- * fuera del gesto, que es el juego.
+ * **The problem.** The gesture of this game asks to **keep** the trigger **squeezed** from end
+ * to end: take, move the arm and release. One throw is three or four seconds with the hand
+ * closed; a whole run, a hundred and some. Whoever has little grip strength —arthritis,
+ * tremor, a tired hand— is not left out of one part of the game: they are left out of the
+ * gesture, which is the game.
  *
- * **Qué cambia con `toggle`.** Un toque para cogerlo y otro para soltarlo. El gesto de en
- * medio es el mismo y por eso **no cambia ninguna puntuación**: lo que decide el lanzamiento
- * sigue siendo lo que hace el brazo hasta el momento de soltar.
+ * **What changes with `toggle`.** One tap to take it and another to release it. The gesture in
+ * between is the same and that is why **no score changes**: what decides the throw is still
+ * what the arm does up to the moment of releasing.
  *
- * Aquí solo vive la decisión, sin three.js ni React, porque es donde se equivoca uno: en
- * `toggle` el botón hace algo distinto **según lo que ya se tenga en la mano**, y sin
- * ignorar el evento de soltar, un toque cogería y soltaría en el mismo gesto.
+ * Only the decision lives here, without three.js or React, because it is where one gets it
+ * wrong: in `toggle` the button does something different **depending on what is already held
+ * in the hand**, and without ignoring the release event, one tap would take and release in the
+ * same gesture.
  *
- * Cómo se agarra lo elige quien juega en los ajustes del arcade y vale para las trece
- * cabinas (ver `lib/ajustes.ts`): quien no puede mantener el gatillo no puede mantenerlo en
- * ninguna.
+ * How to grab is chosen by whoever plays in the settings of the arcade and holds for the
+ * thirteen cabinets (see `lib/settings.ts`): whoever cannot hold the trigger cannot hold it in
+ * any of them.
  */
 
-/** Lo que toca hacer con lo que se tiene (o no) en la mano. */
+/** What is due with what is (or is not) held in the hand. */
 export type GrabStep = 'take' | 'release' | 'nothing'
 
 /**
- * @param pressed  si este evento es el de apretar (`true`) o el de soltar (`false`)
- * @param holding  si ahora mismo se lleva algo en la mano
- * @param mode     cómo se ha elegido agarrar
+ * @param pressed  whether this event is the squeeze one (`true`) or the release one (`false`)
+ * @param holding  whether something is being carried in the hand right now
+ * @param mode     how one has chosen to grab
  */
 export function grabStep(pressed: boolean, holding: boolean, mode: GrabMode): GrabStep {
   if (mode === 'toggle') {
-    // Soltar el botón no hace nada: si contara, el mismo toque cogería y soltaría.
+    // Releasing the button does nothing: if it counted, the same tap would take and release.
     if (!pressed) return 'nothing'
     return holding ? 'release' : 'take'
   }
@@ -41,29 +42,29 @@ export function grabStep(pressed: boolean, holding: boolean, mode: GrabMode): Gr
 }
 
 /**
- * Lo mismo, para quien lee el botón **en cada fotograma** en vez de por eventos.
+ * The same, for whoever reads the button **every frame** instead of through events.
  *
- * Varios juegos no escuchan el botón: lo miran en el bucle de render, porque lo que hacen
- * con él —seguir la mano con el mazo— pasa en cada fotograma de todas formas. Ahí no hay
- * un «evento de apretar» que consultar, así que el flanco hay que verlo: lo que enciende
- * o apaga el agarre en `toggle` es que el botón **pase** a estar apretado, no que lo esté.
+ * Several games do not listen to the button: they look at it in the render loop, because what
+ * they do with it —following the hand with the mallet— happens every frame anyway. There is
+ * no "squeeze event" to consult there, so the edge has to be seen: what turns the grab on or
+ * off in `toggle` is that the button **becomes** squeezed, not that it is.
  */
 export interface GrabLatch {
-  /** Si ahora mismo se lleva algo en la mano. */
+  /** Whether something is being carried in the hand right now. */
   holding: boolean
-  /** Si el botón estaba apretado en el fotograma anterior. */
+  /** Whether the button was squeezed in the previous frame. */
   wasPressed: boolean
 }
 
-/** Un agarre recién empezado: la mano vacía y el botón suelto. */
+/** A grab that has just started: the hand empty and the button released. */
 export function startGrab(): GrabLatch {
   return { holding: false, wasPressed: false }
 }
 
-/** Avanza el agarre con lo que dice el botón en este fotograma. */
+/** Advances the grab with what the button says in this frame. */
 export function stepGrab(state: GrabLatch, pressed: boolean, mode: GrabMode): GrabLatch {
-  // Manteniendo, la mano lleva algo exactamente mientras el botón esté apretado.
+  // Holding, the hand carries something exactly while the button is squeezed.
   if (mode !== 'toggle') return { holding: pressed, wasPressed: pressed }
-  const flanco = pressed && !state.wasPressed
-  return { holding: flanco ? !state.holding : state.holding, wasPressed: pressed }
+  const edge = pressed && !state.wasPressed
+  return { holding: edge ? !state.holding : state.holding, wasPressed: pressed }
 }

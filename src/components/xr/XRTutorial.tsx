@@ -3,9 +3,9 @@
 import { useXR } from '@react-three/xr'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { useGrabMode, useLang } from '../../lib/ajustesCliente'
+import { useGrabMode, useLang } from '../../lib/settingsClient'
 import { PALETTE } from '../../lib/palette'
-import { PALETA } from '../../lib/paleta'
+import { COMMON_PALETTE } from '../../lib/commonPalette'
 import { DIM_COLOR } from './XRUi'
 import { useGame } from '../../lib/gameStore'
 import { traductor, type TextKey } from '../../lib/textos'
@@ -18,9 +18,9 @@ import {
   type TutorialStepKey,
 } from '../../lib/tutorial'
 import { ButtonHighlight, useButtonFeedback } from './buttonHighlight'
-import { CanvasPanel, drawParagraph, drawText, roundedRect, alturaDelParrafo } from './canvasPanel'
+import { CanvasPanel, drawParagraph, drawText, roundedRect, paragraphHeight } from './canvasPanel'
 import { dibujarMando } from './mandoDibujado'
-import { MandoDeVerdad } from './MandoDeVerdad'
+import { RealController } from './RealController'
 import { NO_RAYCAST } from '../raycast'
 
 /**
@@ -117,7 +117,7 @@ export function repartoDelPaso(
   t: (clave: TextKey) => string,
 ): { techoDeLaFrase: number; sueloDeLaFrase: number; mando: number } {
   const techoDeLaFrase = PANEL_HEIGHT / 2 - 0.13
-  const sueloDeLaFrase = techoDeLaFrase - alturaDelParrafo(ctx, t(frases[step]), FRASE)
+  const sueloDeLaFrase = techoDeLaFrase - paragraphHeight(ctx, t(frases[step]), FRASE)
   const techoDeLosBotones = BOTON.y + BOTON.height / 2
   return { techoDeLaFrase, sueloDeLaFrase, mando: (sueloDeLaFrase + techoDeLosBotones) / 2 }
 }
@@ -253,8 +253,8 @@ export function XRTutorial({
       {/* Fuera del grupo del panel a propósito: esto no vive en el panel, vive en la mano.
           Se coloca solo, deshaciendo lo que le pongan sus padres. En las dos manos porque
           aquí vale cualquiera de ellas: encender solo una sería decir que la otra no sirve. */}
-      <MandoDeVerdad mano="left" boton={TUTORIAL_BUTTONS[step]} />
-      <MandoDeVerdad mano="right" boton={TUTORIAL_BUTTONS[step]} />
+      <RealController hand="left" button={TUTORIAL_BUTTONS[step]} />
+      <RealController hand="right" button={TUTORIAL_BUTTONS[step]} />
       <group position={position} rotation={rotation}>
         <CanvasPanel width={PANEL_WIDTH} height={PANEL_HEIGHT} draw={draw} fallbackColor={PALETTE.background} />
         {BOTONES.map((boton) => (
@@ -273,7 +273,7 @@ export function XRTutorial({
               width={BOTON.width}
               height={BOTON.height}
               state={stateOf(boton.id)}
-              glow={PALETA.acento}
+              glow={COMMON_PALETTE.accent}
               ink={PALETTE.background}
             />
           </group>

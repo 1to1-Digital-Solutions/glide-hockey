@@ -1,122 +1,123 @@
 /**
- * Comprobar que un panel del visor **se lee**.
+ * Checking that a headset panel **can be read**.
  *
- * Es la respuesta a lo que más se repite en el feedback del visor: «el texto se
- * superpone», «las letras están muy pegadas», «no se entiende nada». Ha pasado en
- * el aviso de salir, en los menús de ajustes, en el marcador y en los tutoriales,
- * y siempre se ha descubierto igual: con las gafas puestas. Desde una pantalla no
- * se ve, porque el panel se pinta en un lienzo que nadie mira al tamaño al que se
- * lee.
+ * It is the answer to what comes up most in the headset feedback: «the text
+ * overlaps», «the letters are too close together», «nothing can be understood». It has happened
+ * in the exit notice, in the settings menus, in the scoreboard and in the tutorials,
+ * and it has always been discovered the same way: with the goggles on. From a screen it
+ * cannot be seen, because the panel is painted on a canvas that nobody looks at at the size at
+ * which it is read.
  *
- * Así que aquí no hay un recordatorio, hay un instrumento: un lienzo de mentira
- * que **mide como uno de verdad y apunta lo que se escribe**, y una revisión de
- * lo apuntado. Cada panel tiene su test, y el test falla si dos textos se pisan,
- * si alguno se sale del panel o si alguno es más pequeño de lo que se lee a la
- * distancia a la que está.
+ * So here there is not a reminder, there is an instrument: a fake canvas
+ * that **measures like a real one and records what is written**, and a review of
+ * what was recorded. Each panel has its test, and the test fails if two texts overlap,
+ * if one runs off the panel or if one is smaller than what can be read at the
+ * distance it is at.
  *
- * Todo en metros, que es como están escritas las medidas de los paneles.
+ * Everything in metres, which is how the measurements of the panels are written.
  */
 
-import { ALTO_DE_LINEA } from './canvasPanel'
+import { LINE_HEIGHT } from './canvasPanel'
 
 /**
- * Lo ancho que es una letra respecto a su alto, en la tipografía del sistema.
+ * How wide a letter is relative to its height, in the system typeface.
  *
- * Tirando a ancho a propósito. La medida de verdad depende de la letra —una «i» no ocupa lo
- * que una «M»— y aquí no hay tipografía que preguntar. Quedándose corto, la regla daría por
- * bueno un panel que en el visor se pisa, que es justo lo que ha estado pasando; pasándose,
- * como mucho obliga a dejar un dedo más de aire.
+ * On the wide side on purpose. The real measurement depends on the letter —an «i» does not take
+ * what an «M» does— and here there is no typeface to ask. Falling short, the rule would pass
+ * a panel that overlaps in the headset, which is exactly what has been happening; overshooting,
+ * at most it forces leaving a finger more of air.
  */
-const AVANCE = 0.62
+const GLYPH_ADVANCE = 0.62
 
 /**
- * Lo más pequeña que puede verse una letra, en **grados** de ángulo visual.
+ * The smallest a letter can be seen, in **degrees** of visual angle.
  *
- * **Antes era una medida en metros, y en metros no se lee.** Lo que decide si una letra se
- * lee no es lo que mide, es lo que ocupa en el ojo: los mismos cuatro milímetros son una
- * mancha en un panel a metro y medio y se leen de sobra en uno a un palmo. El suelo estaba
- * puesto en 4 mm —0,23° a un metro, que es lo que un ojo sano **distingue**, parado y con
- * buena luz, no lo que alguien lee de un vistazo mientras juega—, así que el instrumento
- * daba por bueno lo que dentro del visor es una mancha. Reportado así: «la mayoría de los
- * textos de dentro de los juegos se solapan y no son legibles».
+ * **It used to be a measurement in metres, and in metres it cannot be read.** What decides whether
+ * a letter reads is not what it measures, it is what it takes up in the eye: the same four
+ * millimetres are a smudge on a panel a metre and a half away and read easily on one a hand span
+ * away. The floor was set at 4 mm —0.23° at one metre, which is what a healthy eye
+ * **distinguishes**, standing still and in good light, not what someone reads at a glance while
+ * playing—, so the instrument passed what inside the headset is a smudge. Reported like this:
+ * «most of the texts inside the games overlap and are not legible».
  *
- * Tres cuartos de grado es la altura de una letra cómoda de leer sin acercarse. Los botones
- * de los menús se pintan a 25 mm y los paneles están a metro y pico —1,2° de sobra—, así
- * que esto no aprieta lo que está bien: caza lo que `drawText` **encoge para que quepa** en
- * un botón demasiado estrecho, que es donde salían letras de 8 mm.
+ * Three quarters of a degree is the height of a letter that is comfortable to read without moving
+ * closer. The menu buttons are painted at 25 mm and the panels are a metre and a bit away —1.2°,
+ * plenty—, so this does not squeeze what is fine: it catches what `drawText` **shrinks so that it
+ * fits** in a button that is too narrow, which is where 8 mm letters were coming out.
  */
-export const MIN_ANGULO = 0.75
+export const MIN_ANGLE = 0.75
 
 /**
- * A qué distancia se mira un panel cuando quien lo mide no dice otra cosa, en metros.
+ * At what distance a panel is looked at when whoever measures it says nothing else, in metres.
  *
- * Es donde están los paneles de casi todos: delante, a metro y pico. Los juegos de mesa
- * —la torre de tower-tumble— los tienen mucho más cerca y lo dicen al medir.
+ * It is where almost everyone's panels are: in front, a metre and a bit away. The table games
+ * —the tower of tower-tumble— have them much closer and say so when measuring.
  */
-export const DISTANCIA_TIPICA = 1.2
+export const TYPICAL_DISTANCE = 1.2
 
-/** Lo más pequeña que puede salir una letra en un panel a esa distancia, en metros. */
-export function altoMinimo(distancia: number): number {
-  return 2 * distancia * Math.tan((MIN_ANGULO * Math.PI) / 180 / 2)
+/** The smallest a letter can come out on a panel at that distance, in metres. */
+export function minTextHeight(distance: number): number {
+  return 2 * distance * Math.tan((MIN_ANGLE * Math.PI) / 180 / 2)
 }
 
 /**
- * La fuente más pequeña que se le puede pedir al lienzo, en píxeles.
+ * The smallest font that can be requested from the canvas, in pixels.
  *
- * No es lo que se lee —eso lo dice `altoMinimo`, en metros—, es lo que el navegador sabe colocar:
- * por debajo de unos pocos píxeles calcula la posición de cada letra con medidas que no valen, y
- * el del visor las amontona. Los paneles pedían la letra en metros sobre un lienzo escalado, a
- * 0,03 px, y así se vieron: «las letras están completamente pegadas, una sobre la otra».
+ * It is not what can be read —`minTextHeight` says that, in metres—, it is what the browser knows
+ * how to place: below a few pixels it works out the position of each letter with measurements that
+ * are no good, and the headset's piles them up. The panels requested the font in metres on a
+ * scaled canvas, at 0.03 px, and this is how they looked: «the letters are completely stuck
+ * together, one on top of the other».
  */
-export const MIN_FUENTE_PX = 8
+export const MIN_FONT_PX = 8
 
-/** Un texto que se ha escrito en el panel: qué, dónde y qué caja ocupa. */
-export interface Escrito {
-  readonly texto: string
-  /** El centro de su caja, en coordenadas del panel. */
+/** A text that has been written on the panel: what, where and what box it takes up. */
+export interface DrawnText {
+  readonly text: string
+  /** The centre of its box, in panel coordinates. */
   readonly x: number
   readonly y: number
-  readonly ancho: number
-  readonly alto: number
-  /** El tamaño de la fuente con que se pidió, en píxeles del lienzo. */
-  readonly fuentePx?: number
+  readonly width: number
+  readonly height: number
+  /** The size of the font it was requested with, in canvas pixels. */
+  readonly fontPx?: number
 }
 
-/** Si dos cajas se pisan. */
-function seTocan(a: Escrito, b: Escrito): boolean {
+/** Whether two boxes overlap. */
+function overlap(a: DrawnText, b: DrawnText): boolean {
   return (
-    Math.abs(a.x - b.x) * 2 < a.ancho + b.ancho &&
-    Math.abs(a.y - b.y) * 2 < a.alto + b.alto
+    Math.abs(a.x - b.x) * 2 < a.width + b.width &&
+    Math.abs(a.y - b.y) * 2 < a.height + b.height
   )
 }
 
 /**
- * Un lienzo de mentira: mide como uno de verdad y apunta lo que se escribe.
+ * A fake canvas: it measures like a real one and records what is written.
  *
- * Lleva la cuenta de la transformación —los paneles escriben con `translate` y
- * un `scale(1, -1)` para deshacer la `y` hacia abajo—, así que lo apuntado está
- * ya en coordenadas del panel y no en las del lienzo.
+ * It keeps track of the transform —the panels write with `translate` and
+ * a `scale(1, -1)` to undo the `y` pointing down—, so what is recorded is
+ * already in panel coordinates and not in those of the canvas.
  */
-export function lienzoQueApunta(): { ctx: CanvasRenderingContext2D; escritos: Escrito[] } {
-  const escritos: Escrito[] = []
-  // `escala` es cuánto mide una unidad del lienzo en coordenadas del panel. Los paneles dibujan
-  // en metros y escriben el texto a su tamaño en píxeles (`panelFont`), así que dentro de
-  // `drawText` una unidad es un píxel de la textura y lo apuntado se pasa a metros con ella.
-  let estado = { x: 0, y: 0, escala: 1, escalaY: 1, font: '' }
-  const pila: (typeof estado)[] = []
+export function recordingCanvas(): { ctx: CanvasRenderingContext2D; drawnTexts: DrawnText[] } {
+  const drawnTexts: DrawnText[] = []
+  // `scale` is how much one unit of the canvas measures in panel coordinates. The panels draw
+  // in metres and write the text at its size in pixels (`panelFont`), so inside
+  // `drawText` one unit is one pixel of the texture and what is recorded is turned into metres with it.
+  let state = { x: 0, y: 0, scale: 1, scaleY: 1, font: '' }
+  const stack: (typeof state)[] = []
 
-  /** El tamaño declarado en la fuente, en unidades del lienzo (píxeles para el texto). */
-  const tamano = (): number => {
-    const medida = /([\d.]+)px/.exec(estado.font)
-    return medida == null ? 0 : Number(medida[1])
+  /** The size declared in the font, in canvas units (pixels for the text). */
+  const fontSize = (): number => {
+    const match = /([\d.]+)px/.exec(state.font)
+    return match == null ? 0 : Number(match[1])
   }
 
   const ctx = {
     get font() {
-      return estado.font
+      return state.font
     },
-    set font(valor: string) {
-      estado.font = valor
+    set font(value: string) {
+      state.font = value
     },
     fillStyle: '',
     strokeStyle: '',
@@ -126,47 +127,48 @@ export function lienzoQueApunta(): { ctx: CanvasRenderingContext2D; escritos: Es
     textAlign: 'center' as CanvasTextAlign,
     textBaseline: 'alphabetic' as CanvasTextBaseline,
     save: () => {
-      pila.push({ ...estado })
+      stack.push({ ...state })
     },
     restore: () => {
-      estado = pila.pop() ?? estado
+      state = stack.pop() ?? state
     },
     translate: (x: number, y: number) => {
-      estado = { ...estado, x: estado.x + x * estado.escala, y: estado.y + y * estado.escalaY }
+      state = { ...state, x: state.x + x * state.scale, y: state.y + y * state.scaleY }
     },
     scale: (x: number, y: number) => {
-      estado = { ...estado, escala: estado.escala * Math.abs(x), escalaY: estado.escalaY * y }
+      state = { ...state, scale: state.scale * Math.abs(x), scaleY: state.scaleY * y }
     },
-    measureText: (texto: string) => ({ width: texto.length * tamano() * AVANCE }),
-    // La `y` que llega es siempre 0: los paneles la ponen con `translate` antes de
-    // escribir, que es lo que este lienzo lleva apuntado.
-    fillText: (texto: string, x: number) => {
-      const alto = tamano() * estado.escala
-      const ancho = texto.length * alto * AVANCE
-      const origen = estado.x + x * estado.escala
-      const centro =
+    measureText: (text: string) => ({ width: text.length * fontSize() * GLYPH_ADVANCE }),
+    // The `y` that arrives is always 0: the panels set it with `translate` before
+    // writing, which is what this canvas keeps recorded.
+    fillText: (text: string, x: number) => {
+      const height = fontSize() * state.scale
+      const width = text.length * height * GLYPH_ADVANCE
+      const origin = state.x + x * state.scale
+      const center =
         ctx.textAlign === 'left'
-          ? origen + ancho / 2
+          ? origin + width / 2
           : ctx.textAlign === 'right'
-            ? origen - ancho / 2
-            : origen
-      escritos.push({ texto, x: centro, y: estado.y, ancho, alto: alto * ALTO_DE_LINEA, fuentePx: tamano() })
+            ? origin - width / 2
+            : origin
+      drawnTexts.push({ text, x: center, y: state.y, width, height: height * LINE_HEIGHT, fontPx: fontSize() })
     },
-    // Devolver la transformación a la de partida es lo único que se sigue de
-    // las formas: lo escrito después va en las coordenadas del lienzo, no en las
-    // del trozo que se estuviera pintando.
+    // Returning the transform to the starting one is the only thing that is followed of
+    // the shapes: what is written afterwards goes in the coordinates of the canvas, not in those
+    // of the piece that was being painted.
     setTransform: () => {
-      estado = { ...estado, x: 0, y: 0, escala: 1, escalaY: 1 }
+      state = { ...state, x: 0, y: 0, scale: 1, scaleY: 1 }
     },
-    // Lo demás que dibuja formas no se apunta: aquí se revisa el texto. Aun así están **todas**
-    // las que trazan, y no solo las que use el panel de hoy: una que falte no da un aviso de
-    // legibilidad sino un «no es una función» a mitad del dibujo, y el test se cae sin llegar a
-    // medir nada —el panel se queda sin revisar justo cuando alguien acababa de cambiarlo—. Lo
-    // descubrió una mano dibujada con `ellipse` y `quadraticCurveTo`.
+    // The rest of what draws shapes is not recorded: here the text is reviewed. Even so **all** of
+    // the ones that trace are here, and not only the ones today's panel uses: one that is missing
+    // does not give a legibility warning but a «is not a function» halfway through the drawing,
+    // and the test falls over without getting to measure anything —the panel is left unreviewed
+    // right when someone had just changed it—. It was discovered by a hand drawn with `ellipse`
+    // and `quadraticCurveTo`.
     //
-    // Lo que **sí** falta a propósito es lo que movería el texto sin que esto se enterara:
-    // `rotate` y `transform`. Ahí el «no es una función» es la respuesta correcta, porque lo
-    // apuntado dejaría de estar donde se pinta y los problemas saldrían en otro sitio.
+    // What **is** missing on purpose is what would move the text without this finding out:
+    // `rotate` and `transform`. There the «is not a function» is the right answer, because what
+    // is recorded would no longer be where it is painted and the problems would come out elsewhere.
     clearRect: () => {},
     fillRect: () => {},
     strokeRect: () => {},
@@ -192,55 +194,55 @@ export function lienzoQueApunta(): { ctx: CanvasRenderingContext2D; escritos: Es
     createPattern: () => null,
   }
 
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, escritos }
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, drawnTexts }
 }
 
-/** Un panel, para saber si algo se sale. */
+/** A panel, to know whether something runs off it. */
 export interface Panel {
   readonly width: number
   readonly height: number
 }
 
 /**
- * Qué está mal en lo escrito. Lista vacía es que se lee.
+ * What is wrong in what was written. An empty list means it can be read.
  *
- * Devuelve frases y no un `false` porque un test que dice «el panel no se lee» no
- * sirve de nada: hay que saber **qué** palabra se pisa con cuál.
+ * It returns sentences and not a `false` because a test that says «the panel cannot be read» is
+ * of no use: you have to know **which** word overlaps with which.
  */
-export function problemasDeLegibilidad(
-  escritos: readonly Escrito[],
+export function legibilityProblems(
+  drawnTexts: readonly DrawnText[],
   {
     panel,
-    distancia = DISTANCIA_TIPICA,
-    minAlto = altoMinimo(distancia),
-  }: { panel: Panel; distancia?: number; minAlto?: number },
+    distance = TYPICAL_DISTANCE,
+    minHeight = minTextHeight(distance),
+  }: { panel: Panel; distance?: number; minHeight?: number },
 ): string[] {
-  const problemas: string[] = []
+  const problems: string[] = []
 
-  for (const escrito of escritos) {
-    if (escrito.fuentePx != null && escrito.fuentePx < MIN_FUENTE_PX) {
-      problemas.push(
-        `«${escrito.texto}» se pide a ${escrito.fuentePx.toFixed(2)} px: por debajo de ${MIN_FUENTE_PX} el navegador del visor amontona las letras`,
+  for (const drawn of drawnTexts) {
+    if (drawn.fontPx != null && drawn.fontPx < MIN_FONT_PX) {
+      problems.push(
+        `«${drawn.text}» is requested at ${drawn.fontPx.toFixed(2)} px: below ${MIN_FONT_PX} the headset's browser piles the letters up`,
       )
     }
-    if (escrito.alto / ALTO_DE_LINEA < minAlto) {
-      problemas.push(
-        `«${escrito.texto}» sale a ${((escrito.alto / ALTO_DE_LINEA) * 1000).toFixed(1)} mm, por debajo de ${(minAlto * 1000).toFixed(1)} mm a ${distancia} m`,
+    if (drawn.height / LINE_HEIGHT < minHeight) {
+      problems.push(
+        `«${drawn.text}» comes out at ${((drawn.height / LINE_HEIGHT) * 1000).toFixed(1)} mm, below ${(minHeight * 1000).toFixed(1)} mm at ${distance} m`,
       )
     }
-    const fuera =
-      Math.abs(escrito.x) + escrito.ancho / 2 > panel.width / 2 + 1e-6 ||
-      Math.abs(escrito.y) + escrito.alto / 2 > panel.height / 2 + 1e-6
-    if (fuera) problemas.push(`«${escrito.texto}» se sale del panel`)
+    const outside =
+      Math.abs(drawn.x) + drawn.width / 2 > panel.width / 2 + 1e-6 ||
+      Math.abs(drawn.y) + drawn.height / 2 > panel.height / 2 + 1e-6
+    if (outside) problems.push(`«${drawn.text}» runs off the panel`)
   }
 
-  for (let i = 0; i < escritos.length; i++) {
-    for (let j = i + 1; j < escritos.length; j++) {
-      if (seTocan(escritos[i], escritos[j])) {
-        problemas.push(`«${escritos[i].texto}» se pisa con «${escritos[j].texto}»`)
+  for (let i = 0; i < drawnTexts.length; i++) {
+    for (let j = i + 1; j < drawnTexts.length; j++) {
+      if (overlap(drawnTexts[i], drawnTexts[j])) {
+        problems.push(`«${drawnTexts[i].text}» overlaps «${drawnTexts[j].text}»`)
       }
     }
   }
 
-  return problemas
+  return problems
 }

@@ -15,11 +15,11 @@
  */
 import { Node3D, Vector3 } from 'godot'
 
-import type { Punto2 } from '@kit/lib/ui/salida'
-import { figura } from '@kit/runtime/ui/malla'
+import type { Point2 } from '@kit/lib/ui/exit'
+import { shape } from '@kit/runtime/ui/mesh'
 import { Panel } from '@kit/runtime/ui/panel'
 
-import type { Lang } from '@/lib/ajustes'
+import type { Lang } from '@/lib/settings'
 import { PALETTE } from '@/lib/palette'
 import { traductor, type TextKey } from '@/lib/textos'
 
@@ -42,7 +42,7 @@ export interface EstadoDelMarcador {
 }
 
 /** Un cuadrado de `lado` metros centrado en `(x, y)`. */
-function cuadrado(x: number, y: number, ancho: number, alto = ancho): Punto2[] {
+function cuadrado(x: number, y: number, ancho: number, alto = ancho): Point2[] {
   return [
     [x - ancho / 2, y - alto / 2], [x + ancho / 2, y - alto / 2], [x + ancho / 2, y + alto / 2],
     [x - ancho / 2, y - alto / 2], [x + ancho / 2, y + alto / 2], [x - ancho / 2, y + alto / 2],
@@ -50,8 +50,8 @@ function cuadrado(x: number, y: number, ancho: number, alto = ancho): Punto2[] {
 }
 
 /** Un aspa: dos rayas cruzadas, que aquí no hay letra en el marcador, hay segmentos. */
-function triangulosDelAspa(largo: number, grueso: number): Punto2[] {
-  const puntos: Punto2[] = []
+function triangulosDelAspa(largo: number, grueso: number): Point2[] {
+  const puntos: Point2[] = []
   for (const giro of [1, -1]) {
     const a = (giro * Math.PI) / 4
     const c = Math.cos(a)
@@ -70,7 +70,7 @@ export class Marcador {
   readonly fila = new Cifras(CIFRAS_DEL_MARCADOR.round, DIM)
   readonly vuelta = new Cifras(CIFRAS_DEL_MARCADOR.round, PALETTE.puck)
   private readonly nodoDeLaVuelta = new Node3D()
-  private readonly dosPuntos = figura([...cuadrado(0, -0.03, 0.016), ...cuadrado(0, 0.03, 0.016)], DIM)
+  private readonly dosPuntos = shape([...cuadrado(0, -0.03, 0.016), ...cuadrado(0, 0.03, 0.016)], DIM)
   private pintado = ''
 
   constructor() {
@@ -87,7 +87,7 @@ export class Marcador {
     colgar(this.puntos.nodo, 0, FILAS_DEL_MARCADOR.points)
     colgar(this.fila.nodo, 0, FILAS_DEL_MARCADOR.round)
     colgar(this.nodoDeLaVuelta, 0.05, FILAS_DEL_MARCADOR.round)
-    colgar(figura(triangulosDelAspa(0.026, 0.005), PALETTE.puck), -0.028, 0, this.nodoDeLaVuelta)
+    colgar(shape(triangulosDelAspa(0.026, 0.005), PALETTE.puck), -0.028, 0, this.nodoDeLaVuelta)
     colgar(this.vuelta.nodo, 0.008, 0, this.nodoDeLaVuelta)
   }
 

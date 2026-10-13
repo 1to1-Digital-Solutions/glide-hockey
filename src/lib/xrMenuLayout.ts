@@ -1,7 +1,7 @@
 import { DIFFICULTY_ORDER, TABLE_CENTER_Z, TABLE_HEIGHT } from './gameConfig'
 import { MODOS_DEL_MENU } from './gameMode'
-import { CONFORTS } from './golpeRecibido'
-import { GRADOS_DEL_MENU } from './plantillaDelMenu'
+import { COMFORT_LEVELS } from './hitFeedback'
+import { MENU_DEGREES } from './menuTemplate'
 import { REFERENCE_EYE_HEIGHT } from './uiHeight'
 
 /**
@@ -230,7 +230,7 @@ export const MENU_BOXES = {
   // Las tres opciones del confort, a la derecha de su nombre, que va en la misma línea: encima
   // no hay sitio, que es el borde del panel.
   ...Object.fromEntries(
-    CONFORTS.map((confort, index) => [`confort ${confort}`, caja(MENU_COMFORT_X[index], MENU_ROW.comfort, MENU_BUTTON.small)]),
+    COMFORT_LEVELS.map((confort, index) => [`confort ${confort}`, caja(MENU_COMFORT_X[index], MENU_ROW.comfort, MENU_BUTTON.small)]),
   ),
 } as Record<string, MenuBox>
 
@@ -243,7 +243,7 @@ export const MENU_BOXES = {
  * Se aparta al empezar: el final y el aviso de salir siguen en la columna, a 55°, fuera de donde
  * se juega. A CALIBRAR CON EL VISOR: `azimut`.
  */
-export const MENU_DEL_VISOR = { distancia: 1.5, azimut: GRADOS_DEL_MENU - 1 } as const
+export const MENU_DEL_VISOR = { distancia: 1.5, azimut: MENU_DEGREES - 1 } as const
 
 /**
  * El sitio del menú del visor en la fase de menú, en coordenadas de la mesa (su centro, a la altura

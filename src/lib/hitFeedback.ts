@@ -1,99 +1,102 @@
 /**
- * El golpe que recibe el cuerpo: qué se ve, qué se mueve, qué se oye y qué se siente, y cuánto.
+ * The hit the body takes: what is seen, what moves, what is heard and what is felt, and how much.
  *
- * Es el mismo fichero en todos los juegos que lo usan (`comunes.py` lo vigila). Cada juego dice
- * **cuándo** le dan a quien juega, **de dónde** y **con qué fuerza**; aquí se decide todo lo
- * demás, para que un golpe se lea igual en cualquier cabina del salón. Todo puro: sin React, sin
- * three y sin audio. Quien lo pinta es `components/xr/GolpeRecibido.tsx`.
+ * It is the same file in every game that uses it (`comunes.py` watches over it). Each game says
+ * **when** the player is hit, **from where** and **how hard**; everything else is decided here,
+ * so that a hit reads the same in any cabinet of the hall. All pure: no React, no three and no
+ * audio. What paints it is `components/xr/HitFeedback.tsx`.
  *
- * **Cinco capas desde un solo sitio**, y ninguna mueve la cámara:
+ * **Five layers from a single place**, and none of them moves the camera:
  *
- * - **La viñeta**: oscurece los bordes de la vista, más del lado por el que llega el golpe, y no
- *   entra nunca en el centro. Es lo que dice «te han dado» sin tapar lo que se está mirando.
- * - **La sacudida del mundo**: el decorado se desplaza unos milímetros y vuelve, amortiguado.
- *   **El decorado, nunca la cámara**: mover la vista sin que la cabeza se mueva es la causa raíz
- *   del mareo en realidad virtual (el ojo dice que te mueves y el oído interno dice que no); el
- *   seguimiento de la cabeza tiene que seguir uno a uno pase lo que pase.
- * - **La cámara lenta**: un instante con el reloj del juego frenado. Solo el del juego —lo que
- *   vuela—, nunca el de la cabeza ni el de las manos, que siguen a su ritmo: congelar eso se lee
- *   como un tirón de fotogramas y no como un golpe.
- * - **El filtro**: un paso bajo breve en el bus del juego, el «oído tapado» del golpe.
- * - **El háptico**: la receta común `golpeRecibido` de `tactos.ts`, en las dos manos. Aquí no se
- *   inventan pulsos.
+ * - **The vignette**: it darkens the edges of the view, more on the side the hit comes from, and
+ *   never reaches the centre. It is what says "you have been hit" without covering what is being
+ *   looked at.
+ * - **The shake of the world**: the stage shifts a few millimetres and comes back, damped.
+ *   **The stage, never the camera**: moving the view without the head moving is the root cause
+ *   of motion sickness in virtual reality (the eye says you are moving and the inner ear says you
+ *   are not); head tracking has to keep following one to one whatever happens.
+ * - **The slow motion**: an instant with the game's clock slowed down. Only the game's —what is
+ *   flying—, never the head's or the hands', which keep their own pace: freezing that reads as a
+ *   frame hitch and not as a hit.
+ * - **The filter**: a brief low-pass on the game's bus, the "muffled ear" of the hit.
+ * - **The haptic**: the shared recipe `hitTaken` of `hapticFeedback.ts`, in both hands. No pulses
+ *   are invented here.
  *
- * **Las cifras no son de ninguna guía, porque no hay ninguna.** Ni Meta ni Valve publican cuánto
- * debe durar una viñeta de impacto o cuánto se puede mover el mundo; Meta lo deja como curvas que
- * ajusta cada juego. Estas son un punto de partida corto y flojo: A CALIBRAR CON EL VISOR.
+ * **The figures come from no guide, because there is none.** Neither Meta nor Valve publish how
+ * long an impact vignette should last or how far the world may move; Meta leaves it as curves
+ * that each game tunes. These are a short, weak starting point: TO BE CALIBRATED WITH THE HEADSET.
  *
- * **El confort manda sobre todo.** Quien lo apaga no recibe nada de esto; en suave, la mitad. Y
- * con el movimiento reducido del sistema no hay sacudida ni cámara lenta —son las dos que mueven
- * algo—, la viñeta se queda en suave y el háptico y el filtro siguen, que no mueven nada.
+ * **Comfort rules over everything.** Whoever turns it off gets none of this; in gentle, half. And
+ * with the system's reduced motion there is no shake and no slow motion —they are the two that
+ * move something—, the vignette stays at gentle and the haptic and the filter go on, as they move
+ * nothing.
  */
 
-import { pulsosDe, type Pulso } from './tactos'
+import { pulsesFor, type HandPulse } from './hapticFeedback'
 
-/** Un punto o una dirección, sin atarse al tipo de vector de ningún juego. */
-export interface Punto3 {
+/** A point or a direction, without tying itself to the vector type of any game. */
+export interface Point3 {
   readonly x: number
   readonly y: number
   readonly z: number
 }
 
-/** Un lado de la vista, en la pantalla: `x` hacia la derecha e `y` hacia arriba, de −1 a 1. */
-export interface Lado {
+/** A side of the view, on the screen: `x` to the right and `y` upwards, from −1 to 1. */
+export interface ViewSide {
   readonly x: number
   readonly y: number
 }
 
 // ---------------------------------------------------------------------------
-// El ajuste de confort
+// The comfort setting
 // ---------------------------------------------------------------------------
 
 /**
- * Cuánto se nota un golpe: nada, la mitad o entero.
+ * How much a hit is noticed: nothing, half or whole.
  *
- * Los valores van en inglés porque se guardan: una clave o un valor de almacenamiento traducido
- * borraría la elección de quien juega el día que se cambiara el idioma del código.
+ * The values are in English because they are stored: a translated storage key or value would
+ * erase the player's choice the day the language of the code changed.
  */
-export const CONFORTS = ['off', 'gentle', 'normal'] as const
-export type Confort = (typeof CONFORTS)[number]
+export const COMFORT_LEVELS = ['off', 'gentle', 'normal'] as const
+export type Comfort = (typeof COMFORT_LEVELS)[number]
 
-/** Con qué se entra: el golpe entero, que ya es corto y flojo. */
-export const CONFORT_DE_PARTIDA: Confort = 'normal'
+/** What one starts with: the whole hit, which is already short and weak. */
+export const DEFAULT_COMFORT: Comfort = 'normal'
 
-/** Lo que multiplica cada ajuste a todas las capas. */
-export const FACTOR_DEL_CONFORT: Record<Confort, number> = { off: 0, gentle: 0.5, normal: 1 }
+/** What each setting multiplies all the layers by. */
+export const COMFORT_FACTOR: Record<Comfort, number> = { off: 0, gentle: 0.5, normal: 1 }
 
-/** El confort leído del almacenamiento: solo cuenta uno que exista; lo demás, el de partida. */
-export function parseConfort(raw: string | null | undefined): Confort {
-  return (CONFORTS as readonly string[]).includes(raw ?? '') ? (raw as Confort) : CONFORT_DE_PARTIDA
+/** The comfort read from storage: only one that exists counts; anything else, the default. */
+export function parseComfort(raw: string | null | undefined): Comfort {
+  return (COMFORT_LEVELS as readonly string[]).includes(raw ?? '') ? (raw as Comfort) : DEFAULT_COMFORT
 }
 
 /**
- * El confort guardado en `clave`, que es del juego: es un ajuste de la cabina y no del salón,
- * porque el golpe de una babosa en la cara y el de un disco en la barriga no piden lo mismo.
+ * The comfort stored under `key`, which belongs to the game: it is a setting of the cabinet and
+ * not of the hall, because the hit of a slug in the face and that of a puck in the belly do not
+ * ask for the same.
  */
-export function leerConfort(storage: Pick<Storage, 'getItem'> | null, clave: string): Confort {
-  if (storage === null) return CONFORT_DE_PARTIDA
+export function readComfort(storage: Pick<Storage, 'getItem'> | null, key: string): Comfort {
+  if (storage === null) return DEFAULT_COMFORT
   try {
-    return parseConfort(storage.getItem(clave))
+    return parseComfort(storage.getItem(key))
   } catch {
-    // Almacenamiento capado: el de partida, que es corto y flojo.
-    return CONFORT_DE_PARTIDA
+    // Storage locked down: the default, which is short and weak.
+    return DEFAULT_COMFORT
   }
 }
 
 /**
- * Guarda el confort, o lo olvida cuando vuelve a ser el de partida.
+ * Stores the comfort, or forgets it when it is the default again.
  *
- * @returns si quedó guardado. Un `false` no es un error: el navegador no guarda nada y la
- *   elección dura lo que dure la visita.
+ * @returns whether it ended up stored. A `false` is not an error: the browser stores nothing and
+ *   the choice lasts as long as the visit does.
  */
-export function guardarConfort(storage: Storage | null, clave: string, valor: Confort): boolean {
+export function writeComfort(storage: Storage | null, key: string, value: Comfort): boolean {
   if (storage === null) return false
   try {
-    if (valor === CONFORT_DE_PARTIDA) storage.removeItem(clave)
-    else storage.setItem(clave, valor)
+    if (value === DEFAULT_COMFORT) storage.removeItem(key)
+    else storage.setItem(key, value)
     return true
   } catch {
     return false
@@ -101,260 +104,262 @@ export function guardarConfort(storage: Storage | null, clave: string, valor: Co
 }
 
 // ---------------------------------------------------------------------------
-// Las cifras
+// The figures
 // ---------------------------------------------------------------------------
 
 /**
- * Las cifras de las capas, con el golpe más fuerte y el confort entero. A CALIBRAR CON EL VISOR.
+ * The figures of the layers, with the hardest hit and full comfort. TO BE CALIBRATED WITH THE
+ * HEADSET.
  *
- * - `vineta`: sube en `entrada` segundos y se apaga en `salida`, cayendo en curva (rápido al
- *   principio, suave al final: lo que queda no molesta). `maximo` es lo más que se oscurece, y
- *   `suelo` lo que pesa el golpe más flojo, para que un golpe pequeño también se vea. `lado` es
- *   cuánto se inclina hacia el lado del golpe: con 0 sería un anillo igual por todos lados.
- * - `sacudida`: `amplitud` en metros —centímetro y medio, el golpe más fuerte—, `hercios` de la
- *   oscilación, `amortiguacion` en segundos (la envolvente cae a un tercio en ese tiempo) y
- *   `dura`, después de lo cual el decorado está **exactamente** donde estaba.
- * - `lenta`: el reloj del juego baja a `escala` durante `quieta` segundos y vuelve a 1 en
- *   `vuelta`. El techo de un parón de golpe son unos diez fotogramas (el de Street Fighter II);
- *   esto no llega ni a la mitad del reloj parado.
- * - `filtro`: el corte baja a `corte` hercios, se queda `quieto` segundos y vuelve a `abierto` en
- *   `vuelta`, subiendo en escala logarítmica, que es como el oído oye las frecuencias.
+ * - `vignette`: it rises in `fadeIn` seconds and fades out in `fadeOut`, falling along a curve
+ *   (fast at first, gentle at the end: what remains does not bother). `max` is the most it
+ *   darkens, and `floor` what the weakest hit weighs, so that a small hit is seen too. `side` is
+ *   how much it leans towards the side of the hit: with 0 it would be a ring equal on all sides.
+ * - `shake`: `amplitude` in metres —a centimetre and a half, the hardest hit—, `hertz` of the
+ *   oscillation, `damping` in seconds (the envelope falls to a third in that time) and
+ *   `duration`, after which the stage is **exactly** where it was.
+ * - `slowMo`: the game's clock drops to `scale` for `hold` seconds and returns to 1 in
+ *   `recovery`. The ceiling of a hit stop is about ten frames (that of Street Fighter II);
+ *   this does not reach even half of the stopped clock.
+ * - `filter`: the cutoff drops to `cutoff` hertz, stays for `hold` seconds and returns to `open`
+ *   in `recovery`, rising on a logarithmic scale, which is how the ear hears frequencies.
  */
-export const GOLPE = {
-  vineta: { entrada: 0.06, salida: 0.9, maximo: 0.9, suelo: 0.45, lado: 1 },
-  sacudida: { amplitud: 0.015, hercios: 11, amortiguacion: 0.1, dura: 0.4 },
-  lenta: { escala: 0.3, quieta: 0.08, vuelta: 0.25 },
-  filtro: { corte: 500, abierto: 20000, quieto: 0.1, vuelta: 0.5 },
+export const HIT = {
+  vignette: { fadeIn: 0.06, fadeOut: 0.9, max: 0.9, floor: 0.45, side: 1 },
+  shake: { amplitude: 0.015, hertz: 11, damping: 0.1, duration: 0.4 },
+  slowMo: { scale: 0.3, hold: 0.08, recovery: 0.25 },
+  filter: { cutoff: 500, open: 20000, hold: 0.1, recovery: 0.5 },
 } as const
 
-/** Lo que tarda en apagarse la capa más larga: pasado esto, el golpe ya no existe. */
-export const DURACION_DEL_GOLPE = Math.max(
-  GOLPE.vineta.entrada + GOLPE.vineta.salida,
-  GOLPE.sacudida.dura,
-  GOLPE.lenta.quieta + GOLPE.lenta.vuelta,
-  GOLPE.filtro.quieto + GOLPE.filtro.vuelta,
+/** How long the longest layer takes to fade out: past this, the hit no longer exists. */
+export const HIT_DURATION = Math.max(
+  HIT.vignette.fadeIn + HIT.vignette.fadeOut,
+  HIT.shake.duration,
+  HIT.slowMo.hold + HIT.slowMo.recovery,
+  HIT.filter.hold + HIT.filter.recovery,
 )
 
-/** Cuántos golpes se siguen a la vez: más seguidos que esto ya no se distinguen uno de otro. */
-export const GOLPES_A_LA_VEZ = 4
+/** How many hits are tracked at once: closer together than this they can no longer be told apart. */
+export const MAX_CONCURRENT_HITS = 4
 
 // ---------------------------------------------------------------------------
-// De la fuerza a las capas
+// From the strength to the layers
 // ---------------------------------------------------------------------------
 
 /**
- * Cuánto pesa cada capa en un golpe, de 0 a 1. `haptico` es la fuerza que se le pasa a la receta
- * común, o `null` si no vibra.
+ * How much each layer weighs in a hit, from 0 to 1. `haptic` is the strength passed to the shared
+ * recipe, or `null` if it does not vibrate.
  */
-export interface Capas {
-  readonly vineta: number
-  readonly sacudida: number
-  readonly lenta: number
-  readonly filtro: number
-  readonly haptico: number | null
+export interface HitLayers {
+  readonly vignette: number
+  readonly shake: number
+  readonly slowMo: number
+  readonly filter: number
+  readonly haptic: number | null
 }
 
-/** Un golpe que no hace nada: el del confort apagado. */
-export const SIN_CAPAS: Capas = { vineta: 0, sacudida: 0, lenta: 0, filtro: 0, haptico: null }
+/** A hit that does nothing: the one of comfort turned off. */
+export const NO_LAYERS: HitLayers = { vignette: 0, shake: 0, slowMo: 0, filter: 0, haptic: null }
 
-const acotar = (x: number) => Math.min(1, Math.max(0, x))
+const clamp = (x: number) => Math.min(1, Math.max(0, x))
 
 /**
- * Las capas de un golpe de esa fuerza (0–1) con ese confort y, si lo pide el sistema, con el
- * movimiento reducido.
+ * The layers of a hit of that strength (0–1) with that comfort and, if the system asks for it,
+ * with reduced motion.
  *
- * La fuerza escala la sacudida, la cámara lenta y el filtro enteros —un roce no frena el mundo—,
- * pero la viñeta parte de un suelo: el golpe más flojo también tiene que verse. El háptico lleva
- * la fuerza tal cual y no el confort, porque su receta ya tiene su propio mínimo y máximo; el
- * confort solo decide si vibra.
+ * The strength scales the shake, the slow motion and the filter whole —a graze does not slow the
+ * world down—, but the vignette starts from a floor: the weakest hit has to be seen too. The
+ * haptic carries the strength as is and not the comfort, because its recipe already has its own
+ * minimum and maximum; the comfort only decides whether it vibrates.
  */
-export function capasDelGolpe(fuerza: number, confort: Confort, reducido = false): Capas {
-  const factor = FACTOR_DEL_CONFORT[confort]
-  if (factor === 0) return SIN_CAPAS
-  const f = acotar(fuerza)
-  const v = GOLPE.vineta
-  const vineta = (v.suelo + (1 - v.suelo) * f) * v.maximo
+export function layersForHit(strength: number, comfort: Comfort, reduced = false): HitLayers {
+  const factor = COMFORT_FACTOR[comfort]
+  if (factor === 0) return NO_LAYERS
+  const f = clamp(strength)
+  const v = HIT.vignette
+  const vignette = (v.floor + (1 - v.floor) * f) * v.max
   return {
-    // Con el movimiento reducido, la viñeta nunca pasa de la suave.
-    vineta: vineta * (reducido ? Math.min(factor, FACTOR_DEL_CONFORT.gentle) : factor),
-    sacudida: reducido ? 0 : f * factor,
-    lenta: reducido ? 0 : f * factor,
-    filtro: f * factor,
-    haptico: f,
+    // With reduced motion, the vignette never goes past the gentle one.
+    vignette: vignette * (reduced ? Math.min(factor, COMFORT_FACTOR.gentle) : factor),
+    shake: reduced ? 0 : f * factor,
+    slowMo: reduced ? 0 : f * factor,
+    filter: f * factor,
+    haptic: f,
   }
 }
 
-/** Los pulsos del golpe: la receta común, en las dos manos. Ninguno si no vibra. */
-export function pulsosDelGolpe(capas: Capas): Pulso[] {
-  return capas.haptico === null ? [] : pulsosDe({ tipo: 'golpeRecibido', fuerza: capas.haptico })
+/** The pulses of the hit: the shared recipe, in both hands. None if it does not vibrate. */
+export function hitPulses(layers: HitLayers): HandPulse[] {
+  return layers.haptic === null ? [] : pulsesFor({ type: 'hitTaken', strength: layers.haptic })
 }
 
 // ---------------------------------------------------------------------------
-// Las curvas en el tiempo
+// The curves over time
 // ---------------------------------------------------------------------------
 
-/** La forma de la viñeta con esa edad en segundos, de 0 a 1: sube recta y cae en curva. */
-export function formaDeLaVineta(edad: number): number {
-  const { entrada, salida } = GOLPE.vineta
-  if (edad < 0 || edad >= entrada + salida) return 0
-  if (edad < entrada) return edad / entrada
-  const k = (edad - entrada) / salida
+/** The shape of the vignette at that age in seconds, from 0 to 1: it rises straight and falls along a curve. */
+export function vignetteShape(age: number): number {
+  const { fadeIn, fadeOut } = HIT.vignette
+  if (age < 0 || age >= fadeIn + fadeOut) return 0
+  if (age < fadeIn) return age / fadeIn
+  const k = (age - fadeIn) / fadeOut
   return (1 - k) * (1 - k)
 }
 
-/** Cuánto oscurece la viñeta de esas capas con esa edad, de 0 a 1. */
-export function vinetaEn(capas: Capas, edad: number): number {
-  return capas.vineta * formaDeLaVineta(edad)
+/** How much the vignette of those layers darkens at that age, from 0 to 1. */
+export function vignetteAt(layers: HitLayers, age: number): number {
+  return layers.vignette * vignetteShape(age)
 }
 
 /**
- * La forma de la sacudida con esa edad, de −1 a 1: una oscilación que se apaga.
+ * The shape of the shake at that age, from −1 to 1: an oscillation that dies out.
  *
- * La envolvente es la de un muelle amortiguado **por una rampa que llega a cero** en `dura`: sin
- * la rampa, la exponencial nunca acaba, y el decorado se quedaría para siempre a una fracción de
- * milímetro de su sitio. Empieza en cero —el seno— para que el primer fotograma no salte.
+ * The envelope is that of a spring damped **by a ramp that reaches zero** at `duration`: without
+ * the ramp, the exponential never ends, and the stage would stay forever a fraction of a
+ * millimetre away from its place. It starts at zero —the sine— so that the first frame does not
+ * jump.
  */
-export function formaDeLaSacudida(edad: number): number {
-  const { hercios, amortiguacion, dura } = GOLPE.sacudida
-  if (edad <= 0 || edad >= dura) return 0
-  return Math.exp(-edad / amortiguacion) * (1 - edad / dura) * Math.sin(2 * Math.PI * hercios * edad)
+export function shakeShape(age: number): number {
+  const { hertz, damping, duration } = HIT.shake
+  if (age <= 0 || age >= duration) return 0
+  return Math.exp(-age / damping) * (1 - age / duration) * Math.sin(2 * Math.PI * hertz * age)
 }
 
 /**
- * Dónde está el decorado con esa edad, en metros desde su sitio: a lo largo de `direccion`, que
- * es **hacia donde viene el golpe**. Al recibir un empujón uno retrocede, así que el mundo, visto
- * desde quien juega, se va hacia allí y vuelve.
+ * Where the stage is at that age, in metres from its place: along `direction`, which is
+ * **where the hit comes from**. On taking a shove one moves back, so the world, seen from the
+ * player, goes that way and comes back.
  */
-export function sacudidaEn(capas: Capas, direccion: Punto3, edad: number): Punto3 {
-  const m = capas.sacudida * GOLPE.sacudida.amplitud * formaDeLaSacudida(edad)
-  return { x: direccion.x * m, y: direccion.y * m, z: direccion.z * m }
+export function shakeAt(layers: HitLayers, direction: Point3, age: number): Point3 {
+  const m = layers.shake * HIT.shake.amplitude * shakeShape(age)
+  return { x: direction.x * m, y: direction.y * m, z: direction.z * m }
 }
 
-/** Lo que va de 0 a 1 en suave: la vuelta de la cámara lenta y del filtro no dan tirón. */
-function suave(k: number): number {
-  const t = acotar(k)
+/** What goes from 0 to 1 smoothly: the return of the slow motion and of the filter does not jerk. */
+function smooth(k: number): number {
+  const t = clamp(k)
   return t * t * (3 - 2 * t)
 }
 
-/** Cuánto frena el golpe con esa edad, de 0 (nada) a 1 (lo más): se queda y vuelve en suave. */
-function frenoEn(edad: number, quieta: number, vuelta: number): number {
-  if (edad < 0 || edad >= quieta + vuelta) return 0
-  if (edad < quieta) return 1
-  return 1 - suave((edad - quieta) / vuelta)
+/** How much the hit slows down at that age, from 0 (nothing) to 1 (the most): it holds and returns smoothly. */
+function brakeAt(age: number, hold: number, recovery: number): number {
+  if (age < 0 || age >= hold + recovery) return 0
+  if (age < hold) return 1
+  return 1 - smooth((age - hold) / recovery)
 }
 
-/** A qué ritmo corre el reloj del juego con esa edad: 1 es el normal y nunca baja de `escala`. */
-export function escalaDelRelojEn(capas: Capas, edad: number): number {
-  const { escala, quieta, vuelta } = GOLPE.lenta
-  return 1 - (1 - escala) * capas.lenta * frenoEn(edad, quieta, vuelta)
+/** At what pace the game's clock runs at that age: 1 is the normal one and it never drops below `scale`. */
+export function timeScaleAt(layers: HitLayers, age: number): number {
+  const { scale, hold, recovery } = HIT.slowMo
+  return 1 - (1 - scale) * layers.slowMo * brakeAt(age, hold, recovery)
 }
 
 /**
- * El corte del paso bajo con esa edad, en hercios. Abierto del todo es `abierto`, que ya no
- * quita nada que se oiga.
+ * The cutoff of the low-pass at that age, in hertz. Fully open is `open`, which no longer removes
+ * anything that can be heard.
  */
-export function corteEn(capas: Capas, edad: number): number {
-  const { corte, abierto, quieto, vuelta } = GOLPE.filtro
-  const k = capas.filtro * frenoEn(edad, quieto, vuelta)
-  return abierto * Math.pow(corte / abierto, k)
+export function cutoffAt(layers: HitLayers, age: number): number {
+  const { cutoff, open, hold, recovery } = HIT.filter
+  const k = layers.filter * brakeAt(age, hold, recovery)
+  return open * Math.pow(cutoff / open, k)
 }
 
 // ---------------------------------------------------------------------------
-// De dónde viene, en la vista
+// Where it comes from, in the view
 // ---------------------------------------------------------------------------
 
 /**
- * El lado de la vista por el que llega un golpe, a partir de su dirección **en el espacio de la
- * cabeza** (la cámara mira a −Z, con X a la derecha e Y arriba).
+ * The side of the view a hit comes from, from its direction **in head space** (the camera looks
+ * at −Z, with X to the right and Y up).
  *
- * Es lo que tiene de lateral: un golpe de frente da `(0, 0)` y la viñeta sale igual por todos
- * los bordes; uno que llega por la izquierda, `(−1, 0)`, y oscurece más la izquierda. Uno por la
- * espalda también da su lado —el que tenga—, porque la vista no tiene borde de atrás.
+ * It is what it has of lateral: a head-on hit gives `(0, 0)` and the vignette comes out equal on
+ * all the edges; one that comes from the left, `(−1, 0)`, and it darkens the left more. One from
+ * behind also gives its side —whatever it has—, because the view has no rear edge.
  */
-export function ladoEnLaVista(direccionEnLaCabeza: Punto3): Lado {
-  const { x, y, z } = direccionEnLaCabeza
-  const largo = Math.hypot(x, y, z)
-  if (largo < 1e-9) return { x: 0, y: 0 }
-  return { x: x / largo, y: y / largo }
+export function sideInView(directionInHead: Point3): ViewSide {
+  const { x, y, z } = directionInHead
+  const length = Math.hypot(x, y, z)
+  if (length < 1e-9) return { x: 0, y: 0 }
+  return { x: x / length, y: y / length }
 }
 
-/** Una dirección de largo 1, o hacia abajo si no tiene ninguna: el golpe sordo, sin lado. */
-export function unitaria(d: Punto3 | null | undefined): Punto3 {
-  const largo = d == null ? 0 : Math.hypot(d.x, d.y, d.z)
-  if (d == null || largo < 1e-9) return { x: 0, y: -1, z: 0 }
-  return { x: d.x / largo, y: d.y / largo, z: d.z / largo }
+/** A direction of length 1, or downwards if it has none: the dull hit, with no side. */
+export function unitVector(d: Point3 | null | undefined): Point3 {
+  const length = d == null ? 0 : Math.hypot(d.x, d.y, d.z)
+  if (d == null || length < 1e-9) return { x: 0, y: -1, z: 0 }
+  return { x: d.x / length, y: d.y / length, z: d.z / length }
 }
 
 // ---------------------------------------------------------------------------
-// Varios golpes a la vez
+// Several hits at once
 // ---------------------------------------------------------------------------
 
-/** Un golpe en marcha: cuándo fue, cuánto pesa cada capa, hacia dónde y por qué lado se ve. */
-export interface Golpe {
-  readonly inicio: number
-  readonly capas: Capas
-  /** Hacia donde viene, de largo 1, en el espacio donde se sacude el decorado. */
-  readonly direccion: Punto3
-  readonly lado: Lado
+/** A hit under way: when it happened, how much each layer weighs, where to and on which side it is seen. */
+export interface Hit {
+  readonly start: number
+  readonly layers: HitLayers
+  /** Where it comes from, of length 1, in the space where the stage is shaken. */
+  readonly direction: Point3
+  readonly side: ViewSide
 }
 
-/** Lo que hay que pintar, mover y oír en un instante. */
-export interface EstadoDelGolpe {
-  readonly vineta: number
-  readonly lado: Lado
-  readonly sacudida: Punto3
-  readonly escala: number
-  readonly corte: number
-  /** Los golpes que siguen vivos: los demás ya no aportan nada y se olvidan. */
-  readonly vivos: readonly Golpe[]
+/** What has to be painted, moved and heard at one instant. */
+export interface HitState {
+  readonly vignette: number
+  readonly side: ViewSide
+  readonly shake: Point3
+  readonly timeScale: number
+  readonly cutoff: number
+  /** The hits that are still live: the others no longer contribute anything and are forgotten. */
+  readonly live: readonly Hit[]
 }
 
-/** Nada que pintar: el estado de reposo, al que todo vuelve. */
-export const EN_REPOSO: EstadoDelGolpe = {
-  vineta: 0,
-  lado: { x: 0, y: 0 },
-  sacudida: { x: 0, y: 0, z: 0 },
-  escala: 1,
-  corte: GOLPE.filtro.abierto,
-  vivos: [],
+/** Nothing to paint: the state at rest, to which everything returns. */
+export const AT_REST: HitState = {
+  vignette: 0,
+  side: { x: 0, y: 0 },
+  shake: { x: 0, y: 0, z: 0 },
+  timeScale: 1,
+  cutoff: HIT.filter.open,
+  live: [],
 }
 
-/** Añade un golpe a los que hay, olvidando los más viejos si ya son demasiados. */
-export function sumarGolpe(golpes: readonly Golpe[], golpe: Golpe): Golpe[] {
-  return [...golpes, golpe].slice(-GOLPES_A_LA_VEZ)
+/** Adds a hit to the ones there are, forgetting the oldest if they are already too many. */
+export function addHit(hits: readonly Hit[], hit: Hit): Hit[] {
+  return [...hits, hit].slice(-MAX_CONCURRENT_HITS)
 }
 
 /**
- * Todos los golpes vivos juntos, en ese instante (segundos, con el mismo reloj que `inicio`).
+ * All the live hits together, at that instant (seconds, with the same clock as `start`).
  *
- * **Cada capa se junta a su manera**: la viñeta, la más oscura —dos viñetas sumadas taparían el
- * centro—, con el lado de esa; las sacudidas se suman, que es lo que hacen dos empujones; y el
- * reloj y el filtro, el más frenado y el más cerrado. Así un golpe encima de otro nunca da un
- * salto: cada capa sigue desde donde estaba.
+ * **Each layer is combined in its own way**: the vignette, the darkest one —two vignettes added
+ * would cover the centre—, with the side of that one; the shakes are added, which is what two
+ * shoves do; and the clock and the filter, the most slowed and the most closed. That way a hit on
+ * top of another never jumps: each layer carries on from where it was.
  */
-export function estadoDelGolpe(golpes: readonly Golpe[], ahora: number): EstadoDelGolpe {
-  const vivos = golpes.filter((g) => ahora - g.inicio < DURACION_DEL_GOLPE)
-  if (vivos.length === 0) return EN_REPOSO
-  let vineta = 0
-  let lado: Lado = EN_REPOSO.lado
+export function hitState(hits: readonly Hit[], now: number): HitState {
+  const live = hits.filter((g) => now - g.start < HIT_DURATION)
+  if (live.length === 0) return AT_REST
+  let vignette = 0
+  let side: ViewSide = AT_REST.side
   let sx = 0
   let sy = 0
   let sz = 0
-  let escala = 1
-  let corte: number = GOLPE.filtro.abierto
-  for (const g of vivos) {
-    const edad = ahora - g.inicio
-    const v = vinetaEn(g.capas, edad)
-    if (v > vineta) {
-      vineta = v
-      lado = g.lado
+  let timeScale = 1
+  let cutoff: number = HIT.filter.open
+  for (const g of live) {
+    const age = now - g.start
+    const v = vignetteAt(g.layers, age)
+    if (v > vignette) {
+      vignette = v
+      side = g.side
     }
-    const s = sacudidaEn(g.capas, g.direccion, edad)
+    const s = shakeAt(g.layers, g.direction, age)
     sx += s.x
     sy += s.y
     sz += s.z
-    escala = Math.min(escala, escalaDelRelojEn(g.capas, edad))
-    corte = Math.min(corte, corteEn(g.capas, edad))
+    timeScale = Math.min(timeScale, timeScaleAt(g.layers, age))
+    cutoff = Math.min(cutoff, cutoffAt(g.layers, age))
   }
-  return { vineta, lado, sacudida: { x: sx, y: sy, z: sz }, escala, corte, vivos }
+  return { vignette, side, shake: { x: sx, y: sy, z: sz }, timeScale, cutoff, live }
 }

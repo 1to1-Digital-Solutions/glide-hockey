@@ -1,246 +1,255 @@
 /**
- * Cuándo se enciende y cuándo se apaga cada ayuda visual. Sin three y sin React.
+ * When each visual hint turns on and when it turns off. Without three and without React.
  *
- * **Qué problema resuelve.** A un juego de visor se entra de pie, con las manos ocupadas y sin
- * nada que leer: si al entrar no se ve qué hay que hacer, lo único que queda es el tutorial —y
- * el tutorial es la red de seguridad, no el camino—. Las ayudas son lo que enseña el gesto sin
- * palabras: una marca en el suelo que dice dónde ponerse, la silueta de lo que hay que coger,
- * el mando de verdad con su botón encendido, una raya que dice adónde va lo que se golpea.
+ * **What problem it solves.** A headset game is entered standing, with the hands busy and with
+ * nothing to read: if on entering one cannot see what has to be done, all that is left is the
+ * tutorial —and the tutorial is the safety net, not the path—. The hints are what teaches the
+ * gesture without words: a mark on the floor that says where to stand, the silhouette of what
+ * has to be grabbed, the real controller with its button lit, a line that says where what is
+ * struck goes.
  *
- * **Y el fallo que hay que no cometer es dejarlas puestas.** Una ayuda permanente deja de ser
- * ayuda y pasa a ser decorado que estorba: tapa el juego, compite por los píxeles y sigue
- * explicando algo que quien juega ya sabe. Por eso cada ayuda declara **dos formas de
- * apagarse** y le basta cualquiera de las dos:
+ * **And the mistake not to make is leaving them on.** A permanent hint stops being a hint and
+ * becomes stage that gets in the way: it covers the game, competes for the pixels and keeps
+ * explaining something that whoever plays already knows. That is why each hint declares **two
+ * ways of turning off** and either of the two is enough:
  *
- * - el **hito** que la vuelve inútil —en cuanto el gesto se hace una vez, sobra—, y
- * - un **plazo**, por si ese hito no llega nunca: quien se queda mirando el techo tampoco
- *   tiene por qué quedarse con el fantasma del mazo delante el resto de la tanda.
+ * - the **milestone** that makes it useless —as soon as the gesture is done once, it is not
+ *   needed—, and
+ * - a **deadline**, in case that milestone never comes: whoever stays looking at the ceiling
+ *   has no reason either to be left with the ghost of the mallet in front for the rest of the
+ *   round.
  *
- * Los hitos son los mismos que ya usa el tutorial (`lib/tutorial.ts`): los apuntan los sitios
- * que ya saben lo que pasa —coger, golpear—, así que una ayuda no necesita escuchar nada ni
- * pararle el juego a nadie. Se **deduce**.
+ * The milestones are the same ones the tutorial already uses (`lib/tutorial.ts`): they are noted
+ * by the places that already know what happens —grabbing, striking—, so a hint does not need to
+ * listen to anything or stop the game for anybody. It is **deduced**.
  *
- * Es el mismo fichero en los trece juegos; lo que cambia de uno a otro —qué ayudas hay y qué
- * hito apaga cada una— va en su `lib/guionDeAyudas.ts`.
+ * It is the same file in the thirteen games; what changes from one to another —which hints
+ * there are and which milestone turns each one off— goes in its `lib/hintScript.ts`.
  *
- * ## De dónde sale esto
+ * ## Where this comes from
  *
- * Se buscaron referencias antes de escribirlo, y lo que más enseñó fue **lo que no hay**:
+ * References were looked for before writing it, and what taught the most was **what there is
+ * not**:
  *
- * - **Resaltar lo agarrable está documentado y tiene reglas.** Meta lo llama *affordances* y
- *   *signifiers* y pide enseñar los cuatro estados —apuntado, cogido, sostenido, fallado— con
- *   brillo, aplastamiento o latido (developers.meta.com/horizon/design/hands-best-practices y
- *   .../hands-plain-language-principles, principio 16), y **avisa expresamente contra el
- *   realce que se enciende y se apaga de golpe**: molesta y cansa. De ahí sale `CRUCE`: aquí
- *   nada aparece ni desaparece en un fotograma. Half-Life: Alyx hace lo mismo con los guantes
- *   —«el objeto brilla para que sepas a qué estás apuntando»— frente al «malla amarilla
- *   escandalosa» de otros juegos (roadtovr.com, *Inside XR Design*).
- * - **Enseñar el gesto sin palabras también**, y con nombre: *Instructed Motion*, que es lo
- *   que hacen las flechas de Beat Saber; sin ellas «los movimientos serían caóticos y la gente
- *   agitaría los brazos al azar» (roadtovr.com, *Inside XR Design*). Owlchemy Labs
- *   (Job Simulator) lo lleva al extremo contrario al tutorial: se lo das a alguien y le dices
- *   «haz lo que quieras», y lo que enseña es el entorno (venturebeat.com).
- * - **Y de apagarlas no dice nada nadie.** Ni Meta, ni Valve, ni las charlas: el realce de lo
- *   agarrable se documenta como un **estado permanente** de la interacción, y el arco de
- *   teletransporte como un control, no como una ayuda que sobra al aprender. Esa es la parte
- *   que aquí se añade, y es la que más falta hace: un realce permanente en un juego que dura
- *   un minuto es decorado que tapa el juego. Por eso el plazo y el hito no son un detalle de
- *   implementación — son lo único de este fichero que no estaba escrito en ningún sitio.
+ * - **Highlighting what can be grabbed is documented and has rules.** Meta calls it
+ *   *affordances* and *signifiers* and asks to show the four states —pointed at, grabbed, held,
+ *   missed— with glow, squash or throb
+ *   (developers.meta.com/horizon/design/hands-best-practices and
+ *   .../hands-plain-language-principles, principle 16), and **expressly warns against the
+ *   highlight that turns on and off abruptly**: it annoys and tires. That is where `CROSSFADE`
+ *   comes from: here nothing appears or disappears in one frame. Half-Life: Alyx does the same
+ *   with the gloves —"the object glows so that you know what you are pointing at"— as opposed
+ *   to the "loud yellow mesh" of other games (roadtovr.com, *Inside XR Design*).
+ * - **Teaching the gesture without words too**, and with a name: *Instructed Motion*, which is
+ *   what the arrows of Beat Saber do; without them "the movements would be chaotic and people
+ *   would wave their arms at random" (roadtovr.com, *Inside XR Design*). Owlchemy Labs
+ *   (Job Simulator) takes it to the opposite extreme from the tutorial: you hand it to someone
+ *   and tell them "do whatever you want", and what teaches is the environment
+ *   (venturebeat.com).
+ * - **And about turning them off nobody says anything.** Not Meta, not Valve, not the talks:
+ *   the highlight of what can be grabbed is documented as a **permanent state** of the
+ *   interaction, and the teleport arc as a control, not as a hint that is no longer needed once
+ *   learned. That is the part that is added here, and it is the one most needed: a permanent
+ *   highlight in a game that lasts a minute is stage that covers the game. That is why the
+ *   deadline and the milestone are not an implementation detail — they are the only thing in
+ *   this file that was not written anywhere.
  */
 
 /**
- * Lo menos y lo más que puede durar una ayuda que no se llega a resolver, en segundos.
+ * The least and the most that a hint that never gets resolved can last, in seconds.
  *
- * El suelo es lo que tarda alguien en bajar la vista y entender un dibujo con el visor puesto;
- * el techo es donde una ayuda deja de serlo. No son gustos: los dos extremos los vigila
- * `problemasDelGuion`, que es lo que impide que la próxima ayuda que alguien añada se quede
- * puesta para siempre «solo mientras se prueba».
+ * The floor is how long someone takes to look down and understand a drawing with the headset
+ * on; the ceiling is where a hint stops being one. They are not tastes: both ends are watched by
+ * `scriptProblems`, which is what prevents the next hint someone adds from staying on forever
+ * "only while it is being tested".
  */
-export const MINIMO = 4
-export const MAXIMO = 20
+export const MIN_EXPIRY = 4
+export const MAX_EXPIRY = 20
 
 /**
- * Cuánto tarda una ayuda en aparecer del todo o en irse del todo, en segundos.
+ * How long a hint takes to appear completely or to go away completely, in seconds.
  *
- * **Nada aparece ni desaparece de golpe.** Un objeto que se enciende o se apaga en un
- * fotograma se lee, con el visor puesto, como un parpadeo de la escena —que es justo lo que
- * llevamos tandas persiguiendo—, y encima roba la mirada a destiempo.
+ * **Nothing appears or disappears abruptly.** An object that turns on or off in one frame
+ * reads, with the headset on, as a flicker of the scene —which is just what we have spent
+ * rounds chasing—, and on top of that it steals the gaze at the wrong time.
  */
-export const CRUCE = 0.45
+export const CROSSFADE = 0.45
 
-/** Cuánto y cómo de rápido late lo que está esperando a que alguien lo coja. */
-export const LATIDO = { fuerza: 0.12, velocidad: 3.2 } as const
-
-/**
- * De qué color se pintan **todas** las ayudas, en los trece juegos.
- *
- * Escrito aquí y no sacado de la paleta de cada juego a propósito, por lo mismo que la marca
- * del mando (`MandoDeVerdad.tsx`, de donde sale este ámbar): una ayuda no es decorado, es una
- * frase, y tiene que separarse del decorado — del verde de un tapete, de la tierra de una
- * jaula y del salón de quien juega, que es el escenario que nadie eligió. Y tiene que ser la
- * misma en todos: quien aprende en un juego que lo que late en ámbar es lo que hay que hacer
- * no vuelve a preguntárselo en el siguiente.
- */
-export const COLOR_DE_LA_AYUDA = '#ffc233'
+/** How much and how fast what is waiting for someone to grab it throbs. */
+export const THROB = { strength: 0.12, speed: 3.2 } as const
 
 /**
- * Una ayuda: cómo se llama, qué la apaga y cuánto aguanta si no se hace nada.
+ * What colour **all** the hints are painted, in the thirteen games.
  *
- * `Hito` es el nombre que el juego le da a lo que quien juega ya ha hecho, que es el mismo que
- * usa su tutorial.
+ * Written here and not taken from each game's palette on purpose, for the same reason as the
+ * controller's mark (`RealController.tsx`, where this amber comes from): a hint is not stage,
+ * it is a sentence, and it has to stand apart from the stage — from the green of a felt, from
+ * the dirt of a cage and from the living room of whoever plays, which is the scenery nobody
+ * chose. And it has to be the same in all of them: whoever learns in one game that what throbs
+ * in amber is what has to be done does not ask it again in the next one.
  */
-export interface Ayuda<Hito extends string = string> {
-  /** Cómo se llama. Es lo único que la escena mira para decidir si la pinta. */
+export const HINT_MARK_COLOR = '#ffc233'
+
+/**
+ * A hint: what it is called, what turns it off and how long it holds if nothing is done.
+ *
+ * `Milestone` is the name the game gives to what whoever plays has already done, which is the
+ * same one its tutorial uses.
+ */
+export interface Hint<Milestone extends string = string> {
+  /** What it is called. It is the only thing the scene looks at to decide whether it paints it. */
   readonly id: string
-  /** El hito que la apaga: en cuanto se hace una vez, la ayuda sobra. */
-  readonly hasta: Hito
-  /** Y si ese hito no llega, a los cuántos segundos se va sola. */
-  readonly caduca: number
+  /** The milestone that turns it off: as soon as it is done once, the hint is not needed. */
+  readonly until: Milestone
+  /** And if that milestone does not come, after how many seconds it goes away by itself. */
+  readonly expiresAfter: number
   /**
-   * El hito que la enciende, si no se enciende de entrada.
+   * The milestone that turns it on, if it does not turn on from the start.
    *
-   * Sirve para lo que solo tiene sentido enseñar después: la marca del objetivo no dice nada
-   * a quien todavía no tiene el mazo en la mano.
+   * It is for what only makes sense to show afterwards: the target's mark says nothing
+   * to whoever does not have the mallet in the hand yet.
    */
-  readonly desde?: Hito
+  readonly from?: Milestone
 }
 
-/** El guion de un juego: todas sus ayudas. */
-export type Guion<Hito extends string> = readonly Ayuda<Hito>[]
+/** The script of a game: all its hints. */
+export type HintScript<Milestone extends string> = readonly Hint<Milestone>[]
 
-/** Lo que quien juega ya ha hecho. Se acumula: hacer algo no se deshace. */
-export type Hechos<Hito extends string> = Readonly<Record<Hito, boolean>>
+/** What whoever plays has already done. It accumulates: doing something is not undone. */
+export type MilestoneFacts<Milestone extends string> = Readonly<Record<Milestone, boolean>>
 
 /**
- * ¿Se enseña esta ayuda ahora mismo?
+ * Is this hint shown right now?
  *
- * @param segundos Cuánto lleva **esta** ayuda pudiéndose enseñar, no lo que lleva la tanda.
- *   Cada una tiene su reloj porque no todas empiezan a la vez: la que espera a un hito
- *   (`desde`) arranca cuando ese hito llega, y medirle el plazo desde el principio de la
- *   tanda la dejaría caducada antes de aparecer.
+ * @param seconds How long **this** hint has been showable, not how long the round has run.
+ *   Each one has its clock because not all start at once: the one that waits for a milestone
+ *   (`from`) starts when that milestone comes, and measuring its deadline from the start of the
+ *   round would leave it expired before appearing.
  */
-export function ayudaEncendida<Hito extends string>(
-  ayuda: Ayuda<Hito>,
-  hechos: Hechos<Hito>,
-  segundos: number,
+export function hintOn<Milestone extends string>(
+  hint: Hint<Milestone>,
+  facts: MilestoneFacts<Milestone>,
+  seconds: number,
 ): boolean {
-  if (hechos[ayuda.hasta]) return false
-  if (ayuda.desde !== undefined && !hechos[ayuda.desde]) return false
-  return segundos < ayuda.caduca
+  if (facts[hint.until]) return false
+  if (hint.from !== undefined && !facts[hint.from]) return false
+  return seconds < hint.expiresAfter
 }
 
-/** El reloj de cada ayuda y cuáles se están enseñando, entre un fotograma y el siguiente. */
-export interface EstadoDeLasAyudas {
-  /** Cuánto lleva cada ayuda pudiéndose enseñar, por su nombre. */
-  readonly relojes: Record<string, number>
-  /** Las que se enseñan en este fotograma. */
-  readonly encendidas: Set<string>
+/** The clock of each hint and which ones are being shown, between one frame and the next. */
+export interface HintsState {
+  /** How long each hint has been showable, by its name. */
+  readonly clocks: Record<string, number>
+  /** The ones shown in this frame. */
+  readonly lit: Set<string>
 }
 
-/** Nada enseñándose y todos los relojes a cero. */
-export function sinAyudas(): EstadoDeLasAyudas {
-  return { relojes: {}, encendidas: new Set() }
+/** Nothing being shown and all the clocks at zero. */
+export function noHints(): HintsState {
+  return { clocks: {}, lit: new Set() }
 }
 
 /**
- * Avanza el reloj de cada ayuda y deja apuntado cuáles se enseñan.
+ * Advances the clock of each hint and leaves noted which ones are shown.
  *
- * **Muta lo que recibe a propósito**: es el mismo objeto que vive entre fotogramas, y
- * devolver uno nuevo noventa veces por segundo es basura que recoger. Lo mismo hace el
- * enganche del agarre, por lo mismo.
+ * **It mutates what it receives on purpose**: it is the same object that lives between frames,
+ * and returning a new one ninety times a second is garbage to collect. The grab latch does the
+ * same, for the same reason.
  *
- * Una ayuda que todavía no puede enseñarse tiene el reloj **parado en cero**: así, cuando
- * llegue su hito, le queda su plazo entero.
+ * A hint that cannot be shown yet has its clock **stopped at zero**: that way, when its
+ * milestone comes, it has its whole deadline left.
  */
-export function avanzarLasAyudas<Hito extends string>(
-  guion: Guion<Hito>,
-  hechos: Hechos<Hito>,
-  estado: EstadoDeLasAyudas,
+export function advanceHints<Milestone extends string>(
+  script: HintScript<Milestone>,
+  facts: MilestoneFacts<Milestone>,
+  state: HintsState,
   delta: number,
-): EstadoDeLasAyudas {
-  estado.encendidas.clear()
-  for (const ayuda of guion) {
-    const puede = ayuda.desde === undefined || hechos[ayuda.desde]
-    const reloj = puede ? (estado.relojes[ayuda.id] ?? 0) + Math.max(0, delta) : 0
-    estado.relojes[ayuda.id] = reloj
-    if (ayudaEncendida(ayuda, hechos, reloj)) estado.encendidas.add(ayuda.id)
+): HintsState {
+  state.lit.clear()
+  for (const hint of script) {
+    const can = hint.from === undefined || facts[hint.from]
+    const clock = can ? (state.clocks[hint.id] ?? 0) + Math.max(0, delta) : 0
+    state.clocks[hint.id] = clock
+    if (hintOn(hint, facts, clock)) state.lit.add(hint.id)
   }
-  return estado
+  return state
 }
 
 /**
- * Lo que se ve de una ayuda este fotograma, acercándose a lo que toca sin saltos.
+ * What is seen of a hint this frame, moving toward what is due without jumps.
  *
- * Se lleva en la escena y no aquí porque depende del fotograma —y porque el momento exacto en
- * que se cumple un hito no está en `Hechos`, que solo dice que ya pasó—. Esto es la cuenta,
- * que sí se puede probar: de 0 a 1 en `cruce` segundos, y de 1 a 0 en los mismos.
+ * It is kept in the scene and not here because it depends on the frame —and because the exact
+ * moment a milestone is met is not in `MilestoneFacts`, which only says it already happened—.
+ * This is the arithmetic, which can be tested: from 0 to 1 in `crossfade` seconds, and from 1
+ * to 0 in the same.
  *
- * @param cruce Cuánto tarda el viaje entero. Un cruce de cero —o el reloj parado— salta
- *   directamente a donde toca, que es lo que haría un desvanecido instantáneo.
+ * @param crossfade How long the whole trip takes. A crossfade of zero —or the clock stopped—
+ *   jumps straight to where it is due, which is what an instant fade would do.
  */
-export function acercarse(actual: number, objetivo: number, delta: number, cruce: number = CRUCE): number {
-  const paso = cruce > 0 ? Math.max(0, delta) / cruce : Infinity
-  return objetivo > actual ? Math.min(objetivo, actual + paso) : Math.max(objetivo, actual - paso)
+export function moveToward(current: number, target: number, delta: number, crossfade: number = CROSSFADE): number {
+  const step = crossfade > 0 ? Math.max(0, delta) / crossfade : Infinity
+  return target > current ? Math.min(target, current + step) : Math.max(target, current - step)
 }
 
 /**
- * El latido de lo que está esperando: un factor alrededor de 1 con el que escalar o subir la
- * opacidad.
+ * The throb of what is waiting: a factor around 1 with which to scale or raise the
+ * opacity.
  *
- * Es lo que separa una ayuda del decorado. Con `fuerza` a cero se queda quieta, que es lo que
- * pide `prefers-reduced-motion`.
+ * It is what separates a hint from the stage. With `strength` at zero it stays still, which is
+ * what `prefers-reduced-motion` asks for.
  */
-export function latido(
-  segundos: number,
-  fuerza: number = LATIDO.fuerza,
-  velocidad: number = LATIDO.velocidad,
+export function throb(
+  seconds: number,
+  strength: number = THROB.strength,
+  speed: number = THROB.speed,
 ): number {
-  return 1 + fuerza * Math.sin(segundos * velocidad)
+  return 1 + strength * Math.sin(seconds * speed)
 }
 
 /**
- * Por dónde va una demostración que se repite: en qué vuelta está y cuánto lleva de esa vuelta.
+ * Where a demonstration that repeats is at: which lap it is on and how far into that lap.
  *
- * Una silueta que hace el gesto una sola vez se la pierde quien estuviera mirando a otro lado,
- * que al entrar es la mitad de la gente. Se repite hasta que la ayuda se apaga, y **cada vuelta
- * se puede hacer en otro sitio** —otro agujero, otra altura—, que es lo que dice que el gesto
- * vale para todos y no solo para ese.
+ * A silhouette that does the gesture only once is missed by whoever was looking elsewhere,
+ * which on entering is half the people. It repeats until the hint turns off, and **each lap
+ * can be done somewhere else** —another hole, another height—, which is what says that the
+ * gesture holds for all of them and not only for that one.
  */
-export function pase(segundos: number, periodo: number): { vuelta: number; avance: number } {
-  if (!(periodo > 0)) return { vuelta: 0, avance: 0 }
-  const desde = Math.max(0, segundos)
-  return { vuelta: Math.floor(desde / periodo), avance: (desde % periodo) / periodo }
+export function sweepPhase(seconds: number, period: number): { lap: number; progress: number } {
+  if (!(period > 0)) return { lap: 0, progress: 0 }
+  const elapsed = Math.max(0, seconds)
+  return { lap: Math.floor(elapsed / period), progress: (elapsed % period) / period }
 }
 
 /**
- * Qué le falla a un guion de ayudas. Devuelve **frases**, no un `false`.
+ * What is wrong with a hint script. It returns **sentences**, not a `false`.
  *
- * Como el instrumento que mide la legibilidad de un panel: un test que solo dijera «el guion
- * está mal» obligaría a leerse el guion entero para saber qué. Lo que caza es lo que se cuela
- * sin querer —una ayuda repetida, un plazo que se puso «mientras se prueba» y se quedó, una
- * que se enciende y se apaga con lo mismo—, y cada juego se lo pasa desde su propio test.
+ * Like the instrument that measures the legibility of a panel: a test that only said "the
+ * script is wrong" would force reading the whole script to know what. What it catches is what
+ * slips in by accident —a repeated hint, a deadline that was set "while it is being tested" and
+ * stayed, one that turns on and off with the same thing—, and each game runs it from its own
+ * test.
  */
-export function problemasDelGuion(guion: Guion<string>): string[] {
-  const problemas: string[] = []
-  const vistas = new Set<string>()
-  for (const ayuda of guion) {
-    if (vistas.has(ayuda.id)) problemas.push(`la ayuda «${ayuda.id}» está dos veces en el guion`)
-    vistas.add(ayuda.id)
-    if (ayuda.caduca < MINIMO) {
-      problemas.push(
-        `la ayuda «${ayuda.id}» dura ${ayuda.caduca} s: por debajo de ${MINIMO} s no da tiempo ni a mirarla`,
+export function scriptProblems(script: HintScript<string>): string[] {
+  const problems: string[] = []
+  const seen = new Set<string>()
+  for (const hint of script) {
+    if (seen.has(hint.id)) problems.push(`the hint "${hint.id}" is twice in the script`)
+    seen.add(hint.id)
+    if (hint.expiresAfter < MIN_EXPIRY) {
+      problems.push(
+        `the hint "${hint.id}" lasts ${hint.expiresAfter} s: below ${MIN_EXPIRY} s there is not enough time even to look at it`,
       )
     }
-    if (ayuda.caduca > MAXIMO) {
-      problemas.push(
-        `la ayuda «${ayuda.id}» dura ${ayuda.caduca} s: pasados ${MAXIMO} s deja de ser una ayuda y es decorado`,
+    if (hint.expiresAfter > MAX_EXPIRY) {
+      problems.push(
+        `the hint "${hint.id}" lasts ${hint.expiresAfter} s: past ${MAX_EXPIRY} s it stops being a hint and is part of the stage`,
       )
     }
-    if (ayuda.desde !== undefined && ayuda.desde === ayuda.hasta) {
-      problemas.push(
-        `la ayuda «${ayuda.id}» se enciende y se apaga con el mismo hito, «${ayuda.hasta}»: no se vería nunca`,
+    if (hint.from !== undefined && hint.from === hint.until) {
+      problems.push(
+        `the hint "${hint.id}" turns on and off with the same milestone, "${hint.until}": it would never be seen`,
       )
     }
   }
-  return problemas
+  return problems
 }

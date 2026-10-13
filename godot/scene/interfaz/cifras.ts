@@ -12,13 +12,13 @@
  */
 import { Node3D, type MeshInstance3D } from 'godot'
 
-import type { Punto2 } from '@kit/lib/ui/salida'
-import { figura } from '@kit/runtime/ui/malla'
+import type { Point2 } from '@kit/lib/ui/exit'
+import { shape } from '@kit/runtime/ui/mesh'
 
 import { DIGIT_ADVANCE, DIGIT_SEGMENTS, SEGMENT_LAYOUT, SEGMENT_THICKNESS, digitsOf } from '@/lib/xrDigits'
 
 /** Un rectángulo centrado en `(cx, cy)`, en dos triángulos. */
-function rectangulo(cx: number, cy: number, ancho: number, alto: number): Punto2[] {
+function rectangulo(cx: number, cy: number, ancho: number, alto: number): Point2[] {
   const x0 = cx - ancho / 2
   const x1 = cx + ancho / 2
   const y0 = cy - alto / 2
@@ -27,13 +27,13 @@ function rectangulo(cx: number, cy: number, ancho: number, alto: number): Punto2
 }
 
 /** Los triángulos de un número de `alto` metros, centrado en el origen como `XRNumber`. */
-export function triangulosDeCifras(valor: number, alto: number): Punto2[] {
+export function triangulosDeCifras(valor: number, alto: number): Point2[] {
   const cifras = digitsOf(valor)
   const avance = alto * DIGIT_ADVANCE
   const ancho = (cifras.length - 1) * avance
   const largo = alto * 0.42
   const grueso = alto * SEGMENT_THICKNESS
-  const triangulos: Punto2[] = []
+  const triangulos: Point2[] = []
   cifras.forEach((cifra, i) => {
     const x = i * avance - ancho / 2
     for (const segmento of DIGIT_SEGMENTS[cifra]) {
@@ -69,7 +69,7 @@ export class Cifras {
       this.nodo.remove_child(this.malla)
       this.malla.queue_free()
     }
-    this.malla = figura(triangulosDeCifras(valor, this.alto), color)
+    this.malla = shape(triangulosDeCifras(valor, this.alto), color)
     this.nodo.add_child(this.malla)
   }
 }

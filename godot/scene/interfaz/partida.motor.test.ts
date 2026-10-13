@@ -15,7 +15,7 @@ import { getBestEndlessStreak, getBestPoints } from '@/lib/highScore'
 import { getStarsList, getUnlockedLevel } from '@/lib/progress'
 import { goalPoints } from '@/lib/scoring'
 import { semillaDeLaMesa } from '@/lib/opponent'
-import type { Resultado } from '@/lib/semilla'
+import type { GameResult } from '@/lib/seed'
 import { gameStorage } from '@/lib/storage'
 
 import { Partida, acotarGoles, type OpcionesDeLaPartida } from './partida'
@@ -50,7 +50,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
     expect(p.enReto).toBe(false)
     p.startGame()
     expect([p.gameMode, p.gameState, p.round]).toEqual(['challenge', 'countdown', 1])
-    expect(p.cartel('en')?.titulo).toBe('Win games until you lose one')
+    expect(p.cartel('en')?.title).toBe('Win games until you lose one')
   })
 
   it('siempre: no recuerda el modo de la última partida, y la práctica queda a un toque', () => {
@@ -121,7 +121,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
   })
 
   it('la práctica acaba al llegar a los goles, guarda el récord y lo cuenta una vez', () => {
-    const contados: Resultado[] = []
+    const contados: GameResult[] = []
     const p = enPractica({ alTerminar: (r) => contados.push(r) })
     p.setGoalTarget(3)
     p.startGame()
@@ -133,7 +133,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
     expect(getBestPoints('practice')).toBe(p.points)
     p.scorePlayer()
     // Ganada sin encajar: la primera vez trae la hazaña (`hazanas.ts`).
-    expect(contados).toEqual([{ modo: 'practice', puntos: p.points, reto: false, hazanas: ['GH_SHUTOUT'] }])
+    expect(contados).toEqual([{ mode: 'practice', points: p.points, challenge: false, feats: ['GH_SHUTOUT'] }])
     // La siguiente con menos puntos no es récord.
     p.startGame()
     sacar(p)
@@ -195,14 +195,14 @@ describe('la partida en Godot hace lo que el store de la web', () => {
   })
 
   it('el reto del salón entra directo a jugar, con su semilla, y dice que era el reto', () => {
-    const contados: Resultado[] = []
-    const p = new Partida({ reto: { semilla: 1234 }, alTerminar: (r) => contados.push(r) })
+    const contados: GameResult[] = []
+    const p = new Partida({ reto: { seed: 1234 }, alTerminar: (r) => contados.push(r) })
     expect([p.gameMode, p.gameState, p.enReto]).toEqual(['challenge', 'countdown', true])
     expect(p.seed).toBe(semillaDeLaMesa(1234, 1, 1))
     expect(p.seed).not.toBe(new Partida().seed)
     sacar(p)
     marcar(p, 0, p.activeGoalTarget)
-    expect(contados).toEqual([{ modo: 'challenge', puntos: 0, reto: true }])
+    expect(contados).toEqual([{ mode: 'challenge', points: 0, challenge: true }])
     // Otra partida desde el final ya no es el reto.
     p.startGame()
     expect(p.enReto).toBe(false)
@@ -220,7 +220,7 @@ describe('la partida en Godot hace lo que el store de la web', () => {
   })
 
   it('el duelo: juega el primero, luego el segundo, contra la misma máquina, y gana quien saca más ventaja', () => {
-    const avisos: Resultado[] = []
+    const avisos: GameResult[] = []
     const p = enPractica({ alTerminar: (r) => avisos.push(r) })
     expect(p.duelView).toBeNull()
     p.setGameMode('duel')
@@ -283,27 +283,27 @@ describe('la partida en Godot hace lo que el store de la web', () => {
     marcar(p, 3, 0)
     // Con la partida decidida ya no se apunta nada.
     p.apuntarHazana('GH_LONG_SHOT')
-    expect(JSON.parse(jsons[0] ?? '{}')).toEqual({ modo: 'practice', puntos: p.points, reto: false, hazanas: ['GH_OWN_GOAL'] })
+    expect(JSON.parse(jsons[0] ?? '{}')).toEqual({ mode: 'practice', points: p.points, challenge: false, feats: ['GH_OWN_GOAL'] })
     p.startGame()
     sacar(p)
     p.apuntarHazana('GH_OWN_GOAL')
     marcar(p, 3, 0)
-    expect(JSON.parse(jsons[1] ?? '{}').hazanas).toEqual(['GH_SHUTOUT'])
+    expect(JSON.parse(jsons[1] ?? '{}').feats).toEqual(['GH_SHUTOUT'])
     p.startGame()
     sacar(p)
     marcar(p, 3, 0)
-    expect(JSON.parse(jsons[2] ?? '{}')).not.toHaveProperty('hazanas')
+    expect(JSON.parse(jsons[2] ?? '{}')).not.toHaveProperty('feats')
   })
 
   it('en el reto, la ronda ganada sin encajar se cuenta al perderlo', () => {
-    const contados: Resultado[] = []
-    const p = new Partida({ reto: { semilla: 7 }, alTerminar: (r) => contados.push(r) })
+    const contados: GameResult[] = []
+    const p = new Partida({ reto: { seed: 7 }, alTerminar: (r) => contados.push(r) })
     sacar(p)
     for (let i = 0; i < 20 && p.challengeRoundNumber === 1; i++) p.scorePlayer()
     sacar(p)
     for (let i = 0; i < 40 && p.gameState !== 'finished'; i++) p.scoreOpponent()
     expect(contados).toHaveLength(1)
-    expect(contados[0]?.hazanas).toEqual(['GH_SHUTOUT'])
+    expect(contados[0]?.feats).toEqual(['GH_SHUTOUT'])
   })
 })
 
@@ -311,11 +311,11 @@ describe('el cartel del objetivo, como en la web', () => {
   beforeEach(() => gameStorage()?.clear())
 
   const OBJETIVO = {
-    medallas: { bronce: 150, plata: 8000, oro: 20000 },
-    mejorEs: 'mas',
-    unidad: 'points in the challenge',
+    medals: { bronze: 150, silver: 8000, gold: 20000 },
+    better: 'higher',
+    unit: 'points in the challenge',
     record: null,
-    modo: 'challenge',
+    mode: 'challenge',
   } as const
 
   it('en el menú no hay cartel que valga: se cuelga al jugar', () => {
@@ -329,13 +329,13 @@ describe('el cartel del objetivo, como en la web', () => {
   it('con el objetivo: la misión y los listones en la cuenta atrás, y después el que falta y lo que queda', () => {
     const p = new Partida({ objetivo: OBJETIVO })
     p.startGame()
-    expect(p.cartel('en')).toMatchObject({ titulo: 'Win games until you lose one', detalle: 'Bronze 150 · Silver 8,000 · Gold 20,000' })
-    expect(p.cartel('es')?.titulo).toBe('Gana partidos hasta perder uno')
+    expect(p.cartel('en')).toMatchObject({ title: 'Win games until you lose one', detail: 'Bronze 150 · Silver 8,000 · Gold 20,000' })
+    expect(p.cartel('es')?.title).toBe('Gana partidos hasta perder uno')
     expect(p.callado).toEqual({ puntos: true, ronda: true })
     sacar(p)
-    expect(p.cartel('en')).toMatchObject({ titulo: 'Bronze at 150 · you have 0', detalle: 'Round 1 · to 3 goals · goal +100' })
+    expect(p.cartel('en')).toMatchObject({ title: 'Bronze at 150 · you have 0', detail: 'Round 1 · to 3 goals · goal +100' })
     marcar(p, 1, 0)
-    expect(p.cartel('es')).toMatchObject({ titulo: 'Bronce a 150 · llevas 100', detalle: 'Ronda 1 · a 3 goles · gol +120' })
+    expect(p.cartel('es')).toMatchObject({ title: 'Bronce a 150 · llevas 100', detail: 'Ronda 1 · a 3 goles · gol +120' })
     expect(p.medalla).toBeNull()
   })
 
@@ -345,16 +345,16 @@ describe('el cartel del objetivo, como en la web', () => {
     sacar(p)
     marcar(p, 2, 0)
     expect(p.points).toBe(220)
-    expect(p.medalla).toBe('bronce')
-    expect(p.cartel('en')?.titulo).toBe('Silver at 8,000 · you have 220')
+    expect(p.medalla).toBe('bronze')
+    expect(p.cartel('en')?.title).toBe('Silver at 8,000 · you have 220')
     marcar(p, 0, 3)
     expect(p.gameState).toBe('finished')
-    expect(p.medalla).toBe('bronce')
-    expect(p.cartel('en')).toMatchObject({ titulo: 'Bronze · 220 points in the challenge', detalle: '7,780 short of silver' })
+    expect(p.medalla).toBe('bronze')
+    expect(p.cartel('en')).toMatchObject({ title: 'Bronze · 220 points in the challenge', detail: '7,780 short of silver' })
     expect(p.callado).toEqual({ puntos: true, ronda: false })
     // Otra vez —el botón resaltado del final— vuelve a la misión, sin pasar por el menú.
     p.startGame()
-    expect(p.cartel('en')?.titulo).toBe('Win games until you lose one')
+    expect(p.cartel('en')?.title).toBe('Win games until you lose one')
   })
 
   it('dos partidas seguidas: la segunda compara con el récord que hizo la primera, no con el del montaje', () => {
@@ -372,7 +372,7 @@ describe('el cartel del objetivo, como en la web', () => {
     expect(p.objetivo?.record).toBe(220)
     sacar(p)
     marcar(p, 1, 3)
-    expect(p.cartel('en')?.titulo).toBe('No medal · 100 points in the challenge')
+    expect(p.cartel('en')?.title).toBe('No medal · 100 points in the challenge')
     // Lo de otro modo no sube el récord del reto.
     p.resetGame()
     p.setGameMode('practice')
@@ -406,9 +406,9 @@ describe('el cartel del objetivo, como en la web', () => {
     p.aprendiendo = false
     p.acabarLaLeccion()
     expect([p.playerGoals, p.points, p.runId, p.gameState]).toEqual([0, 0, mesa + 1, 'countdown'])
-    expect(p.cartel('es')?.titulo).toBe('Ahora cuenta para medalla')
+    expect(p.cartel('es')?.title).toBe('Ahora cuenta para medalla')
     for (let i = 0; i < 160; i++) p.tick(1 / 60)
-    expect(p.cartel('es')?.titulo).not.toBe('Ahora cuenta para medalla')
+    expect(p.cartel('es')?.title).not.toBe('Ahora cuenta para medalla')
   })
 
   it('fuera del reto, aprender no cambia nada y cerrar el tutorial no vuelve a empezar', () => {
@@ -428,13 +428,13 @@ describe('el cartel del objetivo, como en la web', () => {
     sacar(p)
     marcar(p, 3, 0)
     expect([p.round, p.gameState]).toEqual([2, 'countdown'])
-    expect(p.cartel('en')?.detalle).toBe(`Round 2 · to 5 goals · goal +${goalPoints({ difficulty: 'easy', streak: 4 })}`)
+    expect(p.cartel('en')?.detail).toBe(`Round 2 · to 5 goals · goal +${goalPoints({ difficulty: 'easy', streak: 4 })}`)
   })
 
   it('en la práctica, con salón, dice bajito que no cuenta; con el juego suelto, nada', () => {
     const conSalon = enPractica({ objetivo: OBJETIVO })
     conSalon.startGame()
-    expect(conSalon.cartel('es')).toMatchObject({ titulo: 'Práctica · no cuenta para medalla', discreto: true })
+    expect(conSalon.cartel('es')).toMatchObject({ title: 'Práctica · no cuenta para medalla', subdued: true })
     expect(conSalon.callado).toEqual({ puntos: false, ronda: false })
     const suelto = enPractica()
     suelto.startGame()
@@ -445,6 +445,6 @@ describe('el cartel del objetivo, como en la web', () => {
     gameStorage()?.setItem('glide-hockey:best-points:challenge', '3100')
     const p = new Partida()
     p.startGame()
-    expect(p.cartel('en')).toMatchObject({ titulo: 'Win games until you lose one', detalle: 'Your record 3,100' })
+    expect(p.cartel('en')).toMatchObject({ title: 'Win games until you lose one', detail: 'Your record 3,100' })
   })
 })

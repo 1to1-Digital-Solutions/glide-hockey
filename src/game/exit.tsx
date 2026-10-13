@@ -5,27 +5,27 @@ import { createContext, useContext, type ReactNode } from 'react'
 import { endXrSession } from '../components/xr/xrStore'
 
 /**
- * Qué hace el botón de salir, que depende de quién haya montado el juego.
+ * What the exit button does, which depends on who has mounted the game.
  *
- * **Montado en el salón de xrcade**, salir es volver al arco de cabinas: el hub pasa su propia
- * función (`onExit`) y desmonta la escena sin cerrar la sesión, que es lo que permite cambiar
- * de juego sin quitarse el visor.
+ * **Mounted in the xrcade hall**, exiting is going back to the arc of cabinets: the hub passes its
+ * own function (`onExit`) and unmounts the scene without closing the session, which is what allows
+ * changing game without taking the headset off.
  *
- * **En la web propia del juego** no hay adónde volver, así que salir es lo único que tiene
- * sentido ahí: cerrar la sesión inmersiva y devolver a quien juega a la página. Es el valor por
- * defecto y no un error: un botón de salir que no hiciera nada dejaría a alguien encerrado
- * dentro de la sesión con el visor puesto.
+ * **On the game's own web** there is nowhere to go back to, so exiting is the only thing that makes
+ * sense there: closing the immersive session and returning whoever plays to the page. It is the
+ * default value and not an error: an exit button that did nothing would leave someone locked
+ * inside the session with the headset on.
  *
- * Va en un contexto y no como propiedad de cada panel porque quien lo llama es el menú, que
- * está tres niveles por debajo de donde se monta el juego, y pasarlo de mano en mano obligaría
- * a que cada trozo de escena por el que pasa supiera de él.
+ * It goes in a context and not as a prop of each panel because the one who calls it is the menu,
+ * which is three levels below where the game is mounted, and passing it from hand to hand would
+ * force every piece of scene it goes through to know about it.
  */
-const Salida = createContext<(() => void) | null>(null)
+const ExitContext = createContext<(() => void) | null>(null)
 
 export function ExitProvider({ onExit, children }: { onExit?: () => void; children: ReactNode }) {
-  return <Salida.Provider value={onExit ?? null}>{children}</Salida.Provider>
+  return <ExitContext.Provider value={onExit ?? null}>{children}</ExitContext.Provider>
 }
 
 export function useExit(): () => void {
-  return useContext(Salida) ?? endXrSession
+  return useContext(ExitContext) ?? endXrSession
 }

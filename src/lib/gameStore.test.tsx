@@ -1,14 +1,14 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { SCENERY_KEY } from './ajustes'
+import { SCENERY_KEY } from './settings'
 import { DUEL_SETUP } from './duel'
 import { getDuelTally } from './duelTally'
 import { DEFAULT_GOALS, MAX_GOALS, MIN_GOALS } from './gameConfig'
 import { clampGoalTarget, useGame, useGameStoreValue } from './gameStore'
 import { getBestEndlessStreak, getBestPoints } from './highScore'
 import { semillaDeLaMesa } from './opponent'
-import type { Objetivo } from './objetivo'
-import type { Resultado } from './semilla'
+import type { Goal } from './goal'
+import type { GameResult } from './seed'
 import { LEVEL_COUNT } from './levels'
 import { OWN_SCENERY_KEY } from './scenery'
 
@@ -145,11 +145,11 @@ describe('el reto', () => {
 
 describe('aprender jugando el reto', () => {
   const OBJETIVO = {
-    medallas: { bronce: 150, plata: 8000, oro: 20000 },
-    mejorEs: 'mas',
-    unidad: 'points in the challenge',
+    medals: { bronze: 150, silver: 8000, gold: 20000 },
+    better: 'higher',
+    unit: 'points in the challenge',
     record: null,
-    modo: 'challenge',
+    mode: 'challenge',
   } as const
 
   it('con el tutorial enseñándose, los goles de la máquina no cuentan', () => {
@@ -176,10 +176,10 @@ describe('aprender jugando el reto', () => {
     expect(hook.result.current.points).toBe(0)
     expect(hook.result.current.runId).toBe(mesa + 1)
     expect(hook.result.current.gameState).toBe('countdown')
-    expect(hook.result.current.cartel?.titulo).toBe('Now it counts for a medal')
+    expect(hook.result.current.cartel?.title).toBe('Now it counts for a medal')
 
     act(() => void vi.advanceTimersByTime(2600))
-    expect(hook.result.current.cartel?.titulo).not.toBe('Now it counts for a medal')
+    expect(hook.result.current.cartel?.title).not.toBe('Now it counts for a medal')
   })
 
   it('fuera del reto, aprender no cambia nada y cerrar el tutorial no vuelve a empezar', () => {
@@ -617,7 +617,7 @@ function perderLaPartida(hook: { result: { current: ReturnType<typeof useGameSto
 
 describe('el reto que pasa el salón', () => {
   it('entra ya en el reto, con su cuenta atrás y sin pasar por el menú', () => {
-    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 4_000_000_000 } }))
+    const hook = renderHook(() => useGameStoreValue({ reto: { seed: 4_000_000_000 } }))
     expect(hook.result.current.gameMode).toBe('challenge')
     expect(hook.result.current.gameState).toBe('countdown')
     expect(hook.result.current.round).toBe(1)
@@ -626,7 +626,7 @@ describe('el reto que pasa el salón', () => {
   })
 
   it('la mesa de cada ronda sale de la semilla y de la ronda', () => {
-    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 } }))
+    const hook = renderHook(() => useGameStoreValue({ reto: { seed: 7 } }))
     esperarAlSaque(hook)
     const primera = hook.result.current.seed
     for (let i = 0; i < 20 && hook.result.current.round === 1; i += 1) {
@@ -639,8 +639,8 @@ describe('el reto que pasa el salón', () => {
   })
 
   it('al perder se lo cuenta al salón una sola vez, con sus puntos y como reto', () => {
-    const onTerminar = vi.fn<(resultado: Resultado) => void>()
-    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 }, onTerminar }))
+    const onFinish = vi.fn<(resultado: GameResult) => void>()
+    const hook = renderHook(() => useGameStoreValue({ reto: { seed: 7 }, onFinish }))
     esperarAlSaque(hook)
     act(() => hook.result.current.scorePlayer())
     perderLaPartida(hook)
@@ -652,27 +652,27 @@ describe('el reto que pasa el salón', () => {
     act(() => void vi.advanceTimersByTime(5000))
 
     expect(hook.result.current.outcome).toBe('lost')
-    expect(onTerminar).toHaveBeenCalledTimes(1)
-    expect(onTerminar).toHaveBeenCalledWith({ modo: 'challenge', puntos, reto: true })
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish).toHaveBeenCalledWith({ mode: 'challenge', points: puntos, challenge: true })
     // Y el récord se sigue guardando como siempre.
     expect(getBestPoints('challenge')).toBeGreaterThanOrEqual(puntos)
   })
 
   it('aunque no sea récord, cuenta los puntos de la partida', () => {
     localStorage.setItem('glide-hockey:best-points:challenge', '9000')
-    const onTerminar = vi.fn<(resultado: Resultado) => void>()
-    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 }, onTerminar }))
+    const onFinish = vi.fn<(resultado: GameResult) => void>()
+    const hook = renderHook(() => useGameStoreValue({ reto: { seed: 7 }, onFinish }))
     esperarAlSaque(hook)
     act(() => hook.result.current.scorePlayer())
     perderLaPartida(hook)
 
     expect(hook.result.current.isRecord).toBe(false)
-    expect(onTerminar).toHaveBeenCalledWith({ modo: 'challenge', puntos: hook.result.current.points, reto: true })
+    expect(onFinish).toHaveBeenCalledWith({ mode: 'challenge', points: hook.result.current.points, challenge: true })
   })
 
   it('la partida de después ya no es el reto, ni juega su mesa', () => {
-    const onTerminar = vi.fn<(resultado: Resultado) => void>()
-    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 }, onTerminar }))
+    const onFinish = vi.fn<(resultado: GameResult) => void>()
+    const hook = renderHook(() => useGameStoreValue({ reto: { seed: 7 }, onFinish }))
     esperarAlSaque(hook)
     perderLaPartida(hook)
 
@@ -682,25 +682,25 @@ describe('el reto que pasa el salón', () => {
     esperarAlSaque(hook)
     perderLaPartida(hook)
 
-    expect(onTerminar).toHaveBeenCalledTimes(2)
-    expect(onTerminar.mock.calls[1]?.[0]).toEqual({ modo: 'challenge', puntos: 0, reto: false })
+    expect(onFinish).toHaveBeenCalledTimes(2)
+    expect(onFinish.mock.calls[1]?.[0]).toEqual({ mode: 'challenge', points: 0, challenge: false })
   })
 
   it('dejarla a medias no cuenta como terminada', () => {
-    const onTerminar = vi.fn<(resultado: Resultado) => void>()
-    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 }, onTerminar }))
+    const onFinish = vi.fn<(resultado: GameResult) => void>()
+    const hook = renderHook(() => useGameStoreValue({ reto: { seed: 7 }, onFinish }))
     esperarAlSaque(hook)
     act(() => hook.result.current.askToQuit())
     act(() => hook.result.current.resetGame())
 
     expect(hook.result.current.gameState).toBe('menu')
     expect(hook.result.current.enReto).toBe(false)
-    expect(onTerminar).not.toHaveBeenCalled()
+    expect(onFinish).not.toHaveBeenCalled()
   })
 
   it('sin reto, cualquier partida se cuenta al acabar, en su modo', () => {
-    const onTerminar = vi.fn<(resultado: Resultado) => void>()
-    const hook = enPractica({ onTerminar })
+    const onFinish = vi.fn<(resultado: GameResult) => void>()
+    const hook = enPractica({ onFinish })
     expect(hook.result.current.gameState).toBe('menu')
     expect(hook.result.current.enReto).toBe(false)
     act(() => hook.result.current.startGame())
@@ -710,13 +710,13 @@ describe('el reto que pasa el salón', () => {
       act(() => void vi.advanceTimersByTime(1000))
     }
 
-    expect(onTerminar).toHaveBeenCalledTimes(1)
+    expect(onFinish).toHaveBeenCalledTimes(1)
     // Ganada sin encajar: la primera vez trae la hazaña (`hazanas.ts`).
-    expect(onTerminar).toHaveBeenCalledWith({
-      modo: 'practice',
-      puntos: hook.result.current.points,
-      reto: false,
-      hazanas: ['GH_SHUTOUT'],
+    expect(onFinish).toHaveBeenCalledWith({
+      mode: 'practice',
+      points: hook.result.current.points,
+      challenge: false,
+      feats: ['GH_SHUTOUT'],
     })
   })
 
@@ -741,7 +741,7 @@ describe('el menú abre en el reto', () => {
     expect(result.current.gameState).toBe('countdown')
     expect(result.current.gameMode).toBe('challenge')
     expect(result.current.round).toBe(1)
-    expect(result.current.cartel?.titulo).toBe('Win games until you lose one')
+    expect(result.current.cartel?.title).toBe('Win games until you lose one')
   })
 
   it('siempre: no recuerda el modo de la última partida', () => {
@@ -768,11 +768,11 @@ describe('el menú abre en el reto', () => {
 
 describe('el cartel del objetivo', () => {
   const OBJETIVO = {
-    medallas: { bronce: 150, plata: 8000, oro: 20000 },
-    mejorEs: 'mas',
-    unidad: 'points in the challenge',
+    medals: { bronze: 150, silver: 8000, gold: 20000 },
+    better: 'higher',
+    unit: 'points in the challenge',
     record: null,
-    modo: 'challenge',
+    mode: 'challenge',
   } as const
 
   /** Pierde la ronda en curso: la máquina mete los goles que hagan falta. */
@@ -797,24 +797,24 @@ describe('el cartel del objetivo', () => {
     act(() => hook.result.current.startGame())
 
     expect(hook.result.current.cartel).toMatchObject({
-      titulo: 'Win games until you lose one',
-      detalle: 'Bronze 150 · Silver 8,000 · Gold 20,000',
+      title: 'Win games until you lose one',
+      detail: 'Bronze 150 · Silver 8,000 · Gold 20,000',
     })
     // El marcador de debajo ya calla lo que el cartel va a decir.
     expect(hook.result.current.callado).toEqual({ puntos: true, ronda: true })
 
     esperarAlSaque(hook)
     expect(hook.result.current.cartel).toMatchObject({
-      titulo: 'Bronze at 150 · you have 0',
-      detalle: 'Round 1 · to 3 goals · goal +100',
+      title: 'Bronze at 150 · you have 0',
+      detail: 'Round 1 · to 3 goals · goal +100',
     })
     expect(hook.result.current.medalla).toBeNull()
 
     act(() => hook.result.current.scorePlayer())
     // Lo que queda dice lo que vale el próximo gol, que con la racha ya es más.
     expect(hook.result.current.cartel).toMatchObject({
-      titulo: 'Bronze at 150 · you have 100',
-      detalle: 'Round 1 · to 3 goals · goal +120',
+      title: 'Bronze at 150 · you have 100',
+      detail: 'Round 1 · to 3 goals · goal +120',
     })
   })
 
@@ -827,21 +827,21 @@ describe('el cartel del objetivo', () => {
     expect(hook.result.current.medalla).toBeNull()
     act(() => hook.result.current.scorePlayer())
     expect(hook.result.current.points).toBe(220)
-    expect(hook.result.current.medalla).toBe('bronce')
-    expect(hook.result.current.cartel?.titulo).toBe('Silver at 8,000 · you have 220')
+    expect(hook.result.current.medalla).toBe('bronze')
+    expect(hook.result.current.cartel?.title).toBe('Silver at 8,000 · you have 220')
 
     // En la primera ronda del reto, un gol encajado no resta (`concededPenalty`).
     act(() => hook.result.current.scoreOpponent())
     expect(hook.result.current.points).toBe(220)
-    expect(hook.result.current.medalla).toBe('bronce')
+    expect(hook.result.current.medalla).toBe('bronze')
 
     // Y perdiendo la ronda se queda lo marcado: al acabar, el cartel dice lo que faltó.
     perder(hook)
     expect(hook.result.current.gameState).toBe('finished')
     expect(hook.result.current.points).toBe(220)
     expect(hook.result.current.cartel).toMatchObject({
-      titulo: 'Bronze · 220 points in the challenge',
-      detalle: '7,780 short of silver',
+      title: 'Bronze · 220 points in the challenge',
+      detail: '7,780 short of silver',
     })
     // La ronda en que se quedó vuelve al marcador; los puntos siguen en el cartel.
     expect(hook.result.current.callado).toEqual({ puntos: true, ronda: false })
@@ -849,14 +849,14 @@ describe('el cartel del objetivo', () => {
     // Repetir —el botón resaltado al acabar— vuelve a la misión, sin pasar por el menú.
     act(() => hook.result.current.startGame())
     expect(hook.result.current.gameMode).toBe('challenge')
-    expect(hook.result.current.cartel?.titulo).toBe('Win games until you lose one')
+    expect(hook.result.current.cartel?.title).toBe('Win games until you lose one')
     expect(hook.result.current.medalla).toBeNull()
   })
 
   it('al acabar, el récord del salón es el de antes de la partida, aunque el salón ya haya subido el suyo', () => {
-    let delSalon: Objetivo = { ...OBJETIVO, record: 100 }
+    let delSalon: Goal = { ...OBJETIVO, record: 100 }
     const hook = renderHook(() =>
-      useGameStoreValue({ objetivo: delSalon, onTerminar: ({ puntos }) => void (delSalon = { ...delSalon, record: puntos }) }),
+      useGameStoreValue({ objetivo: delSalon, onFinish: ({ points: puntos }) => void (delSalon = { ...delSalon, record: puntos }) }),
     )
     act(() => hook.result.current.startGame())
     esperarAlSaque(hook)
@@ -867,7 +867,7 @@ describe('el cartel del objetivo', () => {
     hook.rerender()
 
     expect(delSalon.record).toBe(220)
-    expect(hook.result.current.cartel).toMatchObject({ titulo: 'Bronze · 220 points in the challenge', pie: 'New record!' })
+    expect(hook.result.current.cartel).toMatchObject({ title: 'Bronze · 220 points in the challenge', footer: 'New record!' })
   })
 
   it('perder la primera ronda 1–3 con un gol marcado no deja cero', () => {
@@ -900,7 +900,7 @@ describe('el cartel del objetivo', () => {
 
     expect(hook.result.current.round).toBe(2)
     expect(hook.result.current.gameState).toBe('countdown')
-    expect(hook.result.current.cartel?.detalle).toMatch(/^Round 2 · to 5 goals · goal \+\d+$/)
+    expect(hook.result.current.cartel?.detail).toMatch(/^Round 2 · to 5 goals · goal \+\d+$/)
   })
 
   it('en la práctica, dentro del salón, dice bajito que no cuenta', () => {
@@ -908,7 +908,7 @@ describe('el cartel del objetivo', () => {
     act(() => hook.result.current.setGameMode('practice'))
     act(() => hook.result.current.startGame())
 
-    expect(hook.result.current.cartel).toMatchObject({ titulo: 'Practice · does not count for a medal', discreto: true })
+    expect(hook.result.current.cartel).toMatchObject({ title: 'Practice · does not count for a medal', subdued: true })
     expect(hook.result.current.callado).toEqual({ puntos: false, ronda: false })
     esperarAlSaque(hook)
     for (let i = 0; i < 3; i += 1) act(() => hook.result.current.scorePlayer())
@@ -921,7 +921,7 @@ describe('el cartel del objetivo', () => {
     act(() => hook.result.current.startGame())
 
     expect(hook.result.current.objetivo).toBeNull()
-    expect(hook.result.current.cartel).toMatchObject({ titulo: 'Win games until you lose one', detalle: 'Your record 3,100' })
+    expect(hook.result.current.cartel).toMatchObject({ title: 'Win games until you lose one', detail: 'Your record 3,100' })
 
     act(() => hook.result.current.resetGame())
     act(() => hook.result.current.setGameMode('practice'))
@@ -930,10 +930,10 @@ describe('el cartel del objetivo', () => {
   })
 
   it('con el reto del salón, que entra jugando, el cartel está desde el primer fotograma', () => {
-    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 }, objetivo: OBJETIVO }))
+    const hook = renderHook(() => useGameStoreValue({ reto: { seed: 7 }, objetivo: OBJETIVO }))
 
     expect(hook.result.current.gameState).toBe('countdown')
-    expect(hook.result.current.cartel?.detalle).toBe('Bronze 150 · Silver 8,000 · Gold 20,000')
+    expect(hook.result.current.cartel?.detail).toBe('Bronze 150 · Silver 8,000 · Gold 20,000')
   })
 })
 
@@ -984,8 +984,8 @@ describe('el duelo', () => {
   }
 
   /** Monta el store, elige el duelo y empieza la partida del primero. */
-  function duelo(onTerminar?: (resultado: Resultado) => void): Hook {
-    const hook = enPractica({ onTerminar })
+  function duelo(onFinish?: (resultado: GameResult) => void): Hook {
+    const hook = enPractica({ onFinish })
     act(() => hook.result.current.setGameMode('duel'))
     act(() => hook.result.current.startGame())
     return hook
@@ -1078,15 +1078,15 @@ describe('el duelo', () => {
   })
 
   it('no hay récord ni se le cuenta al salón: los goles son de dos personas', () => {
-    const onTerminar = vi.fn()
-    const hook = duelo(onTerminar)
+    const onFinish = vi.fn()
+    const hook = duelo(onFinish)
     jugar(hook, DUEL_SETUP.goalTarget, 0)
 
     expect(hook.result.current.isRecord).toBe(false)
     expect(hook.result.current.bestPoints).toBe(0)
     expect(getBestPoints('duel')).toBe(0)
     expect(getBestPoints('practice')).toBe(0)
-    expect(onTerminar).not.toHaveBeenCalled()
+    expect(onFinish).not.toHaveBeenCalled()
   })
 
   it('fuera del duelo no hay duelo', () => {
@@ -1097,8 +1097,8 @@ describe('el duelo', () => {
 
 describe('las hazañas de la partida', () => {
   /** Una práctica a 3 goles, sacada. */
-  function practica(onTerminar: (resultado: Resultado) => void) {
-    const hook = enPractica({ onTerminar })
+  function practica(onFinish: (resultado: GameResult) => void) {
+    const hook = enPractica({ onFinish })
     act(() => hook.result.current.setGoalTarget(3))
     act(() => hook.result.current.startGame())
     esperarAlSaque(hook)
@@ -1106,13 +1106,13 @@ describe('las hazañas de la partida', () => {
   }
 
   it('las de la mesa se apuntan y se cuentan al salón al acabar, una vez en la vida', () => {
-    const onTerminar = vi.fn<(resultado: Resultado) => void>()
-    const hook = practica(onTerminar)
+    const onFinish = vi.fn<(resultado: GameResult) => void>()
+    const hook = practica(onFinish)
     act(() => hook.result.current.scoreOpponent())
     act(() => hook.result.current.apuntarHazana('GH_OWN_GOAL'))
     for (let i = 0; i < 3; i += 1) act(() => hook.result.current.scorePlayer())
     // 3-1: gana, pero no sin encajar.
-    expect(onTerminar).toHaveBeenLastCalledWith(expect.objectContaining({ hazanas: ['GH_OWN_GOAL'] }))
+    expect(onFinish).toHaveBeenLastCalledWith(expect.objectContaining({ feats: ['GH_OWN_GOAL'] }))
 
     // Con la partida decidida ya no se apunta nada, y la siguiente no la repite.
     act(() => hook.result.current.apuntarHazana('GH_LONG_SHOT'))
@@ -1121,13 +1121,13 @@ describe('las hazañas de la partida', () => {
     act(() => hook.result.current.scoreOpponent())
     act(() => hook.result.current.apuntarHazana('GH_OWN_GOAL'))
     for (let i = 0; i < 3; i += 1) act(() => hook.result.current.scorePlayer())
-    expect(onTerminar).toHaveBeenCalledTimes(2)
-    expect(onTerminar.mock.calls[1]?.[0]).not.toHaveProperty('hazanas')
+    expect(onFinish).toHaveBeenCalledTimes(2)
+    expect(onFinish.mock.calls[1]?.[0]).not.toHaveProperty('hazanas')
   })
 
   it('en el reto, la ronda ganada sin encajar se cuenta al perder el reto', () => {
-    const onTerminar = vi.fn<(resultado: Resultado) => void>()
-    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 }, onTerminar }))
+    const onFinish = vi.fn<(resultado: GameResult) => void>()
+    const hook = renderHook(() => useGameStoreValue({ reto: { seed: 7 }, onFinish }))
     esperarAlSaque(hook)
     for (let i = 0; i < 20 && hook.result.current.round === 1; i += 1) {
       act(() => hook.result.current.scorePlayer())
@@ -1135,12 +1135,12 @@ describe('las hazañas de la partida', () => {
     expect(hook.result.current.round).toBe(2)
     esperarAlSaque(hook)
     perderLaPartida(hook)
-    expect(onTerminar).toHaveBeenCalledWith(expect.objectContaining({ modo: 'challenge', hazanas: ['GH_SHUTOUT'] }))
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ mode: 'challenge', feats: ['GH_SHUTOUT'] }))
   })
 
   it('casi: la ronda ganada encajando uno no la trae', () => {
-    const onTerminar = vi.fn<(resultado: Resultado) => void>()
-    const hook = renderHook(() => useGameStoreValue({ reto: { semilla: 7 }, onTerminar }))
+    const onFinish = vi.fn<(resultado: GameResult) => void>()
+    const hook = renderHook(() => useGameStoreValue({ reto: { seed: 7 }, onFinish }))
     esperarAlSaque(hook)
     act(() => hook.result.current.scoreOpponent())
     for (let i = 0; i < 20 && hook.result.current.round === 1; i += 1) {
@@ -1148,7 +1148,7 @@ describe('las hazañas de la partida', () => {
     }
     esperarAlSaque(hook)
     perderLaPartida(hook)
-    expect(onTerminar.mock.calls[0]?.[0]).not.toHaveProperty('hazanas')
+    expect(onFinish.mock.calls[0]?.[0]).not.toHaveProperty('hazanas')
   })
 
   it('dejarla a medias no guarda las de la mesa', () => {
@@ -1164,44 +1164,44 @@ describe('las hazañas de la partida', () => {
  * piden a la partida sin jugarla.
  */
 describe('el gancho de la partida', () => {
-  const OBJETIVO: Objetivo = {
-    medallas: { bronce: 10, plata: 20, oro: 30 },
-    mejorEs: 'mas',
-    unidad: 'points in challenge',
+  const OBJETIVO: Goal = {
+    medals: { bronze: 10, silver: 20, gold: 30 },
+    better: 'higher',
+    unit: 'points in challenge',
     record: null,
-    modo: 'challenge',
+    mode: 'challenge',
   }
 
   afterEach(() => {
-    delete globalThis.__partidaGlideHockey
+    delete globalThis.__runGlideHockey
   })
 
   it('sin pedirlo no deja nada', () => {
     renderHook(() => useGameStoreValue({ objetivo: OBJETIVO }))
-    expect(globalThis.__partidaGlideHockey).toBeUndefined()
+    expect(globalThis.__runGlideHockey).toBeUndefined()
   })
 
   it('empieza el reto sin tutorial, fija los puntos, lo acaba contándolo y dice el cartel', () => {
-    globalThis.__partidaGlideHockey = {}
-    const onTerminar = vi.fn<(resultado: Resultado) => void>()
-    const hook = enPractica({ objetivo: OBJETIVO, onTerminar })
-    const partida = globalThis.__partidaGlideHockey
-    expect(partida.cartel!()).toBeNull()
+    globalThis.__runGlideHockey = {}
+    const onFinish = vi.fn<(resultado: GameResult) => void>()
+    const hook = enPractica({ objetivo: OBJETIVO, onFinish })
+    const partida = globalThis.__runGlideHockey
+    expect(partida.sign!()).toBeNull()
 
     act(() => partida.start!())
     expect([hook.result.current.gameMode, hook.result.current.gameState]).toEqual(['challenge', 'countdown'])
     expect(hook.result.current.hitos).toEqual({ grab: true, hit: true, goal: true })
-    expect(partida.cartel!()?.detalle).toContain('Bronze 10')
+    expect(partida.sign!()?.detail).toContain('Bronze 10')
 
     act(() => partida.score!(1))
     expect(hook.result.current.gameState).toBe('playing')
-    expect(partida.cartel!()?.titulo).toBe('Bronze at 10 · you have 1')
+    expect(partida.sign!()?.title).toBe('Bronze at 10 · you have 1')
     act(() => partida.score!(10))
-    expect(partida.cartel!()?.vitor).toBe('Bronze!')
+    expect(partida.sign!()?.cheer).toBe('Bronze!')
 
     act(() => partida.end!())
     expect(hook.result.current.gameState).toBe('finished')
-    expect(onTerminar).toHaveBeenCalledWith(expect.objectContaining({ modo: 'challenge', puntos: 10 }))
-    expect(partida.cartel!()?.titulo).toMatch(/^Bronze · /)
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ mode: 'challenge', points: 10 }))
+    expect(partida.sign!()?.title).toMatch(/^Bronze · /)
   })
 })

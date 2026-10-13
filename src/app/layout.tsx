@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import { Orbitron, Inter } from 'next/font/google'
 import { PALETTE } from '@/lib/palette'
 import './globals.css'
-import { idiomaDeLaPeticion } from '../lib/idioma-servidor'
-import { nombreDelJuego } from '../lib/plantillaDelMenu'
+import { requestLang } from '../lib/server-lang'
+import { gameName } from '../lib/menuTemplate'
 import { traductor } from '../lib/textos'
 
 const orbitron = Orbitron({
@@ -25,15 +25,15 @@ const inter = Inter({
  * (ver `lib/ajustes.ts`), y eso solo se puede leer aquí dentro.
  */
 export async function generateMetadata(): Promise<Metadata> {
-  const t = traductor(await idiomaDeLaPeticion())
+  const t = traductor(await requestLang())
 
   return {
     // El nombre no se traduce —es el de la cabina (`nombreDelJuego`), el mismo en el salón y en
     // la tienda—; lo que le sigue sí, que es lo que dice de qué va.
-    title: t('{name} — you against the machine', { name: nombreDelJuego() }),
+    title: t('{name} — you against the machine', { name: gameName() }),
     description: t(
       '{name} against the machine: choose the level and the goals to play to, and put the puck in its net. Play in the browser or in mixed reality (VR/AR).',
-      { name: nombreDelJuego() },
+      { name: gameName() },
     ),
   }
 }
@@ -55,7 +55,7 @@ export default async function RootLayout({
   // El idioma sale de la cookie que pone el menú del arcade: el `lang` del
   // documento es lo que usan los lectores de pantalla para elegir voz, así
   // que tiene que decir en qué idioma está lo que hay dentro.
-  const lang = await idiomaDeLaPeticion()
+  const lang = await requestLang()
 
   return (
     <html lang={lang} className={`${orbitron.variable} ${inter.variable}`}>

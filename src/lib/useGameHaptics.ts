@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useXR } from '@react-three/xr'
 import { pulsosDelSuceso, reproducir, type Handedness, type SucesoEnLaMano } from './haptics'
-import type { Pulso } from './tactos'
+import type { HandPulse } from './hapticFeedback'
 
 export interface GameHaptics {
   /** Lo que se siente de un suceso de la mesa, en la mano que lleva el mazo (si la lleva). */
@@ -18,7 +18,7 @@ export interface GameHaptics {
    * (`components/xr/GolpeRecibido.tsx`), que trae los suyos de la receta común
    * y en las dos manos: el cuerpo recibe el golpe, no la mano del mazo.
    */
-  pulsar: (pulso: Pulso) => void
+  pulsar: (pulso: HandPulse) => void
 }
 
 /**
@@ -50,7 +50,7 @@ export function useGameHaptics(): GameHaptics {
   }, [])
 
   const tocar = useCallback(
-    (pulsos: Pulso[]) => {
+    (pulsos: HandPulse[]) => {
       if (session == null) return
       reproducir(session, pulsos, (hacer, ms) => {
         const id = setTimeout(() => {
@@ -68,7 +68,7 @@ export function useGameHaptics(): GameHaptics {
     [tocar],
   )
 
-  const pulsar = useCallback((pulso: Pulso) => tocar([pulso]), [tocar])
+  const pulsar = useCallback((pulso: HandPulse) => tocar([pulso]), [tocar])
 
   return useMemo(() => ({ sentir, noteHand, pulsar }), [sentir, noteHand, pulsar])
 }

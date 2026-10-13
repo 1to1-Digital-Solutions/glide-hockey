@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
-  DISTANCIA_DE_DIBUJO,
-  PANEL_DEL_CARTEL,
-  dibujarElCartel,
-  escalaDelCartel,
-  proporcionDelCartel,
-} from './CartelDeObjetivo'
+  DRAW_DISTANCE,
+  SIGN_PANEL,
+  drawSign,
+  signScale,
+  signAspect,
+} from './GoalSign'
 import { SCOREBOARD_SIZE, filaDeLosGoles } from './XRHud'
-import { ALTO_DE_LINEA } from './canvasPanel'
-import { MIN_ANGULO, lienzoQueApunta, problemasDeLegibilidad, type Escrito } from './legibilidad'
+import { LINE_HEIGHT } from './canvasPanel'
+import { MIN_ANGLE, recordingCanvas, legibilityProblems, type DrawnText } from './legibility'
 import { SITIO_DEL_CARTEL } from '../game/CartelDelMarcador'
 import { XR_UI, delEspacioDelJugador, vistasDelPanel } from '../game/GameWorld'
 import {
@@ -21,7 +21,7 @@ import {
 } from '../../lib/cartelDelMarcador'
 import { TABLE_CENTER_Z } from '../../lib/gameConfig'
 import { GAME_MODE_ORDER } from '../../lib/gameMode'
-import { cartelDeObjetivo, type Objetivo, type VistaDelCartel } from '../../lib/objetivo'
+import { goalSign, type Goal, type GoalSignView } from '../../lib/goal'
 import { hiddenByPanel, panelPoints, tablePoints, whatThePanelHides } from '../../lib/panelOcclusion'
 import { EYE_HEIGHTS, eyesAt, letterAngle, pointOnPanel, type PanelPose, type Point } from '../../lib/panelReading'
 import { traductorSuave } from '../../lib/textos'
@@ -40,12 +40,12 @@ import { REFERENCE_EYE_HEIGHT, uiRiseOverWorld, worldRise } from '../../lib/uiHe
 const IDIOMAS = ['en', 'es'] as const
 
 /** Los listones del air hockey en el salón, con un récord de seis cifras. */
-const OBJETIVO: Objetivo = {
-  medallas: { bronce: 1500, plata: 8000, oro: 20000 },
-  mejorEs: 'mas',
-  unidad: 'points in the challenge',
+const OBJETIVO: Goal = {
+  medals: { bronze: 1500, silver: 8000, gold: 20000 },
+  better: 'higher',
+  unit: 'points in the challenge',
   record: 104250,
-  modo: 'challenge',
+  mode: 'challenge',
 }
 
 /** Las partidas que se miden: de la primera cuenta atrás a un reto de dos vueltas. */
@@ -66,51 +66,51 @@ const MOMENTOS: Partial<LoQueSeJuega>[] = [
 ]
 
 /** Todo lo que el cartel llega a decir en este juego, en ese idioma. */
-function vistas(lang: (typeof IDIOMAS)[number]): VistaDelCartel[] {
+function vistas(lang: (typeof IDIOMAS)[number]): GoalSignView[] {
   const t = traductorSuave(lang)
-  const todas: VistaDelCartel[] = []
+  const todas: GoalSignView[] = []
   const base: LoQueSeJuega = { gameMode: 'challenge', gameState: 'playing', round: 1, goles: 0, points: 0, streak: 0, record: 104250 }
   for (const objetivo of [OBJETIVO, { ...OBJETIVO, record: null }, null]) {
     for (const momento of MOMENTOS) {
-      todas.push(cartelDeObjetivo(partidaDelCartel({ ...base, objetivo, ...momento }, t)!, t))
+      todas.push(goalSign(partidaDelCartel({ ...base, objetivo, ...momento }, t)!, t))
     }
   }
   // Al cerrar el tutorial, el aviso de que ya cuenta, con lo que diga debajo en la cuenta atrás.
   for (const objetivo of [OBJETIVO, null]) {
-    const vista = cartelDeObjetivo(partidaDelCartel({ ...base, objetivo, gameState: 'countdown' }, t)!, t)
+    const vista = goalSign(partidaDelCartel({ ...base, objetivo, gameState: 'countdown' }, t)!, t)
     todas.push(conElAvisoDeQueCuenta(vista, 'challenge', true, t)!)
   }
   for (const gameMode of GAME_MODE_ORDER) {
     if (gameMode === 'challenge') continue
-    todas.push(cartelDeObjetivo(partidaDelCartel({ ...base, objetivo: OBJETIVO, gameMode }, t)!, t))
+    todas.push(goalSign(partidaDelCartel({ ...base, objetivo: OBJETIVO, gameMode }, t)!, t))
   }
   return todas
 }
 
-function medir(vista: VistaDelCartel): Escrito[] {
-  const { ctx, escritos } = lienzoQueApunta()
-  dibujarElCartel(ctx, vista)
+function medir(vista: GoalSignView): DrawnText[] {
+  const { ctx, drawnTexts: escritos } = recordingCanvas()
+  drawSign(ctx, vista)
   return escritos
 }
 
 /** Lo escrito, llevado al tamaño al que cuelga: el cartel se agranda con la distancia. */
-function colgados(escritos: readonly Escrito[]): Escrito[] {
-  const k = escalaDelCartel(SITIO_DEL_CARTEL.distancia)
-  return escritos.map((e) => ({ ...e, x: e.x * k, y: e.y * k, ancho: e.ancho * k, alto: e.alto * k }))
+function colgados(escritos: readonly DrawnText[]): DrawnText[] {
+  const k = signScale(SITIO_DEL_CARTEL.distancia)
+  return escritos.map((e) => ({ ...e, x: e.x * k, y: e.y * k, width: e.width * k, height: e.height * k }))
 }
 
 /** Desde dónde se lee: a tres alturas de ojos, con el mundo de pie o a la altura de ellos. */
 const VISTAS = vistasDelPanel(SITIO_DEL_CARTEL.position, SITIO_DEL_CARTEL.rotation)
 
 /** Los grados que ocupa cada letra del cartel colgado, vista desde esos ojos. */
-function grados(escritos: readonly Escrito[], pose: PanelPose, ojos: Point): number[] {
-  return colgados(escritos).map((e) => letterAngle(pose, ojos, e.x, e.y, e.alto / ALTO_DE_LINEA))
+function grados(escritos: readonly DrawnText[], pose: PanelPose, ojos: Point): number[] {
+  return colgados(escritos).map((e) => letterAngle(pose, ojos, e.x, e.y, e.height / LINE_HEIGHT))
 }
 
 /** Lo que mide el cartel donde cuelga, en metros. */
 const MEDIDAS = {
-  width: proporcionDelCartel().ancho * SITIO_DEL_CARTEL.distancia,
-  height: proporcionDelCartel().alto * SITIO_DEL_CARTEL.distancia,
+  width: signAspect().width * SITIO_DEL_CARTEL.distancia,
+  height: signAspect().height * SITIO_DEL_CARTEL.distancia,
 }
 
 describe('el cartel de encima del marcador se lee', () => {
@@ -120,8 +120,8 @@ describe('el cartel de encima del marcador se lee', () => {
         const escritos = medir(vista)
         expect(escritos.length, 'no se ha medido nada').toBeGreaterThan(0)
         expect(
-          problemasDeLegibilidad(escritos, { panel: PANEL_DEL_CARTEL, distancia: DISTANCIA_DE_DIBUJO }),
-          `${lang}: ${vista.titulo} / ${vista.detalle}`,
+          legibilityProblems(escritos, { panel: SIGN_PANEL, distance: DRAW_DISTANCE }),
+          `${lang}: ${vista.title} / ${vista.detail}`,
         ).toEqual([])
       }
     }
@@ -133,7 +133,7 @@ describe('el cartel de encima del marcador se lee', () => {
         const escritos = medir(vista)
         for (const { donde, pose, ojos } of VISTAS) {
           grados(escritos, pose, ojos).forEach((angulo, i) => {
-            expect(angulo, `${lang}: «${escritos[i].texto}», ${donde}`).toBeGreaterThan(MIN_ANGULO)
+            expect(angulo, `${lang}: «${escritos[i].text}», ${donde}`).toBeGreaterThan(MIN_ANGLE)
           })
         }
       }
@@ -147,10 +147,10 @@ describe('el cartel de encima del marcador se lee', () => {
         { objetivo: OBJETIVO, gameMode: 'challenge', gameState: 'countdown', round: 1, goles: 0, points: 0, streak: 0, record: 0 },
         t,
       )
-      const escritos = medir(cartelDeObjetivo(partida!, t))
+      const escritos = medir(goalSign(partida!, t))
       const [mision] = grados(escritos, VISTAS[2].pose, VISTAS[2].ojos)
 
-      expect(escritos[0].texto).toBe(lang === 'es' ? 'Gana partidos hasta perder uno' : 'Win games until you lose one')
+      expect(escritos[0].text).toBe(lang === 'es' ? 'Gana partidos hasta perder uno' : 'Win games until you lose one')
       expect(mision, lang).toBeGreaterThan(1.2)
     }
   })
@@ -163,17 +163,17 @@ describe('el cartel de encima del marcador se lee', () => {
           { objetivo: OBJETIVO, gameMode: 'challenge', gameState: 'playing', round: 1, goles: 0, points: 0, streak: 0, record: 0, ...momento },
           t,
         )
-        const escritos = medir(cartelDeObjetivo(partida!, t))
+        const escritos = medir(goalSign(partida!, t))
         // Con el oro en la mano la frase común pasa a llevar el récord y lo que se lleva, dos
         // cifras de seis: es la más larga que el cartel llega a decir y la que más encoge.
         // Con los miles separados y desde los ojos más bajos se queda en 0,84° («Gold · your record
         // 104,250 · you have 31,200»), por encima del mínimo (0,75°); antes del oro («Silver at
         // 8,000 · you have 1,650»), en 1,16°.
-        const conElOro = (momento.points ?? 0) >= OBJETIVO.medallas.oro
+        const conElOro = (momento.points ?? 0) >= OBJETIVO.medals.gold
         for (const { donde, pose, ojos } of VISTAS) {
           const [liston, queda] = grados(escritos, pose, ojos)
-          expect(liston, `${lang}: «${escritos[0].texto}», ${donde}`).toBeGreaterThan(conElOro ? 0.8 : 1.15)
-          expect(queda, `${lang}: «${escritos[1].texto}», ${donde}`).toBeGreaterThan(1)
+          expect(liston, `${lang}: «${escritos[0].text}», ${donde}`).toBeGreaterThan(conElOro ? 0.8 : 1.15)
+          expect(queda, `${lang}: «${escritos[1].text}», ${donde}`).toBeGreaterThan(1)
         }
       }
     }
@@ -183,8 +183,8 @@ describe('el cartel de encima del marcador se lee', () => {
       { objetivo: OBJETIVO, gameMode: 'challenge', gameState: 'playing', round: 5, goles: 20, points: 1650, streak: 4, record: 0 },
       t,
     )
-    const escritos = medir(cartelDeObjetivo(partida!, t))
-    expect(escritos.map((e) => e.texto)).toEqual(['Plata a 8000 · llevas 1650', 'Ronda 5 · a 5 goles · gol +270'])
+    const escritos = medir(goalSign(partida!, t))
+    expect(escritos.map((e) => e.text)).toEqual(['Plata a 8000 · llevas 1650', 'Ronda 5 · a 5 goles · gol +270'])
     const [liston, queda] = grados(escritos, VISTAS[2].pose, VISTAS[2].ojos)
     // Cuatro cifras en español van sin punto, como en la chapa del salón: la línea no encoge de su 1,4°.
     expect(liston).toBeGreaterThan(1.39)
@@ -208,7 +208,7 @@ describe('dónde queda el cartel para quien juega', () => {
   }
 
   it('cuelga con las medidas del cartel de verdad, encima del marcador', () => {
-    expect(SITIO_DEL_CARTEL).toEqual(sitioDelCartel(proporcionDelCartel()))
+    expect(SITIO_DEL_CARTEL).toEqual(sitioDelCartel(signAspect()))
     expect(XR_UI.scoreboard).toBe(MARCADOR_DEL_FONDO.centro)
     expect(SCOREBOARD_SIZE).toEqual({ width: MARCADOR_DEL_FONDO.ancho, height: MARCADOR_DEL_FONDO.alto })
     // Por encima del marcador entero, y sin pasar de un metro de ancho.

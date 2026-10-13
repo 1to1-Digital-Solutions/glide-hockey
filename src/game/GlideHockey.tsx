@@ -5,7 +5,7 @@ import { GameProvider } from '../components/GameProvider'
 import { GameScene } from '../components/game/GameScene'
 import { endXrSession } from '../components/xr/xrStore'
 import { setAssetsBase } from '../lib/assets'
-import type { Resultado, Reto } from '../lib/semilla'
+import type { GameResult, Challenge } from '../lib/seed'
 import { ExitProvider } from './exit'
 
 export interface GlideHockeyProps {
@@ -16,9 +16,9 @@ export interface GlideHockeyProps {
    */
   assetsBase?: string
   /** El reto que se juega, como en `<GlideHockeyScene>`. */
-  reto?: Reto
+  challenge?: Challenge
   /** A quién contarle cada partida terminada, como en `<GlideHockeyScene>`. */
-  onTerminar?: (resultado: Resultado) => void
+  onFinish?: (resultado: GameResult) => void
 }
 
 /**
@@ -32,9 +32,9 @@ export interface GlideHockeyProps {
  * salón inmersivo de xrcade, y lo que permite volver sin quitarse el visor— hay
  * que usar `<GlideHockeyScene>`. Este de aquí abre su propia sesión, y en un
  * documento solo cabe una. El contrato completo está en
- * `docs/montar-el-juego.md`.
+ * `docs/mounting-the-game.md`.
  */
-export function GlideHockey({ assetsBase, reto, onTerminar }: GlideHockeyProps) {
+export function GlideHockey({ assetsBase, challenge: reto, onFinish }: GlideHockeyProps) {
   if (assetsBase !== undefined) setAssetsBase(assetsBase)
 
   // Quitar el juego tiene que devolver el visor a quien lo montó: la sesión no
@@ -43,7 +43,7 @@ export function GlideHockey({ assetsBase, reto, onTerminar }: GlideHockeyProps) 
   useEffect(() => () => endXrSession(), [])
 
   return (
-    <GameProvider reto={reto} onTerminar={onTerminar}>
+    <GameProvider reto={reto} onFinish={onFinish}>
       {/* Aquí salir es cerrar la sesión: esta web es el juego y no hay ningún
           sitio al que volver. En el salón significa lo contrario. */}
       <ExitProvider onExit={endXrSession}>

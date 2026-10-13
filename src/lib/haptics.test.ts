@@ -15,7 +15,7 @@ import { pulsosDelListon } from './cartelDelMarcador'
 import { OPPONENT_SKILLS } from './gameConfig'
 import { advanceTable, startTable, type TableState } from './matchLoop'
 import { HALF_LENGTH, HALF_WIDTH, type Vec2 } from './puckPhysics'
-import { RECETAS, pulsosDe } from './tactos'
+import { HAPTIC_RECIPES, pulsesFor } from './hapticFeedback'
 
 function source(handedness: string, pulse?: (value: number, duration: number) => unknown) {
   return {
@@ -32,40 +32,40 @@ function source(handedness: string, pulse?: (value: number, duration: number) =>
 describe('qué se siente de la mesa', () => {
   it('el golpe del mazo es un impacto en la mano que lo lleva, y solo en ella', () => {
     const pulsos = pulsosDelSuceso({ tipo: 'golpe', fuerza: 0.6 }, 'left')
-    expect(pulsos).toEqual(pulsosDe({ tipo: 'impacto', mano: 'left', fuerza: 0.6 }))
-    expect(pulsos.every((p) => p.mano === 'left')).toBe(true)
+    expect(pulsos).toEqual(pulsesFor({ type: 'impact', hand: 'left', strength: 0.6 }))
+    expect(pulsos.every((p) => p.hand === 'left')).toBe(true)
   })
 
   it('cuanto más fuerte el choque, más fuerte el pulso', () => {
     const flojo = pulsosDelSuceso({ tipo: 'golpe', fuerza: 0.1 }, 'right')[0]
     const seco = pulsosDelSuceso({ tipo: 'golpe', fuerza: 1 }, 'right')[0]
-    expect(seco.intensidad).toBeGreaterThan(flojo.intensidad)
+    expect(seco.intensity).toBeGreaterThan(flojo.intensity)
   })
 
   it('una fuerza que no es número cuenta como un golpe entero, no llega al vibrador', () => {
     const [pulso] = pulsosDelSuceso({ tipo: 'golpe', fuerza: Number.NaN }, 'right')
-    expect(pulso.intensidad).toBe(RECETAS.impacto.maximo)
+    expect(pulso.intensity).toBe(HAPTIC_RECIPES.impact.max)
   })
 
   it('el gol es una llegada suave, más floja que cualquier golpe', () => {
     const [gol] = pulsosDelSuceso({ tipo: 'gol' }, 'right')
-    expect(gol).toEqual(pulsosDe({ tipo: 'llegada', mano: 'right', fuerza: FUERZA_DEL_GOL })[0])
-    expect(gol.intensidad).toBeLessThan(pulsosDelSuceso({ tipo: 'golpe', fuerza: 0 }, 'right')[0].intensidad)
+    expect(gol).toEqual(pulsesFor({ type: 'arrival', hand: 'right', strength: FUERZA_DEL_GOL })[0])
+    expect(gol.intensity).toBeLessThan(pulsosDelSuceso({ tipo: 'golpe', fuerza: 0 }, 'right')[0].intensity)
   })
 
   it('el final del partido, largo y en la mano del mazo', () => {
-    expect(pulsosDelSuceso({ tipo: 'final' }, 'left')).toEqual([
-      { mano: 'left', intensidad: FINAL_PULSE.intensity, ms: FINAL_PULSE.durationMs, retardo: 0 },
+    expect(pulsosDelSuceso({ tipo: 'end' }, 'left')).toEqual([
+      { hand: 'left', intensity: FINAL_PULSE.intensity, ms: FINAL_PULSE.durationMs, delay: 0 },
     ])
   })
 
   it('el listón de medalla cruzado, el del cartel del objetivo, en la mano del mazo', () => {
-    expect(pulsosDelSuceso({ tipo: 'liston', medalla: 'plata' }, 'left')).toEqual(pulsosDelListon('plata', 'left'))
-    expect(pulsosDelSuceso({ tipo: 'liston', medalla: 'oro' }, 'right')[0].mano).toBe('right')
+    expect(pulsosDelSuceso({ tipo: 'liston', medalla: 'silver' }, 'left')).toEqual(pulsosDelListon('silver', 'left'))
+    expect(pulsosDelSuceso({ tipo: 'liston', medalla: 'gold' }, 'right')[0].hand).toBe('right')
   })
 
   it('sin mano en el mazo no vibra nada: nunca las dos «por si acaso»', () => {
-    for (const suceso of [{ tipo: 'golpe', fuerza: 1 }, { tipo: 'gol' }, { tipo: 'final' }, { tipo: 'liston', medalla: 'oro' }] as const) {
+    for (const suceso of [{ tipo: 'golpe', fuerza: 1 }, { tipo: 'gol' }, { tipo: 'end' }, { tipo: 'liston', medalla: 'gold' }] as const) {
       expect(pulsosDelSuceso(suceso, null), suceso.tipo).toEqual([])
     }
   })
@@ -139,7 +139,7 @@ describe('reproducir los pulsos', () => {
 
     expect(right).toHaveBeenCalledTimes(1)
     expect(programados).toHaveLength(1)
-    expect(programados[0].ms).toBe(RECETAS.impacto.ms)
+    expect(programados[0].ms).toBe(HAPTIC_RECIPES.impact.ms)
     programados[0].hacer()
     expect(right).toHaveBeenCalledTimes(2)
   })

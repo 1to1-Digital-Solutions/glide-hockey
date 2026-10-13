@@ -43,9 +43,9 @@ export const TUTORIAL_STEPS: readonly TutorialStepKey[] = ['grab', 'hit', 'goal'
  * sabe cuál es; con el visor puesto, lo que hay en la mano es un mando con cinco botones y
  * ninguno con su nombre escrito. `null` es un paso que no va de apretar nada.
  */
-export type BotonDelMando = 'agarre' | 'gatillo'
+export type ControllerButton = 'agarre' | 'gatillo'
 
-export const TUTORIAL_BUTTONS: Record<TutorialStepKey, BotonDelMando | null> = {
+export const TUTORIAL_BUTTONS: Record<TutorialStepKey, ControllerButton | null> = {
   grab: 'agarre',
   hit: null,
   goal: null,
@@ -60,7 +60,7 @@ export const TUTORIAL_BUTTONS: Record<TutorialStepKey, BotonDelMando | null> = {
  * Los dos nombres son los del estándar y valen para cualquier mando, no solo para los de
  * Quest.
  */
-export const COMPONENTE_DEL_BOTON: Record<BotonDelMando, string> = {
+export const COMPONENTE_DEL_BOTON: Record<ControllerButton, string> = {
   agarre: 'xr-standard-squeeze',
   gatillo: 'xr-standard-trigger',
 }

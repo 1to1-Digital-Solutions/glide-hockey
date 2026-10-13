@@ -1,5 +1,5 @@
 import { HALF_LENGTH, type Scorer } from './puckPhysics'
-import type { Resultado } from './semilla'
+import type { GameResult } from './seed'
 import { createStoredPreference } from './storage'
 
 /**
@@ -23,8 +23,8 @@ export type Hazana = (typeof HAZANAS)[number]
 export const HAZANAS_KEY = 'glide-hockey:hazanas'
 
 /** El resultado con sus hazañas, o tal cual si no se estrenó ninguna. */
-export function conHazanas(resultado: Resultado, nuevas: readonly Hazana[]): Resultado {
-  return nuevas.length > 0 ? { ...resultado, hazanas: [...nuevas] } : resultado
+export function conHazanas(resultado: GameResult, nuevas: readonly Hazana[]): GameResult {
+  return nuevas.length > 0 ? { ...resultado, feats: [...nuevas] } : resultado
 }
 
 /**

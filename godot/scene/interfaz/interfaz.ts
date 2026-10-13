@@ -19,18 +19,18 @@
  */
 import { Node3D, Transform3D, Vector3, type Camera3D, type InputEvent } from 'godot'
 
-import type { Puntero } from '@kit/lib/ui/puntero'
-import { Punteria } from '@kit/runtime/ui/punteria'
-import { PunteroDeRaton } from '@kit/runtime/ui/raton'
+import type { Pointer } from '@kit/lib/ui/pointer'
+import { PointerAim } from '@kit/runtime/ui/pointerAim'
+import { MousePointer } from '@kit/runtime/ui/mouse'
 import type { MandoEnLaMano } from '@kit/runtime/ui/tutorial'
 
-import type { GrabMode, Lang, Scenery } from '@/lib/ajustes'
+import type { GrabMode, Lang, Scenery } from '@/lib/settings'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '@/lib/gameConfig'
 import { getDuelTally } from '@/lib/duelTally'
 import { isEndless } from '@/lib/gameMode'
-import type { Medalla } from '@/lib/objetivo'
+import type { Medal } from '@/lib/goal'
 
-import { alCambiarElIdioma, idioma } from '@kit/runtime/ajustes'
+import { onLangChange, currentLang } from '@kit/runtime/settings'
 import { confort, elegirConfort } from './confort'
 import { AvisoDeSalir, BotonesDeParar } from './aviso'
 import { Cartel } from './cartel'
@@ -75,7 +75,7 @@ export interface OpcionesDeLaInterfaz {
   /** La cámara de plano, de la que sale el rayo del ratón. Con visor, `null`. */
   camara: Camera3D | null
   /** Los punteros del visor (`XRPlayer.punteros()`), además del ratón. */
-  punteros?: readonly Puntero[]
+  punteros?: readonly Pointer[]
   visor: boolean
   /** Idioma forzado por la línea de órdenes (`--lang=es`), para mirar sin tocar el guardado. */
   lang?: string | null
@@ -104,8 +104,8 @@ function colocar(nodo: Node3D, donde: readonly [number, number, number], giro: r
 }
 
 export class InterfazDelJuego {
-  readonly punteria: Punteria
-  readonly raton: PunteroDeRaton | null
+  readonly punteria: PointerAim
+  readonly raton: MousePointer | null
   readonly columna = new Node3D()
   /** Donde nace el menú con el visor: casi de frente, a la distancia de la columna. */
   readonly sitioDelMenu = new Node3D()
@@ -120,7 +120,7 @@ export class InterfazDelJuego {
    * El listón de medalla que se ha cruzado en el último fotograma, o `null`: la escena lo hace
    * sonar y sentir, que el color y el pulso ya son del cartel.
    */
-  liston: Medalla | null = null
+  liston: Medal | null = null
   readonly cuenta: CuentaAtras
   readonly tutorial: TutorialDelJuego
   private pintado = ''
@@ -142,8 +142,8 @@ export class InterfazDelJuego {
     this.langForzado = opciones.lang ?? null
     this.tutorialEnPlano = opciones.tutorial ?? false
     this.escenario = opciones.escenario ?? null
-    this.raton = opciones.camara == null ? null : new PunteroDeRaton(opciones.camara)
-    this.punteria = new Punteria([...(this.raton == null ? [] : [this.raton]), ...(opciones.punteros ?? [])])
+    this.raton = opciones.camara == null ? null : new MousePointer(opciones.camara)
+    this.punteria = new PointerAim([...(this.raton == null ? [] : [this.raton]), ...(opciones.punteros ?? [])])
     const mesa = opciones.raiz
 
     this.columna.set_name('Columna')
@@ -213,12 +213,12 @@ export class InterfazDelJuego {
     mesa.add_child(this.tutorial.vista.nodo)
 
     // Si el salón cambia el idioma con el juego abierto, se repinta al siguiente fotograma.
-    this.dejarDeEscuchar = alCambiarElIdioma(() => (this.pintado = ''))
+    this.dejarDeEscuchar = onLangChange(() => (this.pintado = ''))
     this.pintarFase()
   }
 
   get lang(): Lang {
-    return idioma(this.langForzado)
+    return currentLang(this.langForzado)
   }
 
   /**

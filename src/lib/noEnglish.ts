@@ -1,26 +1,26 @@
 /**
- * Lo que caza el inglés escrito a mano en la versión española: un «round 1», un «6 of 9» o un
- * «Hit» que no pasaron por el traductor y salen tal cual con el juego en español.
+ * What catches English written by hand in the Spanish version: a «round 1», a «6 of 9» or a
+ * «Hit» that did not go through the translator and come out as they are with the game in Spanish.
  *
- * Es el mismo fichero en todos los juegos. Lo usan dos tests: `sinIngles.test.ts` (común), que
- * repasa el diccionario entero, y el de cada juego que pinta su portada, su marcador y su resumen
- * con el idioma en español y le pasa a `frasesEnIngles` lo que ha quedado escrito.
+ * It is the same file in every game. Two tests use it: `noEnglish.test.ts` (common), which
+ * goes over the whole dictionary, and the one of each game that paints its cover, its scoreboard and
+ * its summary with the language in Spanish and hands `englishPhrases` what has been drawn.
  *
- * Mira dos cosas:
+ * It looks at two things:
  *
- * - **Las frases del propio diccionario**: si una clave en inglés que tiene otra traducción
- *   aparece entera en el texto español, es que alguien la escribió sin `t()`.
- * - **Palabras sueltas que solo son inglés**, de las que salen en un menú o un marcador («of»,
- *   «round», «lives», «streak»…): lo que se compone a trozos no está en el diccionario, y es justo
- *   lo que se escapa. Ninguna es también palabra española ni nombre de un deporte («strike»,
- *   «spare» o «home run» se dicen así en español).
+ * - **The phrases of the dictionary itself**: if an English key that has another translation
+ *   shows up whole in the Spanish text, someone wrote it without `t()`.
+ * - **Single words that are only English**, of the kind that show up in a menu or a scoreboard («of»,
+ *   «round», «lives», «streak»…): what is put together in pieces is not in the dictionary, and it is
+ *   exactly what slips through. None is also a Spanish word or the name of a sport («strike»,
+ *   «spare» or «home run» are said that way in Spanish).
  *
- * Los nombres propios que se quedan en inglés (el del juego, el del salón) no son ninguna de las
- * dos cosas, así que no hace falta apartarlos.
+ * The proper names that stay in English (the game's, the hall's) are neither of the
+ * two things, so there is no need to set them aside.
  */
 
-/** Palabras que en un texto en español solo pueden ser inglés sin traducir, en minúsculas. */
-export const SOLO_INGLES: readonly string[] = [
+/** Words that in a Spanish text can only be untranslated English, in lower case. */
+export const ENGLISH_ONLY: readonly string[] = [
   'the', 'of', 'and', 'you', 'your', 'with', 'out', 'over', 'again', 'back', 'new', 'best', 'left', 'right',
   'round', 'level', 'levels', 'lives', 'life', 'streak', 'record', 'score', 'points', 'shots', 'shot',
   'hit', 'hits', 'miss', 'missed', 'easy', 'medium', 'hard', 'play', 'player', 'players', 'wins', 'turn',
@@ -28,38 +28,38 @@ export const SOLO_INGLES: readonly string[] = [
   'target', 'time', 'game', 'mode', 'try', 'start', 'next', 'skip',
 ]
 
-const LETRA = 'A-Za-zÁÉÍÓÚÜÑáéíóúüñ'
+const LETTER = 'A-Za-zÁÉÍÓÚÜÑáéíóúüñ'
 
-/** La expresión que encuentra esa frase entera, sin que sea un trozo de una palabra más larga. */
-function entera(frase: string, banderas = ''): RegExp {
-  const escapada = frase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return new RegExp(`(^|[^${LETRA}])${escapada}(?=$|[^${LETRA}])`, banderas)
+/** The expression that finds that phrase whole, without it being a piece of a longer word. */
+function whole(phrase: string, flags = ''): RegExp {
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(^|[^${LETTER}])${escaped}(?=$|[^${LETTER}])`, flags)
 }
 
 /**
- * Lo que hay en inglés en un texto que tendría que estar en español: las frases del diccionario
- * (`claves`: cada clave en inglés con su traducción, para quedarse con las que cambian) y las
- * palabras de `SOLO_INGLES`. Sin repetir y en el orden en que se encuentran.
+ * What there is in English in a text that should be in Spanish: the phrases of the dictionary
+ * (`keys`: each English key with its translation, to keep the ones that change) and the
+ * words of `ENGLISH_ONLY`. Without repeating and in the order in which they are found.
  */
-export function frasesEnIngles(texto: string, claves: readonly (readonly [string, string])[] = []): string[] {
-  // Los huecos de una frase sin rellenar (`{score}`) son nombres de variable, no texto.
-  texto = texto.replace(/\{\w+\}/g, ' ')
-  const halladas: string[] = []
-  const anotar = (frase: string) => {
-    if (!halladas.includes(frase)) halladas.push(frase)
+export function englishPhrases(text: string, keys: readonly (readonly [string, string])[] = []): string[] {
+  // The placeholders of an unfilled phrase (`{score}`) are variable names, not text.
+  text = text.replace(/\{\w+\}/g, ' ')
+  const found: string[] = []
+  const note = (phrase: string) => {
+    if (!found.includes(phrase)) found.push(phrase)
   }
-  // Las frases enteras primero, de la más larga a la más corta: «Out of lives» se dice entera
-  // antes que sus palabras sueltas.
-  const traducidas = claves
-    .filter(([ingles, espanol]) => ingles !== espanol && !ingles.includes('{') && /[A-Za-z]{2}/.test(ingles))
-    .map(([ingles]) => ingles)
+  // The whole phrases first, from the longest to the shortest: «Out of lives» is reported whole
+  // before its single words.
+  const translated = keys
+    .filter(([english, spanish]) => english !== spanish && !english.includes('{') && /[A-Za-z]{2}/.test(english))
+    .map(([english]) => english)
     .sort((a, b) => b.length - a.length)
-  for (const ingles of traducidas) {
-    if (entera(ingles).test(texto)) anotar(ingles)
+  for (const english of translated) {
+    if (whole(english).test(text)) note(english)
   }
-  for (const palabra of SOLO_INGLES) {
-    const hallada = entera(palabra, 'i').exec(texto)
-    if (hallada != null) anotar(hallada[0].slice(hallada[1].length))
+  for (const word of ENGLISH_ONLY) {
+    const match = whole(word, 'i').exec(text)
+    if (match != null) note(match[0].slice(match[1].length))
   }
-  return halladas
+  return found
 }

@@ -24,11 +24,11 @@ import {
 import { challengeRound } from './challenge'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from './gameConfig'
 import { GAME_MODE_LABELS, GAME_MODE_ORDER } from './gameMode'
-import { MEDALLAS, cartelDeObjetivo, medallaQueCelebra, type Objetivo } from './objetivo'
+import { MEDALS, goalSign, medalToCelebrate, type Goal } from './goal'
 import { eyesAt, pointOnPanel } from './panelReading'
 import { HALF_LENGTH } from './puckPhysics'
 import { BASE_GOAL_POINTS, goalPoints } from './scoring'
-import { RECETAS } from './tactos'
+import { HAPTIC_RECIPES } from './hapticFeedback'
 import { traductorSuave } from './textos'
 import { REFERENCE_EYE_HEIGHT } from './uiHeight'
 
@@ -39,8 +39,8 @@ import { REFERENCE_EYE_HEIGHT } from './uiHeight'
 
 /** Lo que mide el cartel por metro de distancia: 24° de ancho por 4,5° de alto, como el de verdad. */
 const PROPORCION: ProporcionDelCartel = {
-  ancho: 2 * Math.tan((12 * Math.PI) / 180),
-  alto: 2 * Math.tan((2.25 * Math.PI) / 180),
+  width: 2 * Math.tan((12 * Math.PI) / 180),
+  height: 2 * Math.tan((2.25 * Math.PI) / 180),
 }
 
 const OJOS = eyesAt(REFERENCE_EYE_HEIGHT)
@@ -48,7 +48,7 @@ const OJOS = eyesAt(REFERENCE_EYE_HEIGHT)
 describe('dónde cuelga el cartel', () => {
   const sitio = sitioDelCartel(PROPORCION)
   const pose = poseDelCartel(sitio)
-  const alto = PROPORCION.alto * sitio.distancia
+  const alto = PROPORCION.height * sitio.distancia
 
   it('el marcador del fondo está sobre la portería de la máquina, echado hacia quien juega', () => {
     expect(MARCADOR_DEL_FONDO.centro[2]).toBeLessThan(-HALF_LENGTH)
@@ -101,12 +101,12 @@ describe('dónde cuelga el cartel', () => {
   })
 })
 
-const OBJETIVO: Objetivo = {
-  medallas: { bronce: 1500, plata: 8000, oro: 20000 },
-  mejorEs: 'mas',
-  unidad: 'points in the challenge',
+const OBJETIVO: Goal = {
+  medals: { bronze: 1500, silver: 8000, gold: 20000 },
+  better: 'higher',
+  unit: 'points in the challenge',
   record: 2300,
-  modo: 'challenge',
+  mode: 'challenge',
 }
 
 const en = traductorSuave('en')
@@ -125,43 +125,43 @@ describe('la partida que se le cuenta al cartel', () => {
   it('en la primera cuenta atrás: la misión y los listones', () => {
     const partida = partidaDelCartel(reto({ gameState: 'countdown' }), en)
 
-    expect(partida?.fase).toBe('antes')
-    expect(cartelDeObjetivo(partida!, en)).toMatchObject({
-      titulo: 'Win games until you lose one',
-      detalle: 'Bronze 1,500 · Silver 8,000 · Gold 20,000',
+    expect(partida?.phase).toBe('before')
+    expect(goalSign(partida!, en)).toMatchObject({
+      title: 'Win games until you lose one',
+      detail: 'Bronze 1,500 · Silver 8,000 · Gold 20,000',
     })
-    expect(cartelDeObjetivo(partidaDelCartel(reto({ gameState: 'countdown' }), es)!, es).titulo).toBe('Gana partidos hasta perder uno')
+    expect(goalSign(partidaDelCartel(reto({ gameState: 'countdown' }), es)!, es).title).toBe('Gana partidos hasta perder uno')
     expect(es(MISION_DEL_RETO)).not.toBe(MISION_DEL_RETO)
   })
 
   it('con el disco en juego: el listón que falta, lo que se lleva y lo que queda', () => {
     const partida = partidaDelCartel(reto({ points: 340, goles: 4, streak: 2 }), es)
 
-    expect(partida).toMatchObject({ fase: 'jugando', puntos: 340, queda: 'Ronda 1 · a 3 goles · gol +140' })
-    expect(cartelDeObjetivo(partida!, es)).toMatchObject({ titulo: 'Bronce a 1500 · llevas 340', detalle: 'Ronda 1 · a 3 goles · gol +140' })
-    expect(medallaQueCelebra(partida!)).toBeNull()
+    expect(partida).toMatchObject({ phase: 'playing', points: 340, remaining: 'Ronda 1 · a 3 goles · gol +140' })
+    expect(goalSign(partida!, es)).toMatchObject({ title: 'Bronce a 1500 · llevas 340', detail: 'Ronda 1 · a 3 goles · gol +140' })
+    expect(medalToCelebrate(partida!)).toBeNull()
   })
 
   it('la cuenta atrás de las rondas siguientes ya es jugar: no vuelve a la misión', () => {
-    expect(partidaDelCartel(reto({ gameState: 'countdown', round: 2, goles: 4, points: 500 }), en)?.fase).toBe('jugando')
+    expect(partidaDelCartel(reto({ gameState: 'countdown', round: 2, goles: 4, points: 500 }), en)?.phase).toBe('playing')
     // Ni la de la primera, si ya ha caído algún gol.
-    expect(partidaDelCartel(reto({ gameState: 'countdown', goles: 1 }), en)?.fase).toBe('jugando')
+    expect(partidaDelCartel(reto({ gameState: 'countdown', goles: 1 }), en)?.phase).toBe('playing')
   })
 
   it('cruzado un listón, la medalla es de quien juega y el cartel va a por el siguiente', () => {
     const partida = partidaDelCartel(reto({ round: 4, points: 1650, goles: 14 }), en)
 
-    expect(medallaQueCelebra(partida!)).toBe('bronce')
-    expect(cartelDeObjetivo(partida!, en).titulo).toBe('Silver at 8,000 · you have 1,650')
+    expect(medalToCelebrate(partida!)).toBe('bronze')
+    expect(goalSign(partida!, en).title).toBe('Silver at 8,000 · you have 1,650')
   })
 
   it('al acabar: lo conseguido y lo que faltó', () => {
     const partida = partidaDelCartel(reto({ gameState: 'finished', round: 4, points: 1650, goles: 17 }), es)
 
-    expect(partida?.fase).toBe('final')
-    expect(cartelDeObjetivo(partida!, es)).toMatchObject({
-      titulo: 'Bronce · 1650 points in the challenge',
-      detalle: 'Te han faltado 6350 para la plata',
+    expect(partida?.phase).toBe('end')
+    expect(goalSign(partida!, es)).toMatchObject({
+      title: 'Bronce · 1650 points in the challenge',
+      detail: 'Te han faltado 6350 para la plata',
     })
   })
 
@@ -169,24 +169,24 @@ describe('la partida que se le cuenta al cartel', () => {
     for (const gameMode of GAME_MODE_ORDER.filter((mode) => mode !== 'challenge')) {
       const partida = partidaDelCartel(reto({ gameMode, points: 900 }), es)
 
-      expect(cartelDeObjetivo(partida!, es)).toMatchObject({ titulo: `${es(GAME_MODE_LABELS[gameMode])} · no cuenta para medalla`, discreto: true })
-      expect(medallaQueCelebra(partida!)).toBeNull()
+      expect(goalSign(partida!, es)).toMatchObject({ title: `${es(GAME_MODE_LABELS[gameMode])} · no cuenta para medalla`, subdued: true })
+      expect(medalToCelebrate(partida!)).toBeNull()
     }
   })
 
   it('si el salón dice que las medallas salen de otro modo, el reto tampoco cuenta', () => {
-    const partida = partidaDelCartel(reto({ objetivo: { ...OBJETIVO, modo: 'levels' } }), en)
+    const partida = partidaDelCartel(reto({ objetivo: { ...OBJETIVO, mode: 'levels' } }), en)
 
-    expect(cartelDeObjetivo(partida!, en).titulo).toBe('Challenge · does not count for a medal')
+    expect(goalSign(partida!, en).title).toBe('Challenge · does not count for a medal')
   })
 
   it('con el juego abierto suelto: en el reto, la misión y el récord guardado aquí', () => {
     const partida = partidaDelCartel(reto({ objetivo: undefined, gameState: 'countdown', record: 3100 }), en)
 
-    expect(cartelDeObjetivo(partida!, en)).toMatchObject({ titulo: 'Win games until you lose one', detalle: 'Your record 3,100' })
+    expect(goalSign(partida!, en)).toMatchObject({ title: 'Win games until you lose one', detail: 'Your record 3,100' })
     // Sin récord guardado no hay segunda línea.
     const sinRecord = partidaDelCartel(reto({ objetivo: null, gameState: 'countdown' }), en)
-    expect(cartelDeObjetivo(sinRecord!, en).detalle).toBeNull()
+    expect(goalSign(sinRecord!, en).detail).toBeNull()
   })
 
   it('con el juego abierto suelto y fuera del reto no se cuelga nada', () => {
@@ -227,7 +227,7 @@ describe('lo que el menú dice de cada modo', () => {
   })
 
   it('si el salón saca las medallas de otro modo, aquí no las da ninguno', () => {
-    const otro = { ...OBJETIVO, modo: 'levels' }
+    const otro = { ...OBJETIVO, mode: 'levels' }
     expect(GAME_MODE_ORDER.filter((mode) => daMedalla(otro, mode))).toEqual([])
   })
 })
@@ -252,24 +252,24 @@ describe('lo que el marcador calla', () => {
 
 describe('el listón cruzado', () => {
   it('tiene su sonido, uno por medalla', () => {
-    expect(new Set(MEDALLAS.map((medalla) => SONIDO_DEL_LISTON[medalla])).size).toBe(MEDALLAS.length)
+    expect(new Set(MEDALS.map((medalla) => SONIDO_DEL_LISTON[medalla])).size).toBe(MEDALS.length)
   })
 
   it('se siente en la mano del mazo, más fuerte cuanto mejor es la medalla', () => {
-    const fuerza = (medalla: (typeof MEDALLAS)[number]) => pulsosDelListon(medalla, 'left')[0]
+    const fuerza = (medalla: (typeof MEDALS)[number]) => pulsosDelListon(medalla, 'left')[0]
 
-    expect(fuerza('bronce').mano).toBe('left')
-    expect(fuerza('plata').intensidad).toBeGreaterThan(fuerza('bronce').intensidad)
-    expect(fuerza('oro').intensidad).toBeGreaterThan(fuerza('plata').intensidad)
-    expect(pulsosDelListon('oro', 'right')).toHaveLength(1)
+    expect(fuerza('bronze').hand).toBe('left')
+    expect(fuerza('silver').intensity).toBeGreaterThan(fuerza('bronze').intensity)
+    expect(fuerza('gold').intensity).toBeGreaterThan(fuerza('silver').intensity)
+    expect(pulsosDelListon('gold', 'right')).toHaveLength(1)
   })
 
   it('sale detrás del pulso del gol que lo cruzó, que si no lo cortaría', () => {
-    expect(pulsosDelListon('bronce', 'right')[0].retardo).toBeGreaterThanOrEqual(RECETAS.llegada.ms)
+    expect(pulsosDelListon('bronze', 'right')[0].delay).toBeGreaterThanOrEqual(HAPTIC_RECIPES.arrival.ms)
   })
 
   it('sin el mazo en la mano no vibra nada', () => {
-    expect(pulsosDelListon('oro', null)).toEqual([])
+    expect(pulsosDelListon('gold', null)).toEqual([])
   })
 })
 
@@ -298,18 +298,18 @@ describe('lo que se aparta del cartel', () => {
 })
 
 describe('al cerrar el tutorial, el cartel avisa de que ya cuenta', () => {
-  const vista = { titulo: 'Win games until you lose one', detalle: 'Bronze 1500', barra: null, medalla: null, discreto: false }
+  const vista = { title: 'Win games until you lose one', detail: 'Bronze 1500', bar: null, medal: null, subdued: false }
   const es = traductorSuave('es')
 
   it('en el reto, la línea grande lo dice en el idioma de quien juega', () => {
-    expect(conElAvisoDeQueCuenta(vista, 'challenge', true, es)).toEqual({ ...vista, titulo: 'Ahora cuenta para medalla' })
-    expect(conElAvisoDeQueCuenta(vista, 'challenge', true, traductorSuave('en'))?.titulo).toBe('Now it counts for a medal')
+    expect(conElAvisoDeQueCuenta(vista, 'challenge', true, es)).toEqual({ ...vista, title: 'Ahora cuenta para medalla' })
+    expect(conElAvisoDeQueCuenta(vista, 'challenge', true, traductorSuave('en'))?.title).toBe('Now it counts for a medal')
   })
 
   it('pasado el aviso, fuera del reto, con el cartel discreto o sin cartel, lo de siempre', () => {
     expect(conElAvisoDeQueCuenta(vista, 'challenge', false, es)).toBe(vista)
     expect(conElAvisoDeQueCuenta(vista, 'practice', true, es)).toBe(vista)
-    const discreto = { ...vista, discreto: true }
+    const discreto = { ...vista, subdued: true }
     expect(conElAvisoDeQueCuenta(discreto, 'challenge', true, es)).toBe(discreto)
     expect(conElAvisoDeQueCuenta(null, 'challenge', true, es)).toBeNull()
   })

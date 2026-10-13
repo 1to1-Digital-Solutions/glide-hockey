@@ -14,7 +14,7 @@ import {
   SCENERY_KEY,
   TURN_MODE_KEY,
   VOLUME_KEYS,
-} from './ajustes'
+} from './settings'
 import {
   currentLang,
   setHand,
@@ -30,69 +30,69 @@ import {
   useScenery,
   useTurnMode,
   useVolumes,
-} from './ajustesCliente'
+} from './settingsClient'
 
 /**
- * Los ajustes del arcade vistos desde el navegador: que lo que cambia en la
- * portada llegue a lo que ya está pintado dentro de la cabina.
+ * The hall's settings seen from the browser: that what changes on the
+ * front page reaches what is already painted inside the cabinet.
  *
- * Lo que se prueba de verdad es el aviso. Guardar es fácil; lo que se rompe en
- * silencio es que nadie se entere: `localStorage` no avisa a la pestaña que
- * escribe y una cookie no avisa a nadie nunca, así que sin el evento propio el
- * juego se quedaría sonando —o hablando— como estaba hasta la siguiente carga.
+ * What is really tested is the notice. Saving is easy; what breaks
+ * silently is nobody finding out: `localStorage` does not notify the tab that
+ * writes and a cookie never notifies anyone, so without our own event the
+ * game would keep sounding —or speaking— as it was until the next load.
  *
- * La instantánea se cachea a propósito (`useSyncExternalStore` compara por
- * identidad), y eso es justo lo que puede quedarse rancio: por eso hay un test
- * de que cambiar el volumen invalida lo cacheado aunque no haya nadie
- * escuchando todavía.
+ * The snapshot is cached on purpose (`useSyncExternalStore` compares by
+ * identity), and that is exactly what can go stale: that is why there is a test
+ * that changing the volume invalidates what is cached even if nobody is
+ * listening yet.
  */
 
 beforeEach(() => {
-  // El almacén cachea lo leído, así que vaciar `localStorage` a pelo dejaría la
-  // instantánea anterior en pie: se vuelve a lo de partida por donde se cambia.
+  // The store caches what it read, so emptying `localStorage` directly would leave
+  // the previous snapshot standing: we go back to the defaults the way they are changed.
   window.localStorage.clear()
   setVolume('sfx', DEFAULT_VOLUMES.sfx)
   setVolume('ambience', DEFAULT_VOLUMES.ambience)
   document.cookie = `${LANG_COOKIE}=; Path=/; Max-Age=0`
 })
 
-describe('dónde se guarda', () => {
-  it('es el almacenamiento de esta ventana', () => {
+describe('where it is saved', () => {
+  it('is the storage of this window', () => {
     expect(settingsStorage()).toBe(window.localStorage)
   })
 
-  it('no hay dónde si el navegador lo tiene bloqueado', () => {
-    // Ventana privada, o cookies de sitio bloqueadas: `localStorage` no
-    // devuelve nada, revienta al mirarlo. El juego tiene que seguir.
+  it('there is nowhere if the browser has it blocked', () => {
+    // Private window, or site cookies blocked: `localStorage` does not
+    // return nothing, it blows up when looked at. The game has to go on.
     const original = Object.getOwnPropertyDescriptor(window, 'localStorage')
     Object.defineProperty(window, 'localStorage', {
       configurable: true,
       get() {
-        throw new Error('almacenamiento bloqueado')
+        throw new Error('storage blocked')
       },
     })
 
     try {
       expect(settingsStorage()).toBeNull()
     } finally {
-      // `restoreMocks` no deshace un `defineProperty`, y sin esto el resto de
-      // los tests del fichero se quedarían sin almacenamiento.
+      // `restoreMocks` does not undo a `defineProperty`, and without this the rest of
+      // the file's tests would be left without storage.
       if (original !== undefined) Object.defineProperty(window, 'localStorage', original)
     }
   })
 })
 
-describe('los volúmenes', () => {
-  it('empiezan en los de partida', () => {
+describe('the volumes', () => {
+  it('start at the defaults', () => {
     const { result } = renderHook(() => useVolumes())
 
     expect(result.current).toEqual(DEFAULT_VOLUME_SETTINGS)
   })
 
-  it('llegan a lo que ya está pintado en cuanto cambian', () => {
-    // Sin el evento propio esto se quedaría en 100: `localStorage` no avisa a la
-    // pestaña que escribe, y es la misma pestaña la que monta el juego dentro
-    // del salón.
+  it('reach what is already painted as soon as they change', () => {
+    // Without our own event this would stay at 100: `localStorage` does not notify the
+    // tab that writes, and it is the same tab that mounts the game inside
+    // the hall.
     const { result } = renderHook(() => useVolumes())
 
     act(() => setVolume('sfx', 30))
@@ -101,7 +101,7 @@ describe('los volúmenes', () => {
     expect(window.localStorage.getItem(VOLUME_KEYS.sfx)).toBe('30')
   })
 
-  it('no se salen de 0 a 100, ni admiten decimales', () => {
+  it('do not go outside 0 to 100, nor accept decimals', () => {
     const { result } = renderHook(() => useVolumes())
 
     act(() => setVolume('ambience', 140))
@@ -114,7 +114,7 @@ describe('los volúmenes', () => {
     expect(result.current.ambience).toBe(43)
   })
 
-  it('se enteran también de lo que cambia otra pestaña', () => {
+  it('also find out about what another tab changes', () => {
     const { result } = renderHook(() => useVolumes())
 
     act(() => {
@@ -125,26 +125,26 @@ describe('los volúmenes', () => {
     expect(result.current.ambience).toBe(15)
   })
 
-  it('dejan de escuchar cuando ya no los mira nadie', () => {
-    // El juego se monta y se desmonta a cada visita dentro del salón: sin
-    // soltar el oyente, cada entrada dejaría uno más pegado a la ventana.
-    const primero = renderHook(() => useVolumes())
-    const segundo = renderHook(() => useVolumes())
+  it('stop listening when nobody is watching them any more', () => {
+    // The game is mounted and unmounted on every visit inside the hall: without
+    // releasing the listener, every entry would leave one more stuck to the window.
+    const first = renderHook(() => useVolumes())
+    const second = renderHook(() => useVolumes())
 
-    primero.unmount()
+    first.unmount()
     act(() => setVolume('sfx', 20))
-    expect(segundo.result.current.sfx).toBe(20)
+    expect(second.result.current.sfx).toBe(20)
 
-    segundo.unmount()
-    // Ya sin nadie suscrito, un cambio no puede reventar por avisar a un
-    // componente desmontado.
+    second.unmount()
+    // With nobody subscribed any more, a change cannot blow up by notifying an
+    // unmounted component.
     expect(() => setVolume('sfx', 10)).not.toThrow()
   })
 
-  it('no se quedan con lo leído de antes aunque nadie escuche', () => {
-    // La instantánea se cachea, y se invalida al escribir y no en el oyente:
-    // puede que todavía no haya ninguno y aun así la próxima lectura tiene que
-    // ver lo nuevo.
+  it('do not keep what was read before even if nobody is listening', () => {
+    // The snapshot is cached, and it is invalidated on writing and not in the listener:
+    // there may not be one yet and even so the next read has to
+    // see the new value.
     setVolume('sfx', 55)
 
     const { result } = renderHook(() => useVolumes())
@@ -153,39 +153,39 @@ describe('los volúmenes', () => {
   })
 })
 
-describe('lo que se pinta en el servidor', () => {
-  it('son los volúmenes de partida, para que la hidratación cuadre', () => {
-    // Allí no hay `localStorage` que mirar. Si el servidor pintara otra cosa
-    // que el primer render del navegador, React vería dos árboles distintos.
+describe('what is painted on the server', () => {
+  it('is the default volumes, so that hydration squares', () => {
+    // There is no `localStorage` to look at there. If the server painted something
+    // other than the browser's first render, React would see two different trees.
     setVolume('sfx', 15)
 
-    function Volumen() {
+    function Volume() {
       return <output>{useVolumes().sfx}</output>
     }
 
-    expect(renderToString(<Volumen />)).toContain(String(DEFAULT_VOLUMES.sfx))
+    expect(renderToString(<Volume />)).toContain(String(DEFAULT_VOLUMES.sfx))
   })
 
-  it('y el idioma de partida, que la cookie la lee `idiomaDeLaPeticion`', () => {
-    function Idioma() {
+  it('and the default language, since the cookie is read by `requestLang`', () => {
+    function Language() {
       return <output>{useLang()}</output>
     }
 
     setLang('es')
 
-    expect(renderToString(<Idioma />)).toContain(DEFAULT_LANG)
+    expect(renderToString(<Language />)).toContain(DEFAULT_LANG)
   })
 })
 
-describe('el idioma', () => {
-  it('empieza en el de partida', () => {
+describe('the language', () => {
+  it('starts at the default', () => {
     expect(currentLang()).toBe(DEFAULT_LANG)
 
     const { result } = renderHook(() => useLang())
     expect(result.current).toBe(DEFAULT_LANG)
   })
 
-  it('sin elegir, el del sistema: un visor en español arranca en español', () => {
+  it('with none chosen, the system one: a headset in Spanish starts in Spanish', () => {
     vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['es-ES', 'en'])
 
     expect(currentLang()).toBe('es')
@@ -194,23 +194,23 @@ describe('el idioma', () => {
     expect(currentLang()).toBe('en')
   })
 
-  it('viaja en una cookie, para que el servidor pinte ya traducido', () => {
+  it('travels in a cookie, so that the server paints already translated', () => {
     setLang('es')
 
     expect(document.cookie).toContain(`${LANG_COOKIE}=es`)
     expect(currentLang()).toBe('es')
   })
 
-  it('sin `Secure` mientras se sirve sin cifrar, o no se guardaría en local', () => {
-    // El otro lado de esta misma decisión —con `https:` la cookie sí lo lleva—
-    // se prueba en `ajustesCliente.https.test.tsx`, que monta la ventana en
-    // https: `window.location` no se puede cambiar a mitad de un fichero.
+  it('without `Secure` while served unencrypted, or it would not be saved locally', () => {
+    // The other side of this same decision —with `https:` the cookie does carry it—
+    // is tested in `settingsClient.https.test.tsx`, which sets the window up on
+    // https: `window.location` cannot be changed halfway through a file.
     setLang('es')
 
     expect(document.cookie).not.toContain('Secure')
   })
 
-  it('llega a lo que ya está pintado, que una cookie no avisa a nadie', () => {
+  it('reaches what is already painted, since a cookie notifies nobody', () => {
     const { result } = renderHook(() => useLang())
 
     act(() => setLang('es'))
@@ -219,17 +219,17 @@ describe('el idioma', () => {
   })
 })
 
-describe('a qué altura se juega', () => {
-  it('empieza de pie, que es como se jugaba antes de haber esto', () => {
+describe('at what height the game is played', () => {
+  it('starts standing, which is how it was played before this existed', () => {
     const { result } = renderHook(() => usePlayHeight())
 
     expect(result.current).toBe('standing')
   })
 
-  it('lo que se elige en el arcade llega a la cabina sin recargar', () => {
-    // Es lo que hace que valga de algo: quien lo pide está **dentro** del
-    // salón, con el visor puesto, y el juego montado en esta misma página.
-    // Recargar para enterarse sería cerrar la sesión inmersiva.
+  it('what is chosen in the hall reaches the cabinet without reloading', () => {
+    // It is what makes it worth anything: whoever asks for it is **inside** the
+    // hall, with the headset on, and the game mounted on this same page.
+    // Reloading to find out would mean closing the immersive session.
     const { result } = renderHook(() => usePlayHeight())
 
     act(() => {
@@ -240,8 +240,8 @@ describe('a qué altura se juega', () => {
     expect(result.current).toBe('eyes')
   })
 
-  it('una altura que no existe deja el mundo donde estaba', () => {
-    // Almacenamiento manipulado o de otra versión: la escena no se mueve.
+  it('a height that does not exist leaves the world where it was', () => {
+    // Storage tampered with or from another version: the scene does not move.
     const { result } = renderHook(() => usePlayHeight())
 
     act(() => {
@@ -253,14 +253,14 @@ describe('a qué altura se juega', () => {
   })
 })
 
-describe('la altura fina del salón', () => {
-  it('sin la clave el mundo no se mueve', () => {
+describe("the hall's fine height", () => {
+  it('without the key the world does not move', () => {
     const { result } = renderHook(() => usePlayHeightOffset())
 
     expect(result.current).toBe(0)
   })
 
-  it('con −15 el mundo baja 0,15 m, y llega a la cabina sin recargar', () => {
+  it('with −15 the world goes down 0.15 m, and it reaches the cabinet without reloading', () => {
     const { result } = renderHook(() => usePlayHeightOffset())
 
     act(() => {
@@ -271,23 +271,23 @@ describe('la altura fina del salón', () => {
     expect(result.current).toBeCloseTo(-0.15, 10)
   })
 
-  it('en el servidor es cero', () => {
-    function Altura() {
+  it('on the server it is zero', () => {
+    function Height() {
       return <>{usePlayHeightOffset()}</>
     }
 
-    expect(renderToString(<Altura />)).toBe('0')
+    expect(renderToString(<Height />)).toBe('0')
   })
 })
 
-describe('cómo se sujeta lo que se coge', () => {
-  it('empieza manteniendo el gatillo, como enseña el tutorial', () => {
+describe('how what is picked up is held', () => {
+  it('starts holding the trigger, as the tutorial teaches', () => {
     const { result } = renderHook(() => useGrabMode())
 
     expect(result.current).toBe('hold')
   })
 
-  it('lo que se elige en el arcade llega a la cabina sin recargar', () => {
+  it('what is chosen in the hall reaches the cabinet without reloading', () => {
     const { result } = renderHook(() => useGrabMode())
 
     act(() => {
@@ -298,7 +298,7 @@ describe('cómo se sujeta lo que se coge', () => {
     expect(result.current).toBe('toggle')
   })
 
-  it('un agarre que no existe deja el de siempre', () => {
+  it('a grab that does not exist leaves the usual one', () => {
     const { result } = renderHook(() => useGrabMode())
 
     act(() => {
@@ -310,14 +310,14 @@ describe('cómo se sujeta lo que se coge', () => {
   })
 })
 
-describe('cuándo se gira el decorado con el stick', () => {
-  it('sin nada guardado, solo sentado', () => {
+describe('when the stage is turned with the stick', () => {
+  it('with nothing saved, seated only', () => {
     const { result } = renderHook(() => useTurnMode())
 
     expect(result.current).toBe('auto')
   })
 
-  it('lo que se elige en el arcade llega a la cabina sin recargar', () => {
+  it('what is chosen in the hall reaches the cabinet without reloading', () => {
     const { result } = renderHook(() => useTurnMode())
 
     act(() => {
@@ -328,7 +328,7 @@ describe('cuándo se gira el decorado con el stick', () => {
     expect(result.current).toBe('stick')
   })
 
-  it('un giro que no existe deja el de siempre', () => {
+  it('a turn that does not exist leaves the usual one', () => {
     const { result } = renderHook(() => useTurnMode())
 
     act(() => {
@@ -340,16 +340,16 @@ describe('cuándo se gira el decorado con el stick', () => {
   })
 })
 
-describe('qué se ve alrededor con el visor', () => {
-  it('empieza con el sitio dibujado', () => {
+describe('what is seen around with the headset', () => {
+  it('starts with the drawn place', () => {
     const { result } = renderHook(() => useScenery())
 
     expect(result.current).toBe('place')
   })
 
-  it('lo que se elige en el salón llega a la cabina sin recargar', () => {
-    // Lo que hace el panel del salón: escribe la clave y avisa por el evento. El juego está
-    // montado en esta misma página y el visor sigue puesto, así que o llega así o no llega.
+  it('what is chosen in the hall reaches the cabinet without reloading', () => {
+    // What the hall's panel does: it writes the key and notifies through the event. The game is
+    // mounted on this same page and the headset is still on, so it arrives this way or not at all.
     const { result } = renderHook(() => useScenery())
 
     act(() => {
@@ -360,21 +360,21 @@ describe('qué se ve alrededor con el visor', () => {
     expect(result.current).toBe('room')
   })
 
-  it('lo que elige el menú del juego escribe la clave del arcade y se ve a la vez', () => {
-    // Una sola preferencia: el botón del juego y el panel del salón leen y escriben lo mismo.
+  it("what the game's menu chooses writes the hall's key and is seen at once", () => {
+    // A single preference: the game's button and the hall's panel read and write the same thing.
     const { result } = renderHook(() => useScenery())
 
     act(() => setScenery('room'))
     expect(result.current).toBe('room')
     expect(window.localStorage.getItem(SCENERY_KEY)).toBe('room')
 
-    // Volver a lo de partida borra la clave, como los volúmenes.
+    // Going back to the default deletes the key, like the volumes.
     act(() => setScenery('place'))
     expect(result.current).toBe('place')
     expect(window.localStorage.getItem(SCENERY_KEY)).toBeNull()
   })
 
-  it('un escenario que no existe deja el sitio dibujado', () => {
+  it('a scenery that does not exist leaves the drawn place', () => {
     const { result } = renderHook(() => useScenery())
 
     act(() => {
@@ -385,25 +385,25 @@ describe('qué se ve alrededor con el visor', () => {
     expect(result.current).toBe('place')
   })
 
-  it('con el almacenamiento lleno, lo elegido dura lo que dure la visita', () => {
-    // Si la escritura falla y la lectura va al almacenamiento, el botón se enciende y el
-    // decorado no cambia: la elección se pierde en el mismo fotograma.
+  it('with the storage full, what was chosen lasts as long as the visit lasts', () => {
+    // If the write fails and the read goes to the storage, the button lights up and the
+    // stage does not change: the choice is lost in the same frame.
     const { result } = renderHook(() => useScenery())
-    const guarda = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new DOMException('lleno', 'QuotaExceededError')
+    const save = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('full', 'QuotaExceededError')
     })
 
     act(() => setScenery('room'))
-    expect(guarda).toHaveBeenCalled()
+    expect(save).toHaveBeenCalled()
     expect(window.localStorage.getItem(SCENERY_KEY)).toBeNull()
     expect(result.current).toBe('room')
 
-    // Volver al de partida sí se guarda (borrar no ocupa sitio), y entonces manda lo guardado.
+    // Returning to the default does get saved (deleting takes no room), and then the saved one rules.
     act(() => setScenery('place'))
     expect(result.current).toBe('place')
 
-    // Y si el almacenamiento se recupera, lo guardado vuelve a mandar sobre lo recordado.
-    guarda.mockRestore()
+    // And if the storage recovers, what is saved rules again over what is remembered.
+    save.mockRestore()
     act(() => setScenery('room'))
     act(() => {
       window.localStorage.removeItem(SCENERY_KEY)
@@ -412,32 +412,32 @@ describe('qué se ve alrededor con el visor', () => {
     expect(result.current).toBe('place')
   })
 
-  it('en el servidor se pinta el de partida, para que la hidratación cuadre', () => {
-    // El menú de la web enseña cuál está elegido: si el servidor leyera otra cosa que el primer
-    // render del navegador, React vería dos árboles distintos.
+  it('on the server the default is painted, so that hydration squares', () => {
+    // The web menu shows which one is chosen: if the server read something other than the
+    // browser's first render, React would see two different trees.
     window.localStorage.setItem(SCENERY_KEY, 'room')
 
-    function Escenario() {
+    function Scenery() {
       return <output>{useScenery()}</output>
     }
 
-    expect(renderToString(<Escenario />)).toContain('place')
+    expect(renderToString(<Scenery />)).toContain('place')
   })
 })
 
-describe('con qué mano se juega', () => {
+describe('which hand the game is played with', () => {
   beforeEach(() => {
-    // Vacía también lo que una prueba de almacenamiento capado dejara recordado en memoria.
+    // Also empties whatever a locked-down storage test left remembered in memory.
     setHand('right')
   })
 
-  it('sin nada guardado, la derecha', () => {
+  it('with nothing saved, the right one', () => {
     const { result } = renderHook(() => useHand())
 
     expect(result.current).toBe('right')
   })
 
-  it('la izquierda guardada en el salón es la izquierda', () => {
+  it('the left one saved in the hall is the left one', () => {
     window.localStorage.setItem(HAND_KEY, 'left')
 
     const { result } = renderHook(() => useHand())
@@ -445,8 +445,8 @@ describe('con qué mano se juega', () => {
     expect(result.current).toBe('left')
   })
 
-  it('lo que se cambia en el salón llega a la cabina sin recargar', () => {
-    // El panel del salón escribe la clave y avisa por el evento; otra pestaña, por `storage`.
+  it('what is changed in the hall reaches the cabinet without reloading', () => {
+    // The hall's panel writes the key and notifies through the event; another tab, via `storage`.
     const { result } = renderHook(() => useHand())
 
     act(() => {
@@ -462,7 +462,7 @@ describe('con qué mano se juega', () => {
     expect(result.current).toBe('right')
   })
 
-  it('una mano que no existe deja la derecha', () => {
+  it('a hand that does not exist leaves the right one', () => {
     const { result } = renderHook(() => useHand())
 
     act(() => {
@@ -473,7 +473,7 @@ describe('con qué mano se juega', () => {
     expect(result.current).toBe('right')
   })
 
-  it('elegirla aquí escribe la clave del arcade y se ve a la vez', () => {
+  it("choosing it here writes the hall's key and is seen at once", () => {
     const { result } = renderHook(() => useHand())
 
     act(() => setHand('left'))
@@ -485,26 +485,26 @@ describe('con qué mano se juega', () => {
     expect(window.localStorage.getItem(HAND_KEY)).toBeNull()
   })
 
-  it('con el almacenamiento lleno, lo elegido dura lo que dure la visita', () => {
+  it('with the storage full, what was chosen lasts as long as the visit lasts', () => {
     const { result } = renderHook(() => useHand())
-    const guarda = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new DOMException('lleno', 'QuotaExceededError')
+    const save = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('full', 'QuotaExceededError')
     })
 
     act(() => setHand('left'))
     expect(window.localStorage.getItem(HAND_KEY)).toBeNull()
     expect(result.current).toBe('left')
 
-    guarda.mockRestore()
+    save.mockRestore()
   })
 
-  it('en el servidor se pinta con la derecha, para que la hidratación cuadre', () => {
+  it('on the server it is painted with the right one, so that hydration squares', () => {
     window.localStorage.setItem(HAND_KEY, 'left')
 
-    function Mano() {
+    function Hand() {
       return <output>{useHand()}</output>
     }
 
-    expect(renderToString(<Mano />)).toContain('right')
+    expect(renderToString(<Hand />)).toContain('right')
   })
 })

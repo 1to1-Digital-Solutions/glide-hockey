@@ -1,5 +1,5 @@
-import type { Hand } from './ajustes'
-import type { Guion } from './ayudas'
+import type { Hand } from './settings'
+import type { HintScript } from './hints'
 import { GOAL_WIDTH, MALLET_RADIUS, PUCK_RADIUS, TABLE_CENTER_Z } from './gameConfig'
 import { playerStart } from './opponent'
 import { HALF_LENGTH, HALF_WIDTH } from './puckPhysics'
@@ -74,11 +74,11 @@ export type HechoDeLasAyudas = 'tanda' | 'grab' | 'hit' | 'goal'
  * donde un calco no puede tapar nada que resbale por encima de él.
  */
 export const GUION_DE_AYUDAS = [
-  { id: 'suelo', hasta: 'hit', caduca: 15 },
-  { id: 'mando', desde: 'tanda', hasta: 'grab', caduca: 12 },
-  { id: 'gesto', desde: 'tanda', hasta: 'grab', caduca: 12 },
-  { id: 'porteria', desde: 'grab', hasta: 'goal', caduca: 12 },
-] as const satisfies Guion<HechoDeLasAyudas>
+  { id: 'suelo', until: 'hit', expiresAfter: 15 },
+  { id: 'mando', from: 'tanda', until: 'grab', expiresAfter: 12 },
+  { id: 'gesto', from: 'tanda', until: 'grab', expiresAfter: 12 },
+  { id: 'porteria', from: 'grab', until: 'goal', expiresAfter: 12 },
+] as const satisfies HintScript<HechoDeLasAyudas>
 
 /** Cómo se llama cada una, para que la escena no las pinte por un nombre inventado. */
 export type AyudaDelMazo = (typeof GUION_DE_AYUDAS)[number]['id']

@@ -1,62 +1,62 @@
 /**
- * Contar cuántas veces se monta cada trozo de la escena.
+ * Counting how many times each piece of the scene is mounted.
  *
- * «La pantalla parpadea al entrar» es lo que más veces se ha reportado del visor y lo único
- * que nunca se ha podido reproducir desde una pantalla. Se quitó una causa posible —la
- * demostración del gesto repintando el árbol entero noventa veces por segundo— y en dos
- * juegos desapareció; en este no. Así que la causa de este es otra, y adivinar la siguiente
- * cuesta otra tanda de pruebas con las gafas puestas.
+ * «The screen flickers on entering» is what has been reported most often about the headset and
+ * the only thing that has never been reproduced from a screen. One possible cause was removed
+ * —the gesture demonstration repainting the whole tree ninety times per second— and in two
+ * games it went away; in this one it did not. So the cause of this one is another, and guessing
+ * the next one costs another round of tests with the goggles on.
  *
- * Esto no arregla el parpadeo: lo convierte en un número. Si al entrar en la sesión el mundo
- * se monta dos veces, eso **es** un parpadeo —React tira el árbol y lo vuelve a construir, y
- * eso en un visor se ve como un fogonazo—, y se ve aquí sin ponerse nada en la cabeza. Si se
- * monta una sola vez, el parpadeo no es un remontaje y hay que buscarlo en otro sitio, que
- * también es saber algo.
+ * This does not fix the flicker: it turns it into a number. If on entering the session the world
+ * is mounted twice, that **is** a flicker —React throws the tree away and builds it again, and
+ * in a headset that is seen as a flash—, and it is seen here without putting anything on your
+ * head. If it is mounted only once, the flicker is not a remount and it has to be looked for
+ * somewhere else, which is also knowing something.
  *
- * Solo cuenta **si alguien lo pide**: el test crea `window.__montajes` antes de cargar la
- * página. En una partida de verdad esto no hace nada.
+ * It only counts **if somebody asks for it**: the test creates `window.__mounts` before loading
+ * the page. In a real run this does nothing.
  */
 
 declare global {
   interface Window {
-    __montajes?: Record<string, number>
-    /** Cuántos programas de shader lleva compilados el renderer. Ver `apuntarProgramas`. */
-    __programas?: number
+    __mounts?: Record<string, number>
+    /** How many shader programs the renderer has compiled so far. See `recordPrograms`. */
+    __programs?: number
   }
 }
 
-/** ¿Alguien está contando montajes? */
-export function isMontajesRequested(): boolean {
-  return typeof window !== 'undefined' && window.__montajes != null
+/** Is somebody counting mounts? */
+export function isMountCountRequested(): boolean {
+  return typeof window !== 'undefined' && window.__mounts != null
 }
 
 /**
- * Apunta que `que` se acaba de montar.
+ * Records that `what` has just been mounted.
  *
- * Se llama desde un efecto sin dependencias, que es el sitio donde React avisa de un montaje
- * y de uno solo. En modo estricto de desarrollo los efectos corren dos veces a propósito, así
- * que este número se lee en producción —que es como se exporta al visor—.
+ * It is called from an effect with no dependencies, which is the place where React reports a
+ * mount and only one. In development strict mode the effects run twice on purpose, so this
+ * number is read in production —which is how it is exported to the headset—.
  */
-export function contarMontaje(que: string): void {
-  if (!isMontajesRequested()) return
-  const cuenta = window.__montajes
-  /* v8 ignore next -- lo garantiza `isMontajesRequested`, pero el tipo no lo sabe */
-  if (cuenta == null) return
-  cuenta[que] = (cuenta[que] ?? 0) + 1
+export function countMount(what: string): void {
+  if (!isMountCountRequested()) return
+  const counts = window.__mounts
+  /* v8 ignore next -- `isMountCountRequested` guarantees it, but the type does not know */
+  if (counts == null) return
+  counts[what] = (counts[what] ?? 0) + 1
 }
 
 /**
- * Cuántos programas de shader lleva compilados el renderer.
+ * How many shader programs the renderer has compiled so far.
  *
- * El otro sospechoso del parpadeo, y el que sí dio algo: al abrir la sesión se compilaban
- * **tres programas nuevos** —los materiales que solo existen dentro del visor: los paneles,
- * el mando dibujado— y compilar un shader bloquea el hilo. En una pantalla eso es un
- * fotograma perdido; en un visor, a 72 por segundo y por ojo, es un fogonazo.
+ * The other suspect of the flicker, and the one that did yield something: on opening the
+ * session **three new programs** were compiled —the materials that only exist inside the
+ * headset: the panels, the drawn controller— and compiling a shader blocks the thread. On a
+ * screen that is a lost frame; in a headset, at 72 per second and per eye, it is a flash.
  *
- * Se apunta para poder decir en un test **cuántos quedan por compilar cuando la sesión ya
- * está abierta**, que es lo que hay que mantener en cero.
+ * It is recorded so that a test can say **how many are left to compile when the session is
+ * already open**, which is what has to be kept at zero.
  */
-export function apuntarProgramas(cuantos: number): void {
-  if (!isMontajesRequested()) return
-  window.__programas = cuantos
+export function recordPrograms(howMany: number): void {
+  if (!isMountCountRequested()) return
+  window.__programs = howMany
 }

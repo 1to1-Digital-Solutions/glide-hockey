@@ -1,4 +1,4 @@
-## Glide Hockey con visor, sin visor: mandos de mentira (`@kit/runtime/xr/simulado`) y el jugador
+## Glide Hockey con visor, sin visor: mandos de mentira (`@kit/runtime/xr/simulated`) y el jugador
 ## automático que coge el mazo con la mano y juega una partida entera moviéndola por la mesa, por
 ## el mismo camino que una mano de verdad. Cada caso monta el juego de nuevo con sus ajustes del
 ## salón y comprueba la gramática XR del kit con los ficheros comunes de verdad del juego

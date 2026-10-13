@@ -1,70 +1,71 @@
 /**
- * Lo que ocupa en el ojo lo que se escribe en un panel del visor, **tal como queda el panel**:
- * dónde está respecto de los ojos, cómo gira y en qué fila va cada texto.
+ * How much of the eye is taken up by what is written on a headset panel, **as the panel ends up**:
+ * where it is relative to the eyes, how it is rotated and which row each text goes in.
  *
- * **El instrumento común mide contra una distancia, y una distancia no basta.**
- * `components/xr/legibilidad.ts` dice si una letra llega a tantos metros, pero no a cuántos
- * metros está. Medir hasta el centro del panel y sin escorzo da por buena la letra que con el
- * visor puesto no se lee: un panel que solo gira alrededor de la vertical y queda por debajo o
- * por encima de los ojos se ve inclinado, y su fila más lejana ocupa menos de lo que diría su
- * centro. En bateo, «Exit» salía a 0,85° mientras el test daba 1,416°.
+ * **The common instrument measures against a distance, and a distance is not enough.**
+ * `components/xr/legibility.ts` says whether a font reaches so many metres, but not how many
+ * metres away it is. Measuring to the centre of the panel and without foreshortening passes the
+ * font that cannot be read with the headset on: a panel that only rotates about the vertical and
+ * sits below or above the eyes is seen tilted, and its farthest row takes up less than its
+ * centre would say. In batting, «Exit» came out at 0.85° while the test gave 1.416°.
  *
- * Así que aquí se mide **cada texto en su fila y con el escorzo**, con el tamaño que el lienzo
- * apunta que se escribió —encogido incluido—, contra `MIN_READING_DEGREES`. Y los dos fallos
- * que ninguna distancia ve: un tamaño pintado que no está en la lista del panel (una letra
- * escrita a mano, o encogida para caber) y un texto que se mete en un botón, que es un
- * rectángulo y no un texto.
+ * So here **each text is measured in its row and with the foreshortening**, with the size the
+ * canvas records as written —shrunk included—, against `MIN_READING_DEGREES`. And the two
+ * failures no distance sees: a painted size that is not in the panel's list (a font written by
+ * hand, or shrunk to fit) and a text that runs into a button, which is a rectangle and not a
+ * text.
  *
- * Es el mismo fichero en los juegos que lo usan. Todo en metros y en el espacio de quien juega:
- * los pies en el origen y `−Z` delante. Sin three ni React; la escena coloca lo que sale de aquí.
+ * It is the same file in the games that use it. Everything in metres and in the space of whoever
+ * is playing: the feet at the origin and `−Z` ahead. No three and no React; the scene places what
+ * comes out of here.
  */
 
-/** Tres números: una posición o tres ángulos, como los de three. */
+/** Three numbers: a position or three angles, like three's. */
 export type Triple = readonly [number, number, number]
 
-/** El orden en que se aplican los tres giros, como el de un `Euler` de three. */
+/** The order in which the three rotations are applied, like that of a three `Euler`. */
 export type EulerOrder = 'XYZ' | 'XZY' | 'YXZ' | 'YZX' | 'ZXY' | 'ZYX'
 
-/** Un punto del espacio de quien juega. */
+/** A point in the space of whoever is playing. */
 export interface Point {
   readonly x: number
   readonly y: number
   readonly z: number
 }
 
-/** Dónde está un panel y cómo gira, en el espacio de quien juega. */
+/** Where a panel is and how it is rotated, in the space of whoever is playing. */
 export interface PanelPose {
-  /** Su centro. */
+  /** Its centre. */
   readonly position: Triple
-  /** Como el `rotation` de three: tres ángulos y, si no es `'XYZ'`, el orden. Sin él, de frente a `+Z`. */
+  /** Like three's `rotation`: three angles and, if it is not `'XYZ'`, the order. Without it, facing `+Z`. */
   readonly rotation?: Triple | readonly [number, number, number, EulerOrder]
 }
 
 /**
- * Lo menos que ocupa en el ojo una letra que se lee de un vistazo, en grados.
+ * The least a font that is read at a glance takes up in the eye, in degrees.
  *
- * **Un grado se queda corto**: con todas las letras por encima, el reporte con el visor puesto
- * seguía siendo «para poder verlo bien tendría que dar 2 pasos». Un grado es lo que hace falta
- * para *distinguir* una palabra, no para leer un menú de corrido. Los tres cuartos de grado de
- * `legibilidad.ts` son el suelo del instrumento común; esto es lo que se pide para leer.
+ * **One degree falls short**: with every font above it, the report with the headset on was
+ * still «to see it properly I would have to take 2 steps». One degree is what it takes to
+ * *make out* a word, not to read a menu straight through. The three quarters of a degree of
+ * `legibility.ts` are the floor of the common instrument; this is what is asked for to read.
  */
 export const MIN_READING_DEGREES = 1.4
 
 /**
- * A qué alturas de ojos se mide: alguien sentado o bajo, la de referencia y alguien alto.
+ * At which eye heights it is measured: someone seated or short, the reference one and someone tall.
  *
- * La interfaz sube y baja con los ojos (`uiRise` en cada juego), así que respecto de ellos debería
- * quedar donde está; medirlo a las tres es lo que demuestra que es así, y lo que cantaría un panel
- * que no los siguiera.
+ * The UI rises and falls with the eyes (`uiRise` in each game), so relative to them it should
+ * stay where it is; measuring it at all three is what proves it does, and what would flag a panel
+ * that did not follow them.
  */
 export const EYE_HEIGHTS = [1.2, 1.6, 1.9] as const
 
-/** Los ojos de quien juega, de pie en el origen, a esa altura. */
+/** The eyes of whoever is playing, standing at the origin, at that height. */
 export function eyesAt(height: number): Point {
   return { x: 0, y: height, z: 0 }
 }
 
-/** Un punto girado alrededor de un eje. */
+/** A point rotated about an axis. */
 function rotateAbout(axis: 'X' | 'Y' | 'Z', angle: number, p: Point): Point {
   const c = Math.cos(angle)
   const s = Math.sin(angle)
@@ -74,10 +75,10 @@ function rotateAbout(axis: 'X' | 'Y' | 'Z', angle: number, p: Point): Point {
 }
 
 /**
- * Un punto girado como lo gira three con ese `rotation`.
+ * A point rotated the way three rotates it with that `rotation`.
  *
- * three compone la matriz en el orden escrito —`'XYZ'` es `Rx · Ry · Rz`—, así que al punto se le
- * aplica primero el último giro.
+ * three composes the matrix in the order written —`'XYZ'` is `Rx · Ry · Rz`—, so the last
+ * rotation is applied to the point first.
  */
 export function rotate(point: Point, rotation?: PanelPose['rotation']): Point {
   if (rotation == null) return point
@@ -87,47 +88,47 @@ export function rotate(point: Point, rotation?: PanelPose['rotation']): Point {
   return [...order].reverse().reduce((p, axis) => rotateAbout(axis as 'X' | 'Y' | 'Z', angles[axis as 'X' | 'Y' | 'Z'], p), point)
 }
 
-/** Dónde cae un punto del panel, en su plano y desde su centro, en el espacio de quien juega. */
+/** Where a point of the panel lands, in its plane and from its centre, in the space of whoever is playing. */
 export function pointOnPanel(pose: PanelPose, localX: number, localY: number): Point {
   const offset = rotate({ x: localX, y: localY, z: 0 }, pose.rotation)
   return { x: pose.position[0] + offset.x, y: pose.position[1] + offset.y, z: pose.position[2] + offset.z }
 }
 
-/** El giro alrededor de la vertical que deja la cara de un panel (`+Z`) mirando hacia los ojos. */
+/** The rotation about the vertical that leaves the face of a panel (`+Z`) looking toward the eyes. */
 export function facingEyes(position: Triple, eyes: Point): number {
   return Math.atan2(eyes.x - position[0], eyes.z - position[2])
 }
 
 /**
- * Cuánto se inclina un panel para mirar a los ojos, como el `rotation.x` de three.
+ * How much a panel tilts to look at the eyes, like three's `rotation.x`.
  *
- * **Un panel vertical por debajo o por encima de la vista se lee escorzado**: de canto, sus
- * letras ocupan en el ojo menos de lo que ocuparían de frente. Inclinado hacia los ojos, se lee
- * de frente.
+ * **A vertical panel below or above the line of sight is read foreshortened**: edge-on, its
+ * letters take up less in the eye than they would head-on. Tilted toward the eyes, it is read
+ * head-on.
  */
 export function tiltTowardEyes(position: Triple, eyes: Point): number {
   return -Math.atan2(eyes.y - position[1], Math.hypot(eyes.x - position[0], eyes.z - position[2]))
 }
 
 /**
- * El giro entero de un panel que mira a los ojos, en el orden en que se aplica: primero de cara y
- * luego inclinado. Es lo que recibe `rotation` en la escena, y lo heredan las cajas de pulsación
- * que cuelgan del mismo grupo.
+ * The whole rotation of a panel that looks at the eyes, in the order in which it is applied: first
+ * facing and then tilted. It is what `rotation` receives in the scene, and the press boxes that
+ * hang from the same group inherit it.
  */
 export function panelRotation(position: Triple, eyes: Point): [number, number, number, 'YXZ'] {
   return [tiltTowardEyes(position, eyes), facingEyes(position, eyes), 0, 'YXZ']
 }
 
-/** A cuántos metros de los ojos queda el centro de un panel, contando la altura. */
+/** How many metres from the eyes the centre of a panel ends up, counting the height. */
 export function distanceFromEyes(position: Triple, eyes: Point): number {
   return Math.hypot(position[0] - eyes.x, position[1] - eyes.y, position[2] - eyes.z)
 }
 
 /**
- * Cuántos grados ocupa en el ojo algo de ese alto escrito en ese punto del panel.
+ * How many degrees something of that height written at that point of the panel takes up in the eye.
  *
- * Contando el escorzo: una fila lejos del centro de un panel grande, o un panel que no mira a los
- * ojos, ya no se ve de frente.
+ * Counting the foreshortening: a row far from the centre of a large panel, or a panel that does
+ * not look at the eyes, is no longer seen head-on.
  */
 export function letterAngle(pose: PanelPose, eyes: Point, localX: number, localY: number, height: number): number {
   const low = pointOnPanel(pose, localX, localY - height / 2)
@@ -139,8 +140,8 @@ export function letterAngle(pose: PanelPose, eyes: Point, localX: number, localY
 }
 
 /**
- * A qué distancia tendría que estar de frente algo de ese alto para ocupar lo mismo que ocupa ahí:
- * la distancia con la que se le pasa el texto a `problemasDeLegibilidad`.
+ * How far away, head-on, something of that height would have to be to take up the same as it does
+ * there: the distance with which the text is handed to `legibilityProblems`.
  */
 export function readingDistance(pose: PanelPose, eyes: Point, localX: number, localY: number, height: number): number {
   const radians = (letterAngle(pose, eyes, localX, localY, height) * Math.PI) / 180
@@ -148,33 +149,33 @@ export function readingDistance(pose: PanelPose, eyes: Point, localX: number, lo
 }
 
 /**
- * Un texto escrito en un panel, como lo apunta el lienzo que mide (`Escrito`): centro y caja, en
- * metros y en coordenadas del panel.
+ * A text written on a panel, as the measuring canvas records it (`DrawnText`): centre and box, in
+ * metres and in the panel's coordinates.
  */
 export interface WrittenText {
-  readonly texto: string
+  readonly text: string
   readonly x: number
   readonly y: number
-  readonly ancho: number
-  /** El alto de su caja: el de la letra por el alto de línea (`ALTO_DE_LINEA`). */
-  readonly alto: number
+  readonly width: number
+  /** The height of its box: that of the font times the line height (`LINE_HEIGHT`). */
+  readonly height: number
 }
 
-/** Lo que ocupa en el ojo un texto apuntado, con la letra con que se escribió. */
+/** How much a recorded text takes up in the eye, with the font it was written in. */
 function textAngle(text: WrittenText, pose: PanelPose, eyes: Point, lineHeight: number): number {
-  return letterAngle(pose, eyes, text.x, text.y, text.alto / lineHeight)
+  return letterAngle(pose, eyes, text.x, text.y, text.height / lineHeight)
 }
 
-/** El alto de letra de un texto apuntado, en milímetros y con un decimal, para decirlo. */
+/** The font height of a recorded text, in millimetres and with one decimal, to say it. */
 function millimetres(text: WrittenText, lineHeight: number): string {
-  return ((text.alto / lineHeight) * 1000).toFixed(1)
+  return ((text.height / lineHeight) * 1000).toFixed(1)
 }
 
 /**
- * Los textos que no se leen de un vistazo desde esos ojos, **tal como los apunta el lienzo**: con
- * el tamaño con que se escribieron, en la fila donde se escribieron y con el escorzo.
+ * The texts that are not read at a glance from those eyes, **as the canvas records them**: with
+ * the size they were written at, in the row where they were written and with the foreshortening.
  *
- * @param lineHeight Cuánto alto de caja ocupa la letra (`ALTO_DE_LINEA`).
+ * @param lineHeight How much box height the font takes up (`LINE_HEIGHT`).
  */
 export function unreadableTexts(
   texts: readonly WrittenText[],
@@ -186,37 +187,37 @@ export function unreadableTexts(
   return texts
     .map((text) => ({ text, degrees: textAngle(text, pose, eyes, lineHeight) }))
     .filter(({ degrees }) => degrees < minimum)
-    .map(({ text, degrees }) => `«${text.texto}» a ${millimetres(text, lineHeight)} mm ocupa ${degrees.toFixed(2)}°`)
+    .map(({ text, degrees }) => `«${text.text}» at ${millimetres(text, lineHeight)} mm takes up ${degrees.toFixed(2)}°`)
 }
 
-/** El texto que peor se lee desde esos ojos y cuántos grados ocupa, o `null` si no hay ninguno. */
+/** The text that reads worst from those eyes and how many degrees it takes up, or `null` if there is none. */
 export function worstText(
   texts: readonly WrittenText[],
   pose: PanelPose,
   eyes: Point,
   lineHeight: number,
-): { texto: string; degrees: number } | null {
-  let worst: { texto: string; degrees: number } | null = null
+): { text: string; degrees: number } | null {
+  let worst: { text: string; degrees: number } | null = null
   for (const text of texts) {
     const degrees = textAngle(text, pose, eyes, lineHeight)
-    if (worst == null || degrees < worst.degrees) worst = { texto: text.texto, degrees }
+    if (worst == null || degrees < worst.degrees) worst = { text: text.text, degrees }
   }
   return worst
 }
 
-/** La distancia de lectura del texto que peor se lee: con la que hay que medir el panel entero. */
+/** The reading distance of the text that reads worst: the one the whole panel has to be measured with. */
 export function worstReadingDistance(texts: readonly WrittenText[], pose: PanelPose, eyes: Point, lineHeight: number): number {
-  return Math.max(...texts.map((text) => readingDistance(pose, eyes, text.x, text.y, text.alto / lineHeight)))
+  return Math.max(...texts.map((text) => readingDistance(pose, eyes, text.x, text.y, text.height / lineHeight)))
 }
 
-/** Los textos escritos a un tamaño que no está en la lista: escritos a mano, o encogidos para caber. */
+/** The texts written at a size that is not in the list: written by hand, or shrunk to fit. */
 export function sizesOffList(texts: readonly WrittenText[], lineHeight: number, sizes: readonly number[]): string[] {
   return texts
-    .filter((text) => !sizes.some((size) => Math.abs(text.alto / lineHeight - size) < 1e-6))
-    .map((text) => `«${text.texto}» a ${millimetres(text, lineHeight)} mm`)
+    .filter((text) => !sizes.some((size) => Math.abs(text.height / lineHeight - size) < 1e-6))
+    .map((text) => `«${text.text}» at ${millimetres(text, lineHeight)} mm`)
 }
 
-/** Un botón del panel: centro y medidas, en metros. */
+/** A button of the panel: centre and measurements, in metres. */
 export interface PanelButton {
   readonly x: number
   readonly y: number
@@ -224,26 +225,26 @@ export interface PanelButton {
   readonly height: number
 }
 
-/** Si el centro de un texto cae dentro de un botón: es su etiqueta. */
+/** Whether the centre of a text lands inside a button: it is its label. */
 export function centreInside(text: WrittenText, button: PanelButton): boolean {
   return Math.abs(text.x - button.x) <= button.width / 2 && Math.abs(text.y - button.y) <= button.height / 2
 }
 
-/** Ningún texto es de ningún botón: el panel escribe rótulos y los botones llevan iconos. */
+/** No text belongs to any button: the panel writes labels and the buttons carry icons. */
 export function noTextOwnsAButton(): boolean {
   return false
 }
 
 /**
- * Los textos que se meten en un botón que no es el suyo.
+ * The texts that run into a button that is not theirs.
  *
- * El instrumento de legibilidad mira que los textos no se pisen entre ellos, pero un botón es un
- * rectángulo, no un texto: un rótulo que crece al agrandar la letra se mete en la fila de botones
- * sin que nada lo cante.
+ * The legibility instrument checks that the texts do not overlap each other, but a button is a
+ * rectangle, not a text: a label that grows when the font is enlarged runs into the row of buttons
+ * without anything flagging it.
  *
- * @param ownsButton Qué texto es el de un botón, y puede ir dentro. Por defecto, el que tiene el
- *   centro dentro de él; en un panel de rótulos sin letras en los botones no lo es ninguno, y así
- *   un rótulo que se meta más de la mitad en un botón tampoco pasa.
+ * @param ownsButton Which text is a button's own, and may go inside. By default, the one whose
+ *   centre is inside it; in a panel of labels with no letters on the buttons none is, and so a
+ *   label that runs more than halfway into a button does not pass either.
  */
 export function textsOnButtons(
   texts: readonly WrittenText[],
@@ -255,9 +256,9 @@ export function textsOnButtons(
     for (const button of buttons) {
       if (ownsButton(text, button)) continue
       const overlaps =
-        Math.abs(text.x - button.x) * 2 < text.ancho + button.width &&
-        Math.abs(text.y - button.y) * 2 < text.alto + button.height
-      if (overlaps) problems.push(`«${text.texto}» se mete en el botón de (${button.x.toFixed(2)}, ${button.y.toFixed(2)})`)
+        Math.abs(text.x - button.x) * 2 < text.width + button.width &&
+        Math.abs(text.y - button.y) * 2 < text.height + button.height
+      if (overlaps) problems.push(`«${text.text}» runs into the button at (${button.x.toFixed(2)}, ${button.y.toFixed(2)})`)
     }
   }
   return problems

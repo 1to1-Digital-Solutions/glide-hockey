@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { AVISO_DEL_MAZO, MALLET_TEXT, dibujarElAvisoDelMazo } from './XRHud'
-import { ALTO_DE_LINEA } from './canvasPanel'
-import { lienzoQueApunta, problemasDeLegibilidad, type Escrito } from './legibilidad'
+import { LINE_HEIGHT } from './canvasPanel'
+import { recordingCanvas, legibilityProblems, type DrawnText } from './legibility'
 import { MIN_READING_DEGREES, sizesOffList, unreadableTexts, worstReadingDistance } from '../../lib/panelReading'
 import { traductor } from '../../lib/textos'
 import { XR_UI, vistasDelPanel } from '../game/GameWorld'
@@ -17,10 +17,10 @@ import { XR_UI, vistasDelPanel } from '../game/GameWorld'
 const IDIOMAS = ['en', 'es'] as const
 const VISTAS = vistasDelPanel(XR_UI.countdown, undefined)
 
-function todos(): { donde: string; escritos: Escrito[] }[] {
+function todos(): { donde: string; escritos: DrawnText[] }[] {
   return IDIOMAS.flatMap((lang) =>
     [false, true].map((conUnToque) => {
-      const { ctx, escritos } = lienzoQueApunta()
+      const { ctx, drawnTexts: escritos } = recordingCanvas()
       dibujarElAvisoDelMazo(ctx, traductor(lang), conUnToque)
       return { donde: `${lang}${conUnToque ? ' con un toque' : ''}`, escritos }
     }),
@@ -32,17 +32,17 @@ describe('el aviso de coger el mazo', () => {
     for (const { donde, escritos } of todos()) {
       expect(escritos.length, 'no se ha medido nada').toBeGreaterThan(0)
       const panel = { width: AVISO_DEL_MAZO[0], height: AVISO_DEL_MAZO[1] }
-      const distancia = Math.max(...VISTAS.map(({ pose, ojos }) => worstReadingDistance(escritos, pose, ojos, ALTO_DE_LINEA)))
-      expect(problemasDeLegibilidad(escritos, { panel, distancia }), donde).toEqual([])
+      const distancia = Math.max(...VISTAS.map(({ pose, ojos }) => worstReadingDistance(escritos, pose, ojos, LINE_HEIGHT)))
+      expect(legibilityProblems(escritos, { panel, distance: distancia }), donde).toEqual([])
     }
   })
 
   it(`y cada letra, de un vistazo: ninguna baja de ${MIN_READING_DEGREES}° ni se escribe fuera de la lista`, () => {
     for (const { donde, escritos } of todos()) {
       for (const vista of VISTAS) {
-        expect(unreadableTexts(escritos, vista.pose, vista.ojos, ALTO_DE_LINEA), `${donde}, ${vista.donde}`).toEqual([])
+        expect(unreadableTexts(escritos, vista.pose, vista.ojos, LINE_HEIGHT), `${donde}, ${vista.donde}`).toEqual([])
       }
-      expect(sizesOffList(escritos, ALTO_DE_LINEA, Object.values(MALLET_TEXT)), donde).toEqual([])
+      expect(sizesOffList(escritos, LINE_HEIGHT, Object.values(MALLET_TEXT)), donde).toEqual([])
     }
   })
 })

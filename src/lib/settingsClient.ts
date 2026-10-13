@@ -1,12 +1,12 @@
 'use client'
 
 /**
- * Los ajustes del arcade, del lado del navegador: leerlos, cambiarlos y que
- * React se entere.
+ * The hall's settings, on the browser side: reading them, changing them and
+ * letting React know.
  *
- * El contrato —claves, valores de partida y cómo se interpreta lo leído— está
- * en `ajustes.ts`, que también corre en el servidor. Aquí está lo que solo
- * tiene sentido con una ventana delante.
+ * The contract —keys, default values and how what is read gets interpreted— is
+ * in `settings.ts`, which also runs on the server. Here is what only makes
+ * sense with a window in front.
  */
 
 import { useSyncExternalStore } from 'react'
@@ -37,46 +37,47 @@ import {
   type SoundChannel,
   type TurnMode,
   type Volumes,
-} from './ajustes'
+} from './settings'
 
-/** Lo que dura la elección de idioma: un año, como cualquier preferencia. */
+/** How long the language choice lasts: a year, like any preference. */
 const LANG_MAX_AGE = 60 * 60 * 24 * 365
 
-/** El evento con el que un cambio recorre esta misma página. */
-const EVENTO = 'xrcade:ajustes'
+/** The event with which a change travels through this same page. */
+const SETTINGS_EVENT = 'xrcade:ajustes'
 
 /**
- * Avisa a **esta misma página** de que un ajuste ha cambiado.
+ * Tells **this same page** that a setting has changed.
  *
- * El navegador avisa por su cuenta de los cambios de `localStorage`, pero solo a
- * las *otras* pestañas. Y la que escribe es justo la que tiene el juego montado
- * dentro, así que sin este evento el ajuste se guardaría y no se notaría hasta
- * recargar. Está en un sitio y no repetido en cada `set…` porque olvidarlo en
- * uno no rompe nada visible: simplemente ese ajuste tarda una recarga en llegar.
+ * The browser reports `localStorage` changes on its own, but only to the
+ * *other* tabs. And the one that writes is precisely the one that has the game
+ * mounted inside, so without this event the setting would be saved and would not
+ * be noticed until a reload. It is in one place and not repeated in every `set…`
+ * because forgetting it in one breaks nothing visible: that setting simply takes
+ * a reload to arrive.
  */
-function avisarDelCambio(): void {
-  /* v8 ignore next -- los ajustes solo se cambian desde el navegador. */
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event(EVENTO))
+function notifyChange(): void {
+  /* v8 ignore next -- settings are only changed from the browser. */
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(SETTINGS_EVENT))
 }
 
-/** El almacenamiento del navegador, o nada si no lo hay o está capado. */
+/** The browser's storage, or nothing if there is none or it is locked down. */
 export function settingsStorage(): Storage | null {
-  /* v8 ignore next -- en el servidor no hay ventana, y allí no corre ningún test. */
+  /* v8 ignore next -- on the server there is no window, and no test runs there. */
   if (typeof window === 'undefined') return null
   try {
     return window.localStorage
   } catch {
-    // Navegador con el almacenamiento bloqueado: no hay dónde recordar.
+    // Browser with storage blocked: there is nowhere to remember.
     return null
   }
 }
 
 /**
- * El almacén al que React se suscribe.
+ * The store React subscribes to.
  *
- * La instantánea se cachea porque `useSyncExternalStore` compara por
- * identidad: devolver un objeto nuevo en cada lectura dejaría a React
- * repintando sin parar. Se invalida solo cuando algo avisa de un cambio.
+ * The snapshot is cached because `useSyncExternalStore` compares by
+ * identity: returning a new object on every read would leave React
+ * repainting endlessly. It is invalidated only when something reports a change.
  */
 let snapshot: Volumes | null = null
 const listeners = new Set<() => void>()
@@ -90,13 +91,13 @@ function subscribe(listener: () => void): () => void {
   listeners.add(listener)
   if (listeners.size === 1 && typeof window !== 'undefined') {
     window.addEventListener('storage', refresh)
-    window.addEventListener(EVENTO, refresh)
+    window.addEventListener(SETTINGS_EVENT, refresh)
   }
   return () => {
     listeners.delete(listener)
     if (listeners.size === 0 && typeof window !== 'undefined') {
       window.removeEventListener('storage', refresh)
-      window.removeEventListener(EVENTO, refresh)
+      window.removeEventListener(SETTINGS_EVENT, refresh)
     }
   }
 }
@@ -106,215 +107,215 @@ function getSnapshot(): Volumes {
   return snapshot
 }
 
-/** En el servidor no hay almacenamiento: se pinta con lo de partida. */
+/** On the server there is no storage: it is painted with the defaults. */
 function getServerSnapshot(): Volumes {
   return DEFAULT_VOLUME_SETTINGS
 }
 
-/** Los volúmenes del arcade, y React se entera cuando cambian. */
+/** The hall's volumes, and React finds out when they change. */
 export function useVolumes(): Volumes {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }
 
-/** Cambia el volumen de un canal, de 0 a 100. */
+/** Changes the volume of a channel, from 0 to 100. */
 export function setVolume(channel: SoundChannel, value: number): void {
-  const recortado = Math.min(100, Math.max(0, Math.round(value)))
-  writeVolume(settingsStorage(), channel, recortado)
-  // La instantánea cacheada ya no vale: la próxima lectura vuelve al
-  // almacenamiento. Se invalida aquí y no en el oyente porque puede que todavía
-  // no haya ninguno, y aun así el siguiente `getSnapshot` tiene que ver lo nuevo.
+  const clamped = Math.min(100, Math.max(0, Math.round(value)))
+  writeVolume(settingsStorage(), channel, clamped)
+  // The cached snapshot is no longer valid: the next read goes back to the
+  // storage. It is invalidated here and not in the listener because there may
+  // not be one yet, and even so the next `getSnapshot` has to see the new value.
   snapshot = null
-  avisarDelCambio()
+  notifyChange()
 }
 
 /**
- * El idioma elegido, leído en el navegador; sin elegir, el del sistema (`navigator.languages`),
- * que es el mismo que el servidor lee en `Accept-Language`.
+ * The chosen language, read in the browser; with none chosen, the system's (`navigator.languages`),
+ * which is the same one the server reads in `Accept-Language`.
  *
- * No pasa por `useSyncExternalStore`: cambiar de idioma recarga la página —el
- * servidor tiene que volver a pintar los textos—, así que no hay nada a lo que
- * suscribirse. Quien pinta en el servidor usa `langFor` con las cabeceras.
+ * It does not go through `useSyncExternalStore`: changing the language reloads
+ * the page —the server has to paint the texts again—, so there is nothing to
+ * subscribe to. Whoever paints on the server uses `langFor` with the headers.
  */
 export function currentLang(): Lang {
-  /* v8 ignore next -- en el servidor pinta `idiomaDeLaPeticion`, que sí ve la cabecera. */
+  /* v8 ignore next -- on the server `requestLang` paints, and it does see the header. */
   if (typeof document === 'undefined') return DEFAULT_LANG
   return langFor(document.cookie, navigator.languages)
 }
 
 /**
- * El idioma elegido, y React se entera cuando cambia.
+ * The chosen language, and React finds out when it changes.
  *
- * Va por el mismo almacén que los volúmenes porque una cookie no avisa a nadie
- * al cambiar: el aviso lo da `setLang` con `EVENTO`. En el servidor devuelve el
- * de partida —allí se pinta con `idiomaDeLaPeticion`, que sí ve la cabecera— y
- * `useSyncExternalStore` se encarga de cuadrar las dos lecturas sin desajustar
- * la hidratación, que es justo para lo que está.
+ * It goes through the same store as the volumes because a cookie tells nobody
+ * when it changes: the notice is given by `setLang` with `SETTINGS_EVENT`. On the
+ * server it returns the default —there it is painted with `requestLang`, which
+ * does see the header— and `useSyncExternalStore` takes care of squaring the two
+ * reads without upsetting hydration, which is exactly what it is for.
  */
 export function useLang(): Lang {
   return useSyncExternalStore(subscribe, currentLang, () => DEFAULT_LANG)
 }
 
 /**
- * Cambia el idioma de todo el arcade.
+ * Changes the language of the whole hall.
  *
- * No es `HttpOnly` a propósito: lo escribe el navegador desde el menú, sin
- * pasar por el servidor. Tampoco lleva nada que identifique a nadie —solo `en`
- * o `es`—, así que `SameSite=Lax` sobra para lo que hay que proteger y está
- * puesto igualmente.
+ * It is not `HttpOnly` on purpose: the browser writes it from the menu, without
+ * going through the server. Nor does it carry anything that identifies anyone
+ * —only `en` or `es`—, so `SameSite=Lax` is more than enough for what there is
+ * to protect and is set all the same.
  */
 export function setLang(lang: Lang): void {
-  /* v8 ignore next -- solo lo llama el menú, que es del navegador. */
+  /* v8 ignore next -- only the menu calls it, and the menu belongs to the browser. */
   if (typeof document === 'undefined') return
-  const seguro = window.location.protocol === 'https:' ? '; Secure' : ''
-  document.cookie = `${LANG_COOKIE}=${lang}; Path=/; Max-Age=${LANG_MAX_AGE}; SameSite=Lax${seguro}`
-  // Una cookie no dispara ningún evento al cambiar, así que lo damos nosotros:
-  // sin esto, lo que ya está pintado en el navegador se quedaría en el idioma
-  // anterior aunque el servidor devolviera la página traducida.
-  avisarDelCambio()
+  const secure = window.location.protocol === 'https:' ? '; Secure' : ''
+  document.cookie = `${LANG_COOKIE}=${lang}; Path=/; Max-Age=${LANG_MAX_AGE}; SameSite=Lax${secure}`
+  // A cookie fires no event when it changes, so we fire it ourselves:
+  // without this, what is already painted in the browser would stay in the
+  // previous language even if the server returned the translated page.
+  notifyChange()
 }
 
 /**
- * Qué se ve alrededor con el visor puesto, y React se entera cuando cambia.
+ * What is seen around with the headset on, and React finds out when it changes.
  *
- * Va por el mismo almacén que los volúmenes: se guarda en `localStorage` y no en cookie
- * porque no se pinta en el servidor —solo lo mira quien dibuja la escena, que es de
- * navegador—. Y por el mismo aviso: montado en la cabina, el juego está en la misma página
- * que el panel del salón, así que sin él el decorado no cambiaría hasta recargar, y recargar
- * con el visor puesto es salir de la sesión.
+ * It goes through the same store as the volumes: it is saved in `localStorage` and not in a
+ * cookie because it is not painted on the server —only whoever draws the scene looks at it, and
+ * that belongs to the browser—. And for the same notice: mounted in the cabinet, the game is on
+ * the same page as the hall's panel, so without it the stage would not change until a reload, and
+ * reloading with the headset on means leaving the session.
  *
- * En el servidor devuelve el de partida y no lo guardado: el menú de la web enseña cuál está
- * elegido, y leer el almacenamiento al hidratar pintaría otro botón que el del HTML.
+ * On the server it returns the default and not what is saved: the web menu shows which one is
+ * chosen, and reading the storage while hydrating would paint a different button from the HTML's.
  */
 export function useScenery(): Scenery {
   return useSyncExternalStore(subscribe, currentScenery, () => DEFAULT_SCENERY)
 }
 
 /**
- * El escenario elegido que el navegador no dejó guardar, o `null` si quedó guardado.
+ * The chosen scenery that the browser did not let us save, or `null` if it was saved.
  *
- * Con el almacenamiento capado —navegación privada, cuota llena, cookies bloqueadas— la
- * escritura falla, y la lectura, que va al almacenamiento, volvería a dar el sitio dibujado: el
- * botón se encendería y el decorado no cambiaría. Aquí vive la elección mientras dure la visita,
- * y la lectura lo mira antes que el almacenamiento. Es la misma forma que en el salón, y la misma
- * idea que las preferencias del juego (`storage.ts`).
+ * With storage locked down —private browsing, full quota, blocked cookies— the
+ * write fails, and the read, which goes to the storage, would give the drawn place again: the
+ * button would light up and the stage would not change. Here the choice lives for as long as the
+ * visit lasts, and the read looks at it before the storage. It is the same shape as in the hall,
+ * and the same idea as the game's preferences (`storage.ts`).
  */
 let unsavedScenery: Scenery | null = null
 
-/** Lo elegido en esta visita si no se pudo guardar; si no, lo guardado o el sitio dibujado. */
+/** This visit's choice if it could not be saved; if not, what is saved or the drawn place. */
 function currentScenery(): Scenery {
   return unsavedScenery ?? readScenery(settingsStorage())
 }
 
 /**
- * Cambia qué se ve alrededor, en todo el arcade.
+ * Changes what is seen around, in the whole hall.
  *
- * **No toca la sesión.** Es lo que hace que el cambio sea inmediato y sin salir del visor:
- * quien pinta el decorado lo lee y lo pone o lo quita en el fotograma siguiente. Y escribe
- * la clave del arcade aunque lo pulse el menú del juego: una sola preferencia, la misma que
- * enseña el salón.
+ * **It does not touch the session.** That is what makes the change immediate and without leaving
+ * the headset: whoever paints the stage reads it and puts it up or takes it down on the next
+ * frame. And it writes the hall's key even if the game's menu presses it: a single preference,
+ * the same one the hall shows.
  */
 export function setScenery(value: Scenery): void {
-  // Si entra en el almacenamiento, manda lo guardado y el respaldo sobra; si no, el respaldo
-  // es lo único que lo recuerda.
+  // If it goes into the storage, what is saved rules and the fallback is not needed; if not, the
+  // fallback is the only thing that remembers it.
   unsavedScenery = writeScenery(settingsStorage(), value) ? null : value
-  avisarDelCambio()
+  notifyChange()
 }
 
 /**
- * A qué altura se juega, y React se entera cuando cambia.
+ * At what height the game is played, and React finds out when it changes.
  *
- * Se lee del almacenamiento en cada lectura en vez de cachearse, como el
- * escenario y por lo mismo: es un valor primitivo, y ahí `useSyncExternalStore`
- * compara bien sin ayuda.
+ * It is read from the storage on every read instead of being cached, like the
+ * scenery and for the same reason: it is a primitive value, and there
+ * `useSyncExternalStore` compares well without help.
  */
 export function usePlayHeight(): PlayHeight {
-  // La misma lectura en los dos lados: en el servidor no hay almacenamiento y
-  // `readPlayHeight` devuelve la de partida, así que no hace falta una segunda
-  // función que pueda apartarse de esta sin que nadie se entere.
-  return useSyncExternalStore(subscribe, leerAltura, leerAltura)
+  // The same read on both sides: on the server there is no storage and
+  // `readPlayHeight` returns the default, so there is no need for a second
+  // function that could drift away from this one without anyone noticing.
+  return useSyncExternalStore(subscribe, readHeight, readHeight)
 }
 
-/** Lo guardado, o de pie si no hay nada o hay basura. */
-function leerAltura(): PlayHeight {
+/** What is saved, or standing if there is nothing or there is garbage. */
+function readHeight(): PlayHeight {
   return readPlayHeight(settingsStorage())
 }
 
 /**
- * La altura fina del salón, **en metros**, y React se entera cuando cambia.
+ * The hall's fine height, **in metres**, and React finds out when it changes.
  *
- * Como la altura de juego: un valor primitivo leído en cada lectura, y en el servidor, sin
- * almacenamiento, el cero de partida. Se da en metros porque es lo que suma quien mueve el
- * mundo; los centímetros son cosa del salón, que es quien los enseña.
+ * Like the play height: a primitive value read on every read, and on the server, without
+ * storage, the default zero. It is given in metres because that is what whoever moves the
+ * world adds; centimetres are the hall's business, which is the one that shows them.
  */
 export function usePlayHeightOffset(): number {
-  return useSyncExternalStore(subscribe, leerAlturaFina, leerAlturaFina)
+  return useSyncExternalStore(subscribe, readFineHeight, readFineHeight)
 }
 
-/** Lo guardado, o cero si no hay nada o hay basura. */
-function leerAlturaFina(): number {
+/** What is saved, or zero if there is nothing or there is garbage. */
+function readFineHeight(): number {
   return playHeightOffsetMeters(readPlayHeightOffset(settingsStorage()))
 }
 
 /**
- * Cómo se sujeta lo que se coge, y React se entera cuando cambia.
+ * How what is picked up is held, and React finds out when it changes.
  *
- * Como la altura de juego: se lee del almacenamiento en cada lectura en vez de
- * cachearse, porque es un valor primitivo y ahí `useSyncExternalStore` compara
- * bien sin ayuda.
+ * Like the play height: it is read from the storage on every read instead of
+ * being cached, because it is a primitive value and there `useSyncExternalStore`
+ * compares well without help.
  */
 export function useGrabMode(): GrabMode {
-  return useSyncExternalStore(subscribe, leerAgarre, leerAgarre)
+  return useSyncExternalStore(subscribe, readGrab, readGrab)
 }
 
-/** Lo guardado, o manteniendo si no hay nada o hay basura. */
-function leerAgarre(): GrabMode {
+/** What is saved, or holding if there is nothing or there is garbage. */
+function readGrab(): GrabMode {
   return readGrabMode(settingsStorage())
 }
 
 /**
- * Cuándo se gira el decorado con el stick, y React se entera cuando cambia.
+ * When the stage is turned with the stick, and React finds out when it changes.
  *
- * Como el agarre: se lee del almacenamiento en cada lectura, porque es un valor
- * primitivo y ahí `useSyncExternalStore` compara bien sin ayuda.
+ * Like the grab: it is read from the storage on every read, because it is a
+ * primitive value and there `useSyncExternalStore` compares well without help.
  */
 export function useTurnMode(): TurnMode {
-  return useSyncExternalStore(subscribe, leerGiro, leerGiro)
+  return useSyncExternalStore(subscribe, readTurn, readTurn)
 }
 
-/** Lo guardado, o solo sentado si no hay nada o hay basura. */
-function leerGiro(): TurnMode {
+/** What is saved, or seated only if there is nothing or there is garbage. */
+function readTurn(): TurnMode {
   return readTurnMode(settingsStorage())
 }
 
 /**
- * Con qué mano se juega, y React se entera cuando cambia.
+ * Which hand the game is played with, and React finds out when it changes.
  *
- * Con la misma forma que el escenario, y por lo mismo: los juegos copian este bloque tal cual,
- * y el juego montado en la cabina está en esta misma página, así que sin el aviso la pala o el
- * bate no cambiarían de mano hasta recargar.
+ * With the same shape as the scenery, and for the same reason: the games copy this block as is,
+ * and the game mounted in the cabinet is on this same page, so without the notice the paddle or
+ * the bat would not change hands until a reload.
  */
 export function useHand(): Hand {
   return useSyncExternalStore(subscribe, currentHand, () => DEFAULT_HAND)
 }
 
 /**
- * La mano elegida que el navegador no dejó guardar, o `null` si quedó guardada.
+ * The chosen hand that the browser did not let us save, or `null` if it was saved.
  *
- * Con el almacenamiento capado la escritura falla, y la lectura volvería a dar la derecha: el
- * botón no se encendería y quien es zurdo seguiría con la pala en la mano mala. Aquí vive la
- * elección mientras dure la visita.
+ * With storage locked down the write fails, and the read would give the right hand again: the
+ * button would not light up and whoever is left-handed would carry on with the paddle in the wrong
+ * hand. Here the choice lives for as long as the visit lasts.
  */
 let unsavedHand: Hand | null = null
 
-/** Lo elegido en esta visita si no se pudo guardar; si no, lo guardado o la derecha. */
+/** This visit's choice if it could not be saved; if not, what is saved or the right hand. */
 function currentHand(): Hand {
   return unsavedHand ?? readHand(settingsStorage())
 }
 
-/** Cambia la mano con la que se juega, en todo el arcade. */
+/** Changes the hand the game is played with, in the whole hall. */
 export function setHand(value: Hand): void {
-  // Si entra en el almacenamiento, manda lo guardado y el respaldo sobra; si no, el respaldo
-  // es lo único que lo recuerda.
+  // If it goes into the storage, what is saved rules and the fallback is not needed; if not, the
+  // fallback is the only thing that remembers it.
   unsavedHand = writeHand(settingsStorage(), value) ? null : value
-  avisarDelCambio()
+  notifyChange()
 }

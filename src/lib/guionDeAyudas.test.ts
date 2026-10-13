@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { MAXIMO, MINIMO, problemasDelGuion, type Guion } from './ayudas'
+import { MAX_EXPIRY, MIN_EXPIRY, scriptProblems, type HintScript } from './hints'
 import { GOAL_WIDTH, MALLET_RADIUS, PUCK_RADIUS, TABLE_CENTER_Z } from './gameConfig'
 import {
   AYUDAS_QUE_OCUPAN_LA_MESA,
@@ -45,17 +45,17 @@ const HITOS: readonly HechoDeLasAyudas[] = ['tanda', 'grab', 'hit', 'goal']
  * ni el campo `desde`—, que es justo lo que hace que un `desde` mal escrito no compile. Para
  * recorrerlas todas hace falta mirarlas con el tipo común.
  */
-const GUION: Guion<HechoDeLasAyudas> = GUION_DE_AYUDAS
+const GUION: HintScript<HechoDeLasAyudas> = GUION_DE_AYUDAS
 
 describe('el guion no deja ninguna ayuda puesta', () => {
   it('lo dice el guardián común, que devuelve frases y no un sí', () => {
-    expect(problemasDelGuion(GUION_DE_AYUDAS)).toEqual([])
+    expect(scriptProblems(GUION_DE_AYUDAS)).toEqual([])
   })
 
   it('y cada plazo cae dentro de lo que una ayuda puede durar', () => {
     for (const ayuda of GUION_DE_AYUDAS) {
-      expect(ayuda.caduca, ayuda.id).toBeGreaterThanOrEqual(MINIMO)
-      expect(ayuda.caduca, ayuda.id).toBeLessThanOrEqual(MAXIMO)
+      expect(ayuda.expiresAfter, ayuda.id).toBeGreaterThanOrEqual(MIN_EXPIRY)
+      expect(ayuda.expiresAfter, ayuda.id).toBeLessThanOrEqual(MAX_EXPIRY)
     }
   })
 
@@ -63,9 +63,9 @@ describe('el guion no deja ninguna ayuda puesta', () => {
     // Un hito inventado dejaría la ayuda encendida para siempre: nadie lo pondría nunca a
     // cierto, y el plazo sería lo único que la apagaría.
     for (const ayuda of GUION) {
-      expect(HITOS, `«${ayuda.id}» se apaga con un hito que no existe`).toContain(ayuda.hasta)
-      if (ayuda.desde !== undefined) {
-        expect(HITOS, `«${ayuda.id}» espera a un hito que no existe`).toContain(ayuda.desde)
+      expect(HITOS, `«${ayuda.id}» se apaga con un hito que no existe`).toContain(ayuda.until)
+      if (ayuda.from !== undefined) {
+        expect(HITOS, `«${ayuda.id}» espera a un hito que no existe`).toContain(ayuda.from)
       }
     }
   })
@@ -86,7 +86,7 @@ describe('lo que se levanta de la mesa se quita antes de que algo corra por ella
     for (const id of AYUDAS_QUE_OCUPAN_LA_MESA) {
       const ayuda = GUION_DE_AYUDAS.find((una) => una.id === id)
       expect(ayuda, `«${id}» no está en el guion`).toBeDefined()
-      expect(ayuda!.hasta, id).toBe(HITO_ANTES_DE_QUE_SE_MUEVA_EL_DISCO)
+      expect(ayuda!.until, id).toBe(HITO_ANTES_DE_QUE_SE_MUEVA_EL_DISCO)
     }
   })
 

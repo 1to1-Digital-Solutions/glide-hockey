@@ -3,14 +3,14 @@ import { createRoot } from 'react-dom/client'
 import { Canvas, useThree } from '@react-three/fiber'
 import { Vector3 } from 'three'
 import { XR, XROrigin, createXRStore } from '@react-three/xr'
-import { GlideHockeyScene, type Objetivo, type Resultado } from '../../src/game'
+import { GlideHockeyScene, type Goal, type GameResult } from '../../src/game'
 import type { HostAnchor } from '../../src/lib/hostAnchor'
 import { XRControllerGrip } from '../../src/components/xr/XRControllerGrip'
 
 /**
  * El anfitrión de prueba: monta `<GlideHockeyScene>` dentro de un Canvas y una
  * sesión que no son suyos, como hace el salón de xrcade. Es el único sitio de la
- * suite que ejercita el contrato de montaje (`docs/montar-el-juego.md`): la web
+ * suite que ejercita el contrato de montaje (`docs/mounting-the-game.md`): la web
  * del juego monta `<GlideHockey>`, que trae su propio Canvas.
  */
 const mount = document.getElementById('juego')
@@ -36,13 +36,13 @@ const aLaCarta = mount.dataset.cabina === 'a-la-carta'
  * acabar cada partida se deja en `window.__terminadas`, que es lo que el salón haría suyo.
  */
 const semillaDelReto = mount.dataset.reto
-const reto = semillaDelReto === undefined ? undefined : { semilla: Number(semillaDelReto) }
+const reto = semillaDelReto === undefined ? undefined : { seed: Number(semillaDelReto) }
 /** El anclaje, si el anfitrión lo presta (`data-anchor`, en JSON); sin él, a la mirada. */
 const anchor = mount.dataset.anchor === undefined ? undefined : (JSON.parse(mount.dataset.anchor) as HostAnchor)
 /** Los listones de medalla, si el salón los está pasando (`data-objetivo`, en JSON). */
-const objetivo = mount.dataset.objetivo === undefined ? undefined : (JSON.parse(mount.dataset.objetivo) as Objetivo)
+const objetivo = mount.dataset.objetivo === undefined ? undefined : (JSON.parse(mount.dataset.objetivo) as Goal)
 window.__terminadas = []
-const apuntarTerminada = (resultado: Resultado) => {
+const apuntarTerminada = (resultado: GameResult) => {
   window.__terminadas.push(resultado)
 }
 
@@ -59,7 +59,7 @@ const store = createXRStore({
 
 declare global {
   interface Window {
-    __terminadas: Resultado[]
+    __terminadas: GameResult[]
     __glideHockeyHost: {
       enterVR: () => Promise<void>
       enterAR: () => Promise<void>
@@ -123,7 +123,7 @@ function Cabina() {
 
   if (!dentro) return null
   // Volver es cosa del anfitrión, y aquí no hay a dónde.
-  return <GlideHockeyScene assetsBase={assetsBase} anchor={anchor} onExit={() => {}} reto={reto} onTerminar={apuntarTerminada} objetivo={objetivo} />
+  return <GlideHockeyScene assetsBase={assetsBase} anchor={anchor} onExit={() => {}} challenge={reto} onFinish={apuntarTerminada} goal={objetivo} />
 }
 
 function Host() {

@@ -1,132 +1,134 @@
 /**
- * Los colores que **significan algo**, y significan lo mismo en todo el salón.
+ * The colours that **mean something**, and mean the same across the whole hall.
  *
- * Es el mismo fichero en todos los juegos (`comunes.py` lo vigila). Cada juego conserva su
- * escenario y sus colores —el cian de la mesa, el naranja de la feria, el latón del bar—, que son
- * su personalidad y siguen en su `palette.ts` o junto al componente que los pinta. Lo que vive
- * aquí es lo otro: el verde que dice «esto ha contado», el rojo que dice «esto se ha perdido», el
- * amarillo que dice «ojo», las medallas y los neutros con los que se escribe en un panel. Si el
- * verde de acertar fuera uno en los dardos y otro en los topos, el salón se leería como dieciséis
- * demos sueltas en vez de como un solo sitio, y quien pasa de un juego a otro tendría que volver a
- * aprender qué quiere decir cada cosa.
+ * It is the same file in every game (`comunes.py` watches over it). Each game keeps its
+ * scenery and its colours —the cyan of the table, the orange of the fairground, the brass of the
+ * bar—, which are its personality and stay in its `palette.ts` or next to the component that
+ * paints them. What lives here is the other thing: the green that says «this has counted», the red
+ * that says «this has been lost», the yellow that says «watch out», the medals and the neutrals
+ * with which a panel is written. If the green for a hit were one in the darts and another in the
+ * moles, the hall would read as sixteen loose demos instead of as a single place, and whoever goes
+ * from one game to another would have to learn again what each thing means.
  *
- * Nada de React ni de three: los mismos literales los piden el CSS de la web, los materiales de la
- * escena y los lienzos de los paneles del visor, y el port a Godot los copia tal cual.
+ * No React and no three: the same literals are asked for by the CSS of the web, the materials of
+ * the scene and the canvases of the headset panels, and the port to Godot copies them as they are.
  */
 
-export const PALETA = {
+export const COMMON_PALETTE = {
   /**
-   * Lo que ha contado: el topo que recibe, la partida ganada, el golpe que entra.
+   * What has counted: the mole that takes it, the run won, the stroke that goes in.
    *
-   * Sale del verde de acierto de los topos, que ya había demostrado leerse con el mazo en el aire.
-   * Es claro a propósito: sobre cualquier fondo de panel del salón pasa de 10:1.
+   * It comes from the hit green of the moles, which had already proved it reads with the mallet in
+   * the air. It is light on purpose: over any panel background of the hall it goes past 10:1.
    */
-  acierto: '#7ae582',
+  hit: '#7ae582',
   /**
-   * Lo que se ha perdido o amenaza: el topo que se escapa, la partida perdida, pasarse.
+   * What has been lost or threatens: the mole that gets away, the run lost, overshooting.
    *
-   * Es el rojo de escapado de los topos aclarado hasta pasar de 5:1 sobre cualquier panel del
-   * salón: también se escribe como texto, y un rojo más oscuro se queda en el mínimo o por debajo
-   * en los paneles más claros. Tiene que distinguirse del verde **sin ver el color** —por luz—,
-   * que es lo único que queda para quien no separa el rojo del verde (lo mide el test).
+   * It is the escaped red of the moles lightened until it goes past 5:1 over any panel of the
+   * hall: it is also written as text, and a darker red stays at the minimum or below
+   * on the lightest panels. It has to be told apart from the green **without seeing the colour**
+   * —by light—, which is all that is left for whoever does not separate red from green (the test
+   * measures it).
    */
-  fallo: '#ff5a4f',
+  miss: '#ff5a4f',
   /**
-   * Ojo, que esto va a pasar: los últimos segundos, un aviso antes de que algo se pierda.
+   * Watch out, this is going to happen: the last seconds, a warning before something is lost.
    *
-   * El `--color-aviso` del salón (`xrcade/src/app/globals.css`).
+   * The hall's `--color-aviso` (`xrcade/src/app/globals.css`).
    */
-  aviso: '#ffc24d',
+  warning: '#ffc24d',
 
-  /** Los neutros de los paneles del salón (`xrcade/src/components/salon/theme.ts`). */
-  fondo: '#0b0a12',
-  /** Texto principal sobre el fondo. */
-  texto: '#edeafd',
-  /** Lo secundario, lo apagado, lo que todavía no se puede elegir. */
-  textoSuave: '#a6a1cc',
-  /** El borde de un panel y la separación entre sus partes. */
-  borde: '#2b2748',
-
-  /**
-   * El acento del salón: lo apuntado, lo encendido, lo que se va a pulsar.
-   *
-   * Es el menta del marco de la cabina encendida en el salón. Que el realce de un botón apuntado
-   * sea el mismo en los dieciséis juegos es lo que hace que el gesto se aprenda una vez.
-   */
-  acento: '#5ee6c0',
+  /** The neutrals of the hall's panels (`xrcade/src/components/salon/theme.ts`). */
+  background: '#0b0a12',
+  /** Main text over the background. */
+  text: '#edeafd',
+  /** The secondary, the dimmed, what cannot be chosen yet. */
+  mutedText: '#a6a1cc',
+  /** The border of a panel and the separation between its parts. */
+  border: '#2b2748',
 
   /**
-   * Las medallas, idénticas a las del salón (`MEDAL_COLORS` de su `theme.ts`): una chapa de oro en
-   * un juego y la de la cabina del salón tienen que ser el mismo oro. Aclaradas respecto al metal
-   * de verdad porque se escriben sobre fondo oscuro, y el oro es también el color de lo que se
-   * gana —estrellas, récords—.
+   * The accent of the hall: what is pointed at, what is lit, what is going to be pressed.
+   *
+   * It is the mint of the frame of the lit cabinet in the hall. That the highlight of a pointed-at
+   * button is the same in all sixteen games is what makes the gesture be learnt once.
    */
-  bronce: '#e39a64',
-  plata: '#d3d9e6',
-  oro: '#f6c945',
+  accent: '#5ee6c0',
+
+  /**
+   * The medals, identical to those of the hall (`MEDAL_COLORS` of its `theme.ts`): a gold badge in
+   * a game and that of the hall's cabinet have to be the same gold. Lightened relative to the real
+   * metal because they are written over a dark background, and gold is also the colour of what is
+   * won —stars, records—.
+   */
+  bronze: '#e39a64',
+  silver: '#d3d9e6',
+  gold: '#f6c945',
 } as const
 
-/** El nombre de cada color común. */
-export type ColorComun = keyof typeof PALETA
+/** The name of each common colour. */
+export type CommonColor = keyof typeof COMMON_PALETTE
 
 /**
- * El contraste entre dos colores según WCAG 2.2 (de 1 a 21).
+ * The contrast between two colours according to WCAG 2.2 (from 1 to 21).
  *
- * Está aquí y no solo en los tests porque cada juego tiene que comprobar los colores comunes
- * **sobre sus propios paneles**, que no son el fondo del salón: el verde de acierto que se lee en
- * uno se puede apagar en el de al lado.
+ * It is here and not only in the tests because each game has to check the common colours
+ * **over its own panels**, which are not the background of the hall: the hit green that reads on
+ * one can go dull on the one next to it.
  */
-export function contraste(a: string, b: string): number {
-  const la = luminancia(a)
-  const lb = luminancia(b)
+export function contrast(a: string, b: string): number {
+  const la = luminance(a)
+  const lb = luminance(b)
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
 }
 
-/** La luminancia relativa de un `#rrggbb`, con la fórmula de WCAG. */
-function luminancia(hex: string): number {
+/** The relative luminance of a `#rrggbb`, with the WCAG formula. */
+function luminance(hex: string): number {
   if (!/^#[0-9a-f]{6}$/i.test(hex)) throw new Error(`Not a #rrggbb color: ${hex}`)
   const [r, g, b] = [1, 3, 5].map((i) => {
-    const canal = parseInt(hex.slice(i, i + 2), 16) / 255
-    return canal <= 0.04045 ? canal / 12.92 : ((canal + 0.055) / 1.055) ** 2.4
+    const channel = parseInt(hex.slice(i, i + 2), 16) / 255
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
   })
   return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 
 /*
- * Los materiales base: parámetros, no materiales.
+ * The base materials: parameters, not materials.
  *
- * Son objetos planos que se extienden sobre el material de R3F
- * (`<meshBasicMaterial {...materialEncendido(PALETA.acierto)} />`). Así el módulo no instancia three
- * —se puede importar desde un test o desde el servidor— y cada material que se pinta sigue siendo
- * uno por malla. Lo que fijan es lo que se equivoca al escribirlo a mano.
+ * They are plain objects that are spread over the R3F material
+ * (`<meshBasicMaterial {...emissiveMaterial(COMMON_PALETTE.hit)} />`). That way the module does not
+ * instantiate three —it can be imported from a test or from the server— and each material that is
+ * painted is still one per mesh. What they fix is what goes wrong when written by hand.
  */
 
-/** Un material mate, sin brillo ni metal: el de las piezas low-poly de colores planos del kit. */
-export function materialMate(color: string): { color: string; roughness: 1; metalness: 0 } {
+/** A matte material, with no shine and no metal: that of the kit's low-poly pieces of flat colours. */
+export function matteMaterial(color: string): { color: string; roughness: 1; metalness: 0 } {
   return { color, roughness: 1, metalness: 0 }
 }
 
 /**
- * Un color que se ve **tal cual**, sin luz ni corrección de tono: lo de los paneles y las señales.
+ * A colour that is seen **as it is**, with no light and no tone correction: that of the panels and
+ * the signals.
  *
- * Sin `toneMapped: false` three le aplica la curva de tono de la escena y el verde de acierto
- * sale apagado y distinto en cada juego, que es justo lo que la paleta existe para evitar.
+ * Without `toneMapped: false` three applies the scene's tone curve to it and the hit green
+ * comes out dull and different in each game, which is exactly what the palette exists to avoid.
  */
-export function materialEncendido(color: string): { color: string; toneMapped: false } {
+export function emissiveMaterial(color: string): { color: string; toneMapped: false } {
   return { color, toneMapped: false }
 }
 
 /**
- * Un color translúcido: ondas, velos, realces que dejan ver lo de detrás.
+ * A translucent colour: waves, veils, highlights that let what is behind show through.
  *
- * Lleva `depthWrite: false` siempre. Un material transparente de three **escribe profundidad**
- * aunque se vea a través de él, y entonces borra todo lo que queda detrás: es lo que deja un botón
- * «sin color», como apagado (`.claude/rules/xr.md`).
+ * It always carries `depthWrite: false`. A transparent three material **writes depth**
+ * even though it is seen through, and then it erases everything that is behind: it is what leaves
+ * a button «without colour», as if switched off (`.claude/rules/xr.md`).
  */
-export function materialTranslucido(
+export function translucentMaterial(
   color: string,
-  opacidad: number,
+  opacity: number,
 ): { color: string; transparent: true; opacity: number; depthWrite: false; toneMapped: false } {
-  if (!(opacidad >= 0 && opacidad <= 1)) throw new RangeError(`Opacity out of [0, 1]: ${opacidad}`)
-  return { color, transparent: true, opacity: opacidad, depthWrite: false, toneMapped: false }
+  if (!(opacity >= 0 && opacity <= 1)) throw new RangeError(`Opacity out of [0, 1]: ${opacity}`)
+  return { color, transparent: true, opacity: opacity, depthWrite: false, toneMapped: false }
 }

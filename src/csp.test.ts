@@ -2,38 +2,38 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 /**
- * La CSP de `next.config.ts` tiene dos ramas y solo una se despliega.
+ * The CSP of `next.config.ts` has two branches and only one is deployed.
  *
- * `next dev` necesita `'unsafe-eval'`: el React de desarrollo usa `eval` para rehacer las
- * pilas de llamadas y, sin él, cada carga deja un error en la consola y el aviso rojo de Next.
- * Lo que se sirve de verdad —el build, que es también lo que prueban los e2e— tiene que seguir
- * sin él: es la misma CSP que la del salón, que no deja compilar WebAssembly, y un `eval`
- * permitido aquí escondería hasta el visor lo que allí revienta.
+ * `next dev` needs `'unsafe-eval'`: the development React uses `eval` to rebuild the
+ * call stacks and, without it, every load leaves an error in the console and Next's red warning.
+ * What is really served —the build, which is also what the e2e test— has to stay
+ * without it: it is the same CSP as the hall's, which does not let WebAssembly compile, and an `eval`
+ * allowed here would hide until the headset what blows up there.
  */
-async function cspCon(entorno: string): Promise<string> {
-  vi.stubEnv('NODE_ENV', entorno)
+async function cspFor(env: string): Promise<string> {
+  vi.stubEnv('NODE_ENV', env)
   vi.resetModules()
   const { default: config } = await import('../next.config')
-  const [reglas] = await config.headers!()
-  return reglas.headers.find((cabecera) => cabecera.key === 'Content-Security-Policy')!.value
+  const [rules] = await config.headers!()
+  return rules.headers.find((header) => header.key === 'Content-Security-Policy')!.value
 }
 
 afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-describe('la CSP de next.config.ts', () => {
-  it('en producción no lleva `unsafe-eval` en ninguna forma', async () => {
-    const csp = await cspCon('production')
+describe('the CSP of next.config.ts', () => {
+  it('in production it carries no `unsafe-eval` in any form', async () => {
+    const csp = await cspFor('production')
     expect(csp).not.toMatch(/unsafe-eval/)
     expect(csp).toContain("script-src 'self' 'unsafe-inline';")
   })
 
-  it('en `next dev` deja evaluar, que lo necesita el React de desarrollo', async () => {
-    expect(await cspCon('development')).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval';")
+  it('in `next dev` it lets evaluate, which the development React needs', async () => {
+    expect(await cspFor('development')).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval';")
   })
 
-  it('fuera de `next dev` (los tests, cualquier otro entorno) se queda la de producción', async () => {
-    expect(await cspCon('test')).toBe(await cspCon('production'))
+  it('outside `next dev` (the tests, any other environment) the production one stays', async () => {
+    expect(await cspFor('test')).toBe(await cspFor('production'))
   })
 })

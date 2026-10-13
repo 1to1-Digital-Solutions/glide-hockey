@@ -3,96 +3,98 @@
 import { useCallback, useSyncExternalStore } from 'react'
 
 /**
- * Qué mano lleva algo cogido ahora mismo.
+ * Which hand is holding something right now.
  *
- * **Para apagarle el rayo.** El mando dibuja un rayo largo con su cursor, que es lo que
- * sirve para pulsar los menús; con el objeto ya en la mano ese rayo sigue encendido y
- * apuntando a la pared, como si se estuviera señalando algo. Reportado con el visor puesto:
- * «una vez que el usuario agarre el objeto, yo creo que se debería dejar de ver el rayo».
+ * **To turn its ray off.** The controller draws a long ray with its cursor, which is what is
+ * used to press the menus; with the object already in the hand that ray stays lit and
+ * pointing at the wall, as if something were being pointed at. Reported with the headset on:
+ * "once the user grabs the object, I think the ray should stop being visible".
  *
- * Se lleva fuera de React —un `Set` y unos oyentes— porque quien lo escribe es el bucle de
- * fotogramas del juego, que corre a 90 Hz y no puede pasar por `setState`, y quien lo lee es
- * el componente del mando, que sí es React. El almacén externo de `useSyncExternalStore` es
- * exactamente esa forma.
+ * It is kept outside React —a `Set` and some listeners— because the one that writes it is the
+ * game's frame loop, which runs at 90 Hz and cannot go through `setState`, and the one that
+ * reads it is the controller component, which is React. The external store of
+ * `useSyncExternalStore` is exactly that shape.
  *
- * **Solo se apaga el dibujo, no el puntero.** El rayo sigue existiendo: soltar el objeto y
- * volver a pulsar un botón del menú tiene que funcionar sin más ceremonia.
+ * **Only the drawing is turned off, not the pointer.** The ray still exists: releasing the
+ * object and pressing a menu button again has to work with no further ceremony.
  */
 
-type Mano = 'left' | 'right'
+type HandSide = 'left' | 'right'
 
-interface Registro {
-  ocupadas: Set<Mano>
+interface Registry {
+  ocupadas: Set<HandSide>
   oyentes: Set<() => void>
 }
 
 declare global {
   interface Window {
     /**
-     * Quién lleva algo en la mano, **compartido entre el juego y quien lo monte**.
+     * Who is holding something in the hand, **shared between the game and whoever mounts it**.
      *
-     * Va en `window` y no en el módulo porque son dos módulos. Este fichero está copiado en
-     * los **dieciséis juegos que dejan coger algo** y en el hub, y montado dentro del salón
-     * el que dibuja el mando es el del salón: el juego marcaba la mano en su copia y el salón leía
-     * la suya, que estaba siempre vacía. Desde dentro del visor eso se ve como que **el rayo
-     * no se apaga jugando desde el arcade** aunque sí lo haga en la web del juego, que es
-     * donde se probó.
+     * It goes on `window` and not in the module because they are two modules. This file is
+     * copied into the **sixteen games that let you grab something** and into the hub, and
+     * mounted inside the hall the one that draws the controller is the hall's: the game marked
+     * the hand in its copy and the hall read its own, which was always empty. From inside the
+     * headset that looks like **the ray does not turn off when playing from the arcade** even
+     * though it does on the game's own website, which is where it was tested.
      *
-     * **Dieciséis y no diecisiete**: en stick-rush los palos se atrapan de un toque y no se
-     * llevan, así que no hay nada que marcar. Table Tennis entró cuando su pala pasó a cogerse como las
-     * demás, y skeet cuando su pistola dejó de estar *siempre* en la mano y pasó a sacarse
-     * con el agarre: mientras estuvo siempre puesta, marcarla habría apagado el rayo toda la
-     * partida y no habría quedado con qué pulsar el menú.
+     * **Sixteen and not seventeen**: in stick-rush the sticks are caught with a tap and are not
+     * carried, so there is nothing to mark. Table Tennis came in when its paddle started being
+     * grabbed like the others, and skeet when its pistol stopped being *always* in the hand and
+     * started being drawn with the grab: while it was always on, marking it would have turned
+     * the ray off for the whole run and there would have been nothing left to press the menu
+     * with.
      *
-     * En la web propia de cada juego el rayo lo dibuja su propio `XRControllerGrip`, que lo
-     * lee: los dieciséis lo traen, porque el mando por defecto de la librería no sabe de esto
-     * y dejaba el rayo encendido con el objeto en la mano. Dentro del arcade —que es donde se
-     * juega— lo dibuja el del salón, que también lo lee. Lo compara `scripts/repos/comunes.py`.
+     * On each game's own website the ray is drawn by its own `XRControllerGrip`, which reads
+     * it: the sixteen ship it, because the library's default controller knows nothing about
+     * this and left the ray lit with the object in the hand. Inside the arcade —which is where
+     * people play— the hall's one draws it, and it reads it too. `scripts/repos/comunes.py`
+     * compares it.
      *
-     * Un `window` compartido es feo y es el canal que hay: son dos paquetes que se empaquetan
-     * juntos pero no comparten módulo. Lo crea el primero que llegue.
+     * A shared `window` is ugly and it is the channel there is: they are two packages that are
+     * bundled together but do not share a module. The first one to arrive creates it.
      */
-    __xrManosOcupadas?: Registro
+    __xrManosOcupadas?: Registry
   }
 }
 
-/** El registro de siempre, o uno nuevo. Sin `window` —en el servidor— uno propio. */
-const propio: Registro = { ocupadas: new Set(), oyentes: new Set() }
+/** The usual registry, or a new one. Without `window` —on the server— one of its own. */
+const own: Registry = { ocupadas: new Set(), oyentes: new Set() }
 
-function registro(): Registro {
-  if (typeof window === 'undefined') return propio
-  window.__xrManosOcupadas ??= propio
+function registry(): Registry {
+  if (typeof window === 'undefined') return own
+  window.__xrManosOcupadas ??= own
   return window.__xrManosOcupadas
 }
 
-/** Apunta si esa mano lleva algo. Se puede llamar cada fotograma: solo avisa si cambia. */
-export function marcarManoOcupada(mano: Mano, ocupada: boolean): void {
-  const { ocupadas, oyentes } = registro()
-  if (ocupada === ocupadas.has(mano)) return
-  if (ocupada) ocupadas.add(mano)
-  else ocupadas.delete(mano)
-  for (const oyente of oyentes) oyente()
+/** Notes whether that hand holds something. Callable every frame: it only notifies on change. */
+export function markHandBusy(hand: HandSide, busy: boolean): void {
+  const { ocupadas, oyentes } = registry()
+  if (busy === ocupadas.has(hand)) return
+  if (busy) ocupadas.add(hand)
+  else ocupadas.delete(hand)
+  for (const listener of oyentes) listener()
 }
 
-/** Suelta todas: al acabar la partida o al desmontar la escena nadie lleva nada. */
-export function soltarLasManos(): void {
-  const { ocupadas, oyentes } = registro()
+/** Releases them all: when the run ends or the scene unmounts nobody is holding anything. */
+export function releaseHands(): void {
+  const { ocupadas, oyentes } = registry()
   if (ocupadas.size === 0) return
   ocupadas.clear()
-  for (const oyente of oyentes) oyente()
+  for (const listener of oyentes) listener()
 }
 
-/** Se avisa aquí de los cambios. Exportado para poder probar que no avisa de más. */
-export function suscribirseAManos(oyente: () => void): () => void {
-  const { oyentes } = registro()
-  oyentes.add(oyente)
+/** Changes are notified here. Exported so it can be tested that it does not over-notify. */
+export function subscribeToHands(listener: () => void): () => void {
+  const { oyentes } = registry()
+  oyentes.add(listener)
   return () => {
-    oyentes.delete(oyente)
+    oyentes.delete(listener)
   }
 }
 
-/** Si esa mano lleva algo, para quien lo tenga que pintar. Fuera del visor, nunca. */
-export function useManoOcupada(mano: Mano | undefined): boolean {
-  const leer = useCallback(() => (mano == null ? false : registro().ocupadas.has(mano)), [mano])
-  return useSyncExternalStore(suscribirseAManos, leer, () => false)
+/** Whether that hand holds something, for whoever has to paint it. Outside the headset, never. */
+export function useHandBusy(hand: HandSide | undefined): boolean {
+  const read = useCallback(() => (hand == null ? false : registry().ocupadas.has(hand)), [hand])
+  return useSyncExternalStore(subscribeToHands, read, () => false)
 }

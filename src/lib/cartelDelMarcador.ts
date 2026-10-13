@@ -13,12 +13,12 @@
 import { challengeRound } from './challenge'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from './gameConfig'
 import { GAME_MODE_LABELS, type GameMode } from './gameMode'
-import { MENU_EN } from './palabras'
-import { MEDALLAS, cuentaParaMedalla, type Medalla, type Objetivo, type Partida, type Traducir, type VistaDelCartel } from './objetivo'
+import { MENU_EN } from './menuWords'
+import { MEDALS, countsForMedal, type Medal, type Goal, type Run, type Translate, type GoalSignView } from './goal'
 import { distanceFromEyes, eyesAt, panelRotation, pointOnPanel, type PanelPose, type Triple } from './panelReading'
 import { HALF_LENGTH } from './puckPhysics'
 import { goalPoints } from './scoring'
-import { RECETAS, pulsosDe, type Mano, type Pulso } from './tactos'
+import { HAPTIC_RECIPES, pulsesFor, type HandSide, type HandPulse } from './hapticFeedback'
 import { REFERENCE_EYE_HEIGHT } from './uiHeight'
 
 /**
@@ -39,8 +39,8 @@ export const AIRE_SOBRE_EL_MARCADOR = 0.03
 
 /** Lo que mide el cartel por cada metro de distancia de lectura: su ancho y su alto. */
 export interface ProporcionDelCartel {
-  readonly ancho: number
-  readonly alto: number
+  readonly width: number
+  readonly height: number
 }
 
 /** Dónde queda el cartel y cómo se orienta. */
@@ -94,7 +94,7 @@ export function sitioDelCartel(proporcion: ProporcionDelCartel): SitioDelCartel 
   let centro: [number, number, number] = [apoyo.x, apoyo.y, apoyo.z]
   for (let vuelta = 0; vuelta < 12; vuelta++) {
     const pose: PanelPose = { position: centro, rotation: panelRotation(centro, ojos) }
-    const abajo = pointOnPanel(pose, 0, (-proporcion.alto * distanceFromEyes(centro, ojos)) / 2)
+    const abajo = pointOnPanel(pose, 0, (-proporcion.height * distanceFromEyes(centro, ojos)) / 2)
     centro = [centro[0] + apoyo.x - abajo.x, centro[1] + apoyo.y - abajo.y, centro[2] + apoyo.z - abajo.z]
   }
   return {
@@ -170,7 +170,7 @@ export const LO_QUE_QUEDA = 'Round {round} · to {goals} goals · goal +{points}
  * Lo que queda, escrito. **De ahí salen los miles de los listones**: el próximo gol vale lo que
  * diga la ronda —la máquina sube de nivel y los goles valen más— y la racha que se lleve.
  */
-export function loQueQueda(round: number, streak: number, t: Traducir): string {
+export function loQueQueda(round: number, streak: number, t: Translate): string {
   const ronda = challengeRound(round)
   return t(LO_QUE_QUEDA, {
     round: ronda.round,
@@ -180,19 +180,19 @@ export function loQueQueda(round: number, streak: number, t: Traducir): string {
 }
 
 /** Si ese modo da medalla: lo que el menú dice de cada uno. */
-export function daMedalla(objetivo: Objetivo | null | undefined, mode: GameMode): boolean {
-  return mode === MODO_QUE_CUENTA && cuentaParaMedalla(objetivo, mode)
+export function daMedalla(objetivo: Goal | null | undefined, mode: GameMode): boolean {
+  return mode === MODO_QUE_CUENTA && countsForMedal(objetivo, mode)
 }
 
 /** Lo que el menú dice de un modo: si cuenta para medalla o no. */
-export function fraseDeLaMedalla(objetivo: Objetivo | null | undefined, mode: GameMode) {
+export function fraseDeLaMedalla(objetivo: Goal | null | undefined, mode: GameMode) {
   return daMedalla(objetivo, mode) ? ('Counts for a medal' as const) : ('Does not count for a medal' as const)
 }
 
 /** Lo que el cartel necesita saber de lo que se está jugando. */
 export interface LoQueSeJuega {
   /** Lo que pasó el salón, si lo pasó. */
-  objetivo?: Objetivo | null
+  objetivo?: Goal | null
   gameMode: GameMode
   gameState: 'menu' | 'countdown' | 'playing' | 'finished'
   /** La ronda del reto por la que se va (1 fuera de él). */
@@ -214,22 +214,22 @@ export interface LoQueSeJuega {
  * cualquier otro modo, dentro del salón el cartel dice bajito que no cuenta para medalla; con el
  * juego abierto suelto no hay medalla de la que hablar y no se cuelga. En el menú, nunca.
  */
-export function partidaDelCartel(juego: LoQueSeJuega, t: Traducir): Partida | null {
+export function partidaDelCartel(juego: LoQueSeJuega, t: Translate): Run | null {
   const { gameMode, gameState } = juego
   if (gameState === 'menu') return null
   const objetivo = juego.objetivo ?? null
   const mision = t(MISION_DEL_RETO)
   if (!daMedalla(objetivo, gameMode)) {
     if (objetivo == null) return null
-    return { objetivo, fase: 'jugando', puntos: 0, mision, cuenta: false, modo: t(GAME_MODE_LABELS[gameMode]) }
+    return { goal: objetivo, phase: 'playing', points: 0, mission: mision, counts: false, mode: t(GAME_MODE_LABELS[gameMode]) }
   }
   const sinEmpezar = gameState === 'countdown' && juego.round === 1 && juego.goles === 0
   return {
-    objetivo,
-    fase: gameState === 'finished' ? 'final' : sinEmpezar ? 'antes' : 'jugando',
-    puntos: juego.points,
-    mision,
-    queda: loQueQueda(juego.round, juego.streak, t),
+    goal: objetivo,
+    phase: gameState === 'finished' ? 'end' : sinEmpezar ? 'before' : 'playing',
+    points: juego.points,
+    mission: mision,
+    remaining: loQueQueda(juego.round, juego.streak, t),
     record: juego.record > 0 ? juego.record : null,
   }
 }
@@ -241,24 +241,24 @@ export function partidaDelCartel(juego: LoQueSeJuega, t: Traducir): Partida | nu
  * ronda va escrita en el cartel mientras se juega. Al acabar el cartel dice lo que faltó, así que
  * la ronda vuelve al marcador: es en la que se quedó el reto.
  */
-export function loQueCallaElMarcador(partida: Partida | null): { puntos: boolean; ronda: boolean } {
-  const cuenta = partida != null && partida.cuenta !== false
-  return { puntos: cuenta, ronda: cuenta && partida.fase !== 'final' }
+export function loQueCallaElMarcador(partida: Run | null): { puntos: boolean; ronda: boolean } {
+  const cuenta = partida != null && partida.counts !== false
+  return { puntos: cuenta, ronda: cuenta && partida.phase !== 'end' }
 }
 
 /** Cómo se llama el sonido de cada listón cruzado (`audioEngine.ts`; en Godot, su efecto renderizado). */
-export const SONIDO_DEL_LISTON = { bronce: 'medal-bronze', plata: 'medal-silver', oro: 'medal-gold' } as const
+export const SONIDO_DEL_LISTON = { bronze: 'medal-bronze', silver: 'medal-silver', gold: 'medal-gold' } as const
 
 /**
  * Lo que se siente en la mano del mazo al cruzar un listón: algo lejano ha llegado, más fuerte
  * cuanto mejor es la medalla. Sale detrás del pulso del gol que lo cruzó, que si no lo cortaría.
  * A CALIBRAR CON EL VISOR.
  */
-export function pulsosDelListon(medalla: Medalla, mano: Mano | null): Pulso[] {
+export function pulsosDelListon(medalla: Medal, mano: HandSide | null): HandPulse[] {
   if (mano == null) return []
-  return pulsosDe({ tipo: 'llegada', mano, fuerza: 0.5 + 0.25 * MEDALLAS.indexOf(medalla) }).map((pulso) => ({
+  return pulsesFor({ type: 'arrival', hand: mano, strength: 0.5 + 0.25 * MEDALS.indexOf(medalla) }).map((pulso) => ({
     ...pulso,
-    retardo: pulso.retardo + RECETAS.llegada.ms,
+    delay: pulso.delay + HAPTIC_RECIPES.arrival.ms,
   }))
 }
 
@@ -269,7 +269,7 @@ export function pulsosDelListon(medalla: Medalla, mano: Mano | null): Pulso[] {
 export const AVISO_DE_QUE_CUENTA_MS = 2500
 
 /** La frase del aviso: la común del salón (`palabras.ts`). */
-export const AVISO_DE_QUE_CUENTA = MENU_EN.ahoraCuenta
+export const AVISO_DE_QUE_CUENTA = MENU_EN.nowItCounts
 
 /**
  * El cartel justo al cerrar el tutorial en el reto: su línea grande dice que **ahora cuenta para
@@ -280,11 +280,11 @@ export const AVISO_DE_QUE_CUENTA = MENU_EN.ahoraCuenta
  * que viene ya sí cuenta. Solo en el reto, que es lo único que da medalla.
  */
 export function conElAvisoDeQueCuenta(
-  vista: VistaDelCartel | null,
+  vista: GoalSignView | null,
   gameMode: GameMode,
   avisando: boolean,
-  t: Traducir,
-): VistaDelCartel | null {
-  if (vista == null || vista.discreto || gameMode !== 'challenge' || !avisando) return vista
-  return { ...vista, titulo: t(AVISO_DE_QUE_CUENTA) }
+  t: Translate,
+): GoalSignView | null {
+  if (vista == null || vista.subdued || gameMode !== 'challenge' || !avisando) return vista
+  return { ...vista, title: t(AVISO_DE_QUE_CUENTA) }
 }

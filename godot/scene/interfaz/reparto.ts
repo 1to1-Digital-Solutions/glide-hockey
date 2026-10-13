@@ -151,7 +151,7 @@ export const CARTEL = {
 } as const
 
 /** Lo que mide el cartel por cada metro de distancia de lectura (`proporcionDelCartel`). */
-export const PROPORCION_DEL_CARTEL = { ancho: CARTEL.ancho / CARTEL.distancia, alto: CARTEL.alto / CARTEL.distancia } as const
+export const PROPORCION_DEL_CARTEL = { width: CARTEL.ancho / CARTEL.distancia, height: CARTEL.alto / CARTEL.distancia } as const
 
 /** Dónde cuelga: encima del marcador del fondo, de cara a quien juega (`SITIO_DEL_CARTEL` de la web). */
 export const SITIO_DEL_CARTEL = sitioDelCartel(PROPORCION_DEL_CARTEL)

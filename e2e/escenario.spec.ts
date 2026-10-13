@@ -1,17 +1,17 @@
 import { expect, test, type Page } from '@playwright/test'
-import { SCENERY_KEY } from '../src/lib/ajustes'
+import { SCENERY_KEY } from '../src/lib/settings'
 import { OWN_SCENERY_KEY } from '../src/lib/scenery'
 import {
-  combinacionesDeLuces,
-  contarLlamadas,
-  dejarAsentar,
-  elegirEnElSalon,
-  guardarAntesDeAbrir,
-  leerClave,
-  medianaDeLlamadas,
-  programasEnlazados,
-  vigilarProgramas,
-} from './support/escenario'
+  lightCombinations,
+  installDrawCallCounter,
+  letSettle,
+  chooseInSalon,
+  storeBeforeOpen,
+  readKey,
+  medianDrawCalls,
+  linkedPrograms,
+  watchPrograms,
+} from './support/scenery'
 import { openHost } from './support/host'
 import { installXREmulator } from './support/xr'
 
@@ -56,26 +56,26 @@ async function haySesion(page: Page) {
 
 test.describe('El escenario lo elige el salón', () => {
   test.beforeEach(async ({ page }) => {
-    await contarLlamadas(page)
+    await installDrawCallCounter(page)
     await installXREmulator(page)
   })
 
   test('con «room» no se pinta la sala y con «place» sí, sin salir de la sesión', async ({ page }) => {
-    await guardarAntesDeAbrir(page, SCENERY_KEY, 'room')
+    await storeBeforeOpen(page, SCENERY_KEY, 'room')
     await openHost(page)
     await entrarComoElSalon(page)
 
-    const enLaHabitacion = await medianaDeLlamadas(page)
-    await elegirEnElSalon(page, 'place')
-    const conDecorado = await medianaDeLlamadas(page)
+    const enLaHabitacion = await medianDrawCalls(page)
+    await chooseInSalon(page, 'place')
+    const conDecorado = await medianDrawCalls(page)
     console.log(`[escenario] llamadas por fotograma: habitación ${enLaHabitacion}, decorado ${conDecorado}`)
 
     expect(conDecorado, 'con «place» en realidad aumentada no se pintó la sala').toBeGreaterThan(
       enLaHabitacion + LO_QUE_PINTA_EL_DECORADO,
     )
     // Y volver a la habitación lo quita otra vez, en la misma sesión.
-    await elegirEnElSalon(page, 'room')
-    expect(await medianaDeLlamadas(page), 'con «room» se siguió pintando la sala').toBeLessThan(
+    await chooseInSalon(page, 'room')
+    expect(await medianDrawCalls(page), 'con «room» se siguió pintando la sala').toBeLessThan(
       conDecorado - LO_QUE_PINTA_EL_DECORADO,
     )
     expect(await haySesion(page), 'cambiar el escenario cerró la sesión').toBe(true)
@@ -84,17 +84,17 @@ test.describe('El escenario lo elige el salón', () => {
   test('la clave propia del juego no manda: a «room» y sin nada del salón, se pinta la sala', async ({
     page,
   }) => {
-    await guardarAntesDeAbrir(page, OWN_SCENERY_KEY, 'room')
+    await storeBeforeOpen(page, OWN_SCENERY_KEY, 'room')
     await openHost(page)
     await entrarComoElSalon(page)
 
-    const conLaClavePropia = await medianaDeLlamadas(page)
+    const conLaClavePropia = await medianDrawCalls(page)
     // Se borró al montar la partida, y sin pasar a la del arcade: manda lo que diga el salón.
-    expect(await leerClave(page, OWN_SCENERY_KEY), 'la clave propia del juego sigue guardada').toBeNull()
-    expect(await leerClave(page, SCENERY_KEY), 'la clave propia del juego se trasladó a la del arcade').toBeNull()
+    expect(await readKey(page, OWN_SCENERY_KEY), 'la clave propia del juego sigue guardada').toBeNull()
+    expect(await readKey(page, SCENERY_KEY), 'la clave propia del juego se trasladó a la del arcade').toBeNull()
 
-    await elegirEnElSalon(page, 'room')
-    const enLaHabitacion = await medianaDeLlamadas(page)
+    await chooseInSalon(page, 'room')
+    const enLaHabitacion = await medianDrawCalls(page)
     console.log(`[escenario] llamadas por fotograma: clave propia ${conLaClavePropia}, habitación ${enLaHabitacion}`)
 
     expect(conLaClavePropia, 'la clave propia del juego quitó la sala').toBeGreaterThan(
@@ -107,30 +107,30 @@ test.describe('El escenario lo elige el salón', () => {
     // la sala cambia el programa de todo lo que se ilumina, y desmontar el decorado libera
     // sus shaders, que se vuelven a compilar al volver. Las luces se quedan montadas —apagadas
     // donde no alumbran—, la niebla se aleja y el decorado se oculta.
-    await vigilarProgramas(page)
-    await guardarAntesDeAbrir(page, SCENERY_KEY, 'room')
+    await watchPrograms(page)
+    await storeBeforeOpen(page, SCENERY_KEY, 'room')
     await openHost(page)
     await entrarComoElSalon(page)
-    await dejarAsentar(page)
+    await letSettle(page)
 
     // Una vuelta entera primero: lo que solo existe en uno de los dos escenarios se compila la
     // primera vez que se ve, y eso pasa una vez por visita, no a cada cambio.
-    await elegirEnElSalon(page, 'place')
-    await dejarAsentar(page)
-    await elegirEnElSalon(page, 'room')
-    await dejarAsentar(page)
-    const trasLaPrimeraVuelta = await programasEnlazados(page)
+    await chooseInSalon(page, 'place')
+    await letSettle(page)
+    await chooseInSalon(page, 'room')
+    await letSettle(page)
+    const trasLaPrimeraVuelta = await linkedPrograms(page)
 
-    await elegirEnElSalon(page, 'place')
-    await dejarAsentar(page)
-    await elegirEnElSalon(page, 'room')
-    await dejarAsentar(page)
+    await chooseInSalon(page, 'place')
+    await letSettle(page)
+    await chooseInSalon(page, 'room')
+    await letSettle(page)
 
-    const luces = await combinacionesDeLuces(page)
+    const luces = await lightCombinations(page)
     console.log(`[escenario] luces con las que se pinta: ${luces.join(' | ')}`)
     expect(luces, 'el número de luces cambió con el escenario').toHaveLength(1)
     expect(
-      (await programasEnlazados(page)) - trasLaPrimeraVuelta,
+      (await linkedPrograms(page)) - trasLaPrimeraVuelta,
       'volver a cambiar de escenario recompiló shaders: eso es un tirón con el visor puesto',
     ).toBe(0)
     expect(await haySesion(page), 'cambiar el escenario cerró la sesión').toBe(true)

@@ -55,56 +55,56 @@ import {
   writeScenery,
   writeTurnMode,
   writeVolume,
-} from './ajustes'
+} from './settings'
 
 /**
- * El contrato que este juego comparte con xrcade y con los demás juegos del salón.
+ * The contract this game shares with xrcade and with the other games of the hall.
  *
- * El fichero es una **copia deliberada** —lo explica su cabecera—, así que lo
- * que se prueba aquí no es la lógica por sí sola sino el puente: si una clave
- * o un valor de partida se apartaran de los del arcade, elegir español o bajar
- * el ambiente en la portada dejaría de notarse dentro de la cabina, y en
- * silencio. Por eso las claves están escritas a mano en las expectativas: una
- * comparación contra la propia constante no vería el cambio.
+ * The file is a **deliberate copy** —its header explains it—, so what
+ * is tested here is not the logic on its own but the bridge: if a key
+ * or a starting value departed from the hall's, picking Spanish or turning
+ * the ambience down on the front page would stop showing inside the cabinet, and
+ * silently. That is why the keys are written by hand in the expectations: a
+ * comparison against the constant itself would not see the change.
  *
- * Todo lo que entra viene de fuera —una cookie y un almacenamiento que
- * cualquiera puede editar desde las herramientas del navegador—, así que la
- * otra mitad de lo que se comprueba es que nada de eso deje al juego en un
- * estado que no existe.
+ * Everything that comes in comes from outside —a cookie and a storage that
+ * anyone can edit from the browser's tools—, so the
+ * other half of what is checked is that none of that leaves the game in a
+ * state that does not exist.
  */
 
-/** Un almacenamiento de mentira, que además puede negarse a funcionar. */
-function almacen(inicial: Record<string, string> = {}, roto = false): Storage {
-  const datos = new Map(Object.entries(inicial))
-  const reventar = () => {
-    if (roto) throw new Error('almacenamiento capado')
+/** A fake storage, which can also refuse to work. */
+function fakeStorage(initial: Record<string, string> = {}, broken = false): Storage {
+  const data = new Map(Object.entries(initial))
+  const blowUp = () => {
+    if (broken) throw new Error('storage blocked')
   }
 
   return {
     get length() {
-      return datos.size
+      return data.size
     },
-    clear: () => datos.clear(),
-    getItem: (clave: string) => {
-      reventar()
-      return datos.get(clave) ?? null
+    clear: () => data.clear(),
+    getItem: (key: string) => {
+      blowUp()
+      return data.get(key) ?? null
     },
-    key: (indice: number) => [...datos.keys()][indice] ?? null,
-    removeItem: (clave: string) => {
-      reventar()
-      datos.delete(clave)
+    key: (index: number) => [...data.keys()][index] ?? null,
+    removeItem: (key: string) => {
+      blowUp()
+      data.delete(key)
     },
-    setItem: (clave: string, valor: string) => {
-      reventar()
-      datos.set(clave, valor)
+    setItem: (key: string, value: string) => {
+      blowUp()
+      data.set(key, value)
     },
   }
 }
 
-describe('las claves del arcade', () => {
-  it('son exactamente las que escribe xrcade', () => {
-    // Escritas a mano a propósito: es el puente entre repositorios, y contra la
-    // propia constante esto pasaría siempre.
+describe('the keys of the hall', () => {
+  it('are exactly the ones xrcade writes', () => {
+    // Written by hand on purpose: it is the bridge between repositories, and against the
+    // constant itself this would always pass.
     expect(LANG_COOKIE).toBe('xrcade_lang')
     expect(VOLUME_KEYS).toEqual({
       sfx: 'xrcade:volume:sfx',
@@ -112,7 +112,7 @@ describe('las claves del arcade', () => {
     })
   })
 
-  it('entra en inglés y con el ambiente por debajo de los efectos', () => {
+  it('comes in in English and with the ambience below the effects', () => {
     expect(DEFAULT_LANG).toBe('en')
     expect(DEFAULT_VOLUMES).toEqual({ sfx: 100, ambience: 60 })
     expect(DEFAULT_VOLUME_SETTINGS).toEqual(DEFAULT_VOLUMES)
@@ -120,14 +120,14 @@ describe('las claves del arcade', () => {
   })
 })
 
-describe('el idioma que llega de fuera', () => {
-  it('vale si es uno de los que hay', () => {
+describe('the language that arrives from outside', () => {
+  it('is valid if it is one of the ones there are', () => {
     expect(parseLang('es')).toBe('es')
     expect(parseLang('en')).toBe('en')
   })
 
-  it('cae al de partida si es cualquier otra cosa', () => {
-    // Una cookie editada a mano, o la de una versión que hablaba otro idioma.
+  it('falls back to the starting one if it is anything else', () => {
+    // A cookie edited by hand, or the one of a version that spoke another language.
     expect(parseLang('fr')).toBe(DEFAULT_LANG)
     expect(parseLang('')).toBe(DEFAULT_LANG)
     expect(parseLang(null)).toBe(DEFAULT_LANG)
@@ -135,31 +135,31 @@ describe('el idioma que llega de fuera', () => {
   })
 })
 
-describe('el idioma escrito en una cabecera de cookies', () => {
-  it('lo encuentra esté donde esté entre las demás', () => {
+describe('the language written in a cookie header', () => {
+  it('finds it wherever it is among the others', () => {
     expect(langFromCookies(`${LANG_COOKIE}=es`)).toBe('es')
     expect(langFromCookies(`otra=1; ${LANG_COOKIE}=es; ultima=2`)).toBe('es')
-    // Con espacios alrededor, que es como llega de `document.cookie`.
+    // With spaces around it, which is how it arrives from `document.cookie`.
     expect(langFromCookies(` ${LANG_COOKIE}=es ; otra=1`)).toBe('es')
   })
 
-  it('no confunde una cookie que solo empieza igual', () => {
+  it('does not mistake a cookie that only starts the same', () => {
     expect(langFromCookies(`${LANG_COOKIE}_otra=es`)).toBe(DEFAULT_LANG)
   })
 
-  it('descodifica el valor antes de mirarlo', () => {
+  it('decodes the value before looking at it', () => {
     expect(langFromCookies(`${LANG_COOKIE}=${encodeURIComponent('es')}`)).toBe('es')
   })
 
-  it('sin cookies, en el idioma de partida', () => {
+  it('without cookies, in the starting language', () => {
     expect(langFromCookies('')).toBe(DEFAULT_LANG)
     expect(langFromCookies(null)).toBe(DEFAULT_LANG)
     expect(langFromCookies(undefined)).toBe(DEFAULT_LANG)
   })
 })
 
-describe('el idioma sin elegir: el del sistema', () => {
-  it('distingue lo elegido de lo que no lo está', () => {
+describe('the language not chosen: the system one', () => {
+  it('tells what is chosen from what is not', () => {
     expect(chosenLang(`${LANG_COOKIE}=es`)).toBe('es')
     expect(chosenLang(`${LANG_COOKIE}=klingon`)).toBeNull()
     expect(chosenLang('otra=1')).toBeNull()
@@ -168,7 +168,7 @@ describe('el idioma sin elegir: el del sistema', () => {
     expect(asLang(undefined)).toBeNull()
   })
 
-  it('lee la cabecera del servidor por su peso, y solo la lengua', () => {
+  it('reads the server header by its weight, and only the language', () => {
     expect(langFromSystem('es-ES,es;q=0.9,en;q=0.8')).toBe('es')
     expect(langFromSystem('fr;q=0.9,en-GB;q=0.8,es;q=0.95')).toBe('es')
     expect(langFromSystem('es-MX')).toBe('es')
@@ -178,44 +178,44 @@ describe('el idioma sin elegir: el del sistema', () => {
     expect(langFromSystem('')).toBeNull()
   })
 
-  it('y la lista del navegador, ya ordenada', () => {
+  it('and the browser list, already sorted', () => {
     expect(langFromSystem(['de-DE', 'es-ES', 'en'])).toBe('es')
     expect(langFromSystem(['EN_us'])).toBe('en')
     expect(langFromSystem([])).toBeNull()
     expect(langFromSystem(null)).toBeNull()
   })
 
-  it('manda lo elegido; sin elegir, el sistema; sin nada del arcade, el de partida', () => {
+  it('the choice rules; with none, the system; with nothing of the hall, the starting one', () => {
     expect(langFor(`${LANG_COOKIE}=en`, ['es-ES'])).toBe('en')
     expect(langFor('', ['es-ES'])).toBe('es')
     expect(langFor(undefined, 'fr')).toBe(DEFAULT_LANG)
   })
 })
 
-describe('un volumen leído del almacenamiento', () => {
-  it('vale si es un entero de 0 a 100', () => {
+describe('a volume read from storage', () => {
+  it('is valid if it is an integer from 0 to 100', () => {
     expect(parseVolume('0', 60)).toBe(0)
     expect(parseVolume('37', 60)).toBe(37)
     expect(parseVolume('100', 60)).toBe(100)
   })
 
-  it('cae al de partida si no lo es', () => {
+  it('falls back to the starting one if it is not', () => {
     expect(parseVolume(null, 60)).toBe(60)
     expect(parseVolume('', 60)).toBe(60)
     expect(parseVolume('alto', 60)).toBe(60)
     expect(parseVolume('37.5', 60)).toBe(60)
     expect(parseVolume('-5', 60)).toBe(60)
-    // Tres cifras que se pasan de 100: entra por la forma y sale por el rango.
+    // Three digits that go over 100: it gets in by its shape and out by its range.
     expect(parseVolume('101', 60)).toBe(60)
     expect(parseVolume('999', 60)).toBe(60)
-    // Cuatro cifras ya no son forma de volumen.
+    // Four digits are no longer the shape of a volume.
     expect(parseVolume('1000', 60)).toBe(60)
   })
 })
 
-describe('los volúmenes del arcade', () => {
-  it('salen del almacenamiento cuando hay algo guardado', () => {
-    const storage = almacen({
+describe('the volumes of the hall', () => {
+  it('come from storage when there is something stored', () => {
+    const storage = fakeStorage({
       [VOLUME_KEYS.sfx]: '40',
       [VOLUME_KEYS.ambience]: '0',
     })
@@ -223,86 +223,86 @@ describe('los volúmenes del arcade', () => {
     expect(readVolumes(storage)).toEqual({ sfx: 40, ambience: 0 })
   })
 
-  it('son los de partida cuando no hay nada, ni dónde guardarlo', () => {
-    expect(readVolumes(almacen())).toEqual(DEFAULT_VOLUME_SETTINGS)
+  it('are the starting ones when there is nothing, nor anywhere to store it', () => {
+    expect(readVolumes(fakeStorage())).toEqual(DEFAULT_VOLUME_SETTINGS)
     expect(readVolumes(null)).toEqual(DEFAULT_VOLUME_SETTINGS)
   })
 
-  it('sobreviven a un navegador con el almacenamiento capado', () => {
-    // Ventana privada, o un navegador con las cookies de sitio bloqueadas: se
-    // juega con lo de partida en vez de dejar el juego sin arrancar.
-    expect(readVolumes(almacen({}, true))).toEqual(DEFAULT_VOLUME_SETTINGS)
+  it('survive a browser with blocked storage', () => {
+    // A private window, or a browser with site cookies blocked: you
+    // play with the starting values instead of leaving the game unable to start.
+    expect(readVolumes(fakeStorage({}, true))).toEqual(DEFAULT_VOLUME_SETTINGS)
   })
 })
 
-describe('guardar un volumen', () => {
-  it('lo escribe cuando se aparta de lo de partida', () => {
-    const storage = almacen()
+describe('storing a volume', () => {
+  it('writes it when it departs from the starting value', () => {
+    const storage = fakeStorage()
 
     expect(writeVolume(storage, 'sfx', 40)).toBe(true)
     expect(storage.getItem(VOLUME_KEYS.sfx)).toBe('40')
   })
 
-  it('lo olvida cuando vuelve a ser el de partida', () => {
-    // Así el almacenamiento tiene algo solo cuando alguien ha decidido algo, y
-    // borrarlo devuelve el arcade a como venía.
-    const storage = almacen({ [VOLUME_KEYS.ambience]: '10' })
+  it('forgets it when it is the starting one again', () => {
+    // That way the storage holds something only when someone has decided something, and
+    // deleting it returns the hall to how it came.
+    const storage = fakeStorage({ [VOLUME_KEYS.ambience]: '10' })
 
     expect(writeVolume(storage, 'ambience', DEFAULT_VOLUMES.ambience)).toBe(true)
     expect(storage.getItem(VOLUME_KEYS.ambience)).toBeNull()
   })
 
-  it('dice que no sin sitio donde guardar, y no revienta', () => {
+  it('says no with nowhere to store, and does not blow up', () => {
     expect(writeVolume(null, 'sfx', 40)).toBe(false)
-    expect(writeVolume(almacen({}, true), 'sfx', 40)).toBe(false)
+    expect(writeVolume(fakeStorage({}, true), 'sfx', 40)).toBe(false)
   })
 })
 
-describe('el volumen que entiende el audio', () => {
-  it('va de 0 a 1', () => {
+describe('the volume the audio understands', () => {
+  it('goes from 0 to 1', () => {
     expect(volumeFactor(0)).toBe(0)
     expect(volumeFactor(50)).toBe(0.5)
     expect(volumeFactor(100)).toBe(1)
   })
 
-  it('no se sale aunque le llegue un número imposible', () => {
+  it('does not go out of range even if it gets an impossible number', () => {
     expect(volumeFactor(-20)).toBe(0)
     expect(volumeFactor(400)).toBe(1)
   })
 })
 
-describe('a qué altura se juega', () => {
-  it('la clave y la altura de partida son las que escribe xrcade', () => {
-    // Escritas a mano a propósito, como el resto: es el puente entre
-    // repositorios, y contra la propia constante esto pasaría siempre.
+describe('at what height you play', () => {
+  it('the key and the starting height are the ones xrcade writes', () => {
+    // Written by hand on purpose, like the rest: it is the bridge between
+    // repositories, and against the constant itself this would always pass.
     expect(PLAY_HEIGHT_KEY).toBe('xrcade:play-height')
     expect(DEFAULT_PLAY_HEIGHT).toBe('standing')
     expect(PLAY_HEIGHTS).toEqual(['standing', 'eyes'])
   })
 
-  it('solo cuenta una altura que exista', () => {
+  it('only a height that exists counts', () => {
     expect(parsePlayHeight('eyes')).toBe('eyes')
     expect(parsePlayHeight('standing')).toBe('standing')
-    // Almacenamiento manipulado o de otra versión: se juega de pie, que es
-    // como se jugaba antes de haber esto.
-    for (const basura of ['sentado', '', null, undefined]) {
-      expect(parsePlayHeight(basura)).toBe('standing')
+    // Tampered storage or storage from another version: you play standing, which is
+    // how you played before this existed.
+    for (const junk of ['sentado', '', null, undefined]) {
+      expect(parsePlayHeight(junk)).toBe('standing')
     }
   })
 
-  it('se lee de donde el arcade la deja', () => {
-    expect(readPlayHeight(almacen({ [PLAY_HEIGHT_KEY]: 'eyes' }))).toBe('eyes')
-    expect(readPlayHeight(almacen())).toBe('standing')
+  it('is read from where the hall leaves it', () => {
+    expect(readPlayHeight(fakeStorage({ [PLAY_HEIGHT_KEY]: 'eyes' }))).toBe('eyes')
+    expect(readPlayHeight(fakeStorage())).toBe('standing')
   })
 
-  it('sin sitio donde mirar se juega de pie, y no revienta', () => {
+  it('with nowhere to look you play standing, and it does not blow up', () => {
     expect(readPlayHeight(null)).toBe('standing')
-    expect(readPlayHeight(almacen({}, true))).toBe('standing')
+    expect(readPlayHeight(fakeStorage({}, true))).toBe('standing')
   })
 
-  it('se guarda al apartarse de pie, y se olvida al volver', () => {
-    // Así el almacenamiento tiene algo solo cuando alguien ha decidido algo.
-    const storage = almacen()
+  it('is stored on departing from standing, and forgotten on going back', () => {
+    // That way the storage holds something only when someone has decided something.
+    const storage = fakeStorage()
 
     expect(writePlayHeight(storage, 'eyes')).toBe(true)
     expect(storage.getItem(PLAY_HEIGHT_KEY)).toBe('eyes')
@@ -311,39 +311,39 @@ describe('a qué altura se juega', () => {
     expect(storage.getItem(PLAY_HEIGHT_KEY)).toBeNull()
   })
 
-  it('dice que no sin sitio donde guardar, y no revienta', () => {
+  it('says no with nowhere to store, and does not blow up', () => {
     expect(writePlayHeight(null, 'eyes')).toBe(false)
-    expect(writePlayHeight(almacen({}, true), 'eyes')).toBe(false)
+    expect(writePlayHeight(fakeStorage({}, true), 'eyes')).toBe(false)
   })
 })
 
-describe('cómo se sujeta lo que se coge', () => {
-  it('la clave y el agarre de partida son los que escribe xrcade', () => {
+describe('how what you pick up is held', () => {
+  it('the key and the starting grab are the ones xrcade writes', () => {
     expect(GRAB_MODE_KEY).toBe('xrcade:grab')
     expect(DEFAULT_GRAB_MODE).toBe('hold')
     expect(GRAB_MODES).toEqual(['hold', 'toggle'])
   })
 
-  it('solo cuenta un agarre que exista', () => {
+  it('only a grab that exists counts', () => {
     expect(parseGrabMode('toggle')).toBe('toggle')
     expect(parseGrabMode('hold')).toBe('hold')
-    for (const basura of ['mantener', '', null, undefined]) {
-      expect(parseGrabMode(basura)).toBe('hold')
+    for (const junk of ['mantener', '', null, undefined]) {
+      expect(parseGrabMode(junk)).toBe('hold')
     }
   })
 
-  it('se lee de donde el arcade lo deja', () => {
-    expect(readGrabMode(almacen({ [GRAB_MODE_KEY]: 'toggle' }))).toBe('toggle')
-    expect(readGrabMode(almacen())).toBe('hold')
+  it('is read from where the hall leaves it', () => {
+    expect(readGrabMode(fakeStorage({ [GRAB_MODE_KEY]: 'toggle' }))).toBe('toggle')
+    expect(readGrabMode(fakeStorage())).toBe('hold')
   })
 
-  it('sin sitio donde mirar se agarra manteniendo, y no revienta', () => {
+  it('with nowhere to look you grab by holding, and it does not blow up', () => {
     expect(readGrabMode(null)).toBe('hold')
-    expect(readGrabMode(almacen({}, true))).toBe('hold')
+    expect(readGrabMode(fakeStorage({}, true))).toBe('hold')
   })
 
-  it('se guarda al apartarse de mantener, y se olvida al volver', () => {
-    const storage = almacen()
+  it('is stored on departing from holding, and forgotten on going back', () => {
+    const storage = fakeStorage()
 
     expect(writeGrabMode(storage, 'toggle')).toBe(true)
     expect(storage.getItem(GRAB_MODE_KEY)).toBe('toggle')
@@ -352,41 +352,41 @@ describe('cómo se sujeta lo que se coge', () => {
     expect(storage.getItem(GRAB_MODE_KEY)).toBeNull()
   })
 
-  it('dice que no sin sitio donde guardar, y no revienta', () => {
+  it('says no with nowhere to store, and does not blow up', () => {
     expect(writeGrabMode(null, 'toggle')).toBe(false)
-    expect(writeGrabMode(almacen({}, true), 'toggle')).toBe(false)
+    expect(writeGrabMode(fakeStorage({}, true), 'toggle')).toBe(false)
   })
 })
 
-describe('cuándo se gira el decorado con el stick', () => {
-  it('la clave y el giro de partida son los que escribirá xrcade', () => {
+describe('when the stage is turned with the stick', () => {
+  it('the key and the starting turn are the ones xrcade will write', () => {
     expect(TURN_MODE_KEY).toBe('xrcade:giro')
     expect(DEFAULT_TURN_MODE).toBe('auto')
     expect(TURN_MODES).toEqual(['auto', 'stick'])
   })
 
-  it('solo cuenta un giro que exista', () => {
+  it('only a turn that exists counts', () => {
     expect(parseTurnMode('stick')).toBe('stick')
     expect(parseTurnMode('auto')).toBe('auto')
-    for (const basura of ['siempre', '', null, undefined]) {
-      expect(parseTurnMode(basura)).toBe('auto')
+    for (const junk of ['siempre', '', null, undefined]) {
+      expect(parseTurnMode(junk)).toBe('auto')
     }
   })
 
-  it('se lee de donde el arcade lo deja, y sin él es solo sentado', () => {
-    // Un salón anterior al ajuste no escribe nada: eso tiene que seguir siendo un juego que
-    // se puede jugar, no un fallo.
-    expect(readTurnMode(almacen({ [TURN_MODE_KEY]: 'stick' }))).toBe('stick')
-    expect(readTurnMode(almacen())).toBe('auto')
+  it('is read from where the hall leaves it, and without it it is only seated', () => {
+    // A hall older than the setting writes nothing: that has to remain a game that
+    // can be played, not a failure.
+    expect(readTurnMode(fakeStorage({ [TURN_MODE_KEY]: 'stick' }))).toBe('stick')
+    expect(readTurnMode(fakeStorage())).toBe('auto')
   })
 
-  it('sin sitio donde mirar se gira solo sentado, y no revienta', () => {
+  it('with nowhere to look it turns only seated, and it does not blow up', () => {
     expect(readTurnMode(null)).toBe('auto')
-    expect(readTurnMode(almacen({}, true))).toBe('auto')
+    expect(readTurnMode(fakeStorage({}, true))).toBe('auto')
   })
 
-  it('se guarda al apartarse del de partida, y se olvida al volver', () => {
-    const storage = almacen()
+  it('is stored on departing from the starting one, and forgotten on going back', () => {
+    const storage = fakeStorage()
 
     expect(writeTurnMode(storage, 'stick')).toBe(true)
     expect(storage.getItem(TURN_MODE_KEY)).toBe('stick')
@@ -395,44 +395,44 @@ describe('cuándo se gira el decorado con el stick', () => {
     expect(storage.getItem(TURN_MODE_KEY)).toBeNull()
   })
 
-  it('dice que no sin sitio donde guardar, y no revienta', () => {
+  it('says no with nowhere to store, and does not blow up', () => {
     expect(writeTurnMode(null, 'stick')).toBe(false)
-    expect(writeTurnMode(almacen({}, true), 'stick')).toBe(false)
+    expect(writeTurnMode(fakeStorage({}, true), 'stick')).toBe(false)
   })
 })
 
-describe('qué se ve alrededor con el visor', () => {
-  it('la clave, los valores y el de partida son los que escribe xrcade', () => {
-    // Escritos a mano, como el resto: es el puente entre repositorios, y contra la propia
-    // constante esto pasaría siempre. Una clave que se apartara de la del salón dejaría la
-    // cabina con su decorado aunque en el salón se hubiera elegido la habitación.
+describe('what is seen around you with the headset', () => {
+  it('the key, the values and the starting one are the ones xrcade writes', () => {
+    // Written by hand, like the rest: it is the bridge between repositories, and against the
+    // constant itself this would always pass. A key that departed from the hall's would leave the
+    // cabinet with its stage even though the room had been chosen in the hall.
     expect(SCENERY_KEY).toBe('xrcade:scenery')
     expect(SCENERIES).toEqual(['place', 'room'])
     expect(DEFAULT_SCENERY).toBe('place')
   })
 
-  it('solo cuenta un escenario que exista', () => {
+  it('only a scenery that exists counts', () => {
     expect(parseScenery('room')).toBe('room')
     expect(parseScenery('place')).toBe('place')
-    // `passthrough` y `scene` incluidos: son los nombres con los que stick-rush habla del
-    // escenario dentro de su código, y escritos en la clave del arcade no significan nada.
-    for (const basura of ['ROOM', 'passthrough', 'scene', '', null, undefined]) {
-      expect(parseScenery(basura)).toBe('place')
+    // `passthrough` and `scene` included: they are the names stick-rush uses to talk about the
+    // scenery inside its code, and written in the hall's key they mean nothing.
+    for (const junk of ['ROOM', 'passthrough', 'scene', '', null, undefined]) {
+      expect(parseScenery(junk)).toBe('place')
     }
   })
 
-  it('se lee de donde el arcade lo deja', () => {
-    expect(readScenery(almacen({ [SCENERY_KEY]: 'room' }))).toBe('room')
-    expect(readScenery(almacen())).toBe('place')
+  it('is read from where the hall leaves it', () => {
+    expect(readScenery(fakeStorage({ [SCENERY_KEY]: 'room' }))).toBe('room')
+    expect(readScenery(fakeStorage())).toBe('place')
   })
 
-  it('sin sitio donde mirar se ve el sitio dibujado, y no revienta', () => {
+  it('with nowhere to look the drawn place is seen, and it does not blow up', () => {
     expect(readScenery(null)).toBe('place')
-    expect(readScenery(almacen({}, true))).toBe('place')
+    expect(readScenery(fakeStorage({}, true))).toBe('place')
   })
 
-  it('se guarda al elegir la habitación, y se olvida al volver al sitio dibujado', () => {
-    const storage = almacen()
+  it('is stored on choosing the room, and forgotten on going back to the drawn place', () => {
+    const storage = fakeStorage()
 
     expect(writeScenery(storage, 'room')).toBe(true)
     expect(storage.getItem(SCENERY_KEY)).toBe('room')
@@ -441,58 +441,58 @@ describe('qué se ve alrededor con el visor', () => {
     expect(storage.getItem(SCENERY_KEY)).toBeNull()
   })
 
-  it('dice que no sin sitio donde guardar, y no revienta', () => {
+  it('says no with nowhere to store, and does not blow up', () => {
     expect(writeScenery(null, 'room')).toBe(false)
-    expect(writeScenery(almacen({}, true), 'room')).toBe(false)
+    expect(writeScenery(fakeStorage({}, true), 'room')).toBe(false)
   })
 
-  describe('cuándo se pinta el decorado', () => {
-    it('con el sitio dibujado elegido, siempre', () => {
+  describe('when the stage is rendered', () => {
+    it('with the drawn place chosen, always', () => {
       expect(showsPlace('immersive-ar', 'place')).toBe(true)
     })
 
-    it('con la habitación elegida y en realidad aumentada, no: se ve la habitación', () => {
+    it('with the room chosen and in augmented reality, no: the room is seen', () => {
       expect(showsPlace('immersive-ar', 'room')).toBe(false)
     })
 
-    it('con la habitación elegida pero en realidad virtual, sí: no hay habitación detrás', () => {
-      // Un visor sin passthrough: quitar el decorado dejaría a quien juega mirando negro.
+    it('with the room chosen but in virtual reality, yes: there is no room behind', () => {
+      // A headset without passthrough: removing the stage would leave the player staring at black.
       expect(showsPlace('immersive-vr', 'room')).toBe(true)
     })
 
-    it('con la habitación elegida y fuera del visor, también: la pantalla no tiene cámara', () => {
+    it('with the room chosen and outside the headset, too: the screen has no camera', () => {
       expect(showsPlace(null, 'room')).toBe(true)
       expect(showsPlace(undefined, 'room')).toBe(true)
     })
   })
 })
 
-describe('con qué mano se juega', () => {
-  it('la clave, los valores y la de partida son los que escribe xrcade', () => {
-    // Escritos a mano, como el resto: es el puente entre repositorios. Los valores son los de
-    // WebXR (`XRHandedness`), que es como se le pide a `@react-three/xr` el mando de esa mano.
+describe('which hand you play with', () => {
+  it('the key, the values and the starting one are the ones xrcade writes', () => {
+    // Written by hand, like the rest: it is the bridge between repositories. The values are WebXR's
+    // (`XRHandedness`), which is how `@react-three/xr` is asked for that hand's controller.
     expect(HAND_KEY).toBe('xrcade:hand')
     expect(HANDS).toEqual(['right', 'left'])
     expect(DEFAULT_HAND).toBe('right')
-    // Y se enseñan como se tienen las manos de frente.
+    // And they are shown as hands are when seen from the front.
     expect(HAND_ORDER).toEqual(['left', 'right'])
   })
 
-  it('solo cuenta una mano que exista', () => {
+  it('only a hand that exists counts', () => {
     expect(parseHand('left')).toBe('left')
     expect(parseHand('right')).toBe('right')
-    for (const basura of ['zurdo', 'LEFT', 'none', '', null, undefined]) {
-      expect(parseHand(basura)).toBe('right')
+    for (const junk of ['zurdo', 'LEFT', 'none', '', null, undefined]) {
+      expect(parseHand(junk)).toBe('right')
     }
   })
 
-  it('se lee de donde la deja el salón, y sin nada guardado es la derecha', () => {
-    expect(readHand(almacen({ [HAND_KEY]: 'left' }))).toBe('left')
-    expect(readHand(almacen())).toBe('right')
+  it('is read from where the hall leaves it, and with nothing stored it is the right one', () => {
+    expect(readHand(fakeStorage({ [HAND_KEY]: 'left' }))).toBe('left')
+    expect(readHand(fakeStorage())).toBe('right')
   })
 
-  it('se guarda al elegir la izquierda, y se olvida al volver a la derecha', () => {
-    const storage = almacen()
+  it('is stored on choosing the left one, and forgotten on going back to the right one', () => {
+    const storage = fakeStorage()
 
     expect(writeHand(storage, 'left')).toBe(true)
     expect(storage.getItem(HAND_KEY)).toBe('left')
@@ -501,43 +501,43 @@ describe('con qué mano se juega', () => {
     expect(storage.getItem(HAND_KEY)).toBeNull()
   })
 
-  it('sin almacenamiento, o con uno capado, se juega con la derecha y no revienta', () => {
+  it('with no storage, or a blocked one, you play with the right one and it does not blow up', () => {
     expect(readHand(null)).toBe('right')
-    expect(readHand(almacen({}, true))).toBe('right')
+    expect(readHand(fakeStorage({}, true))).toBe('right')
     expect(writeHand(null, 'left')).toBe(false)
-    expect(writeHand(almacen({}, true), 'left')).toBe(false)
+    expect(writeHand(fakeStorage({}, true), 'left')).toBe(false)
   })
 })
 
-describe('la altura fina del salón', () => {
-  it('la clave y el cero de partida son los que escribe xrcade', () => {
-    // Escritos a mano, como el resto: es el puente entre repositorios.
+describe('the fine height of the hall', () => {
+  it('the key and the starting zero are the ones xrcade writes', () => {
+    // Written by hand, like the rest: it is the bridge between repositories.
     expect(PLAY_HEIGHT_OFFSET_KEY).toBe('xrcade:play-height-offset')
     expect(DEFAULT_PLAY_HEIGHT_OFFSET).toBe(0)
     expect(MAX_PLAY_HEIGHT_OFFSET).toBe(30)
   })
 
-  it('sin la clave el mundo no se mueve', () => {
-    expect(readPlayHeightOffset(almacen())).toBe(0)
-    expect(playHeightOffsetMeters(readPlayHeightOffset(almacen()))).toBe(0)
+  it('without the key the world does not move', () => {
+    expect(readPlayHeightOffset(fakeStorage())).toBe(0)
+    expect(playHeightOffsetMeters(readPlayHeightOffset(fakeStorage()))).toBe(0)
   })
 
-  it('con −15 el mundo baja quince centímetros', () => {
-    const cm = readPlayHeightOffset(almacen({ [PLAY_HEIGHT_OFFSET_KEY]: '-15' }))
+  it('with −15 the world goes down fifteen centimetres', () => {
+    const cm = readPlayHeightOffset(fakeStorage({ [PLAY_HEIGHT_OFFSET_KEY]: '-15' }))
 
     expect(cm).toBe(-15)
     expect(playHeightOffsetMeters(cm)).toBeCloseTo(-0.15, 9)
-    expect(readPlayHeightOffset(almacen({ [PLAY_HEIGHT_OFFSET_KEY]: '30' }))).toBe(30)
+    expect(readPlayHeightOffset(fakeStorage({ [PLAY_HEIGHT_OFFSET_KEY]: '30' }))).toBe(30)
   })
 
-  it('un valor roto o fuera del tope deja el mundo sin afinar', () => {
-    for (const basura of ['31', '-31', '12.5', 'arriba', '', '+5', '1000', null, undefined]) {
-      expect(parsePlayHeightOffset(basura)).toBe(0)
+  it('a broken value or one beyond the limit leaves the world without fine-tuning', () => {
+    for (const junk of ['31', '-31', '12.5', 'arriba', '', '+5', '1000', null, undefined]) {
+      expect(parsePlayHeightOffset(junk)).toBe(0)
     }
   })
 
-  it('sin sitio donde mirar no se afina, y no revienta', () => {
+  it('with nowhere to look there is no fine-tuning, and it does not blow up', () => {
     expect(readPlayHeightOffset(null)).toBe(0)
-    expect(readPlayHeightOffset(almacen({}, true))).toBe(0)
+    expect(readPlayHeightOffset(fakeStorage({}, true))).toBe(0)
   })
 })

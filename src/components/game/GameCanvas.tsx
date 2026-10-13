@@ -5,7 +5,7 @@ import { OrbitControls } from '@react-three/drei'
 import { XR, XROrigin, useXR } from '@react-three/xr'
 import { TABLE_CENTER_Z, TABLE_HEIGHT } from '../../lib/gameConfig'
 import { useGame } from '../../lib/gameStore'
-import { AroDeSalir } from '../xr/AroDeSalir'
+import { ExitRing } from '../xr/ExitRing'
 import { getXrStore } from '../xr/xrStore'
 import { GameWorld } from './GameWorld'
 
@@ -66,7 +66,7 @@ export function GameCanvas() {
         <GameWorld hasDomUi />
         <DesktopControls />
         {/* La salida común, sosteniendo B o Y: en el salón la pone el salón. */}
-        <AroDeSalir />
+        <ExitRing />
       </XR>
     </Canvas>
   )

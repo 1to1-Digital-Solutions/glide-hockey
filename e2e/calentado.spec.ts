@@ -1,15 +1,15 @@
 import { expect, test, type Page } from '@playwright/test'
-import { SCENERY_KEY } from '../src/lib/ajustes'
+import { SCENERY_KEY } from '../src/lib/settings'
 import {
-  contarLlamadas,
-  cuandoSeEnlazaron,
-  dejarAsentar,
-  elegirEnElSalon,
-  enTandas,
-  guardarAntesDeAbrir,
-  tiposDeShader,
-  vigilarProgramas,
-} from './support/escenario'
+  installDrawCallCounter,
+  linkTimes,
+  letSettle,
+  chooseInSalon,
+  inBatches,
+  storeBeforeOpen,
+  shaderTypes,
+  watchPrograms,
+} from './support/scenery'
 import { enterHostBooth, openHost } from './support/host'
 import { installXREmulator } from './support/xr'
 
@@ -28,7 +28,7 @@ import { installXREmulator } from './support/xr'
  *
  * **Cómo se ve sin gafas.** No por cuántos shaders se compilan —son los mismos con
  * precalentado y sin él—, sino por **cuándo**: se fecha cada compilación en llamadas de
- * dibujo (`e2e/support/escenario.ts`). Calentando salen **todas con la misma fecha**, en una
+ * dibujo (`e2e/support/scenery.ts`). Calentando salen **todas con la misma fecha**, en una
  * tanda y antes de pintar; sin calentar no hay tanda, cada una va en su fotograma.
  *
  * El anfitrión de prueba monta la escena a la carta para poder reproducirlo: se entra primero
@@ -55,24 +55,24 @@ test.describe('Los shaders están calientes donde se juega', () => {
   test('la escena que monta el salón compila sus shaders de una tanda, no de uno en uno', async ({
     page,
   }) => {
-    await contarLlamadas(page)
-    await vigilarProgramas(page)
+    await installDrawCallCounter(page)
+    await watchPrograms(page)
     await installXREmulator(page)
     // En «tu habitación», que es el escenario con menos cosas a la vista: así la sala queda
     // montada y oculta, y lo que se calienta de ella no lo ha pintado nadie.
-    await guardarAntesDeAbrir(page, SCENERY_KEY, 'room')
+    await storeBeforeOpen(page, SCENERY_KEY, 'room')
     await openHost(page, undefined, { aLaCarta: true })
     await entrarComoElSalon(page)
     // Lo del anfitrión —sus rayos, su puntero— se compila al entrar y no es del juego: se le
     // deja asentarse para que no cuente como shader de la escena.
-    await dejarAsentar(page)
+    await letSettle(page)
 
-    const antesDeLaCabina = (await cuandoSeEnlazaron(page)).length
+    const antesDeLaCabina = (await linkTimes(page)).length
     await enterHostBooth(page)
-    await dejarAsentar(page)
+    await letSettle(page)
 
-    const deLaEscena = (await cuandoSeEnlazaron(page)).slice(antesDeLaCabina)
-    const { mayorTanda, sueltos } = enTandas(deLaEscena)
+    const deLaEscena = (await linkTimes(page)).slice(antesDeLaCabina)
+    const { largestBatch: mayorTanda, stray: sueltos } = inBatches(deLaEscena)
     console.log(
       `[calentado] la escena compiló ${deLaEscena.length} shaders: ${mayorTanda} de una tanda y ${sueltos} sueltos`,
     )
@@ -92,27 +92,27 @@ test.describe('Los shaders están calientes donde se juega', () => {
     // «Tu habitación» y la sala son dos juegos de materiales, y al entrar solo se ve uno. El
     // otro está montado y oculto —por eso se oculta en vez de desmontarse—, así que el
     // precalentado lo recorre igual: enseñarlo no puede compilar nada.
-    await contarLlamadas(page)
-    await vigilarProgramas(page)
+    await installDrawCallCounter(page)
+    await watchPrograms(page)
     await installXREmulator(page)
-    await guardarAntesDeAbrir(page, SCENERY_KEY, 'room')
+    await storeBeforeOpen(page, SCENERY_KEY, 'room')
     await openHost(page, undefined, { aLaCarta: true })
     await entrarComoElSalon(page)
-    await dejarAsentar(page)
+    await letSettle(page)
     await enterHostBooth(page)
-    await dejarAsentar(page)
+    await letSettle(page)
 
-    const asentado = (await tiposDeShader(page)).length
-    await elegirEnElSalon(page, 'place')
-    await dejarAsentar(page)
-    await elegirEnElSalon(page, 'room')
-    await dejarAsentar(page)
+    const asentado = (await shaderTypes(page)).length
+    await chooseInSalon(page, 'place')
+    await letSettle(page)
+    await chooseInSalon(page, 'room')
+    await letSettle(page)
 
     // Lo que se pinta tiene que estar caliente: el precalentado recorre la escena entera, se
     // vea o no. **El mapa de sombras no**: `compile()` solo prepara la pasada que se ve, y
     // three no compila el `MeshDepthMaterial` de algo que no proyecta porque está oculto. Es
     // un shader, una vez por visita, y no hay forma de adelantarlo desde la escena.
-    const nuevos = (await tiposDeShader(page)).slice(asentado)
+    const nuevos = (await shaderTypes(page)).slice(asentado)
     console.log(`[calentado] al cambiar de escenario se compiló: ${nuevos.join(', ') || 'nada'}`)
     expect(
       nuevos.filter((tipo) => tipo !== 'MeshDepthMaterial'),

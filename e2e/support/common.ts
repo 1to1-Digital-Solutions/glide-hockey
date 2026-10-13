@@ -1,119 +1,119 @@
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
-import paquete from '../../package.json'
-import type { Objetivo, VistaDelCartel } from '../../src/lib/objetivo'
+import pkg from '../../package.json'
+import type { Goal, GoalSignView } from '../../src/lib/goal'
 
 /**
- * Lo que los e2e de los diecisiete hacen igual, para probar la UX de todos con la misma receta.
+ * What the e2e of the seventeen do the same way, to test the UX of all of them with the same recipe.
  *
- * Es el mismo fichero en todos los juegos. Cada juego llegó a tener su propio `lookAt` (en grados
- * o en radianes, con el giro a un lado o al otro), su anfitrión de prueba con o sin objetivo y sus
- * ganchos de partida con otros nombres; así no había forma de sacar la misma captura de los
- * diecisiete. Lo de cada juego se queda en su sitio —cómo monta el anfitrión (`host.ts`) y qué hace
- * cada gancho en su escena (`lib/partidaDePrueba.ts`)—, y aquí va lo que se llama igual en todos.
+ * It is the same file in every game. Each game came to have its own `lookAt` (in degrees
+ * or in radians, with the turn to one side or the other), its test host with or without a goal and its
+ * run hooks with other names; that way there was no means of taking the same screenshot of the
+ * seventeen. What belongs to each game stays in its place —how it mounts the host (`host.ts`) and what
+ * each hook does in its scene (`lib/testRun.ts`)—, and here goes what is called the same in all of them.
  *
- * **La mirada**: `mirar(page, giro, cabeceo)` en **grados**, con el giro positivo a la izquierda
- * (como `rotation.y` de three) y el cabeceo positivo hacia arriba. Es el convenio del `lookAt` del
- * emulador de cada juego (`xr-emulator.src.ts`).
+ * **The gaze**: `lookToward(page, turn, pitch)` in **degrees**, with the turn positive to the left
+ * (like `rotation.y` of three) and the pitch positive upwards. It is the convention of the `lookAt` of
+ * each game's emulator (`xr-emulator.src.ts`).
  *
- * **El gancho de la partida**: el test crea `window.__partida<Juego>` antes de cargar la página
- * (`pedirLaPartida`) y la escena deja ahí lo que se le puede pedir. Lo común son `start`, `score`,
- * `end` y `cartel` (`PartidaComun`); cada juego puede colgar más cosas suyas del mismo objeto.
+ * **The run hook**: the test creates `window.__run<Game>` before loading the page
+ * (`requestRun`) and the scene leaves there what can be asked of it. What is common is `start`, `score`,
+ * `end` and `sign` (`CommonRun`); each game can hang more things of its own from the same object.
  */
 
-/** Lo que todo juego deja en su gancho de partida, si el test lo ha pedido. */
-export interface PartidaComun {
-  /** Empieza una partida del modo del récord, ya sin tutorial ni cuenta atrás que esperar. */
+/** What every game leaves in its run hook, if the test has requested it. */
+export interface CommonRun {
+  /** Starts a run of the record's mode, with no tutorial or countdown left to wait for. */
   start: () => void
-  /** Fija lo que lleva la partida en curso, en la unidad del récord (golpes, si menos es mejor). */
-  score: (puntos: number) => void
-  /** Acaba la partida en curso como si se hubiera acabado jugando: cuenta para el salón. */
+  /** Sets what the run in progress has so far, in the record's unit (strokes, if lower is better). */
+  score: (points: number) => void
+  /** Ends the run in progress as if it had ended by playing: it counts for the hall. */
   end: () => void
-  /** Lo que dice ahora el cartel del objetivo, o `null` si no se ve. */
-  cartel: () => VistaDelCartel | null
+  /** What the goal sign says now, or `null` if it is not visible. */
+  sign: () => GoalSignView | null
 }
 
-/** Lo que el anfitrión de cada juego (`host.ts`) dice de su récord, para armar el objetivo. */
-export interface Ensayo {
-  /** El modo del récord, como lo llama el juego en `onTerminar`. */
-  modo: string
-  mejorEs: 'mas' | 'menos'
+/** What each game's host (`host.ts`) says about its record, to put the goal together. */
+export interface Trial {
+  /** The record's mode, as the game calls it in `onFinish`. */
+  mode: string
+  better: 'higher' | 'lower'
 }
 
-/** El id del juego: el `name` de su paquete. */
-export const JUEGO = paquete.name
+/** The game's id: the `name` of its package. */
+export const GAME = pkg.name
 
-/** El nombre del gancho de la partida: `__partida` y el id en PascalCase (`__partidaAxeThrowing`). */
-export function ganchoDePartida(juego: string = JUEGO): string {
-  return `__partida${juego
+/** The name of the run hook: `__run` and the id in PascalCase (`__runAxeThrowing`). */
+export function runHook(game: string = GAME): string {
+  return `__run${game
     .split('-')
-    .map((palabra) => palabra.charAt(0).toUpperCase() + palabra.slice(1))
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join('')}`
 }
 
-/** Pide el gancho de la partida: hay que llamarlo **antes** de `page.goto`. */
-export async function pedirLaPartida(page: Page): Promise<void> {
-  await page.addInitScript((gancho) => {
-    const ventana = window as unknown as Record<string, unknown>
-    ventana[gancho] ??= {}
-  }, ganchoDePartida())
+/** Requests the run hook: it has to be called **before** `page.goto`. */
+export async function requestRun(page: Page): Promise<void> {
+  await page.addInitScript((hook) => {
+    const win = window as unknown as Record<string, unknown>
+    win[hook] ??= {}
+  }, runHook())
 }
 
-/** Llama a una de las cosas comunes del gancho de la partida. */
-export async function enLaPartida<K extends keyof PartidaComun>(
+/** Calls one of the common things of the run hook. */
+export async function inRun<K extends keyof CommonRun>(
   page: Page,
-  que: K,
-  ...argumentos: Parameters<PartidaComun[K]>
-): Promise<ReturnType<PartidaComun[K]>> {
+  what: K,
+  ...callArgs: Parameters<CommonRun[K]>
+): Promise<ReturnType<CommonRun[K]>> {
   return page.evaluate(
-    ([gancho, nombre, args]) => {
-      const partida = (window as unknown as Record<string, Record<string, (...a: unknown[]) => unknown> | undefined>)[gancho]
-      const llamada = partida?.[nombre]
-      if (typeof llamada !== 'function') throw new Error(`la escena no ha dejado «${nombre}» en ${gancho}`)
-      return llamada(...args)
+    ([hook, name, args]) => {
+      const run = (window as unknown as Record<string, Record<string, (...a: unknown[]) => unknown> | undefined>)[hook]
+      const call = run?.[name]
+      if (typeof call !== 'function') throw new Error(`the scene has not left «${name}» in ${hook}`)
+      return call(...args)
     },
-    [ganchoDePartida(), que, argumentos] as [string, string, unknown[]],
-  ) as Promise<ReturnType<PartidaComun[K]>>
+    [runHook(), what, callArgs] as [string, string, unknown[]],
+  ) as Promise<ReturnType<CommonRun[K]>>
 }
 
-/** Si la escena ya ha dejado lo común en el gancho. */
-export async function partidaLista(page: Page): Promise<boolean> {
-  return page.evaluate((gancho) => {
-    const partida = (window as unknown as Record<string, Record<string, unknown> | undefined>)[gancho]
-    return ['start', 'score', 'end', 'cartel'].every((nombre) => typeof partida?.[nombre] === 'function')
-  }, ganchoDePartida())
+/** Whether the scene has already left the common things in the hook. */
+export async function runReady(page: Page): Promise<boolean> {
+  return page.evaluate((hook) => {
+    const run = (window as unknown as Record<string, Record<string, unknown> | undefined>)[hook]
+    return ['start', 'score', 'end', 'sign'].every((name) => typeof run?.[name] === 'function')
+  }, runHook())
 }
 
-/** Gira la cabeza del visor emulado, en grados: a la izquierda y hacia arriba en positivo. */
-export async function mirar(page: Page, giro: number, cabeceo = 0): Promise<void> {
+/** Turns the head of the emulated headset, in degrees: to the left and upwards as positive. */
+export async function lookToward(page: Page, turn: number, pitch = 0): Promise<void> {
   await page.evaluate(
     ([y, p]) => (window as unknown as { __xrTest: { lookAt: (y: number, p?: number) => void } }).__xrTest.lookAt(y, p),
-    [giro, cabeceo] as const,
+    [turn, pitch] as const,
   )
 }
 
 /**
- * Un objetivo de ensayo con listones bajos, para cruzarlos con el gancho sin jugar: el bronce a 10,
- * la plata a 20 y el oro a 30 (a menos, al revés), y sin récord, que es la primera vez.
+ * A trial goal with low thresholds, to cross them with the hook without playing: bronze at 10,
+ * silver at 20 and gold at 30 (for lower, the other way round), and with no record, which is the first time.
  */
-export function objetivoDeEnsayo({ modo, mejorEs }: Ensayo): Objetivo {
+export function trialGoal({ mode, better }: Trial): Goal {
   return {
-    medallas: mejorEs === 'mas' ? { bronce: 10, plata: 20, oro: 30 } : { bronce: 30, plata: 20, oro: 10 },
-    mejorEs,
-    unidad: mejorEs === 'mas' ? 'points in challenge' : 'strokes',
+    medals: better === 'higher' ? { bronze: 10, silver: 20, gold: 30 } : { bronze: 30, silver: 20, gold: 10 },
+    better,
+    unit: better === 'higher' ? 'points in challenge' : 'strokes',
     record: null,
-    modo,
+    mode,
   }
 }
 
-/** Dónde caen las capturas comunes: `test-results/capturas/<juego>-<qué>.png`. */
-export const CARPETA_DE_CAPTURAS = path.join(process.cwd(), 'test-results', 'capturas')
+/** Where the common screenshots land: `test-results/capturas/<game>-<what>.png`. */
+export const SCREENSHOTS_DIR = path.join(process.cwd(), 'test-results', 'capturas')
 
-/** Guarda lo que se ve ahora con el nombre del juego delante, para mirar los diecisiete juntos. */
-export async function capturar(page: Page, que: string): Promise<string> {
-  mkdirSync(CARPETA_DE_CAPTURAS, { recursive: true })
-  const ruta = path.join(CARPETA_DE_CAPTURAS, `${JUEGO}-${que}.png`)
-  await page.screenshot({ path: ruta })
-  return ruta
+/** Saves what is seen now with the game's name in front, to look at the seventeen together. */
+export async function takeScreenshot(page: Page, what: string): Promise<string> {
+  mkdirSync(SCREENSHOTS_DIR, { recursive: true })
+  const filePath = path.join(SCREENSHOTS_DIR, `${GAME}-${what}.png`)
+  await page.screenshot({ path: filePath })
+  return filePath
 }

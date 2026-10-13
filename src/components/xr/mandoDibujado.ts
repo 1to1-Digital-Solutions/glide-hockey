@@ -1,4 +1,4 @@
-import type { BotonDelMando } from '../../lib/tutorial'
+import type { ControllerButton } from '../../lib/tutorial'
 
 /**
  * El dibujo de un mando con un botón resaltado, para el tutorial.
@@ -26,7 +26,7 @@ export interface ColoresDelMando {
 }
 
 /** Dónde cae cada botón dentro del dibujo, en fracción de su alto desde el centro. */
-const BOTONES: Record<BotonDelMando, { x: number; y: number; r: number }> = {
+const BOTONES: Record<ControllerButton, { x: number; y: number; r: number }> = {
   // El gatillo va por delante, donde el índice.
   gatillo: { x: -0.17, y: 0.06, r: 0.055 },
   // El de agarre, en el costado, donde cierran los dedos.
@@ -43,7 +43,7 @@ export function dibujarMando(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  boton: BotonDelMando | null,
+  boton: ControllerButton | null,
   colores: ColoresDelMando,
 ): void {
   const u = ALTO_DEL_MANDO
@@ -69,7 +69,7 @@ export function dibujarMando(
 
   // El gatillo, por delante, y el agarre, en el costado: se dibujan siempre apagados y el
   // que toca se repinta encendido encima.
-  for (const [nombre, sitio] of Object.entries(BOTONES) as [BotonDelMando, (typeof BOTONES)[BotonDelMando]][]) {
+  for (const [nombre, sitio] of Object.entries(BOTONES) as [ControllerButton, (typeof BOTONES)[ControllerButton]][]) {
     const encendido = nombre === boton
     ctx.beginPath()
     ctx.arc(sitio.x * u, sitio.y * u, sitio.r * u * (encendido ? 1.6 : 1), 0, Math.PI * 2)

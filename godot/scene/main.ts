@@ -10,7 +10,7 @@
  * de la web sin React.
  *
  * Tres formas de mover el mazo, y las tres acaban en el mismo `pointer` de `advanceTable`:
- * - **con visor, cogido con la mano**: la gramática XR del kit (`@kit/runtime/xr/jugador`) planta
+ * - **con visor, cogido con la mano**: la gramática XR del kit (`@kit/runtime/xr/player`) planta
  *   la mesa donde la presta el salón, la baja a los ojos de quien juega sentado, la gira con el
  *   stick de la mano libre, y deja coger el mazo con el puño (o un pellizco) de cualquier mano,
  *   con la buena por delante. Cogido, el mazo va donde el puño sobrevuela la mesa (`inHand`) y
@@ -66,25 +66,25 @@ import {
   print,
 } from 'godot'
 
-import { triangulosDeArco } from '@kit/lib/ui/iconos'
-import { PERFIL_POR_DEFECTO } from '@kit/lib/ui/mando'
-import type { Punto2 } from '@kit/lib/ui/salida'
-import { nombreDe, objetivoDe } from '@kit/lib/juegoBase'
-import type { Mano } from '@kit/lib/xr/manos'
+import { arcTriangles } from '@kit/lib/ui/icons'
+import { DEFAULT_PROFILE } from '@kit/lib/ui/controller'
+import type { Point2 } from '@kit/lib/ui/exit'
+import { gameNameFrom, goalFrom } from '@kit/lib/gameBase'
+import type { HandSide } from '@kit/lib/xr/hands'
 import { IDENTIDAD } from '@kit/lib/xr/pose'
-import { gameStorage } from '@kit/motor/almacen-godot'
-import { aislarElGuardado, argumento, argumentosDelVisor, hayBandera } from '@kit/runtime/argumentos'
-import { baseDe, deCuaternion, giroSobre, multiplicar } from '@kit/runtime/escena/matrices'
-import { Escenario, vistaDelVisor } from '@kit/runtime/escena/escenario'
+import { gameStorage } from '@kit/engine/godot-storage'
+import { isolateSave, arg, headsetArgs, hasFlag } from '@kit/runtime/args'
+import { basisOf, deCuaternion, giroSobre, multiplicar } from '@kit/runtime/scene/matrices'
+import { SceneryRig, headsetView } from '@kit/runtime/scene/scenery'
 import { Music, Sfx, type Loop } from '@kit/runtime/sfx'
-import { figura } from '@kit/runtime/ui/malla'
-import { MandoDeVerdad } from '@kit/runtime/ui/mando'
-import { MandoCompartido } from '@kit/runtime/ui/turnoDelMando'
-import { XRPlayer, type Agarrable } from '@kit/runtime/xr/jugador'
-import { simularMandos, verConLaCabezaSimulada, type Simulacion } from '@kit/runtime/xr/simulado'
+import { shape } from '@kit/runtime/ui/mesh'
+import { RealController } from '@kit/runtime/ui/controller'
+import { SharedController } from '@kit/runtime/ui/controllerTurn'
+import { XRPlayer, type Grabbable } from '@kit/runtime/xr/player'
+import { simulateControllers, viewWithSimulatedHead, type Simulation } from '@kit/runtime/xr/simulated'
 
-import * as agarre from '@/lib/agarre'
-import { readHand } from '@/lib/ajustes'
+import * as agarre from '@/lib/grab'
+import { readHand } from '@/lib/settings'
 import {
   GOAL_WIDTH,
   MALLET_RADIUS,
@@ -108,20 +108,20 @@ import { ALCANCE_DE_AGARRE } from '@/lib/malletGrab'
 import { advanceTable, startTable, type TableState } from '@/lib/matchLoop'
 import { MUSIC_VOLUME } from '@/lib/music'
 import { MUSIC_FADE_MS, fadeVolume } from '@/lib/musicFade'
-import type { Objetivo } from '@/lib/objetivo'
-import { fijarNombreDelJuego } from '@/lib/plantillaDelMenu'
+import type { Goal } from '@/lib/goal'
+import { setGameName } from '@/lib/menuTemplate'
 import { playerStart } from '@/lib/opponent'
 import { PALETTE } from '@/lib/palette'
 import * as pellizco from '@/lib/pellizco'
 import { puckGlow } from '@/lib/puckGlow'
 import { HALF_LENGTH, HALF_WIDTH, constrainMallet, type Vec2 } from '@/lib/puckPhysics'
-import type { Resultado, Reto } from '@/lib/semilla'
+import type { GameResult, Challenge } from '@/lib/seed'
 import { SLIDE_SMOOTHING } from '@/lib/slideSound'
 import * as uiHeight from '@/lib/uiHeight'
 
 import { acercar, destinoDelBot } from './juego/bot'
 import { GolpeRecibido } from './juego/golpe'
-import { niveles } from '@kit/runtime/ajustes'
+import { volumeLevels } from '@kit/runtime/settings'
 import { confort } from './interfaz/confort'
 import { InterfazDelJuego } from './interfaz/interfaz'
 import { Partida } from './interfaz/partida'
@@ -163,7 +163,7 @@ const MARKING_COLOR = '#9db4cc'
 const GOAL_MOUTH_COLOR = '#050a12'
 const LEG_COLOR = '#0d1626'
 
-/** Los modelos de los mandos, copiados de `public/webxr-profiles/` (`npm run godot:mandos`). */
+/** Los modelos de los mandos, copiados de `public/webxr-profiles/` (`npm run godot:controllers`). */
 const DIR_DE_LOS_MANDOS = 'res://games/glide-hockey/mandos'
 
 /** Cada cuántos fotogramas se vuelve a preguntar al visor si da realidad aumentada (medio segundo). */
@@ -217,7 +217,7 @@ const FOTOGRAMA_DEL_GIRO = 60
 type Driver = 'xr' | 'mouse' | 'bot'
 
 /** Un rectángulo centrado en el origen, en dos triángulos: las rayas de la mesa. */
-function raya(ancho: number, alto: number): Punto2[] {
+function raya(ancho: number, alto: number): Point2[] {
   const x = ancho / 2
   const y = alto / 2
   return [[-x, -y], [x, -y], [x, y], [-x, -y], [x, y], [-x, y]]
@@ -229,11 +229,11 @@ function raya(ancho: number, alto: number): Punto2[] {
  * (lo pone el hub nativo al entrar por el reto del día; contrato en `xrcade/docs/anadir-un-juego.md`
  * §3, el mismo que la web: `Reto` de `semilla.ts`).
  */
-export function retoDelSalon(nodo: Node): Reto | null {
-  const linea = argumento('reto')
-  if (linea != null && linea.trim() !== '' && Number.isFinite(Number(linea))) return { semilla: Number(linea) >>> 0 }
+export function retoDelSalon(nodo: Node): Challenge | null {
+  const linea = arg('reto')
+  if (linea != null && linea.trim() !== '' && Number.isFinite(Number(linea))) return { seed: Number(linea) >>> 0 }
   const xrcade = nodo.get_node_or_null('/root/XRcade')
-  if (xrcade != null && xrcade.has_meta('challenge_seed')) return { semilla: Number(xrcade.get_meta('challenge_seed')) >>> 0 }
+  if (xrcade != null && xrcade.has_meta('challenge_seed')) return { seed: Number(xrcade.get_meta('challenge_seed')) >>> 0 }
   return null
 }
 
@@ -243,9 +243,9 @@ export function retoDelSalon(nodo: Node): Reto | null {
  * del kit, con su mismo lector (`objetivoDe`), y lo que la web recibe en la prop `objetivo`—.
  * `null` con el juego suelto, o si el salón no le pone medallas: el cartel se queda en la misión.
  */
-export function objetivoDelSalon(nodo: Node): Objetivo | null {
+export function objetivoDelSalon(nodo: Node): Goal | null {
   const xrcade = nodo.get_node_or_null('/root/XRcade')
-  return objetivoDe(xrcade != null && xrcade.has_meta('goal') ? xrcade.get_meta('goal') : null)
+  return goalFrom(xrcade != null && xrcade.has_meta('goal') ? xrcade.get_meta('goal') : null)
 }
 
 /**
@@ -254,7 +254,7 @@ export function objetivoDelSalon(nodo: Node): Objetivo | null {
  */
 export function nombreDelSalon(nodo: Node): string | null {
   const xrcade = nodo.get_node_or_null('/root/XRcade')
-  return nombreDe(xrcade != null && xrcade.has_meta('game_name') ? xrcade.get_meta('game_name') : null)
+  return gameNameFrom(xrcade != null && xrcade.has_meta('game_name') ? xrcade.get_meta('game_name') : null)
 }
 
 /**
@@ -262,7 +262,7 @@ export function nombreDelSalon(nodo: Node): string | null {
  * autoload tiene `report_result`, se le llama con el resultado en JSON; y siempre queda en el log.
  * Como `retoDelSalon`, es el enganche para cuando el hub nativo los recoja.
  */
-export function contarAlSalon(nodo: Node, resultado: Resultado): void {
+export function contarAlSalon(nodo: Node, resultado: GameResult): void {
   const texto = JSON.stringify(resultado)
   print(`GH-RESULTADO ${texto}`)
   const xrcade = nodo.get_node_or_null('/root/XRcade')
@@ -285,18 +285,18 @@ export default class GlideHockey extends Node3D {
   private mesa!: Node3D
   /** El salón alrededor: lo que se sacude con el golpe recibido (la mesa no) y lo que quita tu habitación. */
   private sala!: Sala
-  private escenario!: Escenario
+  private escenario!: SceneryRig
   /** De donde cuelga la interfaz: el espacio de la mesa, subido con los ojos (`XRUiHeight`). */
   private flotante!: Node3D
   private ayudas!: AyudasDelJuego
   /** Las ayudas también en plano (`-- --ayudas`), para mirarlas sin visor. */
   private ayudasEnPlano = false
   /** El mando de verdad en cada puño, que encienden la cuenta atrás y el tutorial. */
-  private manosDeVerdad: MandoCompartido<QuienUsaElMando>[] = []
+  private manosDeVerdad: SharedController<QuienUsaElMando>[] = []
   /** Lo que se ha llegado a ver con visor, para la escena de test. */
   private readonly ayudasVistas = new Set<string>()
   private tutorialVisto = false
-  private readonly mandosVistos: Record<QuienUsaElMando, Set<Mano>> = { cuenta: new Set(), tutorial: new Set() }
+  private readonly mandosVistos: Record<QuienUsaElMando, Set<HandSide>> = { cuenta: new Set(), tutorial: new Set() }
   private camera: Camera3D | null = null
   private puck!: Node3D
   private puckMaterial!: StandardMaterial3D
@@ -308,8 +308,8 @@ export default class GlideHockey extends Node3D {
   private player: XRPlayer | null = null
   /** Lo que coge la mano: un punto invisible sobre el mazo, que la gramática XR lleva al puño. */
   private asa: Node3D | null = null
-  private agarreDelMazo: Agarrable | null = null
-  private sim: Simulacion | null = null
+  private agarreDelMazo: Grabbable | null = null
+  private sim: Simulation | null = null
   private framesXr = 0
   /**
    * Hacia dónde mira la cabeza de mentira con `-- --visor-simulado`: el giro (`--mirar=<grados>`) y
@@ -320,7 +320,7 @@ export default class GlideHockey extends Node3D {
   private cabeceo = 0
   /** Dónde lleva la mano el jugador automático con visor, en la mesa. */
   private manoDelBot: Vec2 = playerStart()
-  private manosQueLoLlevaron = new Set<Mano>()
+  private manosQueLoLlevaron = new Set<HandSide>()
 
   private sfx!: Sfx
   private music!: Music
@@ -337,7 +337,7 @@ export default class GlideHockey extends Node3D {
   private logicUsecMaxEnJuego = 0
   private startedMs = 0
   private goles: ('player' | 'opponent')[] = []
-  private resultados: Resultado[] = []
+  private resultados: GameResult[] = []
   /** Las hazañas que ha dado la mesa (`FrameResult.hazanas`), para que un test las compare con las contadas. */
   private hazanasDeLaMesa: string[] = []
   /** El jugador automático juega el duelo (`--duelo`, o el metadato `duelo` de una escena de test). */
@@ -364,27 +364,27 @@ export default class GlideHockey extends Node3D {
     this.harness = this.has_meta('harness') || this.harnessMenu
     // Una escena de test o una captura guarda aparte y empieza de cero: si no, la marca del jugador
     // automático acabaría como récord de quien tenga el juego, y cada pasada dependería de la anterior.
-    aislarElGuardado(this.harness)
+    isolateSave(this.harness)
     // Y en ese guardado de cero, los ajustes del salón que pida la escena de test (el idioma, la mano).
     if (this.harness) this.applyTestSettings()
-    const autoplay = hayBandera('autoplay') || (this.harness && !this.harnessMenu)
-    this.duelo = hayBandera('duelo') || (this.harness && this.has_meta('duelo'))
-    this.shotPath = argumento('shot')
-    this.shotMenuPath = argumento('shot-menu')
-    this.shotFinalPath = argumento('shot-final')
-    this.shotAyudasPath = argumento('shot-ayudas')
-    this.ayudasEnPlano = hayBandera('ayudas') || this.shotAyudasPath != null
+    const autoplay = hasFlag('autoplay') || (this.harness && !this.harnessMenu)
+    this.duelo = hasFlag('duelo') || (this.harness && this.has_meta('duelo'))
+    this.shotPath = arg('shot')
+    this.shotMenuPath = arg('shot-menu')
+    this.shotFinalPath = arg('shot-final')
+    this.shotAyudasPath = arg('shot-ayudas')
+    this.ayudasEnPlano = hasFlag('ayudas') || this.shotAyudasPath != null
     // El visor simulado: el de la escena de test, o `-- --visor-simulado` para mirar en plano lo que
     // se ve con el visor (la cámara es la cabeza de mentira).
-    const visor = argumentosDelVisor(this.harness && this.has_meta('xr_simulado'))
+    const visor = headsetArgs(this.harness && this.has_meta('xr_simulado'))
     const simulado = visor.simulado
     this.mirar = visor.mirar
-    this.cabeceo = (Number(argumento('cabeceo') ?? 0) * Math.PI) / 180
+    this.cabeceo = (Number(arg('cabeceo') ?? 0) * Math.PI) / 180
     this.driver = simulado ? 'xr' : autoplay ? 'bot' : this.startXr() ? 'xr' : 'mouse'
 
     this.escena = this
     if (this.driver === 'xr') this.buildXrPlayer(simulado)
-    this.buildWorld(hayBandera('habitacion'))
+    this.buildWorld(hasFlag('habitacion'))
     this.buildTable()
     this.buildPieces()
     if (this.player == null) this.buildCamera()
@@ -393,7 +393,7 @@ export default class GlideHockey extends Node3D {
 
     // El nombre de la cabina, antes de pintar el menú (`plantillaDelMenu.ts`): el que pasa el salón
     // en `game_name`, o el del `package.json`.
-    fijarNombreDelJuego(nombreDelSalon(this))
+    setGameName(nombreDelSalon(this))
     this.partida = new Partida({ reto: retoDelSalon(this), objetivo: objetivoDelSalon(this), alTerminar: (r) => this.alTerminar(r) })
     this.partida.immersive = this.driver === 'xr'
     this.interfaz = new InterfazDelJuego(
@@ -404,8 +404,8 @@ export default class GlideHockey extends Node3D {
         camara: this.camera,
         punteros: this.player?.punteros() ?? [],
         visor: this.driver === 'xr',
-        lang: argumento('lang'),
-        tutorial: hayBandera('tutorial'),
+        lang: arg('lang'),
+        tutorial: hasFlag('tutorial'),
         manos: this.manosDeVerdad.map((m) => m.delTutorial),
         escenario: this.escenario,
       },
@@ -421,8 +421,8 @@ export default class GlideHockey extends Node3D {
     // El jugador automático no pasa por el menú: juega siempre la misma partida (`PARTIDA_DEL_BOT`).
     if ((this.driver === 'bot' || this.sim != null) && !this.partida.running) {
       this.partida.setGameMode(this.duelo ? 'duel' : PARTIDA_DEL_BOT.modo)
-      this.partida.setGoalTarget(Number(argumento('goles') ?? PARTIDA_DEL_BOT.goles))
-      const dificultad = argumento('dificultad') ?? (this.has_meta('dificultad') ? String(this.get_meta('dificultad')) : null)
+      this.partida.setGoalTarget(Number(arg('goles') ?? PARTIDA_DEL_BOT.goles))
+      const dificultad = arg('dificultad') ?? (this.has_meta('dificultad') ? String(this.get_meta('dificultad')) : null)
       this.partida.setDifficulty(dificultad != null && dificultad in OPPONENT_SKILLS ? (dificultad as Difficulty) : PARTIDA_DEL_BOT.dificultad)
       this.partida.startGame()
     } else if (this.shotAyudasPath != null) {
@@ -430,7 +430,7 @@ export default class GlideHockey extends Node3D {
       this.partida.startGame()
     } else {
       // `--modo=duel` (o el que sea) deja elegido ese modo en el menú: es para capturarlo.
-      const modo = argumento('modo')
+      const modo = arg('modo')
       if (modo != null && (GAME_MODE_ORDER as string[]).includes(modo)) this.partida.setGameMode(modo as GameMode)
     }
     this.startedMs = Time.get_ticks_msec()
@@ -470,9 +470,9 @@ export default class GlideHockey extends Node3D {
 
   private buildSound(): void {
     const bus = this.busDelJuego()
-    this.sfx = new Sfx(this, { dir: SFX_DIR, names: SOUNDS, bus, levels: niveles })
+    this.sfx = new Sfx(this, { dir: SFX_DIR, names: SOUNDS, bus, levels: volumeLevels })
     this.roce = this.sfx.loop('slide', { smoothing: SLIDE_SMOOTHING })
-    this.music = new Music(this, { path: MUSIC_PATH, volume: MUSIC_VOLUME, fade: fadeVolume, fadeMs: MUSIC_FADE_MS, bus, levels: niveles })
+    this.music = new Music(this, { path: MUSIC_PATH, volume: MUSIC_VOLUME, fade: fadeVolume, fadeMs: MUSIC_FADE_MS, bus, levels: volumeLevels })
     this.music.start()
   }
 
@@ -509,8 +509,8 @@ export default class GlideHockey extends Node3D {
    * figuras del kit, pero **opaca**: con el material translúcido de la interfaz, su orden de
    * pintado la ponía por delante de los paneles de la columna, que también son translúcidos.
    */
-  private sobreLaMesa(triangulos: readonly Punto2[], color: string, z: number): void {
-    const nodo = figura(triangulos, color)
+  private sobreLaMesa(triangulos: readonly Point2[], color: string, z: number): void {
+    const nodo = shape(triangulos, color)
     const m = new StandardMaterial3D()
     m.shading_mode = BaseMaterial3D.ShadingMode.SHADING_MODE_UNSHADED
     m.cull_mode = BaseMaterial3D.CullMode.CULL_DISABLED
@@ -545,9 +545,9 @@ export default class GlideHockey extends Node3D {
 
     this.sala = new Sala(environment)
     this.escena.add_child(this.sala.nodo)
-    this.escenario = new Escenario({
+    this.escenario = new SceneryRig({
       mostrar: (conSala) => this.sala.mostrar(conSala),
-      vista: vistaDelVisor(this.get_viewport()!),
+      vista: headsetView(this.get_viewport()!),
       forzado: habitacion ? 'room' : null,
     })
     this.escenario.actualizar()
@@ -569,11 +569,11 @@ export default class GlideHockey extends Node3D {
 
     // Las marcas: la línea de medio campo, el círculo del saque y el área de cada portería.
     this.sobreLaMesa(raya(TABLE_WIDTH, 0.012), MARKING_COLOR, 0)
-    this.sobreLaMesa(triangulosDeArco(0.16, 0.172, 0, Math.PI * 2, 48), MARKING_COLOR, 0)
+    this.sobreLaMesa(arcTriangles(0.16, 0.172, 0, Math.PI * 2, 48), MARKING_COLOR, 0)
     for (const end of [-1, 1]) {
       // Tumbada, la `y` de la figura es el `−Z` de la mesa: cada área se abre hacia el centro.
       const [desde, hasta] = end === 1 ? [0, Math.PI] : [Math.PI, Math.PI * 2]
-      this.sobreLaMesa(triangulosDeArco(0.24, 0.252, desde, hasta, 32), MARKING_COLOR, end * (HALF_LENGTH - 0.001))
+      this.sobreLaMesa(arcTriangles(0.24, 0.252, desde, hasta, 32), MARKING_COLOR, end * (HALF_LENGTH - 0.001))
     }
 
     const sideX = HALF_WIDTH + RAIL_THICKNESS / 2
@@ -669,18 +669,18 @@ export default class GlideHockey extends Node3D {
   private buildAyudas(): void {
     const player = this.player
     const mano = player?.manoBuena ?? readHand(gameStorage())
-    const junto = new MandoDeVerdad({
+    const junto = new RealController({
       mano,
       dir: DIR_DE_LOS_MANDOS,
       junto: juntoAlMazo(mano),
-      ...(player == null ? { perfil: () => PERFIL_POR_DEFECTO } : {}),
+      ...(player == null ? { perfil: () => DEFAULT_PROFILE } : {}),
     })
     this.ayudas = new AyudasDelJuego(this.escena, this.mesa, junto)
     if (player == null) return
     for (const m of ['left', 'right'] as const) {
-      const enLaMano = new MandoDeVerdad({ mano: m, dir: DIR_DE_LOS_MANDOS })
+      const enLaMano = new RealController({ mano: m, dir: DIR_DE_LOS_MANDOS })
       player.puno[m].add_child(enLaMano.nodo)
-      this.manosDeVerdad.push(new MandoCompartido(enLaMano, TURNO_DEL_MANDO))
+      this.manosDeVerdad.push(new SharedController(enLaMano, TURNO_DEL_MANDO))
     }
   }
 
@@ -701,12 +701,12 @@ export default class GlideHockey extends Node3D {
    */
   private buildXrPlayer(simulado: boolean): void {
     if (simulado) {
-      this.sim = simularMandos()
+      this.sim = simulateControllers()
     }
-    this.player = new XRPlayer(this, { comunes: { uiHeight, hostAnchor, agarre, pellizco } })
+    this.player = new XRPlayer(this, { common: { uiHeight, hostAnchor, grab: agarre, pinch: pellizco } })
     this.escena = this.player.mundo
     if (simulado && !this.harness) {
-      verConLaCabezaSimulada(this.player.camara)
+      viewWithSimulatedHead(this.player.camara)
       // Los mandos de mentira llegan sin perfil: el de los de Quest, como el visor, para ver sus modelos.
       for (const nombre of ['left_hand', 'right_hand']) {
         const tracker = XRServer.get_tracker(nombre) as XRPositionalTracker | null
@@ -752,7 +752,7 @@ export default class GlideHockey extends Node3D {
   }
 
   /** Una partida con puntuación ha acabado: se cuenta al salón (y lo apunta un test). */
-  private alTerminar(resultado: Resultado): void {
+  private alTerminar(resultado: GameResult): void {
     this.resultados.push(resultado)
     contarAlSalon(this, resultado)
   }
@@ -849,7 +849,7 @@ export default class GlideHockey extends Node3D {
     for (const a of this.ayudas.visibles()) this.ayudasVistas.add(a)
     if (this.interfaz.tutorial.vista.visible) this.tutorialVisto = true
     for (const m of this.manosDeVerdad) {
-      const mando = m.mando as MandoDeVerdad
+      const mando = m.mando as RealController
       if (m.quien != null && mando.visible) this.mandosVistos[m.quien].add(mando.mano)
     }
   }
@@ -923,7 +923,7 @@ export default class GlideHockey extends Node3D {
     const cierre = finalSuenaAGanar(partida.duelView?.over ?? false, marcador) ? 'win' : 'loss'
     this.cierres.push(cierre)
     this.sfx.play(cierre)
-    this.sentir({ tipo: 'final' })
+    this.sentir({ tipo: 'end' })
     if (partida.isRecord) this.sfx.play('record')
   }
 
@@ -971,13 +971,13 @@ export default class GlideHockey extends Node3D {
     const sim = this.sim!
     const player = this.player!
     const mano = player.manoBuena
-    const otra: Mano = mano === 'left' ? 'right' : 'left'
+    const otra: HandSide = mano === 'left' ? 'right' : 'left'
     this.framesXr++
     const ojos = this.has_meta('ojos') ? Number(this.get_meta('ojos')) : 1.6
     // El giro, pasados unos fotogramas: el decorado se planta hacia donde se mira al entrar.
     const yaw = this.framesXr > 5 ? this.mirar : 0
     const giro = multiplicar(deCuaternion(giroSobre({ x: 0, y: 1, z: 0 }, yaw)), deCuaternion(giroSobre({ x: 1, y: 0, z: 0 }, this.cabeceo)))
-    sim.cabeza(new Transform3D(baseDe(giro), new Vector3(0, ojos, 0)))
+    sim.cabeza(new Transform3D(basisOf(giro), new Vector3(0, ojos, 0)))
     if (this.shotAyudasPath != null) {
       // La captura de las ayudas: nadie coge nada ni gira, las manos esperan a los lados de la mesa.
       for (const m of ['left', 'right'] as const) {
@@ -1069,7 +1069,7 @@ export default class GlideHockey extends Node3D {
   /** Lo que dice el cartel del objetivo ahora mismo, sus líneas en una; vacío si no está colgado. */
   cartel_dice(): string {
     const vista = this.partida.cartel(this.interfaz.lang)
-    return vista == null ? '' : [vista.titulo, vista.detalle ?? '', ...(vista.pie == null ? [] : [vista.pie])].join(' | ')
+    return vista == null ? '' : [vista.title, vista.detail ?? '', ...(vista.footer == null ? [] : [vista.footer])].join(' | ')
   }
 
   /** Si el cartel del objetivo se ve. */
@@ -1137,7 +1137,7 @@ export default class GlideHockey extends Node3D {
       roce: { ...this.roce.stats, sonando: this.roce.playing },
       variants: Object.fromEntries(SOUNDS.map((name) => [name, this.sfx.variantCount(name)])),
       music: { playing: this.music.playing, volume: Number(this.music.volume.toFixed(3)) },
-      levels: niveles(),
+      levels: volumeLevels(),
       duel: partida.duelView == null ? null : { ...partida.duelView, partidas: this.partidasDelDuelo, pareja: getDuelTally() },
       cierres: this.cierres,
       listones: this.listones,

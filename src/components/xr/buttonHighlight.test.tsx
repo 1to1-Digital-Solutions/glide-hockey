@@ -10,27 +10,27 @@ import {
 } from './buttonHighlight'
 
 /**
- * Que apuntar un botón no lo borre.
+ * That pointing at a button does not erase it.
  *
- * Es el fallo que se reportó con el visor puesto —«al poner el cursor encima de un botón es
- * como que el botón desaparece, mostrando lo que hay por debajo»— y no se ve desde una
- * pantalla porque **depende de hacia dónde se mira**: el realce se pinta 5 mm por delante de
- * la placa, y three ordena lo transparente por la profundidad del **origen** de cada objeto.
- * Mirando al centro del panel el realce sale más cerca y se pinta el último, que es lo
- * correcto; mirando al botón —que es lo que se hace para apuntarlo— el botón queda más lejos
- * por el eje de la vista que el centro de la placa, el orden se invierte, y un realce que
- * escriba profundidad borra la placa entera dentro de su rectángulo.
+ * It is the bug that was reported with the headset on —«when you put the cursor over a button it
+ * is as if the button disappears, showing what is underneath»— and it is not seen from a
+ * screen because **it depends on where you look**: the highlight is painted 5 mm in front of
+ * the plate, and three sorts what is transparent by the depth of each object's **origin**.
+ * Looking at the centre of the panel the highlight comes out nearer and is painted last, which is
+ * correct; looking at the button —which is what you do to point at it— the button ends up farther
+ * along the view axis than the centre of the plate, the order is inverted, and a highlight that
+ * writes depth erases the whole plate inside its rectangle.
  *
- * Aquí se comprueban las dos mitades: que el orden **se da la vuelta** de verdad (con las
- * cuentas de three, sin navegador) y que el realce está hecho de forma que eso dé igual.
+ * Here both halves are checked: that the order really **flips** (with three's
+ * maths, without a browser) and that the highlight is made in such a way that it does not matter.
  */
 
 /**
- * React DOM no conoce `<mesh>` ni `args`: son etiquetas de three y aquí se montan sin Canvas
- * a propósito, que lo que se mira es el árbol que React produce. Se callan esos avisos, uno a
- * uno; cualquier otro error sigue saliendo por consola.
+ * React DOM does not know `<mesh>` or `args`: they are three's tags and here they are mounted
+ * without a Canvas on purpose, since what is looked at is the tree React produces. Those warnings
+ * are silenced, one by one; any other error still comes out on the console.
  */
-const AVISOS_DE_THREE = [
+const THREE_WARNINGS = [
   'is unrecognized in this browser',
   'incorrect casing',
   'non-boolean attribute',
@@ -44,37 +44,37 @@ afterEach(cleanup)
 beforeEach(() => {
   const original = console.error
   vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
-    const texto = String(args[0])
-    if (AVISOS_DE_THREE.some((aviso) => texto.includes(aviso))) return
+    const message = String(args[0])
+    if (THREE_WARNINGS.some((warning) => message.includes(warning))) return
     original(...args)
   })
 })
 
-const BOTON = { width: 0.16, height: 0.09 }
+const BUTTON = { width: 0.16, height: 0.09 }
 
 /**
- * Lo que de verdad le llega a three, que no es lo que se ve montándolo.
+ * What really reaches three, which is not what is seen by mounting it.
  *
- * React DOM no pinta los booleanos de una etiqueta que no conoce: montado, el material sale
- * con `color` y `opacity` y **sin rastro de `transparent` ni de `depthWrite`**. Así que un
- * test que mirara el DOM daría por bueno exactamente el fallo que se está arreglando. Se mira
- * el árbol que devuelve el componente, que es el contrato con `@react-three/fiber`.
+ * React DOM does not paint the booleans of a tag it does not know: mounted, the material comes out
+ * with `color` and `opacity` and **with no trace of `transparent` or of `depthWrite`**. So a
+ * test that looked at the DOM would accept exactly the bug that is being fixed. What is looked at
+ * is the tree the component returns, which is the contract with `@react-three/fiber`.
  */
-function piezasDelRealce(state: ButtonState) {
-  const malla = ButtonHighlight({ ...BOTON, state, glow: '#f4f1ea', ink: '#151a22' })
-  if (malla == null) return null
+function highlightParts(state: ButtonState) {
+  const mesh = ButtonHighlight({ ...BUTTON, state, glow: '#f4f1ea', ink: '#151a22' })
+  if (mesh == null) return null
 
-  const props = malla.props as { renderOrder: number; children: unknown }
-  const hijos = (Array.isArray(props.children) ? props.children : [props.children]) as {
+  const props = mesh.props as { renderOrder: number; children: unknown }
+  const children = (Array.isArray(props.children) ? props.children : [props.children]) as {
     type: string
     props: Record<string, unknown>
   }[]
-  const dentro = (tipo: string) => hijos.find((hijo) => hijo?.type === tipo)?.props ?? {}
+  const inside = (type: string) => children.find((child) => child?.type === type)?.props ?? {}
 
   return {
     renderOrder: props.renderOrder,
-    geometria: dentro('planeGeometry') as { args: [number, number] },
-    material: dentro('meshBasicMaterial') as {
+    geometry: inside('planeGeometry') as { args: [number, number] },
+    material: inside('meshBasicMaterial') as {
       color: string
       transparent: boolean
       depthWrite: boolean
@@ -82,101 +82,102 @@ function piezasDelRealce(state: ButtonState) {
   }
 }
 
-describe('el realce de un botón del panel', () => {
-  it('sin apuntar no pinta nada: un panel quieto no tiene por qué pagar un plano más', () => {
-    expect(piezasDelRealce('idle')).toBeNull()
+describe('the highlight of a panel button', () => {
+  it('not pointed at it paints nothing: a still panel has no reason to pay for one more plane', () => {
+    expect(highlightParts('idle')).toBeNull()
     expect(
-      render(<ButtonHighlight {...BOTON} state="idle" glow="#fff" ink="#000" />).container
+      render(<ButtonHighlight {...BUTTON} state="idle" glow="#fff" ink="#000" />).container
         .querySelector('mesh'),
     ).toBeNull()
   })
 
   it.each<ButtonState>(['pointed', 'pressed'])(
-    'apuntado o pulsado (%s) se pinta, que es lo contrario de desaparecer',
+    'pointed at or pressed (%s) it is painted, which is the opposite of disappearing',
     (state) => {
       expect(
-        render(<ButtonHighlight {...BOTON} state={state} glow="#fff" ink="#000" />).container
+        render(<ButtonHighlight {...BUTTON} state={state} glow="#fff" ink="#000" />).container
           .querySelector('mesh'),
       ).not.toBeNull()
     },
   )
 
   it.each<ButtonState>(['pointed', 'pressed'])(
-    'y su material NO escribe profundidad (%s): es lo que borraba la placa de detrás',
+    'and its material does NOT write depth (%s): it is what erased the plate behind',
     (state) => {
-      const material = piezasDelRealce(state)!.material
+      const material = highlightParts(state)!.material
       expect(material.transparent).toBe(true)
-      // `transparent` no implica `depthWrite: false` en three, y esa es toda la avería.
+      // `transparent` does not imply `depthWrite: false` in three, and that is the whole fault.
       expect(material.depthWrite).toBe(false)
     },
   )
 
   it.each<ButtonState>(['pointed', 'pressed'])(
-    'y se pinta después de la placa pase lo que pase (%s), no cuando la ordenación quiera',
+    'and it is painted after the plate whatever happens (%s), not when the sorting feels like it',
     (state) => {
-      const orden = piezasDelRealce(state)!.renderOrder
-      expect(orden).toBe(PANEL_ORDER.highlight)
-      // Por delante de todas las capas del panel: si empatara con alguna, volvería a decidir
-      // la ordenación por profundidad, que es justo la que se da la vuelta.
-      expect(orden).toBeGreaterThan(
+      const order = highlightParts(state)!.renderOrder
+      expect(order).toBe(PANEL_ORDER.highlight)
+      // In front of all the layers of the panel: if it tied with any, the sorting by depth
+      // would decide again, which is exactly the one that flips.
+      expect(order).toBeGreaterThan(
         Math.max(PANEL_ORDER.back, PANEL_ORDER.behind, PANEL_ORDER.face),
       )
     },
   )
 
-  it('apuntado desborda el botón y pulsado se mete dentro: se hunde en vez de irse', () => {
-    expect(piezasDelRealce('pointed')!.geometria.args[0]).toBeGreaterThan(BOTON.width)
-    expect(piezasDelRealce('pressed')!.geometria.args[0]).toBeLessThan(BOTON.width)
+  it('pointed at it overflows the button and pressed it goes inside: it sinks instead of leaving', () => {
+    expect(highlightParts('pointed')!.geometry.args[0]).toBeGreaterThan(BUTTON.width)
+    expect(highlightParts('pressed')!.geometry.args[0]).toBeLessThan(BUTTON.width)
   })
 
-  it('y cambia de color al pulsarlo, que es lo que se pidió: no solo de tamaño', () => {
-    expect(piezasDelRealce('pointed')!.material.color).toBe('#f4f1ea')
-    expect(piezasDelRealce('pressed')!.material.color).toBe('#151a22')
+  it('and it changes colour when pressed, which is what was asked for: not only size', () => {
+    expect(highlightParts('pointed')!.material.color).toBe('#f4f1ea')
+    expect(highlightParts('pressed')!.material.color).toBe('#151a22')
   })
 })
 
 /**
- * La inversión del orden, con las cuentas de three y sin navegador.
+ * The inversion of the order, with three's maths and without a browser.
  *
- * `WebGLRenderer` guarda para cada objeto la `z` de su origen pasada por la matriz de
- * proyección, y pinta lo transparente de mayor a menor: lo más lejos primero. Eso es lo que se
- * repite aquí — y lo que enseña que **no** basta con adelantar el realce unos milímetros.
+ * `WebGLRenderer` keeps for each object the `z` of its origin passed through the projection
+ * matrix, and paints what is transparent from greatest to least: the farthest first. That is what
+ * is repeated here — and what shows that it is **not** enough to bring the highlight a few
+ * millimetres forward.
  */
-describe('cómo ordena three la placa y el realce', () => {
-  /** El panel, de frente y a un brazo, con un botón cerca del borde de abajo. */
-  const DISTANCIA = 0.8
-  const BOTON_Y = -0.55
+describe('how three sorts the plate and the highlight', () => {
+  /** The panel, face-on and at arm's length, with a button near the bottom edge. */
+  const DISTANCE = 0.8
+  const BUTTON_Y = -0.55
 
-  function zDeOrdenacion(punto: Vector3, mirandoA: Vector3): number {
+  function sortingZ(point: Vector3, lookingAt: Vector3): number {
     const camera = new PerspectiveCamera(60, 1, 0.05, 20)
-    camera.position.set(0, 0, DISTANCIA)
-    camera.lookAt(mirandoA)
+    camera.position.set(0, 0, DISTANCE)
+    camera.lookAt(lookingAt)
     camera.updateMatrixWorld(true)
     camera.updateProjectionMatrix()
-    const proyeccion = new Matrix4().multiplyMatrices(
+    const projection = new Matrix4().multiplyMatrices(
       camera.projectionMatrix,
       camera.matrixWorldInverse,
     )
-    return punto.clone().applyMatrix4(proyeccion).z
+    return point.clone().applyMatrix4(projection).z
   }
 
-  const placa = new Vector3(0, 0, 0)
-  const realce = new Vector3(0, BOTON_Y, HIGHLIGHT_Z)
+  const plate = new Vector3(0, 0, 0)
+  const highlight = new Vector3(0, BUTTON_Y, HIGHLIGHT_Z)
 
-  it('mirando al centro del panel el realce sale delante, y por eso el fallo parecía caprichoso', () => {
-    const alCentro = new Vector3(0, 0, 0)
-    expect(zDeOrdenacion(realce, alCentro)).toBeLessThan(zDeOrdenacion(placa, alCentro))
+  it('looking at the centre of the panel the highlight comes out in front, and that is why the bug seemed capricious', () => {
+    const atCentre = new Vector3(0, 0, 0)
+    expect(sortingZ(highlight, atCentre)).toBeLessThan(sortingZ(plate, atCentre))
   })
 
-  it('pero mirando al botón —que es lo que se hace al apuntarlo— se pinta ANTES que la placa', () => {
-    const alBoton = new Vector3(0, BOTON_Y, 0)
-    // Más lejos por el eje de la vista, aunque esté 5 mm por delante en el panel: three lo
-    // pinta primero, y desde ahí todo lo que escriba profundidad borra la placa.
-    expect(zDeOrdenacion(realce, alBoton)).toBeGreaterThan(zDeOrdenacion(placa, alBoton))
+  it('but looking at the button —which is what you do when pointing at it— it is painted BEFORE the plate', () => {
+    const atButton = new Vector3(0, BUTTON_Y, 0)
+    // Farther along the view axis, even though it is 5 mm in front on the panel: three
+    // paints it first, and from there everything that writes depth erases the plate.
+    expect(sortingZ(highlight, atButton)).toBeGreaterThan(sortingZ(plate, atButton))
   })
 })
 
-describe('qué se le escucha a un botón para saber cómo está', () => {
+describe('what is listened to on a button to know how it is', () => {
   function Panel() {
     const { stateOf, handlersFor } = useButtonFeedback()
     return (
@@ -187,49 +188,49 @@ describe('qué se le escucha a un botón para saber cómo está', () => {
     )
   }
 
-  const estado = (container: HTMLElement) =>
+  const stateIn = (container: HTMLElement) =>
     container.querySelector('[data-testid="estado"]')?.textContent
 
-  function eventos(container: HTMLElement) {
-    const boton = container.querySelector('[data-testid="uno"]') as HTMLElement
+  function events(container: HTMLElement) {
+    const button = container.querySelector('[data-testid="uno"]') as HTMLElement
     return {
-      entrar: () => act(() => boton.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))),
-      apretar: () => act(() => boton.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))),
-      soltar: () => act(() => boton.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }))),
-      salir: () => act(() => boton.dispatchEvent(new MouseEvent('pointerout', { bubbles: true }))),
+      enter: () => act(() => button.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))),
+      press: () => act(() => button.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))),
+      release: () => act(() => button.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }))),
+      leave: () => act(() => button.dispatchEvent(new MouseEvent('pointerout', { bubbles: true }))),
     }
   }
 
-  it('sin nada encima está suelto', () => {
+  it('with nothing over it it is idle', () => {
     const { container } = render(<Panel />)
-    expect(estado(container)).toBe('idle')
+    expect(stateIn(container)).toBe('idle')
   })
 
-  it('apuntándolo se enciende, y apretando se hunde', () => {
+  it('pointing at it lights it up, and pressing sinks it', () => {
     const { container } = render(<Panel />)
-    const { entrar, apretar } = eventos(container)
-    entrar()
-    expect(estado(container)).toBe('pointed')
-    apretar()
-    expect(estado(container)).toBe('pressed')
+    const { enter, press } = events(container)
+    enter()
+    expect(stateIn(container)).toBe('pointed')
+    press()
+    expect(stateIn(container)).toBe('pressed')
   })
 
-  it('al soltar vuelve a estar solo apuntado: el botón sigue ahí', () => {
+  it('on release it is only pointed at again: the button is still there', () => {
     const { container } = render(<Panel />)
-    const { entrar, apretar, soltar } = eventos(container)
-    entrar()
-    apretar()
-    soltar()
-    expect(estado(container)).toBe('pointed')
+    const { enter, press, release } = events(container)
+    enter()
+    press()
+    release()
+    expect(stateIn(container)).toBe('pointed')
   })
 
-  it('y salirse limpia los dos: apuntando a pulso, el rayo se va del botón sin soltarlo', () => {
+  it('and leaving clears both: aiming freehand, the ray leaves the button without releasing it', () => {
     const { container } = render(<Panel />)
-    const { entrar, apretar, salir } = eventos(container)
-    entrar()
-    apretar()
-    salir()
-    // Sin esto el botón se quedaría hundido para siempre, que es peor que no hundirse.
-    expect(estado(container)).toBe('idle')
+    const { enter, press, leave } = events(container)
+    enter()
+    press()
+    leave()
+    // Without this the button would stay sunk for ever, which is worse than not sinking.
+    expect(stateIn(container)).toBe('idle')
   })
 })

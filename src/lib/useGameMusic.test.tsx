@@ -5,8 +5,8 @@ import { GameContext, useGameStoreValue } from './gameStore'
 import { MUSIC_VOLUME, musicUrl } from './music'
 import { MUSIC_FADE_MS } from './musicFade'
 import { useGameMusic } from './useGameMusic'
-import { DEFAULT_VOLUMES, volumeFactor } from './ajustes'
-import { setVolume } from './ajustesCliente'
+import { DEFAULT_VOLUMES, volumeFactor } from './settings'
+import { setVolume } from './settingsClient'
 
 /**
  * La música de fondo, vista desde la escena.

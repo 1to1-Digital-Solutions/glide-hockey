@@ -35,19 +35,19 @@ import {
 } from 'godot'
 
 import {
-  EN_REPOSO,
-  GOLPE,
-  capasDelGolpe,
-  estadoDelGolpe,
-  ladoEnLaVista,
-  pulsosDelGolpe,
-  sumarGolpe,
-  unitaria,
-  type Confort,
-  type Golpe,
-  type Punto3,
-} from '@/lib/golpeRecibido'
-import type { Pulso } from '@/lib/tactos'
+  AT_REST,
+  HIT,
+  layersForHit,
+  hitState,
+  sideInView,
+  hitPulses,
+  addHit,
+  unitVector,
+  type Comfort,
+  type Hit,
+  type Point3,
+} from '@/lib/hitFeedback'
+import type { HandPulse } from '@/lib/hapticFeedback'
 
 /** A qué distancia de los ojos va la viñeta y lo que mide: de sobra para el visor (`PLANO`). */
 const PLANO = { distancia: 0.2, lado: 1.1 } as const
@@ -82,19 +82,19 @@ export interface OpcionesDelGolpe {
   /** La cámara de la que cuelga la viñeta (la del visor o la de plano). */
   camara: Camera3D | null
   /** El confort de ahora, leído a cada golpe. */
-  confort: () => Confort
+  confort: () => Comfort
   /** Los pulsos, por la vibración del jugador. Sin visor, nada. */
-  vibrar?: (pulsos: readonly Pulso[]) => void
+  vibrar?: (pulsos: readonly HandPulse[]) => void
   /** El bus de audio al que se le pone el paso bajo. Sin bus, sin filtro. */
   bus?: string
 }
 
 export class GolpeRecibido {
-  private golpes: readonly Golpe[] = []
+  private golpes: readonly Hit[] = []
   private readonly vineta: MeshInstance3D | null = null
   private readonly material: ShaderMaterial | null = null
   private readonly filtro: AudioEffectLowPassFilter | null = null
-  private ultimoCorte: number = GOLPE.filtro.abierto
+  private ultimoCorte: number = HIT.filter.open
   /** Cuántos golpes se han dado: lo que cuenta un test. */
   dados = 0
 
@@ -120,7 +120,7 @@ export class GolpeRecibido {
       const indice = AudioServer.get_bus_index(bus)
       if (indice >= 0) {
         this.filtro = new AudioEffectLowPassFilter()
-        this.filtro.cutoff_hz = GOLPE.filtro.abierto
+        this.filtro.cutoff_hz = HIT.filter.open
         AudioServer.add_bus_effect(indice, this.filtro)
       }
     }
@@ -130,41 +130,41 @@ export class GolpeRecibido {
    * Le han dado a quien juega: `fuerza` de 0 a 1 y `direccion` hacia donde viene el golpe desde
    * quien juega, en el espacio global.
    */
-  golpe(fuerza: number, direccion: Punto3 | null): void {
-    const capas = capasDelGolpe(fuerza, this.opciones.confort())
-    const hacia = unitaria(direccion)
+  golpe(fuerza: number, direccion: Point3 | null): void {
+    const capas = layersForHit(fuerza, this.opciones.confort())
+    const hacia = unitVector(direccion)
     // Por qué lado de la vista: la dirección, llevada al espacio de la cabeza.
     let lado = { x: 0, y: 0 }
     const camara = this.opciones.camara
     if (direccion != null && camara != null) {
       const enLaCabeza = Basis.MULTIPLY(camara.global_basis.inverse(), new Vector3(hacia.x, hacia.y, hacia.z))
-      lado = ladoEnLaVista({ x: enLaCabeza.x, y: enLaCabeza.y, z: enLaCabeza.z })
+      lado = sideInView({ x: enLaCabeza.x, y: enLaCabeza.y, z: enLaCabeza.z })
     }
-    this.golpes = sumarGolpe(this.golpes, { inicio: this.opciones.reloj(), capas, direccion: hacia, lado })
+    this.golpes = addHit(this.golpes, { start: this.opciones.reloj(), layers: capas, direction: hacia, side: lado })
     this.dados++
     // El háptico sale en el mismo fotograma que el golpe; los retardos los lleva la cola del kit.
-    this.opciones.vibrar?.(pulsosDelGolpe(capas))
+    this.opciones.vibrar?.(hitPulses(capas))
   }
 
   /** A qué ritmo tiene que correr ahora el reloj de la mesa: 1 es el normal. */
   escalaDelReloj(): number {
-    return estadoDelGolpe(this.golpes, this.opciones.reloj()).escala
+    return hitState(this.golpes, this.opciones.reloj()).timeScale
   }
 
   /** Un fotograma: la sacudida, el filtro y la viñeta. */
   actualizar(): void {
-    const estado = estadoDelGolpe(this.golpes, this.opciones.reloj())
-    this.golpes = estado === EN_REPOSO ? [] : estado.vivos
+    const estado = hitState(this.golpes, this.opciones.reloj())
+    this.golpes = estado === AT_REST ? [] : estado.live
     const { sacudido } = this.opciones
-    if (sacudido != null) sacudido.position = new Vector3(estado.sacudida.x, estado.sacudida.y, estado.sacudida.z)
-    if (this.filtro != null && estado.corte !== this.ultimoCorte) {
-      this.ultimoCorte = estado.corte
-      this.filtro.cutoff_hz = estado.corte
+    if (sacudido != null) sacudido.position = new Vector3(estado.shake.x, estado.shake.y, estado.shake.z)
+    if (this.filtro != null && estado.cutoff !== this.ultimoCorte) {
+      this.ultimoCorte = estado.cutoff
+      this.filtro.cutoff_hz = estado.cutoff
     }
     if (this.vineta != null && this.material != null) {
-      this.vineta.visible = estado.vineta > 0
-      this.material.set_shader_parameter('intensidad', estado.vineta)
-      this.material.set_shader_parameter('lado', new Vector2(estado.lado.x, estado.lado.y))
+      this.vineta.visible = estado.vignette > 0
+      this.material.set_shader_parameter('intensidad', estado.vignette)
+      this.material.set_shader_parameter('lado', new Vector2(estado.side.x, estado.side.y))
     }
   }
 }

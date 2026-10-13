@@ -1,51 +1,51 @@
 import { expect, type Page } from '@playwright/test'
-import { SCENERY_KEY, type Scenery } from '../../src/lib/ajustes'
+import { SCENERY_KEY, type Scenery } from '../../src/lib/settings'
 
 /**
- * Lo que hace falta para comprobar desde fuera que el juego obedece al escenario del arcade.
+ * What it takes to check from outside that the game obeys the hall's scenery.
  *
- * **Qué se comprueba.** El salón entra siempre en `immersive-ar` si el visor la tiene, así que
- * el tipo de sesión no dice qué se eligió: lo dice `xrcade:scenery`. Un juego que decidiera su
- * decorado con otra cosa —su propio ajuste, o el tipo de sesión— entraría sin decorado aunque
- * en el salón se hubiera elegido el sitio dibujado, y el fallo solo se vería con el visor
- * puesto.
+ * **What is checked.** The hall always enters `immersive-ar` if the headset has it, so the
+ * session type does not say what was chosen: `xrcade:scenery` does. A game that decided its
+ * stage from something else —its own setting, or the session type— would enter with no stage
+ * even though the drawn place had been chosen in the hall, and the failure would only show
+ * with the headset on.
  *
- * **Cómo se ve sin mirar.** El decorado son decenas de mallas y en una sesión se pintan dos
- * veces, una por ojo, así que quitarlo se nota en las **llamadas de dibujo por fotograma**. Se
- * cuentan envolviendo el contexto WebGL, como el presupuesto de llamadas de cada juego, para
- * no meter ningún contador en el código que se juega.
+ * **How it is seen without looking.** The stage is dozens of meshes and in a session they are
+ * painted twice, once per eye, so removing it shows in the **draw calls per frame**. They are
+ * counted by wrapping the WebGL context, like each game's draw call budget, so that no counter
+ * goes into the code that is played.
  *
- * **Y que cambiarlo no dé un tirón.** Cambiar de escenario se hace con el visor puesto, así que
- * tiene que ser instantáneo. Lo que lo estropea no se ve en las llamadas sino en los shaders:
- * montar o desmontar una luz cambia cuántas hay, y poner o quitar la niebla cambia si la hay, y
- * las dos cosas obligan a three a recompilar los materiales de todo lo que se ilumina. Por eso
- * también se apunta, desde el mismo contexto WebGL, cada programa que se enlaza y con cuántas
- * luces de cada tipo se compiló.
+ * **And that changing it does not hitch.** Changing the scenery is done with the headset on, so
+ * it has to be instant. What spoils it does not show in the calls but in the shaders:
+ * mounting or unmounting a light changes how many there are, and adding or removing the fog
+ * changes whether there is any, and both force three to recompile the materials of everything
+ * that is lit. That is why every program that is linked, and with how many lights of each type
+ * it was compiled, is also recorded from the same WebGL context.
  *
- * Es el mismo fichero en todos los juegos: lo que cambia de uno a otro —cómo se entra en la
- * sesión y cuánto pesa su decorado— va en su `escenario.spec.ts`.
+ * It is the same file in every game: what changes from one to another —how the session is
+ * entered and how much its stage weighs— goes in its `scenery.spec.ts`.
  */
 
 declare global {
   interface Window {
-    /** Llamadas de dibujo de cada fotograma, las últimas 240. */
-    __llamadasPorFotograma?: number[]
-    /** Cuántos programas de shader se han enlazado desde que cargó la página. */
-    __programasEnlazados?: number
-    /** Las combinaciones de luces con las que se ha pintado algo iluminado en la sesión. */
-    __lucesDeLosShaders?: string[]
-    /** Cuántas llamadas de dibujo llevaba la página al enlazarse cada shader. Ver abajo. */
-    __cuandoSeEnlazo?: number[]
-    /** De qué material es cada shader enlazado (`MeshStandardMaterial`, `MeshDepthMaterial`…). */
-    __tiposDeShader?: string[]
+    /** Draw calls of each frame, the last 240. */
+    __drawCallsPerFrame?: number[]
+    /** How many shader programs have been linked since the page loaded. */
+    __linkedPrograms?: number
+    /** The light combinations something lit has been painted with in the session. */
+    __shaderLights?: string[]
+    /** How many draw calls the page had made when each shader was linked. See below. */
+    __linkedAt?: number[]
+    /** Which material each linked shader belongs to (`MeshStandardMaterial`, `MeshDepthMaterial`…). */
+    __shaderTypes?: string[]
   }
 }
 
-/** Empieza a contar llamadas de dibujo por fotograma. Antes de abrir la página. */
-export async function contarLlamadas(page: Page): Promise<void> {
+/** Starts counting draw calls per frame. Before opening the page. */
+export async function installDrawCallCounter(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const frames: number[] = []
-    window.__llamadasPorFotograma = frames
+    window.__drawCallsPerFrame = frames
     let calls = 0
     const gl = WebGL2RenderingContext.prototype
     for (const name of ['drawElements', 'drawElementsInstanced', 'drawArrays', 'drawArraysInstanced'] as const) {
@@ -55,205 +55,205 @@ export async function contarLlamadas(page: Page): Promise<void> {
         return original.apply(this, args)
       }
     }
-    const cerrarFotograma = () => {
+    const closeFrame = () => {
       frames.push(calls)
       if (frames.length > 240) frames.shift()
       calls = 0
-      requestAnimationFrame(cerrarFotograma)
+      requestAnimationFrame(closeFrame)
     }
-    requestAnimationFrame(cerrarFotograma)
+    requestAnimationFrame(closeFrame)
   })
 }
 
 /**
- * La mediana de llamadas por fotograma, con lo último que se cambió ya asentado.
+ * The median of calls per frame, with the last thing that changed already settled.
  *
- * La mediana y no la media: el fotograma en que se monta o se quita el decorado, o en que se
- * compila un material, se sale de lo normal y no dice nada de lo que se pinta después.
+ * The median and not the mean: the frame in which the stage is mounted or removed, or in which
+ * a material is compiled, is out of the ordinary and says nothing about what is painted after.
  */
-export async function medianaDeLlamadas(page: Page, count = 30): Promise<number> {
+export async function medianDrawCalls(page: Page, count = 30): Promise<number> {
   await page.waitForTimeout(1500)
   await page.evaluate(() => {
-    window.__llamadasPorFotograma!.length = 0
+    window.__drawCallsPerFrame!.length = 0
   })
   await expect
-    .poll(() => page.evaluate(() => window.__llamadasPorFotograma!.length), { timeout: 30_000 })
+    .poll(() => page.evaluate(() => window.__drawCallsPerFrame!.length), { timeout: 30_000 })
     .toBeGreaterThanOrEqual(count)
   const calls = await page.evaluate(() =>
-    window.__llamadasPorFotograma!.filter((c) => c > 0).sort((a, b) => a - b),
+    window.__drawCallsPerFrame!.filter((c) => c > 0).sort((a, b) => a - b),
   )
   return calls[Math.floor(calls.length / 2)] ?? 0
 }
 
 /**
- * Empieza a apuntar los programas de shader que se enlazan, **cuándo** se enlaza cada uno y con
- * cuántas luces pinta la escena. Antes de abrir la página.
+ * Starts recording the shader programs that are linked, **when** each one is linked and with
+ * how many lights the scene paints. Before opening the page.
  *
- * **Enlazar es el tirón.** three compila un programa la primera vez que pinta un material con una
- * combinación de luces, niebla y entorno, y lo vuelve a compilar si un material se libera al
- * desmontarse y vuelve a aparecer. Contar `linkProgram` dice cuántas veces ha pasado, sin mirar
- * dentro del juego.
+ * **Linking is the hitch.** three compiles a program the first time it paints a material with a
+ * combination of lights, fog and environment, and compiles it again if a material is disposed
+ * when it unmounts and shows up again. Counting `linkProgram` says how many times it has happened,
+ * without looking inside the game.
  *
- * **Contar enlaces no basta para las luces.** three guarda en cada material un programa por
- * combinación de luces, así que alternar entre dos solo compila la primera vez que aparece cada
- * una; y la del sitio dibujado ya se compila en la pantalla, antes de entrar. Así que las luces se
- * miran en lo que se **usa** para pintar: cada shader iluminado lleva escrito cuántas luces de
- * cada tipo hay en la declaración de sus uniformes (`pointLights[ 1 ]`, también cuando son cero);
- * se apunta de qué programa es, y cada vez que se pinta con ese programa con la sesión abierta,
- * esa combinación cuenta.
+ * **Counting links is not enough for the lights.** three keeps in each material one program per
+ * light combination, so alternating between two only compiles the first time each one shows
+ * up; and the one of the drawn place is already compiled on the screen, before entering. So the
+ * lights are looked at in what is **used** to paint: each lit shader has written in the
+ * declaration of its uniforms how many lights of each type there are (`pointLights[ 1 ]`, also
+ * when they are zero); which program it belongs to is recorded, and every time something is
+ * painted with that program with the session open, that combination counts.
  *
- * **Solo con la sesión abierta**, porque antes de entrar los juegos que reflejan una sala la
- * pintan en una escena aparte (`RoomEnvironment`, con su propia luz) para sacar el mapa de
- * reflejos, y esa escena no es la del juego.
+ * **Only with the session open**, because before entering the games that reflect a room paint
+ * it in a separate scene (`RoomEnvironment`, with its own light) to get the reflection map, and
+ * that scene is not the game's.
  *
- * **Y cuándo se enlaza cada uno, contado en llamadas de dibujo.** Contarlos no basta para ver
- * el precalentado: los mismos programas se enlazan con él y sin él, y lo que cambia es *cuándo*.
- * Sin calentar, cada material enlaza el suyo la primera vez que le toca pintarse, así que salen
- * de uno en uno repartidos por los primeros fotogramas —y cada uno de esos bloquea el hilo, que
- * con el visor puesto es un tirón—. Calentando, se enlazan **todos en la misma tanda**, antes de
- * pintar. Las llamadas de dibujo son el reloj porque no paran: dos shaders con el mismo número
- * se enlazaron sin que se pintara nada entre medias.
+ * **And when each one is linked, counted in draw calls.** Counting them is not enough to see
+ * the prewarm: the same programs are linked with it and without it, and what changes is *when*.
+ * Without prewarming, each material links its own the first time its turn to be painted comes,
+ * so they come out one by one spread over the first frames —and each of those blocks the thread,
+ * which with the headset on is a hitch—. Prewarming, they are linked **all in the same batch**,
+ * before painting. The draw calls are the clock because they do not stop: two shaders with the
+ * same number were linked with nothing painted in between.
  */
-export async function vigilarProgramas(page: Page): Promise<void> {
+export async function watchPrograms(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    window.__programasEnlazados = 0
-    const cuando: number[] = []
-    window.__cuandoSeEnlazo = cuando
-    const tipos: string[] = []
-    window.__tiposDeShader = tipos
-    const luces = new Set<string>()
-    window.__lucesDeLosShaders = []
-    const lucesDelShader = new WeakMap<WebGLShader, string>()
-    const lucesDelPrograma = new WeakMap<WebGLProgram, string>()
-    const tipoDelShader = new WeakMap<WebGLShader, string>()
-    const tipoDelPrograma = new WeakMap<WebGLProgram, string>()
+    window.__linkedPrograms = 0
+    const linkedAt: number[] = []
+    window.__linkedAt = linkedAt
+    const types: string[] = []
+    window.__shaderTypes = types
+    const lights = new Set<string>()
+    window.__shaderLights = []
+    const shaderLights = new WeakMap<WebGLShader, string>()
+    const programLights = new WeakMap<WebGLProgram, string>()
+    const shaderType = new WeakMap<WebGLShader, string>()
+    const programType = new WeakMap<WebGLProgram, string>()
     const gl = WebGL2RenderingContext.prototype
 
-    // El reloj con el que se fecha cada compilación. Propio y no el de `contarLlamadas`:
-    // los dos se pueden usar sueltos, y encadenar envoltorios del mismo método es inocuo.
-    let dibujos = 0
+    // The clock each compilation is dated with. Its own and not the one of `installDrawCallCounter`:
+    // the two can be used on their own, and chaining wrappers of the same method is harmless.
+    let draws = 0
     for (const name of ['drawElements', 'drawElementsInstanced', 'drawArrays', 'drawArraysInstanced'] as const) {
       const original = gl[name] as (...args: unknown[]) => unknown
       ;(gl as unknown as Record<string, unknown>)[name] = function (this: unknown, ...args: unknown[]) {
-        dibujos++
+        draws++
         return original.apply(this, args)
       }
     }
 
-    const enlazar = gl.linkProgram
+    const link = gl.linkProgram
     gl.linkProgram = function (this: WebGL2RenderingContext, program: WebGLProgram) {
-      window.__programasEnlazados = (window.__programasEnlazados ?? 0) + 1
-      cuando.push(dibujos)
-      tipos.push(tipoDelPrograma.get(program) ?? 'desconocido')
-      return enlazar.call(this, program)
+      window.__linkedPrograms = (window.__linkedPrograms ?? 0) + 1
+      linkedAt.push(draws)
+      types.push(programType.get(program) ?? 'unknown')
+      return link.call(this, program)
     }
 
-    const fuente = gl.shaderSource
-    gl.shaderSource = function (this: WebGL2RenderingContext, shader: WebGLShader, texto: string) {
-      const tipo = /#define SHADER_TYPE (\w+)/.exec(texto)?.[1]
-      if (tipo !== undefined) tipoDelShader.set(shader, tipo)
-      if (texto.includes('directionalLights[')) {
-        const tipos = ['directionalLights', 'pointLights', 'spotLights', 'rectAreaLights', 'hemisphereLights']
-        lucesDelShader.set(
+    const source = gl.shaderSource
+    gl.shaderSource = function (this: WebGL2RenderingContext, shader: WebGLShader, text: string) {
+      const type = /#define SHADER_TYPE (\w+)/.exec(text)?.[1]
+      if (type !== undefined) shaderType.set(shader, type)
+      if (text.includes('directionalLights[')) {
+        const types = ['directionalLights', 'pointLights', 'spotLights', 'rectAreaLights', 'hemisphereLights']
+        shaderLights.set(
           shader,
-          tipos.map((tipo) => `${tipo} ${texto.match(new RegExp(`${tipo}\\[ (\\d+) \\]`))?.[1] ?? '?'}`).join(', '),
+          types.map((type) => `${type} ${text.match(new RegExp(`${type}\\[ (\\d+) \\]`))?.[1] ?? '?'}`).join(', '),
         )
       }
-      return fuente.call(this, shader, texto)
+      return source.call(this, shader, text)
     }
 
-    const adjuntar = gl.attachShader
+    const attach = gl.attachShader
     gl.attachShader = function (this: WebGL2RenderingContext, program: WebGLProgram, shader: WebGLShader) {
-      const suyas = lucesDelShader.get(shader)
-      if (suyas !== undefined) lucesDelPrograma.set(program, suyas)
-      const suyo = tipoDelShader.get(shader)
-      if (suyo !== undefined) tipoDelPrograma.set(program, suyo)
-      return adjuntar.call(this, program, shader)
+      const ownLights = shaderLights.get(shader)
+      if (ownLights !== undefined) programLights.set(program, ownLights)
+      const ownType = shaderType.get(shader)
+      if (ownType !== undefined) programType.set(program, ownType)
+      return attach.call(this, program, shader)
     }
 
-    const usar = gl.useProgram
+    const use = gl.useProgram
     gl.useProgram = function (this: WebGL2RenderingContext, program: WebGLProgram | null) {
-      const visor = (window as { __xrTest?: { hasSession(): boolean } }).__xrTest
-      const suyas = program == null ? undefined : lucesDelPrograma.get(program)
-      if (suyas !== undefined && visor?.hasSession() === true && !luces.has(suyas)) {
-        luces.add(suyas)
-        window.__lucesDeLosShaders = [...luces]
+      const headset = (window as { __xrTest?: { hasSession(): boolean } }).__xrTest
+      const ownLights = program == null ? undefined : programLights.get(program)
+      if (ownLights !== undefined && headset?.hasSession() === true && !lights.has(ownLights)) {
+        lights.add(ownLights)
+        window.__shaderLights = [...lights]
       }
-      return usar.call(this, program)
+      return use.call(this, program)
     }
   })
 }
 
-/** Cuántos programas de shader se han enlazado desde que cargó la página. */
-export async function programasEnlazados(page: Page): Promise<number> {
-  return page.evaluate(() => window.__programasEnlazados ?? 0)
+/** How many shader programs have been linked since the page loaded. */
+export async function linkedPrograms(page: Page): Promise<number> {
+  return page.evaluate(() => window.__linkedPrograms ?? 0)
 }
 
 /**
- * Cuántas llamadas de dibujo llevaba la página al enlazarse cada shader, en orden.
+ * How many draw calls the page had made when each shader was linked, in order.
  *
- * Dos shaders con el mismo número se compilaron **de una tanda**, sin pintar nada entre
- * medias: eso es lo que hace el precalentado. Números distintos son compilaciones sueltas,
- * cada una en mitad de un fotograma.
+ * Two shaders with the same number were compiled **in one batch**, with nothing painted in
+ * between: that is what the prewarm does. Different numbers are stray compilations,
+ * each one in the middle of a frame.
  */
-export async function cuandoSeEnlazaron(page: Page): Promise<number[]> {
-  return page.evaluate(() => [...(window.__cuandoSeEnlazo ?? [])])
+export async function linkTimes(page: Page): Promise<number[]> {
+  return page.evaluate(() => [...(window.__linkedAt ?? [])])
 }
 
 /**
- * De qué material es cada shader enlazado, en el mismo orden que `cuandoSeEnlazaron`.
+ * Which material each linked shader belongs to, in the same order as `linkTimes`.
  *
- * Sirve para distinguir lo que se pinta de lo que no: `MeshDepthMaterial` es el mapa de
- * sombras, y ese three solo lo compila cuando hay algo **visible** que proyecte, así que el
- * precalentado no lo alcanza —`compile()` recorre la escena entera pero solo prepara la
- * pasada que se ve—.
+ * It serves to tell what is painted from what is not: `MeshDepthMaterial` is the shadow
+ * map, and three only compiles that one when there is something **visible** that casts, so the
+ * prewarm does not reach it —`compile()` walks the whole scene but only prepares the
+ * pass that is seen—.
  */
-export async function tiposDeShader(page: Page): Promise<string[]> {
-  return page.evaluate(() => [...(window.__tiposDeShader ?? [])])
+export async function shaderTypes(page: Page): Promise<string[]> {
+  return page.evaluate(() => [...(window.__shaderTypes ?? [])])
 }
 
 /**
- * De esas fechas, cuántos shaders caen en la tanda más grande y cuántos quedan sueltos.
+ * Of those stamps, how many shaders fall in the largest batch and how many are left stray.
  *
- * Es la forma de leer el precalentado sin depender de cuántos materiales tenga cada juego:
- * calentando, la tanda se lleva casi todo; sin calentar, no hay tanda —cada shader va por su
- * cuenta— y todo queda suelto.
+ * It is the way to read the prewarm without depending on how many materials each game has:
+ * prewarming, the batch takes almost everything; without prewarming, there is no batch —each
+ * shader goes on its own— and everything is left stray.
  */
-export function enTandas(fechas: readonly number[]): { mayorTanda: number; sueltos: number } {
-  const porFecha = new Map<number, number>()
-  for (const fecha of fechas) porFecha.set(fecha, (porFecha.get(fecha) ?? 0) + 1)
-  const mayorTanda = Math.max(0, ...porFecha.values())
-  return { mayorTanda, sueltos: fechas.length - mayorTanda }
+export function inBatches(stamps: readonly number[]): { largestBatch: number; stray: number } {
+  const byStamp = new Map<number, number>()
+  for (const stamp of stamps) byStamp.set(stamp, (byStamp.get(stamp) ?? 0) + 1)
+  const largestBatch = Math.max(0, ...byStamp.values())
+  return { largestBatch, stray: stamps.length - largestBatch }
 }
 
 /**
- * Con cuántas combinaciones de luces distintas se ha pintado algo iluminado con la sesión abierta.
- * Si la escena no cambia de luces al cambiar de escenario, es una.
+ * With how many different light combinations something lit has been painted with the session open.
+ * If the scene does not change lights when the scenery changes, it is one.
  */
-export async function combinacionesDeLuces(page: Page): Promise<string[]> {
-  return page.evaluate(() => window.__lucesDeLosShaders ?? [])
+export async function lightCombinations(page: Page): Promise<string[]> {
+  return page.evaluate(() => window.__shaderLights ?? [])
 }
 
 /**
- * Deja pasar el cambio: el aviso llega, React vuelve a pintar y el fotograma siguiente compila lo
- * que tenga que compilar.
+ * Lets the change go through: the notice arrives, React paints again and the next frame compiles
+ * whatever it has to compile.
  */
-export async function dejarAsentar(page: Page, count = 30): Promise<void> {
-  await medianaDeLlamadas(page, count)
+export async function letSettle(page: Page, count = 30): Promise<void> {
+  await medianDrawCalls(page, count)
 }
 
-/** Deja escrito algo en el almacenamiento antes de que cargue la página. */
-export async function guardarAntesDeAbrir(page: Page, key: string, value: string): Promise<void> {
+/** Leaves something written in storage before the page loads. */
+export async function storeBeforeOpen(page: Page, key: string, value: string): Promise<void> {
   await page.addInitScript(([k, v]) => window.localStorage.setItem(k, v), [key, value] as const)
 }
 
 /**
- * Lo que hace el panel del salón al cambiar el escenario: escribir la clave y avisar.
+ * What the hall's panel does when the scenery changes: write the key and notify.
  *
- * Sin recargar a propósito: con el visor puesto, recargar es salir de la sesión, así que el
- * cambio tiene que llegar por el evento o no llega.
+ * Without reloading on purpose: with the headset on, reloading is leaving the session, so the
+ * change has to arrive through the event or it does not arrive.
  */
-export async function elegirEnElSalon(page: Page, scenery: Scenery): Promise<void> {
+export async function chooseInSalon(page: Page, scenery: Scenery): Promise<void> {
   await page.evaluate(
     ([key, value]) => {
       window.localStorage.setItem(key, value)
@@ -263,7 +263,7 @@ export async function elegirEnElSalon(page: Page, scenery: Scenery): Promise<voi
   )
 }
 
-/** Lo que hay guardado en una clave, o `null`. */
-export async function leerClave(page: Page, key: string): Promise<string | null> {
+/** What is stored under a key, or `null`. */
+export async function readKey(page: Page, key: string): Promise<string | null> {
   return page.evaluate((k) => window.localStorage.getItem(k), key)
 }

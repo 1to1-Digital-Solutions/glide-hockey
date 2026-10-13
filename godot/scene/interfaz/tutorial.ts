@@ -12,9 +12,9 @@
  */
 import type { MandoEnLaMano } from '@kit/runtime/ui/tutorial'
 import { PanelDeTutorial } from '@kit/runtime/ui/tutorial'
-import type { Punteria } from '@kit/runtime/ui/punteria'
+import type { PointerAim } from '@kit/runtime/ui/pointerAim'
 
-import type { GrabMode, Lang } from '@/lib/ajustes'
+import type { GrabMode, Lang } from '@/lib/settings'
 import { PALETTE } from '@/lib/palette'
 import { traductor, type TextKey } from '@/lib/textos'
 import {
@@ -52,7 +52,7 @@ export class TutorialDelJuego {
   /** Si en el fotograma anterior se enseñaba un paso. */
   private ensenaba = false
 
-  constructor(punteria: Punteria, manos: readonly MandoEnLaMano[] = []) {
+  constructor(punteria: PointerAim, manos: readonly MandoEnLaMano[] = []) {
     // Se decide una vez, al empezar: leerlo a cada fotograma lo apagaría en cuanto se marca.
     this.pendiente = !tutorialSeen()
     this.vista = new PanelDeTutorial({

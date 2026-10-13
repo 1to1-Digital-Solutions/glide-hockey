@@ -1,109 +1,109 @@
 import { describe, expect, it } from 'vitest'
 import {
-  contraste,
-  materialEncendido,
-  materialMate,
-  materialTranslucido,
-  PALETA,
-  type ColorComun,
-} from './paleta'
+  contrast,
+  emissiveMaterial,
+  matteMaterial,
+  translucentMaterial,
+  COMMON_PALETTE,
+  type CommonColor,
+} from './commonPalette'
 
-/** Lo que se escribe como texto sobre un panel: tiene que dar el contraste de texto normal. */
-const SE_ESCRIBEN: ColorComun[] = [
-  'acierto',
-  'fallo',
-  'aviso',
-  'texto',
-  'textoSuave',
-  'acento',
-  'bronce',
-  'plata',
-  'oro',
+/** What is written as text over a panel: it has to give the contrast of normal text. */
+const WRITTEN_AS_TEXT: CommonColor[] = [
+  'hit',
+  'miss',
+  'warning',
+  'text',
+  'mutedText',
+  'accent',
+  'bronze',
+  'silver',
+  'gold',
 ]
 
-describe('la paleta común', () => {
-  it('son todos #rrggbb en minúsculas, que es lo que leen igual el CSS, three y Godot', () => {
-    for (const color of Object.values(PALETA)) expect(color).toMatch(/^#[0-9a-f]{6}$/)
+describe('the common palette', () => {
+  it('they are all lowercase #rrggbb, which is what CSS, three and Godot read the same', () => {
+    for (const color of Object.values(COMMON_PALETTE)) expect(color).toMatch(/^#[0-9a-f]{6}$/)
   })
 
-  it('no repite colores: dos significados con el mismo color no se distinguen', () => {
-    const colores = Object.values(PALETA)
-    expect(new Set(colores).size).toBe(colores.length)
+  it('does not repeat colours: two meanings with the same colour cannot be told apart', () => {
+    const colors = Object.values(COMMON_PALETTE)
+    expect(new Set(colors).size).toBe(colors.length)
   })
 
-  it('todo lo que se escribe se lee sobre el fondo del salón (WCAG AA, 4,5:1)', () => {
-    for (const nombre of SE_ESCRIBEN) {
-      expect(contraste(PALETA[nombre], PALETA.fondo), nombre).toBeGreaterThanOrEqual(4.5)
+  it('everything that is written reads over the background of the hall (WCAG AA, 4.5:1)', () => {
+    for (const name of WRITTEN_AS_TEXT) {
+      expect(contrast(COMMON_PALETTE[name], COMMON_PALETTE.background), name).toBeGreaterThanOrEqual(4.5)
     }
   })
 
-  it('el texto principal pasa de AAA (7:1): es el que se lee a un brazo de distancia', () => {
-    expect(contraste(PALETA.texto, PALETA.fondo)).toBeGreaterThanOrEqual(7)
+  it('the main text goes past AAA (7:1): it is the one read at arm\'s length', () => {
+    expect(contrast(COMMON_PALETTE.text, COMMON_PALETTE.background)).toBeGreaterThanOrEqual(7)
   })
 
-  it('el borde se distingue del fondo sin llegar a competir con lo que está escrito', () => {
-    const borde = contraste(PALETA.borde, PALETA.fondo)
-    expect(borde).toBeGreaterThan(1.2)
-    expect(borde).toBeLessThan(contraste(PALETA.textoSuave, PALETA.fondo))
+  it('the border is told apart from the background without getting to compete with what is written', () => {
+    const border = contrast(COMMON_PALETTE.border, COMMON_PALETTE.background)
+    expect(border).toBeGreaterThan(1.2)
+    expect(border).toBeLessThan(contrast(COMMON_PALETTE.mutedText, COMMON_PALETTE.background))
   })
 
-  it('acierto y fallo se distinguen por luz, sin ver el color', () => {
-    // Para quien no separa el rojo del verde lo único que queda es cuánto brilla cada uno.
-    expect(contraste(PALETA.acierto, PALETA.fallo)).toBeGreaterThanOrEqual(1.8)
+  it('hit and miss are told apart by light, without seeing the colour', () => {
+    // For whoever does not separate red from green all that is left is how bright each one is.
+    expect(contrast(COMMON_PALETTE.hit, COMMON_PALETTE.miss)).toBeGreaterThanOrEqual(1.8)
   })
 
-  it('las medallas son las del salón, para que la chapa del juego y la de la cabina coincidan', () => {
-    // Copiadas de `MEDAL_COLORS` (`xrcade/src/components/salon/theme.ts`).
-    expect([PALETA.bronce, PALETA.plata, PALETA.oro]).toEqual(['#e39a64', '#d3d9e6', '#f6c945'])
-  })
-})
-
-describe('el contraste', () => {
-  it('va de 1 (el mismo color) a 21 (negro sobre blanco), en cualquier orden', () => {
-    expect(contraste('#000000', '#ffffff')).toBeCloseTo(21, 5)
-    expect(contraste('#ffffff', '#000000')).toBeCloseTo(21, 5)
-    expect(contraste('#7ae582', '#7ae582')).toBe(1)
-  })
-
-  it('coincide con la cifra de WCAG en un caso conocido', () => {
-    // #767676 sobre blanco es el gris más claro que da 4,5:1.
-    expect(contraste('#767676', '#ffffff')).toBeCloseTo(4.54, 2)
-  })
-
-  it('no adivina colores que no son #rrggbb', () => {
-    expect(() => contraste('red', '#000000')).toThrow(/#rrggbb/)
-    expect(() => contraste('#fff', '#000000')).toThrow(/#rrggbb/)
+  it('the medals are those of the hall, so that the badge of the game and that of the cabinet match', () => {
+    // Copied from `MEDAL_COLORS` (`xrcade/src/components/salon/theme.ts`).
+    expect([COMMON_PALETTE.bronze, COMMON_PALETTE.silver, COMMON_PALETTE.gold]).toEqual(['#e39a64', '#d3d9e6', '#f6c945'])
   })
 })
 
-describe('los materiales base', () => {
-  it('el mate no brilla ni es metal', () => {
-    expect(materialMate(PALETA.acierto)).toEqual({ color: '#7ae582', roughness: 1, metalness: 0 })
+describe('the contrast', () => {
+  it('goes from 1 (the same colour) to 21 (black on white), in any order', () => {
+    expect(contrast('#000000', '#ffffff')).toBeCloseTo(21, 5)
+    expect(contrast('#ffffff', '#000000')).toBeCloseTo(21, 5)
+    expect(contrast('#7ae582', '#7ae582')).toBe(1)
   })
 
-  it('el encendido enseña el color tal cual, sin la curva de tono de la escena', () => {
-    expect(materialEncendido(PALETA.fallo)).toEqual({ color: '#ff5a4f', toneMapped: false })
+  it('matches the WCAG figure in a known case', () => {
+    // #767676 on white is the lightest grey that gives 4.5:1.
+    expect(contrast('#767676', '#ffffff')).toBeCloseTo(4.54, 2)
   })
 
-  it('el translúcido nunca escribe profundidad, que borraría lo que tiene detrás', () => {
-    expect(materialTranslucido(PALETA.acierto, 0.5)).toEqual({
+  it('does not guess colours that are not #rrggbb', () => {
+    expect(() => contrast('red', '#000000')).toThrow(/#rrggbb/)
+    expect(() => contrast('#fff', '#000000')).toThrow(/#rrggbb/)
+  })
+})
+
+describe('the base materials', () => {
+  it('the matte one does not shine and is not metal', () => {
+    expect(matteMaterial(COMMON_PALETTE.hit)).toEqual({ color: '#7ae582', roughness: 1, metalness: 0 })
+  })
+
+  it('the emissive one shows the colour as it is, without the scene\'s tone curve', () => {
+    expect(emissiveMaterial(COMMON_PALETTE.miss)).toEqual({ color: '#ff5a4f', toneMapped: false })
+  })
+
+  it('the translucent one never writes depth, which would erase what it has behind', () => {
+    expect(translucentMaterial(COMMON_PALETTE.hit, 0.5)).toEqual({
       color: '#7ae582',
       transparent: true,
       opacity: 0.5,
       depthWrite: false,
       toneMapped: false,
     })
-    expect(materialTranslucido(PALETA.acierto, 0).opacity).toBe(0)
-    expect(materialTranslucido(PALETA.acierto, 1).opacity).toBe(1)
+    expect(translucentMaterial(COMMON_PALETTE.hit, 0).opacity).toBe(0)
+    expect(translucentMaterial(COMMON_PALETTE.hit, 1).opacity).toBe(1)
   })
 
-  it('el translúcido no acepta una opacidad fuera de [0, 1]', () => {
-    expect(() => materialTranslucido(PALETA.acierto, -0.1)).toThrow(RangeError)
-    expect(() => materialTranslucido(PALETA.acierto, 1.5)).toThrow(RangeError)
-    expect(() => materialTranslucido(PALETA.acierto, Number.NaN)).toThrow(RangeError)
+  it('the translucent one does not accept an opacity outside [0, 1]', () => {
+    expect(() => translucentMaterial(COMMON_PALETTE.hit, -0.1)).toThrow(RangeError)
+    expect(() => translucentMaterial(COMMON_PALETTE.hit, 1.5)).toThrow(RangeError)
+    expect(() => translucentMaterial(COMMON_PALETTE.hit, Number.NaN)).toThrow(RangeError)
   })
 
-  it('cada llamada da un objeto nuevo: extenderlo sobre un material no toca el de al lado', () => {
-    expect(materialMate(PALETA.oro)).not.toBe(materialMate(PALETA.oro))
+  it('each call gives a new object: spreading it over a material does not touch the one next to it', () => {
+    expect(matteMaterial(COMMON_PALETTE.gold)).not.toBe(matteMaterial(COMMON_PALETTE.gold))
   })
 })

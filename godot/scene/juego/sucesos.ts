@@ -21,9 +21,9 @@
 import { pulsosDelListon } from '@/lib/cartelDelMarcador'
 import { MAX_PUCK_SPEED } from '@/lib/gameConfig'
 import type { FrameResult } from '@/lib/matchLoop'
-import type { Medalla } from '@/lib/objetivo'
+import type { Medal } from '@/lib/goal'
 import { slideLevel, slidePitch } from '@/lib/slideSound'
-import { pulsosDe, type Mano, type Pulso } from '@/lib/tactos'
+import { pulsesFor, type HandSide, type HandPulse } from '@/lib/hapticFeedback'
 
 /** A qué velocidad se renderizó el bucle del roce (`loops.slide` de `godot-kit.json`): la máxima. */
 export const VELOCIDAD_DEL_BUCLE = MAX_PUCK_SPEED
@@ -70,9 +70,9 @@ export const PULSO_DEL_FINAL = { intensidad: 0.6, ms: 220 } as const
 export type SucesoEnLaMano =
   | { readonly tipo: 'golpe'; readonly fuerza: number }
   | { readonly tipo: 'gol' }
-  | { readonly tipo: 'final' }
+  | { readonly tipo: 'end' }
   /** Se cruza un listón de medalla: lo celebra el cartel del objetivo. */
-  | { readonly tipo: 'liston'; readonly medalla: Medalla }
+  | { readonly tipo: 'liston'; readonly medalla: Medal }
 
 /** Lo que de un fotograma de la mesa llega a la mano (`sucesosDelFotograma`). */
 export function sucesosDelFotograma(golpesAntes: number, { table, goals, impact }: Pick<FrameResult, 'table' | 'goals' | 'impact'>): SucesoEnLaMano[] {
@@ -83,15 +83,15 @@ export function sucesosDelFotograma(golpesAntes: number, { table, goals, impact 
 }
 
 /** Los pulsos de un suceso en la mano que lleva el mazo; sin mano, ninguno (`pulsosDelSuceso`). */
-export function pulsosDelSuceso(suceso: SucesoEnLaMano, mazo: Mano | null): Pulso[] {
+export function pulsosDelSuceso(suceso: SucesoEnLaMano, mazo: HandSide | null): HandPulse[] {
   if (mazo == null) return []
   switch (suceso.tipo) {
     case 'golpe':
-      return pulsosDe({ tipo: 'impacto', mano: mazo, fuerza: Number.isFinite(suceso.fuerza) ? suceso.fuerza : 1 })
+      return pulsesFor({ type: 'impact', hand: mazo, strength: Number.isFinite(suceso.fuerza) ? suceso.fuerza : 1 })
     case 'gol':
-      return pulsosDe({ tipo: 'llegada', mano: mazo, fuerza: FUERZA_DEL_GOL })
-    case 'final':
-      return [{ mano: mazo, intensidad: PULSO_DEL_FINAL.intensidad, ms: PULSO_DEL_FINAL.ms, retardo: 0 }]
+      return pulsesFor({ type: 'arrival', hand: mazo, strength: FUERZA_DEL_GOL })
+    case 'end':
+      return [{ hand: mazo, intensity: PULSO_DEL_FINAL.intensidad, ms: PULSO_DEL_FINAL.ms, delay: 0 }]
     case 'liston':
       return pulsosDelListon(suceso.medalla, mazo)
   }

@@ -134,7 +134,7 @@ func comprobar(r: Dictionary) -> void:
 	if int(r.golpesRecibidos) != maquina:
 		fallos.append("%d golpes recibidos para %d goles en contra" % [r.golpesRecibidos, maquina])
 	# Y el resultado se le cuenta al salón una vez, sin ser el reto.
-	if r.resultados.size() != 1 or r.resultados[0].modo != "practice" or r.resultados[0].reto:
+	if r.resultados.size() != 1 or r.resultados[0].mode != "practice" or r.resultados[0].challenge:
 		fallos.append("al salón se le cuenta %s" % [r.resultados])
 	else:
 		# Con las hazañas de la partida (`hazanas.ts`): las que dio la mesa y, ganando sin encajar, la
@@ -145,7 +145,7 @@ func comprobar(r: Dictionary) -> void:
 			var del_partido: bool = nombre == "GH_SHUTOUT" and r.outcome == "won" and maquina == 0
 			if de_la_mesa or del_partido:
 				esperadas.append(nombre)
-		var contadas: Array = r.resultados[0].get("hazanas", [])
+		var contadas: Array = r.resultados[0].get("feats", [])
 		if contadas != esperadas:
 			fallos.append("al salón se le cuentan las hazañas %s y la partida dio %s" % [contadas, esperadas])
 	# El roce del disco: suena mientras se juega, con el volumen y el tono de la velocidad. El bucle

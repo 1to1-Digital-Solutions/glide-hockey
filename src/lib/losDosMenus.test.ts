@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SCENERIES } from './ajustes'
+import { SCENERIES } from './settings'
 import { GAME_MODE_ORDER, MODOS_DEL_MENU } from './gameMode'
 import { MENU_BOXES, MENU_BUTTON, MENU_PANEL } from './xrMenuLayout'
 

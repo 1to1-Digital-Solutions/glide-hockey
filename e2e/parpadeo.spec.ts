@@ -16,17 +16,17 @@ import { installXREmulator, enterVR } from './support/xr'
 
 /** Cuántas veces se ha montado cada trozo, según `lib/montajes.ts`. */
 async function montajes(page: import('@playwright/test').Page) {
-  return page.evaluate(() => window.__montajes ?? {})
+  return page.evaluate(() => window.__mounts ?? {})
 }
 
 /** Cuántos programas de shader lleva compilados el renderer. */
 async function programas(page: import('@playwright/test').Page) {
-  return page.evaluate(() => window.__programas ?? 0)
+  return page.evaluate(() => window.__programs ?? 0)
 }
 
 test('el mundo se monta una sola vez al abrir la página', async ({ page }) => {
   await page.addInitScript(() => {
-    window.__montajes = {}
+    window.__mounts = {}
   })
   await page.goto('/')
   await expect.poll(async () => (await montajes(page)).mundo ?? 0).toBeGreaterThan(0)
@@ -36,7 +36,7 @@ test('el mundo se monta una sola vez al abrir la página', async ({ page }) => {
 
 test('y entrar en el visor no lo vuelve a montar', async ({ page }) => {
   await page.addInitScript(() => {
-    window.__montajes = {}
+    window.__mounts = {}
   })
   await installXREmulator(page)
   await page.goto('/')
@@ -58,7 +58,7 @@ test('y no deja shaders sin compilar para el primer fotograma de la sesión', as
   // vigila aquí es que **al cabo de un momento ya no queden nuevos**, es decir, que no se
   // sigan compilando a medida que se pinta.
   await page.addInitScript(() => {
-    window.__montajes = {}
+    window.__mounts = {}
   })
   await installXREmulator(page)
   await page.goto('/')

@@ -77,7 +77,7 @@ La separación no es decorativa: **lo que se publica es una escena**, objetos de
 three que se pintan dentro del Canvas de otro. Quien es dueño del Canvas es
 dueño de la sesión de WebXR, y ese es el anfitrión. El contrato completo está en
 [`docs/xrcade.md`](docs/xrcade.md) y cómo montarlo, en
-[`docs/montar-el-juego.md`](docs/montar-el-juego.md).
+[`docs/mounting-the-game.md`](docs/mounting-the-game.md).
 
 Tres cosas que el juego no hace, y que no son casualidad:
 

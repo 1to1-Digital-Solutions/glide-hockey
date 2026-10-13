@@ -21,8 +21,8 @@
  */
 import { BoxMesh, Color, Node3D, QuadMesh, Vector2, Vector3, type Environment, type Transform3D } from 'godot'
 
-import { cuadro, anillo, conSombra, mate, multimalla, basico, translucido, tumbar } from '@kit/runtime/escena/piezas'
-import { deCuaternion, escalar, giroSobre, multiplicar, transformDe, type M3 } from '@kit/runtime/escena/matrices'
+import { quad, ring, withShadow, matte, multiMesh, unlit, translucent, layFlat } from '@kit/runtime/scene/parts'
+import { deCuaternion, escalar, giroSobre, multiplicar, transformOf, type M3 } from '@kit/runtime/scene/matrices'
 
 import { NEONES_DEL_FONDO } from '@/lib/cartelDelMarcador'
 import { TABLE_CENTER_Z } from '@/lib/gameConfig'
@@ -75,7 +75,7 @@ function giro(eje: typeof X, angulo: number): M3 {
  */
 function copia(x: number, y: number, z: number, rx: number, ry: number, escala: readonly [number, number, number] = [1, 1, 1]): Transform3D {
   const m = multiplicar(giro(X, rx), giro(Y, ry))
-  return transformDe(escalar(m, escala[0], escala[1], escala[2]), x, y, z)
+  return transformOf(escalar(m, escala[0], escala[1], escala[2]), x, y, z)
 }
 
 function plano(ancho: number, alto: number): QuadMesh {
@@ -97,9 +97,9 @@ export class Sala {
     const n = this.nodo
 
     // La moqueta, en el origen como en la web, y sus bandas sobre el centro de la mesa.
-    n.add_child(tumbar(cuadro(ROOM.width, ROOM.depth, mate(CARPET_COLOR, { rugosidad: 1 })), 0, 0, 0))
+    n.add_child(layFlat(quad(ROOM.width, ROOM.depth, matte(CARPET_COLOR, { rugosidad: 1 })), 0, 0, 0))
     const bandas = [-4, -2, 0, 2, 4].map((x) => copia(x, 0.002, centre, -Math.PI / 2, 0))
-    n.add_child(multimalla(plano(0.5, ROOM.depth), mate(CARPET_STRIPE_COLOR, { rugosidad: 1 }), bandas))
+    n.add_child(multiMesh(plano(0.5, ROOM.depth), matte(CARPET_STRIPE_COLOR, { rugosidad: 1 }), bandas))
 
     const lados = [
       { x: 0, z: centre - ROOM.depth / 2, giro: 0, ancho: ROOM.width },
@@ -108,11 +108,11 @@ export class Sala {
     ]
     const paredes = lados.map((l) => copia(l.x, ROOM.height / 2, l.z, 0, l.giro, [l.ancho, ROOM.height, 1]))
     const zocalos = lados.map((l) => copia(l.x, 0.18, l.z, 0, l.giro, [l.ancho, 0.36, 1]))
-    n.add_child(multimalla(plano(1, 1), mate(WALL_COLOR, { rugosidad: 1 }), paredes))
-    n.add_child(multimalla(plano(1, 1), mate(WALL_TRIM_COLOR, { rugosidad: 1 }), zocalos))
+    n.add_child(multiMesh(plano(1, 1), matte(WALL_COLOR, { rugosidad: 1 }), paredes))
+    n.add_child(multiMesh(plano(1, 1), matte(WALL_TRIM_COLOR, { rugosidad: 1 }), zocalos))
 
     // El techo mira hacia abajo, o se vería desde fuera y no desde dentro.
-    const techo = cuadro(ROOM.width, ROOM.depth, mate(CEILING_COLOR, { rugosidad: 1 }), new Vector3(0, ROOM.height, centre))
+    const techo = quad(ROOM.width, ROOM.depth, matte(CEILING_COLOR, { rugosidad: 1 }), new Vector3(0, ROOM.height, centre))
     techo.rotation = new Vector3(Math.PI / 2, 0, 0)
     n.add_child(techo)
 
@@ -120,7 +120,7 @@ export class Sala {
     // A la altura que deja libre el cartel del objetivo (`NEONES_DEL_FONDO`).
     NEONES_DEL_FONDO.tiras.forEach((neon, i) => {
       const color = [NEON_PINK, NEON_CYAN][i]!
-      n.add_child(cuadro(neon.ancho, NEONES_DEL_FONDO.grueso, basico(color), new Vector3(0, neon.y, centre - ROOM.depth / 2 + 0.03)))
+      n.add_child(quad(neon.ancho, NEONES_DEL_FONDO.grueso, unlit(color), new Vector3(0, neon.y, centre - ROOM.depth / 2 + 0.03)))
     })
 
     // Las máquinas: el mueble, la pantalla apagada algo inclinada y el cartel encendido de arriba.
@@ -133,12 +133,12 @@ export class Sala {
     }
     const cuerpo = new BoxMesh()
     cuerpo.size = new Vector3(CABINET.width, CABINET.height, CABINET.depth)
-    n.add_child(conSombra(multimalla(cuerpo, mate(CABINET_COLOR, { rugosidad: 0.85 }), sitios.map((s) => trozo(s, 0, CABINET.height / 2, 0, 0)))))
-    n.add_child(multimalla(plano(CABINET.width * 0.78, 0.5), basico(SCREEN_COLOR), sitios.map((s) => trozo(s, 0, 1.35, CABINET.depth / 2 + 0.01, -0.18))))
-    n.add_child(multimalla(plano(CABINET.width * 0.86, 0.26), basico(PALETTE.primaryDeep), sitios.map((s) => trozo(s, 0, CABINET.height - 0.18, CABINET.depth / 2 + 0.01, 0))))
+    n.add_child(withShadow(multiMesh(cuerpo, matte(CABINET_COLOR, { rugosidad: 0.85 }), sitios.map((s) => trozo(s, 0, CABINET.height / 2, 0, 0)))))
+    n.add_child(multiMesh(plano(CABINET.width * 0.78, 0.5), unlit(SCREEN_COLOR), sitios.map((s) => trozo(s, 0, 1.35, CABINET.depth / 2 + 0.01, -0.18))))
+    n.add_child(multiMesh(plano(CABINET.width * 0.86, 0.26), unlit(PALETTE.primaryDeep), sitios.map((s) => trozo(s, 0, CABINET.height - 0.18, CABINET.depth / 2 + 0.01, 0))))
 
     // El halo bajo la mesa: la separa del suelo y da profundidad sin una textura.
-    n.add_child(tumbar(anillo(1.15, 1.9, translucido(PALETTE.primaryDeep, 0.12), 64), 0, 0.004, centre))
+    n.add_child(layFlat(ring(1.15, 1.9, translucent(PALETTE.primaryDeep, 0.12), 64), 0, 0.004, centre))
 
     this.copias = { bandas: bandas.length, paredes: paredes.length, zocalos: zocalos.length, maquinas: sitios.length }
   }

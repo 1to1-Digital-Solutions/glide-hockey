@@ -11,7 +11,7 @@ import {
   type Body,
   type Vec2,
 } from './puckPhysics'
-import { semillaDe } from './semilla'
+import { deriveSeed } from './seed'
 
 /**
  * Cómo juega la máquina.
@@ -91,7 +91,7 @@ export function unitHash(a: number, b: number, c: number): number {
  * 3, que no dependen de cuántas partidas se hayan empezado antes.
  */
 export function semillaDeLaMesa(semillaDelReto: number | null, runId: number, ronda: number): number {
-  return semillaDelReto === null ? runId : semillaDe(semillaDelReto, ronda)
+  return semillaDelReto === null ? runId : deriveSeed(semillaDelReto, ronda)
 }
 
 /** Hasta dónde llega el disco dentro de la portería sin rozar el poste. */

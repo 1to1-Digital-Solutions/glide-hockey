@@ -1,4 +1,4 @@
-import type { Scenery } from './ajustes'
+import type { Scenery } from './settings'
 
 /**
  * Cómo se ofrece en este juego el escenario del arcade: la sala o la habitación de quien

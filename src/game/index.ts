@@ -4,7 +4,7 @@
  * Todo lo demás —rutas, layout, metadatos, despliegue— es de la web que lo
  * envuelve (`src/app`), y de eso este punto de entrada no sabe nada. El
  * contrato de montaje, con lo que hay que hacer para consumirlo desde otra
- * aplicación, está en `docs/montar-el-juego.md`.
+ * aplicación, está en `docs/mounting-the-game.md`.
  */
 
 export { GlideHockey, type GlideHockeyProps } from './GlideHockey'
@@ -13,5 +13,5 @@ export {
   type GlideHockeySceneProps,
 } from './GlideHockeyScene'
 export { mountGlideHockey, type GlideHockeyHandle } from './mount'
-export type { Reto, Resultado } from '../lib/semilla'
-export type { Objetivo } from '../lib/objetivo'
+export type { Challenge, GameResult } from '../lib/seed'
+export type { Goal } from '../lib/goal'

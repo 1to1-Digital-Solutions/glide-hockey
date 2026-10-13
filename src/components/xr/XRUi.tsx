@@ -1,6 +1,6 @@
 'use client'
 
-import { FLECHA_DE_SALIR } from './canvasPanel'
+import { EXIT_ARROW } from './canvasPanel'
 import { PANEL_ORDER } from './buttonHighlight'
 import { NO_RAYCAST } from '../raycast'
 import { Shape } from 'three'
@@ -9,7 +9,7 @@ import { type ReactNode, useRef, useState } from 'react'
 import { pulsePressed } from '../../lib/haptics'
 import { type ThreeEvent } from '@react-three/fiber'
 import { PALETTE } from '../../lib/palette'
-import { PALETA } from '../../lib/paleta'
+import { COMMON_PALETTE } from '../../lib/commonPalette'
 import {
   DIGIT_ADVANCE,
   DIGIT_SEGMENTS,
@@ -31,7 +31,7 @@ import { pressCounts, pressTime } from '../../lib/xrPress'
  * El realce del botón apuntado: el acento del salón, el mismo en todos los juegos, para que el
  * gesto de apuntar se aprenda una vez.
  */
-const HIGHLIGHT_COLOR = PALETA.acento
+const HIGHLIGHT_COLOR = COMMON_PALETTE.accent
 
 /**
  * Y con el que se enciende al apretarlo, que es otra cosa que apuntarlo.
@@ -42,12 +42,12 @@ const HIGHLIGHT_COLOR = PALETA.acento
  * botón, el botón debería de seguir ahí (reaccionar bien, como hundiéndose, cambiando de
  * color y eso bien, pero no desapareciendo)».
  */
-const PRESSED_COLOR = PALETA.texto
+const PRESSED_COLOR = COMMON_PALETTE.text
 
 /** Lo que encoge un botón apretado, desde el 1,08 que crece al apuntarlo. */
 const PRESSED_SCALE = 0.98
 /** Lo que está apagado o es secundario: el neutro suave de los paneles del salón. */
-export const DIM_COLOR = PALETA.textoSuave
+export const DIM_COLOR = COMMON_PALETTE.mutedText
 
 /** Dónde está un botón y cuánto ocupa su zona sensible. */
 export interface XrHitBox {
@@ -282,7 +282,7 @@ export function XRPlayIcon({ size = 0.06 }: { size?: number }) {
 
 /** La flecha de salir, como forma plana: la misma que se pinta en los lienzos. */
 const FORMA_DE_SALIR = (() => {
-  const { punta, cuerpo, grosor, codo, alas } = FLECHA_DE_SALIR
+  const { tip: punta, shaft: cuerpo, thickness: grosor, elbow: codo, wings: alas } = EXIT_ARROW
   const forma = new Shape()
   forma.moveTo(punta, 0)
   forma.lineTo(codo, alas)

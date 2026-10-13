@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { problemasDeLaSalida, type PanelBox } from './exitCorner'
+import { exitProblems, type PanelBox } from './exitCorner'
 import { MENU_BOXES, MENU_PANEL } from './xrMenuLayout'
 
 import { DIFFICULTY_ORDER } from './gameConfig'
@@ -59,7 +59,7 @@ describe('la salida', () => {
     const nombres = Object.keys(MENU_BOXES)
 
     expect(
-      problemasDeLaSalida(
+      exitProblems(
         comoCaja('salir'),
         nombres.filter((nombre) => nombre !== 'salir').map(comoCaja),
         { width: MENU_PANEL.width, height: MENU_PANEL.height },

@@ -31,8 +31,8 @@ export function useRoomEnvironment(): Texture {
     // `room.dispose()` suelta geometrías y materiales, pero no las cajas de la sala, que son un
     // `InstancedMesh`: su `instanceMatrix` es un búfer de WebGL que solo se va soltando la malla.
     // Sin esto quedaba un búfer por visita (medido en tower-tumble).
-    room.traverse((parte) => {
-      if (parte instanceof InstancedMesh) parte.dispose()
+    room.traverse((part) => {
+      if (part instanceof InstancedMesh) part.dispose()
     })
     return environment
   }, [gl])

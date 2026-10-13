@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { EXIT_BUTTONS, HOLD_IDLE, HOLD_TO_EXIT_SECONDS, holdStep, type HoldToExit } from './holdToExit'
 
 /**
- * La pulsación larga que saca del juego: la misma cuenta que el salón
- * (`xrcade/src/lib/salon/holdToExit.test.ts` y `godot/tests/test_hold_to_exit.gd`).
+ * The long press that takes you out of the game: the same count as the hall's
+ * (`xrcade/src/lib/salon/holdToExit.test.ts` and `godot/tests/test_hold_to_exit.gd`).
  */
 
-/** Sostiene (o no) durante `seconds` a 72 Hz, y cuenta cuántas veces se disparó. */
+/** Holds (or not) for `seconds` at 72 Hz, and counts how many times it fired. */
 function hold(pressed: boolean, seconds: number, from: HoldToExit = HOLD_IDLE) {
   let state = from
   let fired = 0
@@ -21,27 +21,27 @@ function hold(pressed: boolean, seconds: number, from: HoldToExit = HOLD_IDLE) {
   return { state, fired, progress }
 }
 
-describe('mantener para salir', () => {
-  it('un toque corto no saca del juego, y el aro va por la mitad', () => {
+describe('hold to exit', () => {
+  it('a short tap does not take you out of the game, and the ring is halfway', () => {
     const { fired, progress } = hold(true, HOLD_TO_EXIT_SECONDS * 0.5)
     expect(fired).toBe(0)
     expect(progress).toBeGreaterThan(0.4)
     expect(progress).toBeLessThan(0.6)
   })
 
-  it('sostenido el tiempo entero dispara una sola vez, y el aro se va', () => {
+  it('held for the whole time it fires only once, and the ring goes away', () => {
     const { fired, progress } = hold(true, HOLD_TO_EXIT_SECONDS * 2)
     expect(fired).toBe(1)
     expect(progress).toBe(0)
   })
 
-  it('soltar pone la cuenta a cero', () => {
+  it('releasing sets the count to zero', () => {
     const { state } = hold(true, HOLD_TO_EXIT_SECONDS * 0.8)
     expect(holdStep(state, false, 1 / 72)).toEqual({ state: HOLD_IDLE, progress: 0, exit: false })
     expect(hold(true, HOLD_TO_EXIT_SECONDS * 0.8, HOLD_IDLE).fired).toBe(0)
   })
 
-  it('tras disparar hay que soltar para repetir, y un reloj roto no cuenta', () => {
+  it('after firing it has to be released to repeat, and a broken clock does not count', () => {
     const { state } = hold(true, HOLD_TO_EXIT_SECONDS * 1.5)
     expect(holdStep(state, true, 1).exit).toBe(false)
     expect(holdStep(HOLD_IDLE, true, Number.NaN).state.held).toBe(0)
@@ -49,8 +49,8 @@ describe('mantener para salir', () => {
   })
 })
 
-describe('los botones', () => {
-  it('son el B y el Y, como en el salón', () => {
+describe('the buttons', () => {
+  it('are the B and the Y, as in the hall', () => {
     expect(EXIT_BUTTONS).toEqual(['b-button', 'y-button'])
   })
 })

@@ -1,209 +1,210 @@
 import { describe, expect, it } from 'vitest'
 import {
-  DISTANCIA_DE_DIBUJO,
-  LETRA_DEL_CARTEL,
-  PANEL_DEL_CARTEL,
-  dibujarElCartel,
-  escalaDelCartel,
-  proporcionDelCartel,
-} from './CartelDeObjetivo'
-import { ALTO_DE_LINEA } from './canvasPanel'
-import { MIN_ANGULO, altoMinimo, lienzoQueApunta, problemasDeLegibilidad, type Escrito } from './legibilidad'
+  DRAW_DISTANCE,
+  SIGN_FONT,
+  SIGN_PANEL,
+  drawSign,
+  signScale,
+  signAspect,
+} from './GoalSign'
+import { LINE_HEIGHT } from './canvasPanel'
+import { MIN_ANGLE, minTextHeight, recordingCanvas, legibilityProblems, type DrawnText } from './legibility'
 import {
-  OBJETIVO_ES,
-  cartelDeObjetivo,
-  type Objetivo,
-  type Partida,
-  type Traducir,
-  type VistaDelCartel,
-} from '../../lib/objetivo'
+  GOAL_ES,
+  goalSign,
+  type Goal,
+  type Run,
+  type Translate,
+  type GoalSignView,
+} from '../../lib/goal'
 
 /**
- * El cartel del objetivo, medido en vez de mirado.
+ * The goal sign, measured instead of looked at.
  *
- * Es el mismo test en todos los juegos del salón: mide las frases comunes del cartel, en los dos
- * idiomas, a más y a menos, en cada fase. **La misión y lo que queda son de cada juego**, así que
- * cada uno mide además las suyas, con su traductor, igual que aquí:
+ * It is the same test in every game of the hall: it measures the common phrases of the sign, in
+ * both languages, higher-is-better and lower-is-better, in each phase. **The mission and what
+ * remains belong to each game**, so each one also measures its own, with its translator, just
+ * like here:
  *
- *     const { ctx, escritos } = lienzoQueApunta()
- *     dibujarElCartel(ctx, cartelDeObjetivo(partida, t))
- *     expect(problemasDeLegibilidad(escritos, { panel: PANEL_DEL_CARTEL, distancia: DISTANCIA_DE_DIBUJO })).toEqual([])
+ *     const { ctx, drawnTexts } = recordingCanvas()
+ *     drawSign(ctx, goalSign(run, t))
+ *     expect(legibilityProblems(drawnTexts, { panel: SIGN_PANEL, distance: DRAW_DISTANCE })).toEqual([])
  *
- * Se mide a la distancia de dibujo: el cartel se agranda con la distancia de verdad, así que lo
- * que ocupa en el ojo es lo mismo a dos metros que a veinte.
+ * It is measured at the draw distance: the sign is enlarged with the real distance, so what it
+ * takes up in the eye is the same at two metres as at twenty.
  */
 
-const en: Traducir = (clave, valores) =>
-  valores === undefined ? clave : clave.replace(/\{(\w+)\}/g, (_, hueco: string) => String(valores[hueco]))
-const es: Traducir = (clave, valores) => en((OBJETIVO_ES as Record<string, string>)[clave] ?? clave, valores)
-const IDIOMAS = { en, es }
+const en: Translate = (key, values) =>
+  values === undefined ? key : key.replace(/\{(\w+)\}/g, (_, placeholder: string) => String(values[placeholder]))
+const es: Translate = (key, values) => en((GOAL_ES as Record<string, string>)[key] ?? key, values)
+const LANGUAGES = { en, es }
 
-/** Con cifras de tres dígitos, que es cuando más ocupa. */
-const A_MAS: Objetivo = {
-  medallas: { bronce: 120, plata: 260, oro: 400 },
-  mejorEs: 'mas',
-  unidad: 'points in challenge',
+/** With three-digit figures, which is when it takes up the most. */
+const HIGHER: Goal = {
+  medals: { bronze: 120, silver: 260, gold: 400 },
+  better: 'higher',
+  unit: 'points in challenge',
   record: 520,
-  modo: 'reto',
+  mode: 'challenge',
 }
-const A_MENOS: Objetivo = {
-  medallas: { bronce: 135, plata: 127, oro: 123 },
-  mejorEs: 'menos',
-  unidad: 'strokes on the round',
+const LOWER: Goal = {
+  medals: { bronze: 135, silver: 127, gold: 123 },
+  better: 'lower',
+  unit: 'strokes on the round',
   record: 119,
-  modo: 'reto',
+  mode: 'challenge',
 }
 
-/** Con listones de miles: las cifras más largas que llega a escribir un juego del salón. */
-const DE_MILES: Objetivo = {
-  medallas: { bronce: 1500, plata: 8000, oro: 20000 },
-  mejorEs: 'mas',
-  unidad: 'points in challenge',
+/** With thresholds in the thousands: the longest figures a game of the hall ever writes. */
+const THOUSANDS: Goal = {
+  medals: { bronze: 1500, silver: 8000, gold: 20000 },
+  better: 'higher',
+  unit: 'points in challenge',
   record: 104250,
-  modo: 'reto',
+  mode: 'challenge',
 }
 
-const base = { mision: 'Score until you miss 3 times', queda: 'Lives ♥♥♡ · 0:47' }
+const base = { mission: 'Score until you miss 3 times', remaining: 'Lives ♥♥♡ · 0:47' }
 
-/** Una causa como la que da un juego al acabar: corta, que va delante del récord en la misma línea. */
-const CAUSA = { en: 'Three clays on the ground', es: 'Tres platos al suelo' }
+/** An end reason like the one a game gives when it ends: short, going before the record on the same line. */
+const END_REASON = { en: 'Three clays on the ground', es: 'Tres platos al suelo' }
 
-/** Cada cosa que el cartel llega a decir: cada fase, cada listón, con récord y sin él. */
-function partidas(): Partida[] {
-  const todas: Partida[] = []
-  for (const objetivo of [A_MAS, A_MENOS, { ...A_MAS, record: null }, { ...A_MENOS, record: null }]) {
-    todas.push({ ...base, objetivo, fase: 'antes', puntos: 0 })
-    for (const puntos of [0, 118, 125, 130, 200, 300, 450, 519, 999]) {
-      todas.push({ ...base, objetivo, fase: 'jugando', puntos })
-      todas.push({ ...base, objetivo, fase: 'final', puntos })
+/** Every thing the sign ever says: each phase, each threshold, with a record and without one. */
+function runs(): Run[] {
+  const all: Run[] = []
+  for (const goal of [HIGHER, LOWER, { ...HIGHER, record: null }, { ...LOWER, record: null }]) {
+    all.push({ ...base, goal, phase: 'before', points: 0 })
+    for (const points of [0, 118, 125, 130, 200, 300, 450, 519, 999]) {
+      all.push({ ...base, goal, phase: 'playing', points })
+      all.push({ ...base, goal, phase: 'end', points })
     }
-    todas.push({ ...base, objetivo, fase: 'jugando', puntos: 0, cuenta: false, modo: 'One minute' })
+    all.push({ ...base, goal, phase: 'playing', points: 0, counts: false, mode: 'One minute' })
   }
-  for (const objetivo of [DE_MILES, { ...DE_MILES, record: null }]) {
-    todas.push({ ...base, objetivo, fase: 'antes', puntos: 0 })
-    for (const puntos of [0, 1450, 7900, 19950, 20000, 103900, 104250, 188800]) {
-      todas.push({ ...base, objetivo, fase: 'jugando', puntos })
-      todas.push({ ...base, objetivo, fase: 'final', puntos })
+  for (const goal of [THOUSANDS, { ...THOUSANDS, record: null }]) {
+    all.push({ ...base, goal, phase: 'before', points: 0 })
+    for (const points of [0, 1450, 7900, 19950, 20000, 103900, 104250, 188800]) {
+      all.push({ ...base, goal, phase: 'playing', points })
+      all.push({ ...base, goal, phase: 'end', points })
     }
   }
   for (const record of [null, 520]) {
-    for (const fase of ['antes', 'jugando', 'final'] as const) {
-      todas.push({ ...base, fase, puntos: 480, record })
-      todas.push({ ...base, fase, puntos: 480, record, mejorEs: 'menos' })
+    for (const phase of ['before', 'playing', 'end'] as const) {
+      all.push({ ...base, phase, points: 480, record })
+      all.push({ ...base, phase, points: 480, record, better: 'lower' })
     }
   }
-  return todas
+  return all
 }
 
-function medir(vista: VistaDelCartel, festejo: Parameters<typeof dibujarElCartel>[2] = null): Escrito[] {
-  const { ctx, escritos } = lienzoQueApunta()
-  dibujarElCartel(ctx, vista, festejo)
-  return escritos
+function measure(view: GoalSignView, celebration: Parameters<typeof drawSign>[2] = null): DrawnText[] {
+  const { ctx, drawnTexts } = recordingCanvas()
+  drawSign(ctx, view, celebration)
+  return drawnTexts
 }
 
-/** Cuántos grados ocupa en el ojo la letra de un texto, a la distancia de dibujo. */
-function grados(escrito: Escrito): number {
-  return (2 * Math.atan(escrito.alto / ALTO_DE_LINEA / (2 * DISTANCIA_DE_DIBUJO)) * 180) / Math.PI
+/** How many degrees the font of a text takes up in the eye, at the draw distance. */
+function degrees(drawn: DrawnText): number {
+  return (2 * Math.atan(drawn.height / LINE_HEIGHT / (2 * DRAW_DISTANCE)) * 180) / Math.PI
 }
 
-describe('el cartel del objetivo se lee', () => {
-  it('en cada fase, a más y a menos, con salón y sin él, en los dos idiomas', () => {
-    for (const [idioma, t] of Object.entries(IDIOMAS)) {
-      const causa = CAUSA[idioma as keyof typeof CAUSA]
-      const conCausa = partidas().filter((partida) => partida.fase === 'final').map((partida) => ({ ...partida, causa }))
-      for (const partida of [...partidas(), ...conCausa]) {
-        const vista = cartelDeObjetivo(partida, t)
-        const escritos = medir(vista)
-        expect(escritos.length, 'no se ha medido nada').toBeGreaterThan(0)
+describe('the goal sign can be read', () => {
+  it('in each phase, higher and lower is better, with the hall and without it, in both languages', () => {
+    for (const [lang, t] of Object.entries(LANGUAGES)) {
+      const endReason = END_REASON[lang as keyof typeof END_REASON]
+      const withEndReason = runs().filter((run) => run.phase === 'end').map((run) => ({ ...run, endReason }))
+      for (const run of [...runs(), ...withEndReason]) {
+        const view = goalSign(run, t)
+        const drawnTexts = measure(view)
+        expect(drawnTexts.length, 'nothing was measured').toBeGreaterThan(0)
         expect(
-          problemasDeLegibilidad(escritos, { panel: PANEL_DEL_CARTEL, distancia: DISTANCIA_DE_DIBUJO }),
-          `${idioma}: ${vista.titulo} / ${vista.detalle} / ${vista.pie}`,
+          legibilityProblems(drawnTexts, { panel: SIGN_PANEL, distance: DRAW_DISTANCE }),
+          `${lang}: ${view.title} / ${view.detail} / ${view.footer}`,
         ).toEqual([])
       }
     }
   })
 
-  it('y mientras celebra un listón, que dice la medalla en el título', () => {
-    const vista = cartelDeObjetivo({ ...base, objetivo: A_MAS, fase: 'jugando', puntos: 260 }, es)
-    const [titulo, detalle] = medir(vista, 'plata')
+  it('and while it celebrates a threshold, which says the medal in the title', () => {
+    const view = goalSign({ ...base, goal: HIGHER, phase: 'playing', points: 260 }, es)
+    const [title, detail] = measure(view, 'silver')
 
-    expect(titulo.texto).toBe('¡Plata!')
-    expect(detalle).toEqual(medir(vista)[1])
-    expect(problemasDeLegibilidad(medir(vista, 'plata'), { panel: PANEL_DEL_CARTEL, distancia: DISTANCIA_DE_DIBUJO })).toEqual([])
+    expect(title.text).toBe('¡Plata!')
+    expect(detail).toEqual(measure(view)[1])
+    expect(legibilityProblems(measure(view, 'silver'), { panel: SIGN_PANEL, distance: DRAW_DISTANCE })).toEqual([])
   })
 
-  it('jugando no escribe más de dos líneas; al acabar, tres como mucho', () => {
-    for (const partida of partidas()) {
-      const lineas = medir(cartelDeObjetivo({ ...partida, causa: CAUSA.es }, es)).length
-      expect(lineas).toBeLessThanOrEqual(partida.fase === 'final' ? 3 : 2)
+  it('while playing it writes no more than two lines; at the end, three at most', () => {
+    for (const run of runs()) {
+      const lines = measure(goalSign({ ...run, endReason: END_REASON.es }, es)).length
+      expect(lines).toBeLessThanOrEqual(run.phase === 'end' ? 3 : 2)
     }
   })
 
-  it('con tres líneas la letra baja sin pasar del mínimo, y todo cabe en el panel', () => {
-    const vista = cartelDeObjetivo({ ...base, objetivo: { ...A_MAS, record: 520 }, fase: 'final', puntos: 130, causa: CAUSA.es }, es)
-    const [titulo, detalle, pie] = medir(vista)
+  it('with three lines the font drops without going past the minimum, and everything fits on the panel', () => {
+    const view = goalSign({ ...base, goal: { ...HIGHER, record: 520 }, phase: 'end', points: 130, endReason: END_REASON.es }, es)
+    const [title, detail, footer] = measure(view)
 
-    expect(pie.texto).toBe('Tres platos al suelo · Tu mejor 520')
-    expect(grados(titulo)).toBeCloseTo(1.2, 1)
-    expect(grados(detalle)).toBeCloseTo(1.0, 1)
-    expect(grados(pie)).toBeGreaterThan(MIN_ANGULO)
-    expect(titulo.y + titulo.alto / 2).toBeLessThan(PANEL_DEL_CARTEL.height / 2)
-    expect(pie.y - pie.alto / 2).toBeGreaterThan(-PANEL_DEL_CARTEL.height / 2)
+    expect(footer.text).toBe('Tres platos al suelo · Tu mejor 520')
+    expect(degrees(title)).toBeCloseTo(1.2, 1)
+    expect(degrees(detail)).toBeCloseTo(1.0, 1)
+    expect(degrees(footer)).toBeGreaterThan(MIN_ANGLE)
+    expect(title.y + title.height / 2).toBeLessThan(SIGN_PANEL.height / 2)
+    expect(footer.y - footer.height / 2).toBeGreaterThan(-SIGN_PANEL.height / 2)
   })
 
-  it('la frase de jugar se lee de un vistazo: casi el doble del mínimo, sin encoger', () => {
-    const [titulo, detalle] = medir(cartelDeObjetivo({ ...base, objetivo: A_MAS, fase: 'jugando', puntos: 130 }, es))
+  it('the playing phrase is read at a glance: almost twice the minimum, without shrinking', () => {
+    const [title, detail] = measure(goalSign({ ...base, goal: HIGHER, phase: 'playing', points: 130 }, es))
 
-    expect(titulo.texto).toBe('Plata a 260 · llevas 130')
-    expect(grados(titulo)).toBeCloseTo(1.4, 1)
-    expect(grados(detalle)).toBeCloseTo(1.2, 1)
-    expect(LETRA_DEL_CARTEL.titulo).toBeGreaterThan(altoMinimo(DISTANCIA_DE_DIBUJO) * 1.8)
+    expect(title.text).toBe('Plata a 260 · llevas 130')
+    expect(degrees(title)).toBeCloseTo(1.4, 1)
+    expect(degrees(detail)).toBeCloseTo(1.2, 1)
+    expect(SIGN_FONT.title).toBeGreaterThan(minTextHeight(DRAW_DISTANCE) * 1.8)
   })
 
-  it('con listones de miles apenas encoge: «Oro a 20.000 · llevas 19.950» sigue por encima de 1,2°', () => {
-    const [titulo] = medir(cartelDeObjetivo({ ...base, objetivo: DE_MILES, fase: 'jugando', puntos: 19950 }, es))
+  it('with thresholds in the thousands it barely shrinks: «Oro a 20.000 · llevas 19.950» stays above 1.2°', () => {
+    const [title] = measure(goalSign({ ...base, goal: THOUSANDS, phase: 'playing', points: 19950 }, es))
 
-    expect(titulo.texto).toBe('Oro a 20.000 · llevas 19.950')
-    expect(grados(titulo)).toBeGreaterThan(1.2)
+    expect(title.text).toBe('Oro a 20.000 · llevas 19.950')
+    expect(degrees(title)).toBeGreaterThan(1.2)
   })
 
-  it('una frase larga encoge hasta caber, sin bajar del mínimo que se lee', () => {
-    const [titulo] = medir(
-      cartelDeObjetivo({ ...base, objetivo: A_MENOS, fase: 'jugando', puntos: 121 }, es),
+  it('a long phrase shrinks until it fits, without dropping below the minimum that can be read', () => {
+    const [title] = measure(
+      goalSign({ ...base, goal: LOWER, phase: 'playing', points: 121 }, es),
     )
 
-    expect(titulo.texto).toBe('Oro con 123 o menos · llevas 121')
-    expect(grados(titulo)).toBeLessThan(1.4)
-    expect(grados(titulo)).toBeGreaterThan(MIN_ANGULO)
+    expect(title.text).toBe('Oro con 123 o menos · llevas 121')
+    expect(degrees(title)).toBeLessThan(1.4)
+    expect(degrees(title)).toBeGreaterThan(MIN_ANGLE)
   })
 
-  it('una sola línea queda centrada; con la barra, todo cabe dentro del panel', () => {
-    const [sola] = medir(cartelDeObjetivo({ ...base, objetivo: A_MAS, fase: 'jugando', puntos: 0, cuenta: false }, en))
+  it('a single line sits centred; with the bar, everything fits inside the panel', () => {
+    const [single] = measure(goalSign({ ...base, goal: HIGHER, phase: 'playing', points: 0, counts: false }, en))
 
-    expect(sola.y).toBeCloseTo(0)
+    expect(single.y).toBeCloseTo(0)
 
-    const [titulo, detalle] = medir(cartelDeObjetivo({ ...base, objetivo: A_MAS, fase: 'jugando', puntos: 130 }, en))
-    expect(titulo.y).toBeGreaterThan(detalle.y)
-    expect(detalle.y - detalle.alto / 2).toBeGreaterThan(-PANEL_DEL_CARTEL.height / 2)
+    const [title, detail] = measure(goalSign({ ...base, goal: HIGHER, phase: 'playing', points: 130 }, en))
+    expect(title.y).toBeGreaterThan(detail.y)
+    expect(detail.y - detail.height / 2).toBeGreaterThan(-SIGN_PANEL.height / 2)
   })
 })
 
-describe('el tamaño del cartel', () => {
-  it('crece con la distancia: ocupa lo mismo en el ojo a dos metros que a veinte', () => {
-    expect(escalaDelCartel(DISTANCIA_DE_DIBUJO)).toBe(1)
-    expect(escalaDelCartel(20)).toBe(20 / DISTANCIA_DE_DIBUJO)
+describe('the size of the sign', () => {
+  it('grows with the distance: it takes up the same in the eye at two metres as at twenty', () => {
+    expect(signScale(DRAW_DISTANCE)).toBe(1)
+    expect(signScale(20)).toBe(20 / DRAW_DISTANCE)
 
-    const { ancho, alto } = proporcionDelCartel()
-    for (const distancia of [2, 7.75, 20]) {
-      expect(PANEL_DEL_CARTEL.width * escalaDelCartel(distancia)).toBeCloseTo(ancho * distancia)
-      expect(PANEL_DEL_CARTEL.height * escalaDelCartel(distancia)).toBeCloseTo(alto * distancia)
+    const { width, height } = signAspect()
+    for (const distance of [2, 7.75, 20]) {
+      expect(SIGN_PANEL.width * signScale(distance)).toBeCloseTo(width * distance)
+      expect(SIGN_PANEL.height * signScale(distance)).toBeCloseTo(height * distance)
     }
   })
 
-  it('no pasa de 24° de ancho ni de 4,5° de alto: no tapa el juego', () => {
-    const angulo = (metros: number) => (2 * Math.atan(metros / (2 * DISTANCIA_DE_DIBUJO)) * 180) / Math.PI
+  it('does not go past 24° wide or 4.5° high: it does not cover the game', () => {
+    const angle = (metres: number) => (2 * Math.atan(metres / (2 * DRAW_DISTANCE)) * 180) / Math.PI
 
-    expect(angulo(PANEL_DEL_CARTEL.width)).toBeLessThanOrEqual(24.01)
-    expect(angulo(PANEL_DEL_CARTEL.height)).toBeLessThanOrEqual(4.51)
+    expect(angle(SIGN_PANEL.width)).toBeLessThanOrEqual(24.01)
+    expect(angle(SIGN_PANEL.height)).toBeLessThanOrEqual(4.51)
   })
 })

@@ -5,7 +5,7 @@ import { GlideHockey } from '@/game'
 /**
  * La web del juego: un envoltorio que le da la pantalla entera y poco más. El
  * juego vive en `src/game` y se monta igual aquí que dentro de otra aplicación
- * (ver `docs/montar-el-juego.md`), así que esta página es también la forma de
+ * (ver `docs/mounting-the-game.md`), así que esta página es también la forma de
  * desarrollarlo y de probarlo con el visor.
  */
 export default function Home() {

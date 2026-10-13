@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useSyncExternalStore } from 'react'
-import { CONFORT_DE_PARTIDA, parseConfort, type Confort } from './golpeRecibido'
+import { DEFAULT_COMFORT, parseComfort, type Comfort } from './hitFeedback'
 import { createStoredPreference } from './storage'
 import type { TextKey } from './textos'
 
@@ -20,10 +20,10 @@ import type { TextKey } from './textos'
  */
 export const CONFORT_KEY = 'glide-hockey:confort'
 
-const preferencia = createStoredPreference<Confort>({
+const preferencia = createStoredPreference<Comfort>({
   key: CONFORT_KEY,
   // Lo guardado es entrada externa: solo cuenta un valor que exista.
-  parse: parseConfort,
+  parse: parseComfort,
   serialize: (valor) => valor,
 })
 
@@ -31,14 +31,14 @@ export const getConfort = preferencia.get
 export const saveConfort = preferencia.save
 
 /** El confort elegido y cómo cambiarlo, visto desde React. */
-export function useConfort(): [Confort, (valor: Confort) => void] {
+export function useConfort(): [Comfort, (valor: Comfort) => void] {
   const confort = useSyncExternalStore(preferencia.subscribe, preferencia.get, preferencia.getServer)
-  const cambiar = useCallback((valor: Confort) => preferencia.save(valor), [])
+  const cambiar = useCallback((valor: Comfort) => preferencia.save(valor), [])
   return [confort, cambiar]
 }
 
 /** Con qué se entra, para quien lo pinte antes de leer nada. */
-export const CONFORT_INICIAL: Confort = CONFORT_DE_PARTIDA
+export const CONFORT_INICIAL: Comfort = DEFAULT_COMFORT
 
 /**
  * Cómo se llama la fila y cada opción, en los dos menús. «Full» y no «Normal» en
@@ -47,4 +47,4 @@ export const CONFORT_INICIAL: Confort = CONFORT_DE_PARTIDA
  * Lo mismo que en gloop-pop, para que las dos cabinas digan lo mismo.
  */
 export const CONFORT_LEGEND: TextKey = 'When hit'
-export const CONFORT_LABELS: Record<Confort, TextKey> = { off: 'Off', gentle: 'Gentle', normal: 'Full' }
+export const CONFORT_LABELS: Record<Comfort, TextKey> = { off: 'Off', gentle: 'Gentle', normal: 'Full' }

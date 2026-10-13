@@ -1,76 +1,76 @@
 import { describe, expect, it } from 'vitest'
-import { problemasDeLaSalida, type PanelBox } from './exitCorner'
+import { exitProblems, type PanelBox } from './exitCorner'
 
 /**
- * La regla de dónde va la salida, probada con cajas de mentira.
+ * The rule of where the exit goes, tested with make-believe boxes.
  *
- * Aquí no hay nada de este juego a propósito: lo que se comprueba es que la regla **sepa
- * decir qué falla**, porque es lo que va a leer quien la incumpla en cualquiera de los trece.
- * Que el panel de este juego la cumpla se comprueba en `menuLayout.test.ts`, con su reparto
- * de verdad.
+ * There is nothing of this game here on purpose: what is checked is that the rule **knows how
+ * to say what is wrong**, because it is what whoever breaks it in any of the thirteen will read.
+ * That the panel of this game complies is checked in `menuLayout.test.ts`, with its real
+ * layout.
  */
 
 const PANEL = { width: 0.8, height: 1.0 }
-const FILA_DE_ABAJO = -0.4
+const BOTTOM_ROW = -0.4
 
-/** La salida donde manda la regla: al final de la fila de abajo. */
-const SALIDA: PanelBox = { x: 0.28, y: FILA_DE_ABAJO, width: 0.16, height: 0.09 }
-/** Y jugar, a su izquierda en la misma fila. */
-const JUGAR: PanelBox = { x: 0, y: FILA_DE_ABAJO, width: 0.34, height: 0.09 }
-/** Una fila de opciones de arriba, que ocupa el panel entero. */
-const OPCION: PanelBox = { x: 0.34, y: 0.2, width: 0.12, height: 0.07 }
+/** The exit where the rule says: at the end of the bottom row. */
+const EXIT: PanelBox = { x: 0.28, y: BOTTOM_ROW, width: 0.16, height: 0.09 }
+/** And play, to its left in the same row. */
+const PLAY: PanelBox = { x: 0, y: BOTTOM_ROW, width: 0.34, height: 0.09 }
+/** A row of options from above, which takes up the whole panel. */
+const OPTION: PanelBox = { x: 0.34, y: 0.2, width: 0.12, height: 0.07 }
 
-describe('dónde va la salida del panel', () => {
-  it('al final de la fila de abajo no le falla nada', () => {
-    expect(problemasDeLaSalida(SALIDA, [JUGAR, OPCION], PANEL)).toEqual([])
+describe('where the exit of the panel goes', () => {
+  it('at the end of the bottom row nothing is wrong with it', () => {
+    expect(exitProblems(EXIT, [PLAY, OPTION], PANEL)).toEqual([])
   })
 
-  it('una fila de opciones que llega más a la derecha no cuenta: no es su fila', () => {
-    // Las filas de opciones ocupan el panel de lado a lado; exigir que la salida las pasara
-    // sería exigir que se saliera del panel.
-    const masAncha: PanelBox = { ...OPCION, x: 0.37 }
-    expect(problemasDeLaSalida(SALIDA, [JUGAR, masAncha], PANEL)).toEqual([])
+  it('a row of options that reaches further right does not count: it is not its row', () => {
+    // The rows of options take up the panel from side to side; demanding that the exit pass them
+    // would be demanding that it stick out of the panel.
+    const wider: PanelBox = { ...OPTION, x: 0.37 }
+    expect(exitProblems(EXIT, [PLAY, wider], PANEL)).toEqual([])
   })
 
-  it('en la mitad izquierda se canta, que es donde estaban cuatro de los trece', () => {
-    const aLaIzquierda: PanelBox = { ...SALIDA, x: -0.28 }
-    // Y arrastra la otra queja, que jugar le queda a la derecha: son dos frases porque son
-    // dos cosas que mirar.
-    expect(problemasDeLaSalida(aLaIzquierda, [JUGAR], PANEL)).toContainEqual(
-      expect.stringContaining('mitad izquierda'),
+  it('in the left half it is called out, which is where four of the thirteen were', () => {
+    const onTheLeft: PanelBox = { ...EXIT, x: -0.28 }
+    // And it drags the other complaint along, that play is left to its right: they are two
+    // sentences because they are two things to look at.
+    expect(exitProblems(onTheLeft, [PLAY], PANEL)).toContainEqual(
+      expect.stringContaining('left half'),
     )
   })
 
-  it('con un vecino de su fila más a la derecha, también', () => {
-    const vecino: PanelBox = { x: 0.34, y: FILA_DE_ABAJO, width: 0.1, height: 0.09 }
-    expect(problemasDeLaSalida(SALIDA, [JUGAR, vecino], PANEL)).toEqual([
-      expect.stringContaining('más a la derecha'),
+  it('with a neighbour of its row further right, too', () => {
+    const neighbour: PanelBox = { x: 0.34, y: BOTTOM_ROW, width: 0.1, height: 0.09 }
+    expect(exitProblems(EXIT, [PLAY, neighbour], PANEL)).toEqual([
+      expect.stringContaining('further right'),
     ])
   })
 
-  it('y fuera de la fila de abajo, otro tanto: a media altura se cruza con lo que se elige', () => {
-    const aMediaAltura: PanelBox = { ...SALIDA, y: 0 }
-    expect(problemasDeLaSalida(aMediaAltura, [JUGAR], PANEL)).toEqual([
-      expect.stringContaining('por debajo de la salida'),
+  it('and outside the bottom row, the same again: at mid height it crosses what is being chosen', () => {
+    const atMidHeight: PanelBox = { ...EXIT, y: 0 }
+    expect(exitProblems(atMidHeight, [PLAY], PANEL)).toEqual([
+      expect.stringContaining('below the exit'),
     ])
   })
 
-  it('asomando por el borde derecho se canta aparte: ahí el rayo ya no la alcanza entera', () => {
-    const asomando: PanelBox = { ...SALIDA, x: 0.38 }
-    expect(problemasDeLaSalida(asomando, [JUGAR], PANEL)).toEqual([
-      expect.stringContaining('por la derecha'),
+  it('sticking out over the right edge it is called out apart: there the ray no longer reaches all of it', () => {
+    const stickingOut: PanelBox = { ...EXIT, x: 0.38 }
+    expect(exitProblems(stickingOut, [PLAY], PANEL)).toEqual([
+      expect.stringContaining('on the right'),
     ])
   })
 
-  it('y asomando por abajo, igual', () => {
-    const asomando: PanelBox = { ...SALIDA, y: -0.49 }
-    expect(problemasDeLaSalida(asomando, [], PANEL)).toEqual([
-      expect.stringContaining('por abajo'),
+  it('and sticking out at the bottom, likewise', () => {
+    const stickingOut: PanelBox = { ...EXIT, y: -0.49 }
+    expect(exitProblems(stickingOut, [], PANEL)).toEqual([
+      expect.stringContaining('at the bottom'),
     ])
   })
 
-  it('dice todo lo que falla de una vez, que arreglarlo de uno en uno son tres vueltas', () => {
-    const malDeltodo: PanelBox = { x: -0.3, y: 0.3, width: 0.16, height: 0.09 }
-    expect(problemasDeLaSalida(malDeltodo, [JUGAR], PANEL)).toHaveLength(2)
+  it('says everything that is wrong at once, since fixing it one by one is three rounds', () => {
+    const allWrong: PanelBox = { x: -0.3, y: 0.3, width: 0.16, height: 0.09 }
+    expect(exitProblems(allWrong, [PLAY], PANEL)).toHaveLength(2)
   })
 })

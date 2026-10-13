@@ -6,14 +6,14 @@ import { PLAYER_LABELS, formatMargin, margin, type Player } from '../../lib/duel
 import type { DuelTally } from '../../lib/duelTally'
 import { useGame, type DuelView } from '../../lib/gameStore'
 import { useDuelTally } from '../../lib/useDuelTally'
-import { useGrabMode, useLang } from '../../lib/ajustesCliente'
+import { useGrabMode, useLang } from '../../lib/settingsClient'
 import { traductor, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
-import { MandoDeVerdad } from './MandoDeVerdad'
+import { RealController } from './RealController'
 import { MARCADOR_DEL_FONDO } from '../../lib/cartelDelMarcador'
 import { isEndless } from '../../lib/gameMode'
 import { PALETTE } from '../../lib/palette'
-import { materialEncendido, PALETA } from '../../lib/paleta'
+import { emissiveMaterial, COMMON_PALETTE } from '../../lib/commonPalette'
 import { useExit } from '../../game/exit'
 import {
   DIM_COLOR,
@@ -222,8 +222,8 @@ export function XRCountdown() {
       <>
         {/* Fuera del grupo del aviso a propósito: esto no vive en el panel, vive en la mano.
             Se coloca solo, deshaciendo lo que le pongan sus padres. */}
-        <MandoDeVerdad mano="left" boton="agarre" />
-        <MandoDeVerdad mano="right" boton="agarre" />
+        <RealController hand="left" button="agarre" />
+        <RealController hand="right" button="agarre" />
         <group>
           <XRPanel width={AVISO_DEL_MAZO[0]} height={AVISO_DEL_MAZO[1]} />
           <CanvasPanel
@@ -381,13 +381,13 @@ export function XRGameOver() {
         <>
           <mesh position={[0, 0.13, -0.01]}>
             <planeGeometry args={[0.5, 0.06]} />
-            <meshBasicMaterial {...materialEncendido(won ? PALETA.acierto : PALETA.fallo)} />
+            <meshBasicMaterial {...emissiveMaterial(won ? COMMON_PALETTE.hit : COMMON_PALETTE.miss)} />
           </mesh>
 
           <XRNumber
             value={points}
             size={0.11}
-            color={isRecord ? PALETA.oro : PALETTE.foreground}
+            color={isRecord ? COMMON_PALETTE.gold : PALETTE.foreground}
             position={[0, 0.02, 0]}
           />
         </>
@@ -400,7 +400,7 @@ export function XRGameOver() {
             <mesh key={i} position={[(i - 1) * 0.045, 0, 0]} rotation={[0, 0, Math.PI / 4]}>
               <planeGeometry args={[0.022, 0.022]} />
               <meshBasicMaterial
-                color={i < levelResult.stars ? PALETA.oro : DIM_COLOR}
+                color={i < levelResult.stars ? COMMON_PALETTE.gold : DIM_COLOR}
                 toneMapped={false}
                 transparent
                 opacity={i < levelResult.stars ? 1 : 0.35}

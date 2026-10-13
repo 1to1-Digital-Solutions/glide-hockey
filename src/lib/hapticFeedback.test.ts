@@ -1,107 +1,107 @@
 import { describe, expect, it } from 'vitest'
 
-import { RECETAS, SIN_TENSION, pulsosDe, siguienteTension, type Pulso, type Tacto, type Tension } from './tactos'
+import { HAPTIC_RECIPES, NO_TENSION, pulsesFor, nextTension, type HandPulse, type HapticEvent, type Tension } from './hapticFeedback'
 
-const TODOS: Tacto[] = [
-  { tipo: 'impacto', mano: 'right', fuerza: 0.5 },
-  { tipo: 'llegada', mano: 'left', fuerza: 0.5 },
-  { tipo: 'agarre', mano: 'right' },
-  { tipo: 'suelta', mano: 'left', fuerza: 0.5 },
-  { tipo: 'disparo', mano: 'right' },
-  { tipo: 'golpeRecibido', fuerza: 0.5 },
+const ALL: HapticEvent[] = [
+  { type: 'impact', hand: 'right', strength: 0.5 },
+  { type: 'arrival', hand: 'left', strength: 0.5 },
+  { type: 'grab', hand: 'right' },
+  { type: 'release', hand: 'left', strength: 0.5 },
+  { type: 'shot', hand: 'right' },
+  { type: 'hitTaken', strength: 0.5 },
 ]
 
-/** Por mano, en orden de salida: ningún pulso puede empezar antes de que acabe el anterior. */
-function seCortan(pulsos: Pulso[]): boolean {
-  for (const mano of ['left', 'right'] as const) {
-    const suyos = pulsos.filter((p) => p.mano === mano).sort((a, b) => a.retardo - b.retardo)
-    for (let i = 1; i < suyos.length; i += 1) {
-      if (suyos[i].retardo < suyos[i - 1].retardo + suyos[i - 1].ms) return true
+/** Per hand, in order of output: no pulse may start before the previous one ends. */
+function cutEachOther(pulses: HandPulse[]): boolean {
+  for (const hand of ['left', 'right'] as const) {
+    const own = pulses.filter((p) => p.hand === hand).sort((a, b) => a.delay - b.delay)
+    for (let i = 1; i < own.length; i += 1) {
+      if (own[i].delay < own[i - 1].delay + own[i - 1].ms) return true
     }
   }
   return false
 }
 
-describe('pulsosDe', () => {
-  it('ningún suceso encadena pulsos que se corten entre sí, porque pulse() no encola', () => {
-    for (const tacto of TODOS) expect(seCortan(pulsosDe(tacto)), tacto.tipo).toBe(false)
+describe('pulsesFor', () => {
+  it('no event chains pulses that cut each other off, because pulse() does not queue', () => {
+    for (const event of ALL) expect(cutEachOther(pulsesFor(event)), event.type).toBe(false)
   })
 
-  it('todo pulso se nota y ninguno pasa de 1', () => {
-    for (const tacto of TODOS) {
-      for (const fuerza of [0, 1]) {
-        const conFuerza = 'fuerza' in tacto ? { ...tacto, fuerza } : tacto
-        for (const p of pulsosDe(conFuerza as Tacto)) {
+  it('every pulse is felt and none goes above 1', () => {
+    for (const event of ALL) {
+      for (const strength of [0, 1]) {
+        const withStrength = 'strength' in event ? { ...event, strength } : event
+        for (const p of pulsesFor(withStrength as HapticEvent)) {
           expect(p.ms).toBeGreaterThanOrEqual(12)
-          expect(p.intensidad).toBeGreaterThan(0.08 - 1e-9)
-          expect(p.intensidad).toBeLessThanOrEqual(1)
+          expect(p.intensity).toBeGreaterThan(0.08 - 1e-9)
+          expect(p.intensity).toBeLessThanOrEqual(1)
         }
       }
     }
   })
 
-  it('vibra solo la mano que toca', () => {
-    for (const tacto of TODOS.filter((t) => t.tipo !== 'golpeRecibido')) {
-      const manos = new Set(pulsosDe(tacto).map((p) => p.mano))
-      expect([...manos], tacto.tipo).toEqual(['mano' in tacto ? tacto.mano : 'right'])
+  it('only the hand that touches vibrates', () => {
+    for (const event of ALL.filter((t) => t.type !== 'hitTaken')) {
+      const hands = new Set(pulsesFor(event).map((p) => p.hand))
+      expect([...hands], event.type).toEqual(['hand' in event ? event.hand : 'right'])
     }
   })
 
-  it('el golpe que recibe el cuerpo, en las dos manos y más largo que cualquier otro', () => {
-    const golpe = pulsosDe({ tipo: 'golpeRecibido', fuerza: 0.5 })
-    expect(golpe.map((p) => p.mano).sort()).toEqual(['left', 'right'])
-    const otros = TODOS.filter((t) => t.tipo !== 'golpeRecibido').flatMap(pulsosDe)
-    expect(Math.min(...golpe.map((p) => p.ms))).toBeGreaterThan(Math.max(...otros.map((p) => p.ms)))
+  it('the hit the body takes, in both hands and longer than any other', () => {
+    const hit = pulsesFor({ type: 'hitTaken', strength: 0.5 })
+    expect(hit.map((p) => p.hand).sort()).toEqual(['left', 'right'])
+    const others = ALL.filter((t) => t.type !== 'hitTaken').flatMap(pulsesFor)
+    expect(Math.min(...hit.map((p) => p.ms))).toBeGreaterThan(Math.max(...others.map((p) => p.ms)))
   })
 
-  it('un golpe más fuerte vibra más, y la cola es más suave que el golpe', () => {
-    const flojo = pulsosDe({ tipo: 'impacto', mano: 'left', fuerza: 0.1 })
-    const fuerte = pulsosDe({ tipo: 'impacto', mano: 'left', fuerza: 0.9 })
-    expect(fuerte[0].intensidad).toBeGreaterThan(flojo[0].intensidad)
-    expect(fuerte[1].intensidad).toBeLessThan(fuerte[0].intensidad)
-    expect(fuerte[1].retardo).toBe(RECETAS.impacto.ms)
+  it('a stronger strike vibrates more, and the tail is softer than the strike', () => {
+    const weak = pulsesFor({ type: 'impact', hand: 'left', strength: 0.1 })
+    const strong = pulsesFor({ type: 'impact', hand: 'left', strength: 0.9 })
+    expect(strong[0].intensity).toBeGreaterThan(weak[0].intensity)
+    expect(strong[1].intensity).toBeLessThan(strong[0].intensity)
+    expect(strong[1].delay).toBe(HAPTIC_RECIPES.impact.ms)
   })
 
-  it('la fuerza fuera de 0–1 se acota', () => {
-    expect(pulsosDe({ tipo: 'suelta', mano: 'left', fuerza: 3 })[0].intensidad).toBe(RECETAS.suelta.maximo)
-    expect(pulsosDe({ tipo: 'llegada', mano: 'left', fuerza: -1 })[0].intensidad).toBe(RECETAS.llegada.minimo)
+  it('strength outside 0–1 is clamped', () => {
+    expect(pulsesFor({ type: 'release', hand: 'left', strength: 3 })[0].intensity).toBe(HAPTIC_RECIPES.release.max)
+    expect(pulsesFor({ type: 'arrival', hand: 'left', strength: -1 })[0].intensity).toBe(HAPTIC_RECIPES.arrival.min)
   })
 })
 
-describe('siguienteTension', () => {
-  /** Tensa durante `ms` a un nivel fijo y devuelve los pulsos que salen. */
-  function tensar(nivel: number, ms: number): Pulso[] {
-    let estado: Tension = SIN_TENSION
-    const pulsos: Pulso[] = []
+describe('nextTension', () => {
+  /** Draws for `ms` at a fixed level and returns the pulses that come out. */
+  function draw(level: number, ms: number): HandPulse[] {
+    let state: Tension = NO_TENSION
+    const pulses: HandPulse[] = []
     for (let t = 0; t <= ms; t += 1000 / 90) {
-      const paso = siguienteTension(estado, 'left', nivel, t)
-      estado = paso.estado
-      if (paso.pulso) pulsos.push({ ...paso.pulso, retardo: t })
+      const step = nextTension(state, 'left', level, t)
+      state = step.state
+      if (step.pulse) pulses.push({ ...step.pulse, delay: t })
     }
-    return pulsos
+    return pulses
   }
 
-  it('la cuerda en reposo no vibra', () => {
-    expect(tensar(0, 1000)).toHaveLength(0)
-    expect(tensar(RECETAS.tension.umbral / 2, 1000)).toHaveLength(0)
+  it('the string at rest does not vibrate', () => {
+    expect(draw(0, 1000)).toHaveLength(0)
+    expect(draw(HAPTIC_RECIPES.tension.threshold / 2, 1000)).toHaveLength(0)
   })
 
-  it('se siente crecer: más tensa, más pulsos y más fuertes', () => {
-    const floja = tensar(0.2, 1000)
-    const tensa = tensar(1, 1000)
-    expect(tensa.length).toBeGreaterThan(floja.length)
-    expect(tensa[0].intensidad).toBeGreaterThan(floja[0].intensidad)
+  it('it is felt growing: tauter, more pulses and stronger ones', () => {
+    const slack = draw(0.2, 1000)
+    const taut = draw(1, 1000)
+    expect(taut.length).toBeGreaterThan(slack.length)
+    expect(taut[0].intensity).toBeGreaterThan(slack[0].intensity)
   })
 
-  it('a tope, ningún pulso corta al anterior', () => {
-    expect(seCortan(tensar(1, 2000))).toBe(false)
+  it('at full draw, no pulse cuts the previous one off', () => {
+    expect(cutEachOther(draw(1, 2000))).toBe(false)
   })
 
-  it('soltar la cuerda vuelve a empezar: el primer pulso de la siguiente tensión sale en el acto', () => {
-    const tensando = siguienteTension(SIN_TENSION, 'right', 0.5, 0)
-    expect(tensando.pulso).not.toBeNull()
-    const suelta = siguienteTension(tensando.estado, 'right', 0, 10)
-    expect(suelta.estado).toEqual(SIN_TENSION)
-    expect(siguienteTension(suelta.estado, 'right', 0.5, 20).pulso).not.toBeNull()
+  it('releasing the string starts over: the first pulse of the next tension goes out at once', () => {
+    const drawing = nextTension(NO_TENSION, 'right', 0.5, 0)
+    expect(drawing.pulse).not.toBeNull()
+    const released = nextTension(drawing.state, 'right', 0, 10)
+    expect(released.state).toEqual(NO_TENSION)
+    expect(nextTension(released.state, 'right', 0.5, 20).pulse).not.toBeNull()
   })
 })

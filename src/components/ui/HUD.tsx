@@ -66,7 +66,7 @@ function Scoreboard() {
     activeLevel,
     gameMode,
     duel,
-    cartel,
+    sign: cartel,
   } = useGame()
   const endless = isEndless(activeGoalTarget)
   const lang = useLang()

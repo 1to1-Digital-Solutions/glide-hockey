@@ -24,7 +24,7 @@ export const SIGN_PLACEMENT = signPlacement(signAspect())
  *   sonido lo pone la escena, que lo oye también quien juega sin visor.
  */
 export function ScoreboardSign({ alCelebrar: onCelebrate }: { alCelebrar?: (medalla: Medal) => void }) {
-  const { cartel, medal: medalla } = useGame()
+  const { sign: cartel, medal: medalla } = useGame()
 
   if (cartel == null) return null
 

@@ -1,16 +1,16 @@
-# Montar Glide Hockey dentro de otra aplicación
+# Mounting Glide Hockey inside another application
 
-Glide Hockey se publica como **paquete**, y lo que exporta es una **escena**:
-objetos de three que se pintan dentro del `<Canvas>` del anfitrión. Quien es
-dueño del Canvas es dueño de la sesión de WebXR, y ese es el anfitrión — nunca
-el juego. El porqué está en [`xrcade.md`](./xrcade.md).
+Glide Hockey is published as a **package**, and what it exports is a **scene**:
+three objects that are drawn inside the host's `<Canvas>`. Whoever owns the
+Canvas owns the WebXR session, and that is the host — never
+the game. The why is in [`xrcade.md`](./xrcade.md).
 
-Hay dos formas de montarlo, y la que toque depende de si ya hay un Canvas.
+There are two ways to mount it, and which one applies depends on whether there is already a Canvas.
 
-## Dentro de un Canvas que ya existe: `<GlideHockeyScene>`
+## Inside a Canvas that already exists: `<GlideHockeyScene>`
 
-Es lo que hace el salón de xrcade. No crea Canvas, no abre ni cierra la sesión
-y no pinta una sola etiqueta de DOM.
+It is what the xrcade hall does. It creates no Canvas, does not open or close the session
+and does not draw a single DOM tag.
 
 ```tsx
 import { GlideHockeyScene } from 'glide-hockey'
@@ -20,77 +20,78 @@ import { GlideHockeyScene } from 'glide-hockey'
     <XROrigin position={[0, 0, 0]} />
     <GlideHockeyScene
       assetsBase="/juegos/glide-hockey/"
-      onExit={() => volverAlSalon()}
+      onExit={() => backToTheHall()}
     />
   </XR>
 </Canvas>
 ```
 
-| Prop | Qué |
+| Prop | What |
 | --- | --- |
-| `assetsBase` | De dónde cuelgan los ficheros estáticos del juego en este anfitrión. Sin ella, la raíz del sitio. |
-| `onExit` | Devolver al jugador a donde estaba. Lo llama el juego desde su menú inmersivo; **qué significa volver lo decide quien monta**. |
+| `assetsBase` | Where the game's static files hang from in this host. Without it, the root of the site. |
+| `onExit` | Return the player to where they were. The game calls it from its immersive menu; **what going back means is decided by whoever mounts it**. |
 
-`onExit` es obligatoria a propósito: en el salón, cerrar la sesión sería
-arrancarle el visor al jugador en vez de devolverlo al arco de cabinas.
+`onExit` is mandatory on purpose: in the hall, closing the session would be
+tearing the headset off the player instead of returning them to the arc of cabinets.
 
-El store también es del anfitrión, y con él los perfiles de mando: hay que
-crearlo con `baseAssetPath` apuntando a los perfiles que sirva —valen los que
-copia `glide-hockey-assets` en `<assetsBase>/webxr-profiles/`—. Por defecto
-@react-three/xr los descarga de un CDN, y bajo la política de seguridad del
-salón eso deja al jugador sin mandos: sin rayo no se mueve el mazo ni se pulsa
-nada.
+The store also belongs to the host, and with it the controller profiles: it has to be
+created with `baseAssetPath` pointing at the profiles it serves —the ones that
+`glide-hockey-assets` copies into `<assetsBase>/webxr-profiles/` will do—. By default
+@react-three/xr downloads them from a CDN, and under the hall's security policy
+that leaves the player without controllers: without a ray the mallet does not move and nothing
+can be pressed.
 
-**La mesa se planta donde esté el jugador y encarada hacia donde mire**, una vez
-al empezar la sesión (ver `components/game/WorldAnchor.tsx`). El juego no pone
-`<XROrigin>`: mueve su decorado, no al jugador.
+**The table is planted wherever the player is and facing wherever they look**, once
+when the session starts (see `components/game/WorldAnchor.tsx`). The game does not place an
+`<XROrigin>`: it moves its scenery, not the player.
 
-### El reto y el aviso de fin de partida
+### The challenge and the end-of-match notice
 
-Dos props opcionales, en la escena y en `<GlideHockey>` (y en `mountGlideHockey`,
-que le pasa sus opciones), y una tercera, `objetivo`, solo en la escena; sin ellas el juego es
-el de siempre.
+Two optional props, on the scene and on `<GlideHockey>` (and on `mountGlideHockey`,
+which passes its options on to it), and a third one, `goal`, only on the scene; without them the
+game is the usual one.
 
-- **`reto?: Reto`** (`{ semilla }`, un entero de 32 bits): la partida del reto
-  del día o de «reta mi puntuación». Con él la escena **no abre el menú: entra
-  ya en el reto** (`challenge`, que se acaba con la primera partida perdida),
-  que es el modo del récord (`glide-hockey:best-points:challenge`), con su
-  cuenta atrás y esperando, como siempre en el visor, a que se coja el mazo. No
-  hay ajustes que fijar: el nivel de la máquina y los goles de cada ronda los
-  pone la escalera del reto, no el menú. **No hay tutorial**: su demostración
-  retrasa el saque solo a quien no la ha visto. **Los tiros de la máquina salen
-  de la semilla**: el plan de cada golpe es un hash de la mesa, la jugada y el
-  golpe, y la mesa de cada ronda es `semillaDe(semilla, ronda)`
-  (`semillaDeLaMesa` en `lib/opponent.ts`), así que perder goles en una ronda
-  no cambia los tiros de la siguiente. El resto de la mesa es física en pasos
-  fijos, sin azar. El reto se lee al montar; para otro, se monta otra escena.
-- **`onFinish?: (resultado: Resultado) => void`**: se llama **una vez** al
-  acabar cada partida —prueba, niveles o reto—, justo donde se guarda el
-  récord, con `{ modo, puntos, reto }`: el modo (`practice`, `levels`,
-  `challenge`), los puntos de la partida aunque no sean récord y `reto: true`
-  solo en la partida del `reto`. «Otra partida» después ya es una normal, con
-  la máquina de siempre y `reto: false`. Dejarla a medias (volver al menú o
-  salir) no la cuenta; la prueba sin fin sí, al terminarla con su botón, que
-  es su final.
-  El duelo a dos **no se cuenta**: sus goles son de dos personas, no de quien
-  lleva el visor, y no tiene récord.
-- **`objetivo?: Objetivo`** (el tipo de `src/lib/goal.ts`, exportado por el paquete; solo en
-  `<GlideHockeyScene>`): `{ medallas: { bronce, plata, oro }, mejorEs: 'mas' | 'menos', unidad,
-  record, modo }`. Con él, el **cartel de encima del marcador del fondo** dice qué hay que
-  superar: en la primera cuenta atrás, la misión y los tres listones; jugando, el listón que
-  falta, lo que se lleva, la ronda y lo que vale el próximo gol; al acabar, lo que faltó. `modo`
-  es el modo del que salen las medallas (`challenge`): en cualquier otro, el cartel dice que la
-  partida no cuenta para medalla. Sin la prop, en el reto dice la misión y el récord guardado en
-  este navegador. `unidad` llega ya en el idioma de quien juega. El menú abre siempre en el reto.
+- **`challenge?: Challenge`** (`{ seed }`, a 32-bit integer): the run of the challenge
+  of the day or of "challenge my score". With it the scene **does not open the menu: it goes
+  straight into the challenge** (`challenge`, which ends with the first match lost),
+  which is the mode of the record (`glide-hockey:best-points:challenge`), with its
+  countdown and waiting, as always in the headset, for the mallet to be grabbed. There are
+  no settings to fix: the machine's level and the goals of each round are
+  set by the challenge's ladder, not by the menu. **There is no tutorial**: its demonstration
+  delays the serve only for whoever has not seen it. **The machine's shots come
+  from the seed**: the plan of each hit is a hash of the table, the rally and the
+  hit, and the table of each round is `deriveSeed(seed, round)`
+  (`tableSeed` in `lib/opponent.ts`), so losing goals in one round
+  does not change the shots of the next. The rest of the table is physics in fixed
+  steps, with no randomness. The challenge is read on mounting; for another one, another scene is mounted.
+- **`onFinish?: (result: GameResult) => void`**: it is called **once** when
+  each match ends —practice, levels or challenge—, right where the record is
+  stored, with `{ mode, points, challenge }`: the mode (`practice`, `levels`,
+  `challenge`), the points of the match even if they are not a record and `challenge: true`
+  only in the run of the `challenge`. «Otra partida» afterwards is a normal one, with
+  the usual machine and `challenge: false`. Leaving it halfway (going back to the menu or
+  exiting) does not count it; the endless practice does count, on finishing it with its button, which
+  is its ending.
+  The two-player duel **is not counted**: its goals belong to two people, not to whoever
+  wears the headset, and it has no record.
+- **`goal?: Goal`** (the type of `src/lib/goal.ts`, exported by the package; only on
+  `<GlideHockeyScene>`): `{ medals: { bronze, silver, gold }, better: 'higher' | 'lower', unit,
+  record, mode }`. With it, the **sign above the back scoreboard** says what has to be
+  beaten: in the first countdown, the mission and the three thresholds; while playing, the
+  threshold that is missing, what has been scored so far, the round and what the next goal is
+  worth; at the end, what was missing. `mode` is the mode the medals come from (`challenge`): in
+  any other, the sign says that the match does not count for a medal. Without the prop, in the
+  challenge it says the mission and the record stored in this browser. `unit` arrives already in
+  the language of whoever is playing. The menu always opens on the challenge.
 
 ```tsx
-<GlideHockeyScene reto={{ semilla: 20260925 }} onFinish={apuntarPartida} onExit={volverAlSalon} />
+<GlideHockeyScene challenge={{ seed: 20260925 }} onFinish={recordRun} onExit={backToTheHall} />
 ```
 
-## Con su propio Canvas: `<GlideHockey>`
+## With its own Canvas: `<GlideHockey>`
 
-Para una página web normal que quiera una pantalla de juego. Trae el Canvas, la
-sesión de WebXR, el menú 2D y el botón de entrar al visor.
+For an ordinary web page that wants a game screen. It brings the Canvas, the
+WebXR session, the 2D menu and the button for entering the headset.
 
 ```tsx
 import { GlideHockey } from 'glide-hockey'
@@ -100,36 +101,36 @@ import { GlideHockey } from 'glide-hockey'
 </div>
 ```
 
-Ocupa lo que mida su contenedor, así que hay que darle altura. Aquí `onExit` no
-existe: salir es cerrar la sesión, porque no hay ningún sitio al que volver.
+It takes up whatever its container measures, so it has to be given a height. Here `onExit` does
+not exist: exiting is closing the session, because there is nowhere to go back to.
 
-Para quien no renderiza React por su cuenta está
-`mountGlideHockey(elemento, opciones)`, que devuelve un `{ unmount() }`.
+For whoever does not render React on their own there is
+`mountGlideHockey(container, options)`, which returns a `{ unmount() }`.
 
-## Los tres pasos que hay que dar sí o sí
+## The three steps that have to be taken no matter what
 
-### 1. Copiar los ficheros estáticos
+### 1. Copy the static files
 
-Los perfiles de mando de WebXR no viajan en el código: el navegador los pide por
-HTTP al entrar en el visor. Sin ellos, @react-three/xr no llega a registrar
-ningún mando y el jugador se queda sin rayo con el que apuntar.
+The WebXR controller profiles do not travel in the code: the browser asks for them over
+HTTP on entering the headset. Without them, @react-three/xr never gets to register
+any controller and the player is left without a ray to aim with.
 
 ```sh
 npx glide-hockey-assets public/juegos/glide-hockey
 ```
 
-Y luego se le dice al juego dónde han quedado con `assetsBase`. **Dos juegos en
-el mismo origen se pisarían** si los dos colgaran de la raíz, y por eso la ruta
-es una decisión del anfitrión y no del juego.
+And then the game is told where they have ended up with `assetsBase`. **Two games on
+the same origin would overwrite each other** if both hung from the root, and that is why the path
+is a decision of the host and not of the game.
 
-Vuelve a ejecutarse al subir de versión: es idempotente y deja el destino con
-los ficheros de la versión nueva.
+It is run again when the version goes up: it is idempotent and leaves the destination with
+the files of the new version.
 
-### 2. Incluir el juego entre las fuentes de Tailwind
+### 2. Include the game among Tailwind's sources
 
-El menú y el marcador en 2D usan clases utilitarias que Tailwind genera
-escaneando el código. Si el anfitrión no mira dentro del paquete, el juego se
-monta sin estilos.
+The 2D menu and scoreboard use utility classes that Tailwind generates by
+scanning the code. If the host does not look inside the package, the game is
+mounted without styles.
 
 ```css
 @import "tailwindcss";
@@ -137,69 +138,69 @@ monta sin estilos.
 @import "glide-hockey/styles.css";
 ```
 
-`styles.css` es cómo el juego usa sus colores y las animaciones de sus
-pantallas. Todo cuelga de la clase `.glide-hockey`, así que no le cambia el
-aspecto a nada del anfitrión: los valores de la paleta los pone el propio juego
-sobre su contenedor, y son los mismos que usan la escena y la interfaz del visor
+`styles.css` is how the game uses its colours and the animations of its
+screens. Everything hangs from the `.glide-hockey` class, so it does not change the
+look of anything in the host: the palette's values are set by the game itself
+on its container, and they are the same ones the scene and the headset interface use
 (`src/lib/palette.ts`).
 
-Montando solo `<GlideHockeyScene>` —dentro de un Canvas— no hace falta nada de
-esto: ahí el juego no pinta DOM.
+Mounting only `<GlideHockeyScene>` —inside a Canvas— none of this is
+needed: there the game draws no DOM.
 
-### 3. No duplicar React ni three
+### 3. Do not duplicate React or three
 
-React y three van en `peerDependencies`, **nunca** en `dependencies`. Dos copias
-de React rompen los hooks y dos de three, la escena. Es el fallo caro porque no
-rompe el build: rompe la partida.
+React and three go in `peerDependencies`, **never** in `dependencies`. Two copies
+of React break the hooks and two of three, the scene. It is the expensive failure because it does
+not break the build: it breaks the match.
 
-## Lo que el juego da por sentado
+## What the game takes for granted
 
-- **Nada de red.** El juego no se conecta a ningún sitio: sin servidor, sin
-  telemetría y sin marcas ajenas. El récord vive en el `localStorage` del
-  navegador.
-- **Nada de WebAssembly.** La física del disco es un puñado de fórmulas
-  (`src/lib/puckPhysics.ts`), no un motor: los del ecosistema de R3F van en wasm
-  y la política de seguridad del salón los bloquea.
-- **Nada de fuentes remotas.** Los números del visor se dibujan con segmentos
-  (`src/lib/xrDigits.ts`), porque `<Text>` de drei descarga la fuente de un CDN.
-- **Nada de ficheros de audio ni de modelos.** La mesa, el disco y los mazos son
-  geometría generada en código, y el golpe, el rebote y el gol se sintetizan con
-  la Web Audio API (`src/lib/audioEngine.ts`), así que lo único que hay que
-  copiar son los perfiles de mando.
-- **Un `AudioContext`, y del juego.** Se abre con el primer sonido de la partida
-  y se cierra al desmontar la escena, así que volver al salón no deja el audio
-  del sistema agachado. Quien juega puede silenciarlo desde el menú, y entonces
-  no se abre ninguno.
-- **El jugador se queda donde lo puso su anfitrión.** El juego coloca su mesa
-  alrededor de él y no pone `<XROrigin>`.
+- **No network.** The game does not connect anywhere: no server, no
+  telemetry and no third-party brands. The record lives in the browser's
+  `localStorage`.
+- **No WebAssembly.** The puck's physics is a handful of formulas
+  (`src/lib/puckPhysics.ts`), not an engine: those of the R3F ecosystem run on wasm
+  and the hall's security policy blocks them.
+- **No remote fonts.** The headset's numbers are drawn with segments
+  (`src/lib/xrDigits.ts`), because drei's `<Text>` downloads the font from a CDN.
+- **No audio files and no models.** The table, the puck and the mallets are
+  geometry generated in code, and the hit, the bounce and the goal are synthesised with
+  the Web Audio API (`src/lib/audioEngine.ts`), so the only thing that has to be
+  copied is the controller profiles.
+- **One `AudioContext`, and the game's own.** It is opened with the first sound of the match
+  and closed when the scene is unmounted, so going back to the hall does not leave the system's
+  audio ducked. Whoever is playing can mute it from the menu, and then
+  none is opened.
+- **The player stays where their host put them.** The game places its table
+  around them and does not place an `<XROrigin>`.
 
-## Almacenamiento que usa
+## Storage it uses
 
-Cuatro claves en `localStorage`, sin nada que identifique a nadie:
+Four keys in `localStorage`, with nothing that identifies anyone:
 
-| Clave | Qué |
+| Key | What |
 | --- | --- |
-| `glide-hockey:best-points` | El récord del modo prueba. |
-| `glide-hockey:best-points:challenge` | El récord del modo reto. |
-| `glide-hockey:duel-tally` | Los duelos ganados por cada uno de la pareja y los empatados (`{ wins: [n, n], ties: n }`). No es un récord. |
-| `glide-hockey:muted` | Si el jugador dejó el juego callado (`1`) o sonando (`0`). |
+| `glide-hockey:best-points` | The record of the practice mode. |
+| `glide-hockey:best-points:challenge` | The record of the challenge mode. |
+| `glide-hockey:duel-tally` | The duels won by each of the pair and the tied ones (`{ wins: [n, n], ties: n }`). It is not a record. |
+| `glide-hockey:muted` | Whether the player left the game silent (`1`) or sounding (`0`). |
 
-El escenario —la sala o la habitación de quien juega— **no** es suyo: es `xrcade:scenery`, la
-misma clave que escribe el salón (`place` o `room`, y `place` si no hay nada). Los menús del
-juego lo pueden cambiar, pero escriben esa clave: hay una sola preferencia, y fuera del salón
-funciona igual en el origen de la web del juego. La clave propia del juego,
-`glide-hockey:scenery`, no la escribe nadie: se borra al montar el estado de la partida, sin
-trasladarla (ver `src/lib/settings.ts` y `src/lib/scenery.ts`).
+The scenery —the arcade room or the room of whoever is playing— is **not** its own: it is
+`xrcade:scenery`, the same key the hall writes (`place` or `room`, and `place` if there is
+nothing). The game's menus can change it, but they write that key: there is a single preference,
+and outside the hall it works the same on the origin of the game's website. The game's own key,
+`glide-hockey:scenery`, is written by nobody: it is deleted when the state of the match is
+mounted, without migrating it (see `src/lib/settings.ts` and `src/lib/scenery.ts`).
 
-La mano buena del salón (`xrcade:hand`) **no la lee**: el mazo se coge con la mano que esté
-libre y se cambia de mano a media partida (`MalletHand`), así que no importa cuál sea la
-buena y ninguno de sus menús la pregunta. Si algún día el juego necesitara una mano, la lee de
-esa clave con `useHand()`, como el escenario, en vez de preguntarla en su menú.
+The hall's dominant hand (`xrcade:hand`) **is not read**: the mallet is grabbed with whichever
+hand is free and is switched from hand to hand mid-match (`MalletHand`), so it does not matter
+which one is the dominant one and none of its menus asks. If one day the game needed a hand, it
+reads it from that key with `useHand()`, like the scenery, instead of asking in its menu.
 
-Sus dos menús —el de la web y el del visor— **empiezan por el modo, y solo la práctica
-pregunta**: en ella se eligen el nivel de la máquina y los goles; en niveles solo qué nivel
-desbloqueado se juega, y en el reto nada, porque la escalera ya los pone. En el duelo
-tampoco: los dos juegan lo mismo (`DUEL_SETUP` en `src/lib/duel.ts`).
+Its two menus —the web one and the headset one— **start with the mode, and only practice
+asks**: in it the machine's level and the goals are chosen; in levels only which unlocked
+level is played, and in the challenge nothing, because the ladder already sets them. In the duel
+neither: both play the same (`DUEL_SETUP` in `src/lib/duel.ts`).
 
-Si el almacenamiento está bloqueado (ventana privada, política del navegador),
-el juego funciona igual: se juega sin récord y sonando.
+If the storage is blocked (private window, browser policy),
+the game works the same: it is played without a record and with sound.

@@ -1,75 +1,75 @@
-# glide-hockey dentro de xrcade
+# glide-hockey inside xrcade
 
-Este juego se desarrolla en su propio repositorio y el salón de
-[xrcade](https://github.com/1to1-Digital-Solutions/xrcade) lo instala por tag y lo **monta
-dentro de sí mismo**. No se enlaza: WebXR concede una sesión inmersiva por documento, así que
-cruzar a otra pestaña o a otro dominio la termina — entrar a jugar quitándose el salón y volver
-quitándose el visor.
+This game is developed in its own repository and the hall of
+[xrcade](https://github.com/1to1-Digital-Solutions/xrcade) installs it by tag and **mounts it
+inside itself**. It is not linked to: WebXR grants one immersive session per document, so
+crossing to another tab or another domain ends it — going in to play would take the hall off and
+coming back would take the headset off.
 
-## Publica una escena, no una aplicación
+## It publishes a scene, not an application
 
-Lo que el paquete exporta es una **escena**: un componente que se pinta dentro del `<Canvas>`
-que ya está montado. Quien es dueño del Canvas es dueño de la sesión, y ese es el anfitrión.
+What the package exports is a **scene**: a component that is drawn inside the `<Canvas>` that is
+already mounted. Whoever owns the Canvas owns the session, and that is the host.
 
 ```tsx
 export type GameSceneProps = {
-  /** De dónde cuelgan los ficheros estáticos del juego en este anfitrión. */
+  /** Where the game's static files hang from in this host. */
   assetsBase: string
-  /** Devolver al jugador a donde estaba. Lo llama el juego desde su interfaz. */
+  /** Return the player to where they were. The game calls it from its interface. */
   onExit: () => void
 }
 ```
 
-La escena **no**:
+The scene does **not**:
 
-- crea `<Canvas>` ni `XRStore`, ni llama a `enterVR()`, `enterAR()` o `session.end()`;
-- pone `<XROrigin>` — el sitio del jugador lo decide el anfitrión, así que el juego coloca su
-  mundo alrededor de donde esté, corriendo el decorado en vez de mover al jugador;
-- pinta DOM — dentro de un Canvas solo caben objetos de three, así que el menú y el marcador en
-  2D se quedan en la web del juego y sus equivalentes inmersivos son geometría.
+- create a `<Canvas>` or an `XRStore`, or call `enterVR()`, `enterAR()` or `session.end()`;
+- place an `<XROrigin>` — the player's spot is decided by the host, so the game places its
+  world around wherever they are, shifting the scenery instead of moving the player;
+- draw DOM — only three objects fit inside a Canvas, so the 2D menu and scoreboard stay on the
+  game's website and their immersive equivalents are geometry.
 
-`onExit` es cómo el juego devuelve al jugador sin decidir a dónde: en su propia web puede ser
-cerrar la sesión; en el salón es volver al arco de cabinas.
+`onExit` is how the game returns the player without deciding where to: on its own website it can
+be closing the session; in the hall it is going back to the arc of cabinets.
 
-## Su propia web es un anfitrión más
+## Its own website is one more host
 
-El repositorio se parte en dos: **el juego** (la escena) y **su web**, que pone el Canvas, la
-sesión y el botón de entrar al visor alrededor de esa misma escena. No es simetría gratuita: es
-cómo se prueba el juego con el visor sin levantar el hub, y lo que hace que romper el contrato
-se note aquí y no en el salón.
+The repository is split in two: **the game** (the scene) and **its website**, which puts the
+Canvas, the session and the button for entering the headset around that same scene. It is not
+gratuitous symmetry: it is how the game is tried with the headset without bringing up the hub,
+and what makes breaking the contract show up here and not in the hall.
 
-## Lo que exige el `package.json`
+## What the `package.json` requires
 
-`npm run catalog:validate` de xrcade lo comprueba al dar el alta, así que fallar aquí es no
-poder publicarse:
+xrcade's `npm run catalog:validate` checks it on registration, so failing here means not being
+able to be published:
 
-| Campo | Qué |
+| Field | What |
 | --- | --- |
-| `exports` | Con entrada por defecto (`"."`). Sin ella el hub no puede importarlo. |
-| `peerDependencies` | React, three y `@react-three/*`. **Nunca** en `dependencies`: dos copias de React rompen los hooks, y dos de three, la escena. Es el fallo caro, porque no rompe el build — rompe la partida. |
-| `files` | Solo lo que se publica. |
-| `sideEffects` | `["*.css"]` si hay estilos, para que el empaquetador del anfitrión no se los coma. |
-| `bin` | Un ejecutable que copie los ficheros estáticos al `public/` del anfitrión, con rutas relativas a `assetsBase`. Dos juegos en el mismo origen se pisarían. |
+| `exports` | With a default entry (`"."`). Without it the hub cannot import it. |
+| `peerDependencies` | React, three and `@react-three/*`. **Never** in `dependencies`: two copies of React break the hooks, and two of three, the scene. It is the expensive failure, because it does not break the build — it breaks the match. |
+| `files` | Only what is published. |
+| `sideEffects` | `["*.css"]` if there are styles, so that the host's bundler does not swallow them. |
+| `bin` | An executable that copies the static files into the host's `public/`, with paths relative to `assetsBase`. Two games on the same origin would overwrite each other. |
 
-## Lo que la CSP del salón NO deja usar
+## What the hall's CSP does NOT let you use
 
-El salón se sirve con una política de seguridad cerrada y un juego montado dentro la hereda
-entera. Dos cosas que se dan por hechas al elegir librerías y aquí no funcionan:
+The hall is served with a closed security policy and a game mounted inside inherits it
+whole. Two things that are taken for granted when choosing libraries and do not work here:
 
-| Bloqueado | Qué descarta | Salida |
+| Blocked | What it rules out | Way out |
 | --- | --- | --- |
-| `script-src` sin `'wasm-unsafe-eval'` | **WebAssembly**: compilar un módulo wasm lanza. Se lleva por delante los motores de física del ecosistema de R3F que van en wasm (Rapier, Jolt), que son justo los primeros a los que se tira. | Un motor en JavaScript puro (`cannon-es`), o aflojar la CSP del hub. |
-| `connect-src 'self'` | Cualquier conexión a otro origen: WebSocket, fetch a una API, telemetría. Descarta el multijugador en red tal cual. | Servirlo desde el propio xrcade, o aflojar la CSP del hub. |
+| `script-src` without `'wasm-unsafe-eval'` | **WebAssembly**: compiling a wasm module throws. It takes with it the physics engines of the R3F ecosystem that run on wasm (Rapier, Jolt), which are exactly the first ones people reach for. | An engine in pure JavaScript (`cannon-es`), or loosening the hub's CSP. |
+| `connect-src 'self'` | Any connection to another origin: WebSocket, fetch to an API, telemetry. It rules out networked multiplayer as is. | Serving it from xrcade itself, or loosening the hub's CSP. |
 
-Ninguna de las dos rompe el build ni se nota en local, donde el juego se prueba con una CSP más
-laxa: revientan al montarlo en el salón, con la primera versión ya escrita. Elige el motor con
-esto delante.
+Neither of the two breaks the build or shows up locally, where the game is tried with a more
+lenient CSP: they blow up on mounting it in the hall, with the first version already written.
+Choose the engine with this in front of you.
 
-## Publicar
+## Publishing
 
-Se consume **por tag**, nunca por rama: `vX.Y.Z` acompañando a la `version` del
-`package.json`. Actualizarlo en el salón es `npm run game:update -- <id>` desde xrcade, o el
-panel de juegos de Organízate.
+It is consumed **by tag**, never by branch: `vX.Y.Z` accompanying the `version` of the
+`package.json`. Updating it in the hall is `npm run game:update -- <id>` from xrcade, or
+Organízate's games panel.
 
-Dar de alta el juego pide además dos líneas a mano en el hub —el registro de montadores y un
-`@source` para Tailwind—: importar un módulo es código y el catálogo son datos.
+Registering the game also asks for two lines by hand in the hub —the registry of mounters and a
+`@source` for Tailwind—: importing a module is code and the catalogue is data.

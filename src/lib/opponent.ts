@@ -14,64 +14,66 @@ import {
 import { deriveSeed } from './seed'
 
 /**
- * Cómo juega la máquina.
+ * How the machine plays.
  *
- * Dos intenciones y nada más: **defender**, plantándose entre el disco y su
- * portería, y **atacar**, poniéndose detrás del disco para empujarlo hacia la
- * del jugador. Lo que separa a Fácil de Imposible no es cuál elige, sino a qué
- * velocidad se mueve, cuánto se adelanta a donde va a estar el disco, desde cuán
- * lejos sale a buscarlo y **cuánto mezcla los tiros** (ver `OPPONENT_SKILLS` en
- * `gameConfig.ts`).
+ * Two intentions and nothing else: **defending**, standing between the puck and
+ * its goal, and **attacking**, getting behind the puck to push it towards the
+ * player's. What separates Easy from Impossible is not which one it chooses, but
+ * how fast it moves, how far ahead it gets of where the puck is going to be,
+ * from how far away it goes out to fetch it and **how much it mixes its shots**
+ * (see `OPPONENT_SKILLS` in `gameConfig.ts`).
  *
- * **No hace trampas y no las va a hacer**: nunca se mueve más rápido que el
- * jugador ni cruza la línea de medio campo. Pierde porque no llega a tiempo, que
- * es una razón que se entiende viéndola.
+ * **It does not cheat and it never will**: it never moves faster than the player
+ * nor crosses the centre line. It loses because it does not get there in time,
+ * which is a reason you understand by watching it.
  *
- * **Pero lo que elige no se puede adivinar.** Atacando siempre al mismo poste,
- * a la tercera partida se sabe dónde va a tirar y el juego se acaba ahí. Así que
- * hay tres planes —al hueco, cruzado y a la banda— y el de cada golpe sale de un
- * **hash de la partida, la jugada y el golpe** (`unitHash`): ni un `Math.random`,
- * ni un contador. Lo mismo hace la máquina de table-tennis con su colocación, y
- * por lo mismo: con azar de verdad la misma partida no se repite dos veces, no se
- * puede probar y no cruza a Godot con sus tests; con el hash, dos partidas con la
- * misma semilla son la misma partida y de cara al jugador se ve como lo que es,
- * un rival que no se deja leer.
+ * **But what it chooses cannot be guessed.** Always attacking the same post, by
+ * the third match you know where it is going to shoot and the game ends there.
+ * So there are three plans —at the gap, cross and off the rail— and the one of
+ * each hit comes from a **hash of the match, the rally and the hit**
+ * (`unitHash`): not a `Math.random`, not a counter. The machine of table-tennis
+ * does the same with its placement, and for the same reason: with real
+ * randomness the same match never repeats twice, cannot be tested and does not
+ * cross over to Godot with its tests; with the hash, two matches with the same
+ * seed are the same match and to the player it looks like what it is, an
+ * opponent that will not let itself be read.
  *
- * Es una función pura del estado de la mesa: quien la llama mueve el mazo y le
- * pasa el resultado a la física, igual que hace con el del jugador.
+ * It is a pure function of the state of the table: whoever calls it moves the
+ * mallet and passes the result to the physics, just as it does with the
+ * player's.
  */
 
 export interface OpponentInput {
   puck: Body
-  /** Dónde está ahora su mazo. */
+  /** Where its mallet is now. */
   mallet: Vec2
-  /** Dónde tiene el jugador el suyo: es a quien hay que buscarle el hueco. */
+  /** Where the player has theirs: it is the one whose gap has to be found. */
   playerMallet: Vec2
   skill: OpponentSkill
-  /** Segundos transcurridos desde el paso anterior. */
+  /** Seconds elapsed since the previous step. */
   dt: number
 }
 
 /**
- * De qué golpe se está hablando. Es lo que hace que el tiro sea imprevisible sin
- * ser aleatorio: los mismos tres números dan siempre el mismo plan.
+ * Which hit is being talked about. It is what makes the shot unpredictable
+ * without being random: the same three numbers always give the same plan.
  */
 export interface AimSeed {
-  /** La partida. Dos partidas con distinta semilla no eligen los mismos tiros. */
+  /** The match. Two matches with a different seed do not choose the same shots. */
   match: number
-  /** La jugada dentro de la partida: sube con cada saque. */
+  /** The rally within the match: it goes up with each serve. */
   rally: number
-  /** El golpe dentro de la jugada: sube cada vez que la máquina toca el disco. */
+  /** The hit within the rally: it goes up each time the machine touches the puck. */
   hit: number
 }
 
 /**
- * Un valor entre 0 y 1 a partir de tres enteros: siempre el mismo para los mismos.
+ * A value between 0 and 1 from three integers: always the same for the same ones.
  *
- * Es el `unitHash` de la máquina de table-tennis con un número más —la partida—,
- * y mezclado con `Math.imul` en vez de sumando: `imul` es exacto a 32 bits, y con
- * la suma una semilla grande se salía de los enteros que un `double` representa
- * sin perder nada, que es donde un hash deja de repetirse.
+ * It is the `unitHash` of the table-tennis machine with one more number —the
+ * match—, and mixed with `Math.imul` instead of by adding: `imul` is exact at 32
+ * bits, and with the sum a large seed went out of the integers a `double`
+ * represents without losing anything, which is where a hash stops repeating.
  */
 export function unitHash(a: number, b: number, c: number): number {
   let x =
@@ -83,79 +85,84 @@ export function unitHash(a: number, b: number, c: number): number {
 }
 
 /**
- * La semilla de la mesa: la `match` de `AimSeed` con la que la máquina elige sus tiros.
+ * The seed of the table: the `match` of `AimSeed` with which the machine chooses its shots.
  *
- * Fuera del reto es el número de partida (`runId`), que no repite los tiros de la partida
- * anterior. **En el reto sale de su semilla y de la ronda**, con `semillaDe`: dos personas con el
- * mismo reto ven los mismos tiros en cada ronda, y perder goles en la ronda 2 no cambia los de la
- * 3, que no dependen de cuántas partidas se hayan empezado antes.
+ * Outside the challenge it is the match number (`runId`), which does not repeat the shots of the
+ * previous match. **In the challenge it comes from its seed and from the round**, with
+ * `deriveSeed`: two people with the same challenge see the same shots in each round, and conceding
+ * goals in round 2 does not change those of round 3, which do not depend on how many matches have
+ * been started before.
  */
-export function tableSeed(semillaDelReto: number | null, runId: number, ronda: number): number {
-  return semillaDelReto === null ? runId : deriveSeed(semillaDelReto, ronda)
+export function tableSeed(challengeSeed: number | null, runId: number, round: number): number {
+  return challengeSeed === null ? runId : deriveSeed(challengeSeed, round)
 }
 
-/** Hasta dónde llega el disco dentro de la portería sin rozar el poste. */
+/** How far the puck reaches inside the goal without grazing the post. */
 const GOAL_REACH = GOAL_WIDTH / 2 - PUCK_RADIUS
-/** Y hasta dónde llega su centro antes de tocar una banda. */
+/** And how far its centre reaches before touching a rail. */
 const PUCK_SIDE_LIMIT = HALF_WIDTH - PUCK_RADIUS
 
-/** Qué plan tiene la máquina para este golpe. */
+/** Which plan the machine has for this hit. */
 export type OpponentPlan =
-  /** Al poste que el mazo del jugador deja más libre. */
+  /** At the post the player's mallet leaves most open. */
   | 'gap'
-  /** Al otro, el que sí cubre: el que engaña a quien se va al hueco antes de tiempo. */
+  /** At the other one, the one it does cover: the one that fools whoever goes to the gap too early. */
   | 'cross'
-  /** A la banda, para que el disco llegue a la portería por el lado contrario. */
+  /** At the rail, so that the puck reaches the goal from the opposite side. */
   | 'bank'
 
 /**
- * Cuánto hueco deja el mazo del jugador a cada poste, en metros.
+ * How much gap the player's mallet leaves at each post, in metres.
  *
- * **Se lee el mazo, no el lado del jugador.** Un mazo a un palmo del poste
- * izquierdo lo tapa aunque su centro esté en la mitad derecha de la portería, y
- * un mazo fuera del marco no tapa ninguno de los dos. Lo que decide es cuánto
- * espacio queda entre el borde del mazo y el punto por el que el disco entra.
+ * **The mallet is read, not the player's side.** A mallet a hand's breadth from
+ * the left post covers it even if its centre is in the right half of the goal,
+ * and a mallet outside the frame covers neither of the two. What decides is how
+ * much room is left between the edge of the mallet and the point through which
+ * the puck goes in.
  */
 export function goalGaps(playerMallet: Vec2): { left: number; right: number } {
-  const hueco = (poste: number) =>
-    Math.max(0, Math.abs(poste - playerMallet.x) - MALLET_RADIUS)
-  return { left: hueco(-GOAL_REACH), right: hueco(GOAL_REACH) }
+  const gap = (post: number) =>
+    Math.max(0, Math.abs(post - playerMallet.x) - MALLET_RADIUS)
+  return { left: gap(-GOAL_REACH), right: gap(GOAL_REACH) }
 }
 
 /**
- * El poste con más hueco: `-1` el de la izquierda, `1` el de la derecha.
+ * The post with the bigger gap: `-1` the left one, `1` the right one.
  *
- * Empatados —el mazo en el centro— se tira a la izquierda: da igual cuál, lo que
- * no vale es el punto muerto de tirarle justo encima. Apuntando siempre al medio,
- * un jugador que deje el mazo delante de su portería es un tapón perfecto: el
- * disco va y vuelve en línea recta entre los dos mazos y la jugada no se acaba.
+ * Tied —the mallet in the centre— it shoots to the left: it does not matter
+ * which, what will not do is the dead spot of shooting right at it. Always
+ * aiming at the middle, a player who leaves the mallet in front of their goal is
+ * a perfect plug: the puck goes back and forth in a straight line between the
+ * two mallets and the rally never ends.
  */
 export function openPost(playerMallet: Vec2): -1 | 1 {
   const { left, right } = goalGaps(playerMallet)
   return right > left ? 1 : -1
 }
 
-/** Qué plan toca en este golpe, según lo mezclada que juegue esta dificultad. */
+/** Which plan is due on this hit, according to how mixed this difficulty plays. */
 export function planFor(skill: OpponentSkill, seed: AimSeed): OpponentPlan {
-  const tirada = unitHash(seed.match, seed.rally, seed.hit)
-  if (tirada < skill.bank) return 'bank'
-  if (tirada < skill.bank + skill.cross) return 'cross'
+  const roll = unitHash(seed.match, seed.rally, seed.hit)
+  if (roll < skill.bank) return 'bank'
+  if (roll < skill.bank + skill.cross) return 'cross'
   return 'gap'
 }
 
 /**
- * A qué punto tira la máquina en este golpe.
+ * Which point the machine shoots at on this hit.
  *
- * Se apunta a donde el disco cabe entero, no al poste: rozándolo no entraría
- * (ver `fitsThroughGoal`).
+ * It aims at where the whole puck fits, not at the post: grazing it, it would
+ * not go in (see `fitsThroughGoal`).
  *
- * El tiro a la banda no apunta a la banda: apunta al **espejo** del poste al otro
- * lado de ella, que es el punto que hace que el disco rebote y acabe entrando. Es
- * un punto de fuera de la mesa a propósito —no es un sitio, es una dirección—, y
- * sale de la geometría y no de un número a ojo: el rebote conserva el ángulo, así
- * que la recta al espejo es exactamente la que pasa por el poste después de
- * rebotar. Con la restitución de la banda por debajo de uno el disco se abre algo
- * hacia ella al salir, y eso lo mete más adentro de la portería, no fuera.
+ * The shot off the rail does not aim at the rail: it aims at the **mirror image**
+ * of the post on the other side of it, which is the point that makes the puck
+ * bounce and end up going in. It is a point outside the table on purpose —it is
+ * not a place, it is a direction—, and it comes from the geometry and not from
+ * a number picked by eye: the bounce keeps the angle, so the straight line to
+ * the mirror image is exactly the one that passes through the post after
+ * bouncing. With the restitution of the rail below one the puck opens up a
+ * little towards it on the way out, and that puts it further inside the goal,
+ * not outside.
  */
 export function aimPoint(playerMallet: Vec2, skill: OpponentSkill, seed: AimSeed): Vec2 {
   const open = openPost(playerMallet)
@@ -163,9 +170,9 @@ export function aimPoint(playerMallet: Vec2, skill: OpponentSkill, seed: AimSeed
     case 'cross':
       return { x: -open * GOAL_REACH, z: HALF_LENGTH }
     case 'bank':
-      // Se rebota en la banda del lado que el jugador cubre y se acaba en el
-      // poste libre: así el disco le cruza por delante en vez de llegarle de
-      // frente, que es lo que hace que cambie de lado.
+      // It bounces off the rail on the side the player covers and ends at the
+      // open post: this way the puck crosses in front of them instead of
+      // reaching them head-on, which is what makes them change sides.
       return { x: -open * (2 * PUCK_SIDE_LIMIT + GOAL_REACH), z: HALF_LENGTH }
     default:
       return { x: open * GOAL_REACH, z: HALF_LENGTH }
@@ -173,18 +180,18 @@ export function aimPoint(playerMallet: Vec2, skill: OpponentSkill, seed: AimSeed
 }
 
 /**
- * Dónde quiere estar el mazo rival.
+ * Where the opponent's mallet wants to be.
  *
- * Atacar solo cuando el disco está en su mitad y a tiro: salir a buscarlo al
- * campo contrario no está permitido (`constrainMallet`) y perseguirlo hasta la
- * línea deja la portería abierta al primer rechace.
+ * Attack only when the puck is in its half and within range: going out to
+ * fetch it in the other half is not allowed (`constrainMallet`) and chasing it
+ * up to the line leaves the goal open to the first rebound.
  */
 export function opponentTarget(
   { puck, mallet, playerMallet, skill }: Omit<OpponentInput, 'dt'>,
   seed: AimSeed,
 ): Vec2 {
-  // A dónde va el disco, no dónde está: perseguir la posición actual llega
-  // siempre tarde, y es justo lo que hace floja a la dificultad más baja.
+  // Where the puck is going, not where it is: chasing the current position
+  // always arrives late, and it is exactly what makes the lowest difficulty weak.
   const predicted: Vec2 = {
     x: puck.position.x + puck.velocity.x * skill.anticipation,
     z: puck.position.z + puck.velocity.z * skill.anticipation,
@@ -197,8 +204,8 @@ export function opponentTarget(
   const inOwnHalf = puck.position.z < 0
 
   if (inOwnHalf && reach <= skill.attackRange) {
-    // Detrás del disco, en la línea que lo une con el punto al que tira: al
-    // avanzar, el golpe sale hacia allí en vez de a cualquier banda.
+    // Behind the puck, on the line that joins it with the point it shoots at:
+    // on advancing, the hit goes that way instead of at any rail.
     const goal = aimPoint(playerMallet, skill, seed)
     const toGoal = {
       x: goal.x - puck.position.x,
@@ -214,9 +221,9 @@ export function opponentTarget(
     }
   }
 
-  // Defensa: a la altura que le toque por dificultad, cubriendo la vertical
-  // del disco. El ángulo se cierra apuntando algo hacia el centro, que es de
-  // donde salen los rebotes en banda.
+  // Defence: at the depth its difficulty gives it, covering the vertical of
+  // the puck. The angle is closed by aiming a little towards the centre, which
+  // is where the bounces off the rail come from.
   return {
     x: predicted.x * 0.85,
     z: -HALF_LENGTH + skill.defenseDepth * HALF_LENGTH,
@@ -224,11 +231,11 @@ export function opponentTarget(
 }
 
 /**
- * El mazo rival tras `dt` segundos: hacia dónde quiere ir, sin pasarse de su
- * velocidad máxima ni salirse de su mitad.
+ * The opponent's mallet after `dt` seconds: towards where it wants to go,
+ * without exceeding its top speed nor leaving its half.
  *
- * Devuelve también la velocidad con la que llega, que es la que la física
- * necesita para saber con cuánta fuerza golpea (ver `resolveMalletHit`).
+ * It also returns the velocity with which it arrives, which is the one the
+ * physics needs to know how hard it hits (see `resolveMalletHit`).
  */
 export function stepOpponent(
   { puck, mallet, playerMallet, skill, dt }: OpponentInput,
@@ -255,9 +262,9 @@ export function stepOpponent(
 
   return {
     position,
-    // La real, no la pretendida: el recorte por velocidad y por los bordes de
-    // la mesa tiene que notarse en la fuerza del golpe, o la máquina dispararía
-    // desde una banda como si hubiera llegado lanzada.
+    // The real one, not the intended one: the clipping by speed and by the
+    // edges of the table has to show in the strength of the hit, or the machine
+    // would shoot from a rail as if it had arrived at full tilt.
     velocity: {
       x: (position.x - mallet.x) / dt,
       z: (position.z - mallet.z) / dt,
@@ -265,7 +272,7 @@ export function stepOpponent(
   }
 }
 
-/** Dónde espera la máquina antes de que empiece la jugada. */
+/** Where the machine waits before the rally starts. */
 export function opponentStart(skill: OpponentSkill): Vec2 {
   return constrainMallet(
     { x: 0, z: -HALF_LENGTH + skill.defenseDepth * HALF_LENGTH },
@@ -273,7 +280,7 @@ export function opponentStart(skill: OpponentSkill): Vec2 {
   )
 }
 
-/** Dónde empieza el mazo del jugador: delante de su portería. */
+/** Where the player's mallet starts: in front of their goal. */
 export function playerStart(): Vec2 {
   return constrainMallet({ x: 0, z: HALF_LENGTH * 0.72 }, 'player')
 }

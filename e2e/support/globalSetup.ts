@@ -6,10 +6,10 @@ export const XR_EMULATOR_BUNDLE = path.join(SUPPORT, 'xr-emulator.bundle.js')
 export const HOST_BUNDLE = path.join(SUPPORT, 'host.bundle.js')
 
 /**
- * Empaqueta antes de la suite lo que se inyecta en el navegador: el emulador de
- * WebXR (IWER, un Quest 3 fingido: Chromium no trae WebXR) y el anfitrión de
- * prueba, que monta `<GlideHockeyScene>` dentro de un Canvas ajeno como hace el
- * salón de xrcade.
+ * Bundles, before the suite, what gets injected into the browser: the WebXR
+ * emulator (IWER, a pretend Quest 3: Chromium does not ship WebXR) and the test
+ * host, which mounts `<GlideHockeyScene>` inside somebody else's Canvas the way
+ * the xrcade hall does.
  */
 export default async function globalSetup() {
   await Promise.all([

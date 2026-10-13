@@ -1,35 +1,37 @@
 /**
- * Emulador de WebXR para los tests, inyectado en la página antes de que cargue.
+ * WebXR emulator for the tests, injected into the page before it loads.
  *
- * Chromium trae un `navigator.xr` que no tiene ningún visor detrás, así que sin
- * esto el modo inmersivo no se ejecuta nunca: los demás tests entran por el
- * ratón, que es código distinto. IWER (Immersive Web Emulation Runtime, de
- * Meta) pone en su lugar un runtime completo con un Quest 3 y sus dos mandos.
- * Llega dentro de `@react-three/xr`, así que no añade ninguna dependencia.
+ * Chromium ships a `navigator.xr` with no headset behind it, so without this
+ * the immersive mode never runs: the other tests go in through the mouse, which
+ * is different code. IWER (Immersive Web Emulation Runtime, by Meta) puts in
+ * its place a full runtime with a Quest 3 and its two controllers. It comes
+ * inside `@react-three/xr`, so it adds no dependency.
  *
- * Este fichero se empaqueta a un IIFE en `globalSetup` y se carga con
- * `page.addInitScript`. Es código de test: no entra en el bundle del juego.
+ * This file is bundled into an IIFE in `globalSetup` and loaded with
+ * `page.addInitScript`. It is test code: it does not go into the game's bundle.
  */
 import { XRDevice, metaQuest3 } from 'iwer'
 import { Euler, Quaternion } from 'three'
 
 const device = new XRDevice(metaQuest3)
-// `forceInstall` porque Chromium ya trae un `navigator.xr` propio —sin ningún
-// visor detrás— y sin esto IWER se aparta y deja el suyo: el menú preguntaría
-// por el visor, le dirían que no hay, y no habría por dónde entrar.
+// `forceInstall` because Chromium already ships a `navigator.xr` of its own
+// —with no headset behind it— and without this IWER steps aside and leaves that
+// one: the menu would ask for the headset, be told there is none, and there
+// would be no way in.
 device.installRuntime({ forceInstall: true })
 
 const api = {
-  /** ¿Hay una sesión inmersiva en curso? */
+  /** Is there an immersive session under way? */
   hasSession: () => device.activeSession != null,
 
   /**
-   * Enciende los dos mandos y los pone donde estarían las manos.
+   * Turns the two controllers on and puts them where the hands would be.
    *
-   * Es lo que hace que `@pmndrs/xr` los registre, y de ese registro sale el
-   * `gripSpace` del que cuelga la pistola. El registro necesita el perfil del
-   * mando, que el juego sirve desde `public/webxr-profiles/` (ver
-   * `xr/xrStore.ts`): sin encender los mandos, ese camino no se recorre.
+   * It is what makes `@pmndrs/xr` register them, and from that registration
+   * comes the `gripSpace` the gun hangs from. The registration needs the
+   * controller's profile, which the game serves from `public/webxr-profiles/`
+   * (see `xr/xrStore.ts`): without turning the controllers on, that path is
+   * never taken.
    */
   connectControllers() {
     const { left, right } = device.controllers
@@ -44,32 +46,32 @@ const api = {
   },
 
   /**
-   * Pone un mando donde se le diga, en metros y en coordenadas del mundo.
+   * Puts a controller where it is told, in metres and in world coordinates.
    *
-   * Es lo que hace falta para probar lo que se coge llevando la mano: sin poder mover el
-   * mando, el único camino que se ejercita es el del ratón, que es código distinto.
+   * It is what is needed to test what gets picked up by bringing the hand over: without being
+   * able to move the controller, the only path exercised is the mouse's, which is different code.
    */
   placeController(handedness: 'left' | 'right', x: number, y: number, z: number) {
     device.controllers[handedness]?.position.set(x, y, z)
   },
 
-  /** Aprieta o suelta el gatillo lateral, que es con lo que se agarra. */
+  /** Squeezes or releases the side trigger, which is what one grabs with. */
   squeeze(handedness: 'left' | 'right', pressed: boolean) {
-    // El emulador nombra sus botones como su propio mapa (`squeeze`), no como los llama
-    // el perfil estándar de WebXR (`xr-standard-squeeze`), que es como los lee el juego.
+    // The emulator names its buttons after its own map (`squeeze`), not the way the standard
+    // WebXR profile calls them (`xr-standard-squeeze`), which is how the game reads them.
     device.controllers[handedness]?.setButtonValueImmediate('squeeze', pressed ? 1 : 0)
   },
 
   /**
-   * Cambia a manos desnudas: apaga los mandos y enciende las manos.
+   * Switches to bare hands: turns the controllers off and the hands on.
    *
-   * Es el otro modo de entrada del visor, y el que deja fuera a quien no tiene mandos a
-   * mano o no puede sostenerlos. IWER las trae con sus articulaciones, así que lo que se
-   * prueba con esto es exactamente lo que hace el juego con una mano de verdad.
+   * It is the headset's other input mode, and the one that leaves out whoever has no
+   * controllers at hand or cannot hold them. IWER ships them with their joints, so what is
+   * tested with this is exactly what the game does with a real hand.
    */
   useHands(): void {
-    for (const mando of [device.controllers.left, device.controllers.right]) {
-      if (mando) mando.connected = false
+    for (const controller of [device.controllers.left, device.controllers.right]) {
+      if (controller) controller.connected = false
     }
     device.primaryInputMode = 'hand'
     const { left, right } = device.hands
@@ -83,36 +85,36 @@ const api = {
     }
   },
 
-  /** Lleva una mano a ese punto del espacio del visor. */
+  /** Takes a hand to that point of the headset's space. */
   placeHand(handedness: 'left' | 'right', x: number, y: number, z: number): void {
     device.hands[handedness]?.position.set(x, y, z)
   },
 
-  /** Junta o separa el pulgar y el índice: es el «agarrar» de una mano desnuda. */
+  /** Brings the thumb and the index finger together or apart: it is the «grab» of a bare hand. */
   pinch(handedness: 'left' | 'right', pressed: boolean): void {
-    const mano = device.hands[handedness]
-    if (mano == null) return
-    mano.poseId = pressed ? 'pinch' : 'default'
-    mano.updateHandPose()
-    mano.updatePinchValue(pressed ? 1 : 0)
+    const hand = device.hands[handedness]
+    if (hand == null) return
+    hand.poseId = pressed ? 'pinch' : 'default'
+    hand.updateHandPose()
+    hand.updatePinchValue(pressed ? 1 : 0)
   },
 
   /**
-   * Gira la cabeza: `yaw` a los lados y `pitch` arriba y abajo, en grados.
+   * Turns the head: `yaw` to the sides and `pitch` up and down, in degrees.
    *
-   * El emulador entra siempre mirando al frente, y las ayudas visuales están donde se mira
-   * después: **las huellas, a los pies**. Sin esto, una captura de las ayudas sale enseñando
-   * la pared del fondo, y **las dos medidas de una comparación tienen que tomarse mirando al
-   * mismo sitio** — si no, lo que se compara son dos vistas y no dos escenas.
+   * The emulator always enters looking straight ahead, and the visual hints are where one looks
+   * afterwards: **the footprints, at the feet**. Without this, a screenshot of the hints comes
+   * out showing the back wall, and **the two measurements of a comparison have to be taken
+   * looking at the same place** — otherwise, what is compared are two views and not two scenes.
    */
   lookAt(yaw = 0, pitch = 0): void {
-    const giro = new Quaternion().setFromEuler(
+    const rotation = new Quaternion().setFromEuler(
       new Euler((pitch * Math.PI) / 180, (yaw * Math.PI) / 180, 0, 'YXZ'),
     )
-    device.quaternion.set(giro.x, giro.y, giro.z, giro.w)
+    device.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w)
   },
 
-  /** Cierra la sesión, como cuando el jugador se quita el visor. */
+  /** Closes the session, as when the player takes the headset off. */
   async endSession() {
     await device.activeSession?.end()
   },

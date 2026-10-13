@@ -2,134 +2,133 @@ import { expect, test, type Page } from '@playwright/test'
 import { openGame, playMatch } from './helpers'
 
 /**
- * Entra al juego con los efectos apagados desde los ajustes del arcade.
+ * Enters the game with the effects turned off from the arcade's settings.
  *
- * Ya no hay botón de silencio en el juego: el volumen se elige una vez en
- * xrcade y viaja en el almacenamiento del navegador, que es el mismo origen
- * cuando el juego se monta dentro del arcade. Se escribe antes de cargar la
- * página, que es como llega quien viene de allí.
+ * There is no longer a mute button in the game: the volume is chosen once in
+ * xrcade and travels in the browser's storage, which is the same origin when
+ * the game is mounted inside the arcade. It is written before loading the
+ * page, which is how whoever comes from there arrives.
  */
-async function entrarEnSilencio(page: Page): Promise<void> {
+async function enterInSilence(page: Page): Promise<void> {
   await page.addInitScript(() => {
     window.localStorage.setItem('xrcade:volume:sfx', '0')
   })
 }
 
 /**
- * Que el juego suene de verdad, y que callado no suene nada.
+ * That the game really sounds, and that silenced nothing sounds.
  *
- * Los tests de `src/lib` prueban el sintetizador con un contexto de mentira y
- * el hook con un reproductor de mentira, así que ninguno de los dos toca el
- * único cable que queda: el de la mesa pidiendo el sonido en cada fotograma
- * (`components/game/Rink.tsx`). Ese solo se puede comprobar en un navegador de
- * verdad, y es justo el que se rompe en silencio —el juego sigue jugándose
- * igual, solo que mudo—.
+ * The tests of `src/lib` test the synthesizer with a fake context and the hook
+ * with a fake player, so neither of the two touches the only wire left: the
+ * table asking for the sound on every frame (`components/game/Rink.tsx`). That
+ * one can only be checked in a real browser, and it is precisely the one that
+ * breaks in silence —the game keeps playing the same, only mute—.
  *
- * No se oye nada: se mira lo que el juego le pide a la Web Audio API, que es lo
- * que se puede observar sin tarjeta de sonido y sin depender de la máquina.
+ * Nothing is heard: one looks at what the game asks of the Web Audio API, which
+ * is what can be observed without a sound card and without depending on the
+ * machine.
  */
 
-/** Lo que el juego le ha pedido a la Web Audio API. */
-interface UsoDelAudio {
-  /** Contextos abiertos. Más de uno es una fuga: son un recurso escaso. */
-  contextos: number
-  /** Sonidos soltados: cada golpe, rebote o gol arranca al menos un tono. */
-  sonidos: number
+/** What the game has asked of the Web Audio API. */
+interface AudioUsage {
+  /** Open contexts. More than one is a leak: they are a scarce resource. */
+  contexts: number
+  /** Sounds released: every hit, bounce or goal starts at least one tone. */
+  sounds: number
 }
 
 declare global {
   interface Window {
-    __glideHockeyAudio?: UsoDelAudio
+    __glideHockeyAudio?: AudioUsage
   }
 }
 
 /**
- * Cuenta lo que se le pide al audio, sin cambiar lo que hace.
+ * Counts what is asked of the audio, without changing what it does.
  *
- * Hay que llamarlo **antes** de abrir el juego: envuelve `AudioContext` y el
- * juego se queda con el suyo en cuanto suena la primera vez.
+ * It has to be called **before** opening the game: it wraps `AudioContext` and
+ * the game keeps its own as soon as it sounds for the first time.
  */
-async function contarElAudio(page: Page): Promise<void> {
+async function countTheAudio(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    const uso: UsoDelAudio = { contextos: 0, sonidos: 0 }
-    window.__glideHockeyAudio = uso
+    const usage: AudioUsage = { contexts: 0, sounds: 0 }
+    window.__glideHockeyAudio = usage
 
     const Original = window.AudioContext
     window.AudioContext = class extends Original {
       constructor(...args: ConstructorParameters<typeof Original>) {
         super(...args)
-        uso.contextos++
+        usage.contexts++
       }
 
       createOscillator(): OscillatorNode {
-        uso.sonidos++
+        usage.sounds++
         return super.createOscillator()
       }
     }
   })
 }
 
-const leerElAudio = (page: Page) =>
+const readTheAudio = (page: Page) =>
   page.evaluate(() => window.__glideHockeyAudio)
 
-test('la partida suena: la mesa pide sus sonidos al navegador', async ({
+test('the match sounds: the table asks the browser for its sounds', async ({
   page,
 }) => {
-  await contarElAudio(page)
+  await countTheAudio(page)
   await openGame(page)
 
-  // Nada más llegar al menú no se ha abierto ningún contexto: el navegador
-  // dejaría en suspenso el que se creara antes de que nadie tocase nada.
-  expect(await leerElAudio(page)).toEqual({ contextos: 0, sonidos: 0 })
+  // Just after reaching the menu no context has been opened: the browser would
+  // leave suspended one created before anybody touched anything.
+  expect(await readTheAudio(page)).toEqual({ contexts: 0, sounds: 0 })
 
-  // Una partida a muchos goles contra la máquina más lenta: no hace falta que
-  // termine, solo que el disco se mueva y choque con algo.
-  await playMatch(page, { goles: 15, nivel: 'Easy' })
+  // A match to many goals against the slowest machine: it does not need to
+  // end, only for the puck to move and collide with something.
+  await playMatch(page, { goals: 15, level: 'Easy' })
 
   await expect
-    .poll(async () => (await leerElAudio(page))?.sonidos ?? 0, {
+    .poll(async () => (await readTheAudio(page))?.sounds ?? 0, {
       timeout: 30_000,
-      message: 'la mesa no pidió ni un sonido en toda la jugada',
+      message: 'the table did not ask for a single sound in the whole rally',
     })
     .toBeGreaterThan(0)
 
-  // Y con un solo contexto para toda la partida, por muchos golpes que haya.
-  expect((await leerElAudio(page))?.contextos).toBe(1)
+  // And with a single context for the whole match, however many hits there are.
+  expect((await readTheAudio(page))?.contexts).toBe(1)
 
-  // Uno para la escena entera, además, y no uno por partida: la mesa se
-  // estrena en cada partida y en cada ronda del reto (`key={runId}` en
-  // `GameWorld`). Con el audio colgado de ella, la ronda ganada cerraba el
-  // contexto en el mismo fotograma en que sonaba el gol que la ganaba.
-  const sonados = (await leerElAudio(page))?.sonidos ?? 0
+  // One for the whole scene, besides, and not one per match: the table is
+  // brand new in every match and in every round of the challenge
+  // (`key={runId}` in `GameWorld`). With the audio hanging from it, the round
+  // won closed the context on the same frame the goal that won it sounded.
+  const soundedSoFar = (await readTheAudio(page))?.sounds ?? 0
   await page.getByRole('button', { name: 'Leave the game' }).click()
   await page.getByRole('button', { name: 'Leave', exact: true }).click()
   await page.getByRole('button', { name: 'Play' }).click()
   await expect(page.getByText('Machine')).toBeVisible()
 
   await expect
-    .poll(async () => (await leerElAudio(page))?.sonidos ?? 0, {
+    .poll(async () => (await readTheAudio(page))?.sounds ?? 0, {
       timeout: 30_000,
-      message: 'la segunda partida se jugó muda',
+      message: 'the second match was played mute',
     })
-    .toBeGreaterThan(sonados)
+    .toBeGreaterThan(soundedSoFar)
 
-  expect((await leerElAudio(page))?.contextos).toBe(1)
+  expect((await readTheAudio(page))?.contexts).toBe(1)
 })
 
-test('en silencio no se abre siquiera el audio del navegador', async ({
+test('in silence the audio of the browser is not even opened', async ({
   page,
 }) => {
-  await contarElAudio(page)
-  await entrarEnSilencio(page)
+  await countTheAudio(page)
+  await enterInSilence(page)
   await openGame(page)
 
-  await playMatch(page, { goles: 15, nivel: 'Easy' })
+  await playMatch(page, { goals: 15, level: 'Easy' })
 
-  // Lo suficiente para que en una partida con sonido ya hubiera sonado algo:
-  // el disco sale del centro y llega al fondo de la mesa en menos de dos
-  // segundos.
+  // Enough for something to have already sounded in a match with sound: the
+  // puck leaves the centre and reaches the back of the table in under two
+  // seconds.
   await page.waitForTimeout(5000)
 
-  expect(await leerElAudio(page)).toEqual({ contextos: 0, sonidos: 0 })
+  expect(await readTheAudio(page)).toEqual({ contexts: 0, sounds: 0 })
 })
-

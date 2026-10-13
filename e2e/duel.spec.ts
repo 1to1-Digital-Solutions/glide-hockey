@@ -2,19 +2,20 @@ import { expect, test } from '@playwright/test'
 import { openGame } from './helpers'
 
 /**
- * El duelo por turnos, de principio a fin.
+ * The turn-based duel, from start to finish.
  *
- * Las reglas —de quién es el turno, la misma semilla para los dos, quién gana— están probadas sin
- * navegador en `lib/duel.ts` y `lib/gameStore.ts`. Lo que se comprueba aquí es lo que solo pasa en
- * la página: que el marcador diga de quién es la partida, que al acabar la primera se pida pasar el
- * mando y un botón empiece la del otro, y que al final se sepa quién gana y quede apuntado.
+ * The rules —whose turn it is, the same seed for both, who wins— are tested without a browser in
+ * `lib/duel.ts` and `lib/gameStore.ts`. What is checked here is what only happens on the page:
+ * that the scoreboard says whose match it is, that when the first one ends it asks to pass the
+ * controller and a button starts the other's, and that at the end it is known who wins and it
+ * stays recorded.
  *
- * Se juega **sin tocar el mazo**, como el resto de partidas de navegador: con el jugador quieto la
- * máquina marca sus siete (el duelo va preconfigurado, Media y a 7). Los dos pierden, y el test
- * acepta empate o ganador: lo que se vigila es el recorrido, no el resultado.
+ * It is played **without touching the mallet**, like the rest of the browser matches: with the
+ * player still the machine scores its seven (the duel comes preconfigured, Medium and to 7). Both
+ * lose, and the test accepts a tie or a winner: what is watched is the journey, not the result.
  */
 
-test('el duelo va preconfigurado: ni nivel, ni goles, ni sin fin', async ({ page }) => {
+test('the duel comes preconfigured: no level, no goals, no endless', async ({ page }) => {
   await openGame(page)
   await page.getByRole('button', { name: 'Duel', exact: true }).click()
 
@@ -24,13 +25,13 @@ test('el duelo va preconfigurado: ni nivel, ni goles, ni sin fin', async ({ page
   await expect(page.getByRole('button', { name: 'Endless', exact: true })).toHaveCount(0)
 })
 
-test('juega uno, se pasa el mando, juega el otro y se sabe quién gana', async ({ page }) => {
+test('one plays, the controller is passed, the other plays and it is known who wins', async ({ page }) => {
   test.setTimeout(420_000)
   await openGame(page)
   await page.getByRole('button', { name: 'Duel', exact: true }).click()
   await page.getByRole('button', { name: 'Play', exact: true }).click()
 
-  // El marcador de la izquierda es de quien tiene el mando, no «Tú».
+  // The scoreboard on the left belongs to whoever holds the controller, not «Tú».
   await expect(page.getByText('Player 1', { exact: true })).toBeVisible()
   await expect(page.getByText(/Medium · to 7 goals/)).toBeVisible()
 
@@ -43,10 +44,10 @@ test('juega uno, se pasa el mando, juega el otro y se sabe quién gana', async (
   await expect(page.getByRole('heading', { name: /^(Player [12] wins|Tie)$/ })).toBeVisible({ timeout: 180_000 })
   await expect(page.getByText(/^Player 1: \d+–\d+ \((\+|−)?\d+\)$/)).toBeVisible()
   await expect(page.getByText(/^Player 2: \d+–\d+ \((\+|−)?\d+\)$/)).toBeVisible()
-  // Lo apuntado entre los dos: un duelo, ganado por uno o empatado.
+  // What is recorded between the two: one duel, won by one of them or tied.
   await expect(page.getByText(/^Duels won: (1–0 · tied: 0|0–1 · tied: 0|0–0 · tied: 1)$/)).toBeVisible()
 
-  // Otro duelo lo vuelve a empezar el primero.
+  // Another duel is started again by the first one.
   await page.getByRole('button', { name: 'New duel', exact: true }).click()
   await expect(page.getByText('Player 1', { exact: true })).toBeVisible()
 })

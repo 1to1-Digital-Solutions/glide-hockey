@@ -2,12 +2,13 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
 /**
- * Tests unitarios de la lógica del juego (`src/lib`), del estado en React y del
- * paquete que se publica (`scripts/`: el ejecutable que copia los ficheros
- * estáticos y lo que declara el `package.json`).
+ * Unit tests of the game's logic (`src/lib`), of the state in React and of the
+ * package that gets published (`scripts/`: the executable that copies the
+ * static files and what `package.json` declares).
  *
- * Sin `@vitejs/plugin-react`: aquí no hace falta Fast Refresh y el JSX lo
- * transforma esbuild con el runtime automático que ya declara `tsconfig.json`.
+ * Without `@vitejs/plugin-react`: Fast Refresh is not needed here and the JSX
+ * is transformed by esbuild with the automatic runtime that `tsconfig.json`
+ * already declares.
  */
 export default defineConfig({
   resolve: {
@@ -21,23 +22,23 @@ export default defineConfig({
     restoreMocks: true,
     coverage: {
       provider: 'v8',
-      // Lo que se mide es **el dominio**: `src/lib` es donde vive lo que decide
-      // algo y es lo único que se puede probar sin un navegador con WebGL. Los
-      // componentes de la escena se prueban de extremo a extremo, en un
-      // navegador de verdad, y contarlos aquí solo bajaría el número sin decir
-      // nada de si están probados.
+      // What is measured is **the domain**: `src/lib` is where whatever decides
+      // something lives and it is the only thing that can be tested without a
+      // browser with WebGL. The components of the scene are tested end to end,
+      // in a real browser, and counting them here would only lower the number
+      // without saying anything about whether they are tested.
       include: ['src/lib/**/*.{ts,tsx}'],
       exclude: [
         '**/*.test.{ts,tsx}',
-        // Un hook que construye un mapa de reflejos con `PMREMGenerator`: no
-        // decide nada y necesita una GPU de verdad. Lo que se comprueba de él
-        // es que la mesa se vea bien, y eso solo se ve mirando.
+        // A hook that builds a reflection map with `PMREMGenerator`: it decides
+        // nothing and needs a real GPU. What is checked about it is that the
+        // table looks right, and that is only seen by looking.
         'src/lib/useRoomEnvironment.ts',
       ],
       reporter: ['text-summary', 'html'],
-      // El dominio está cubierto entero, así que el suelo es el techo: lo que
-      // se añada sin probar rompe el build. Las ramas que no puede alcanzar
-      // ningún test llevan `v8 ignore` con el motivo escrito al lado.
+      // The domain is covered in full, so the floor is the ceiling: whatever is
+      // added untested breaks the build. The branches no test can reach carry
+      // `v8 ignore` with the reason written next to it.
       thresholds: { lines: 100, statements: 100, functions: 100, branches: 100 },
     },
   },

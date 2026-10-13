@@ -4,21 +4,21 @@ import { openGame, watchTable } from './helpers'
 import { enterVR, installXREmulator, skipTutorial, startGameInsideSession } from './support/xr'
 
 /**
- * Jugar con las manos desnudas, sin mandos.
+ * Playing with bare hands, without controllers.
  *
- * **Es el modo de entrada que dejaba fuera a gente.** El juego leía solo los mandos, así que
- * sin ellos el mazo no se podía coger —y dentro del visor no se puede pintar texto, así que
- * tampoco había forma de explicar por qué—. Aquí se apagan los mandos, se encienden las
- * manos con sus articulaciones y se hace el gesto entero: llevar la palma al mazo y juntar
- * el pulgar con el índice.
+ * **It is the input mode that left people out.** The game read only the controllers, so
+ * without them the mallet could not be picked up —and inside the headset text cannot be
+ * painted, so there was no way to explain why either—. Here the controllers are turned off, the
+ * hands are turned on with their joints and the whole gesture is made: bringing the palm to the
+ * mallet and joining the thumb with the index finger.
  */
-test('con las manos desnudas el mazo también se coge', async ({ page }) => {
+test('with bare hands the mallet gets picked up too', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
 
   await installXREmulator(page)
-  // La demostración del gesto para la partida hasta que termina, y aquí lo que se prueba es
-  // el gesto: se entra como quien ya la ha visto.
+  // The demonstration of the gesture stops the match until it ends, and here what is tested is
+  // the gesture: one goes in as someone who has already seen it.
   await skipTutorial(page)
   await watchTable(page)
   await openGame(page)
@@ -26,28 +26,28 @@ test('con las manos desnudas el mazo también se coge', async ({ page }) => {
   await page.evaluate(() => window.__xrTest.useHands())
   await startGameInsideSession(page)
 
-  const mazo = async () => page.evaluate(() => window.__glideHockeyScene?.playerMallet ?? null)
-  await expect.poll(mazo, { timeout: 20_000 }).not.toBeNull()
-  const antes = await mazo()
+  const mallet = async () => page.evaluate(() => window.__glideHockeyScene?.playerMallet ?? null)
+  await expect.poll(mallet, { timeout: 20_000 }).not.toBeNull()
+  const before = await mallet()
 
-  // La palma llega hasta el mazo y pellizca: es el gesto entero. Las coordenadas son las
-  // mismas que las del mando en `agarre.spec.ts`, que es donde está el mazo al empezar.
+  // The palm reaches the mallet and pinches: it is the whole gesture. The coordinates are the
+  // same as the controller's in `grab.spec.ts`, which is where the mallet is at the start.
   await page.evaluate(() => {
     window.__xrTest.placeHand('right', 0, 0.95, -0.48)
     window.__xrTest.pinch('right', true)
   })
   await page.waitForTimeout(600)
 
-  // Cogido, el mazo va donde va la mano.
+  // Held, the mallet goes where the hand goes.
   await page.evaluate(() => window.__xrTest.placeHand('right', 0.25, 0.95, -0.62))
   await expect
     .poll(
       async () => {
-        const ahora = await mazo()
-        if (ahora == null || antes == null) return 0
-        return Math.hypot(ahora.x - antes.x, ahora.z - antes.z)
+        const now = await mallet()
+        if (now == null || before == null) return 0
+        return Math.hypot(now.x - before.x, now.z - before.z)
       },
-      { timeout: 15_000, message: 'el mazo no siguió a la mano desnuda' },
+      { timeout: 15_000, message: 'the mallet did not follow the bare hand' },
     )
     .toBeGreaterThan(0.05)
 

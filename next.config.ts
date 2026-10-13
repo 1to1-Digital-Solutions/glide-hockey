@@ -1,30 +1,31 @@
 import type { NextConfig } from 'next'
 
 /**
- * Política de seguridad de contenido, calcada a la del salón de xrcade.
+ * Content security policy, traced from the one of the xrcade hall.
  *
- * La clave es `connect-src 'self'`: el juego tiene que funcionar en un visor
- * conectado solo a la red local, y varias librerías del árbol traen URLs de CDN
- * cableadas (los perfiles de mando de @react-three/xr en jsDelivr, los HDRI de
- * preset de drei, las fuentes de troika). Aquí eso pasa de ser una promesa que
- * hay que recordar a una garantía que impone el navegador — y falla en local,
- * no montado en el salón.
+ * The key is `connect-src 'self'`: the game has to work in a headset connected
+ * only to the local network, and several libraries of the tree bring hardwired
+ * CDN URLs (the controller profiles of @react-three/xr on jsDelivr, drei's
+ * preset HDRIs, troika's fonts). Here that goes from being a promise that has
+ * to be remembered to a guarantee the browser enforces — and it fails locally,
+ * not mounted in the hall.
  *
- * `script-src` lleva 'unsafe-inline' porque Next inyecta el payload de RSC en
- * scripts inline y las páginas son estáticas: usar un nonce obligaría a meter
- * middleware y volvería dinámico todo el sitio. El riesgo que deja abierto es
- * bajo: no hay entrada de usuario que se renderice, ni `innerHTML`.
+ * `script-src` carries 'unsafe-inline' because Next injects the RSC payload in
+ * inline scripts and the pages are static: using a nonce would force adding
+ * middleware and would make the whole site dynamic. The risk it leaves open is
+ * low: there is no user input that gets rendered, nor `innerHTML`.
  *
- * Sin `wasm-unsafe-eval` a propósito: si algún día entra un motor de física en
- * WebAssembly, revienta aquí y no en el salón (ver `docs/xrcade.md`).
+ * Without `wasm-unsafe-eval` on purpose: if a physics engine in WebAssembly
+ * ever comes in, it blows up here and not in the hall (see `docs/xrcade.md`).
  *
- * `blob:` en img-src y worker-src lo necesitan three.js y sus loaders.
+ * `blob:` in img-src and worker-src is needed by three.js and its loaders.
  *
- * Y `connect-src blob:` lo pide el modelo del mando que enseña el tutorial: el
- * `.glb` se sirve desde el propio origen, pero sus texturas van dentro del
- * fichero y three las saca a una URL `blob:` que después **pide con `fetch`**
- * (`ImageBitmapLoader`). Sin ella el mando sale en negro y la consola escupe un
- * error de política. Sigue siendo de casa: no abre el paso a nada de fuera.
+ * And `connect-src blob:` is asked for by the controller model the tutorial
+ * shows: the `.glb` is served from the same origin, but its textures go inside
+ * the file and three extracts them to a `blob:` URL that it then **requests
+ * with `fetch`** (`ImageBitmapLoader`). Without it the controller comes out
+ * black and the console spits a policy error. It is still from home: it opens
+ * the way to nothing from outside.
  */
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
@@ -35,25 +36,25 @@ const CONTENT_SECURITY_POLICY = [
   "img-src 'self' data: blob:",
   "font-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  // `'unsafe-eval'` solo con `next dev`: el React de desarrollo usa `eval` para rehacer las pilas
-  // de llamadas y sin él cada carga deja un error en la consola. El build no lo lleva nunca —ni,
-  // con él, permiso para compilar WebAssembly—, y eso lo vigila `src/csp.test.ts`.
+  // `'unsafe-eval'` only with `next dev`: the development React uses `eval` to rebuild the call
+  // stacks and without it every load leaves an error in the console. The build never carries it
+  // —nor, with it, permission to compile WebAssembly—, and that is watched by `src/csp.test.ts`.
   process.env.NODE_ENV === 'development'
     ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
     : "script-src 'self' 'unsafe-inline'",
   "worker-src 'self' blob:",
   "connect-src 'self' blob:",
-  // La música de fondo se sirve desde el propio origen, como todo lo demás.
+  // The background music is served from the same origin, like everything else.
   "media-src 'self'",
 ].join('; ')
 
 /**
- * Permisos del navegador.
+ * Browser permissions.
  *
- * `xr-spatial-tracking=(self)` es obligatorio: sin él WebXR no arranca y el
- * juego deja de funcionar en el visor. Los sensores y la cámara se dejan en
- * `self` porque el seguimiento del visor y el passthrough de AR se apoyan en
- * ellos; lo que se cierra es lo que el juego no usará nunca.
+ * `xr-spatial-tracking=(self)` is mandatory: without it WebXR does not start
+ * and the game stops working in the headset. The sensors and the camera are
+ * left at `self` because the headset's tracking and the AR passthrough rely on
+ * them; what is closed is what the game will never use.
  */
 const PERMISSIONS_POLICY = [
   'accelerometer=(self)',
@@ -69,30 +70,30 @@ const PERMISSIONS_POLICY = [
 
 const nextConfig: NextConfig = {
   /**
-   * Next 16 añade un bloque suyo al `CLAUDE.md` del proyecto cada vez que se
-   * ejecuta `next dev` o `next build`. Aquí `CLAUDE.md` está escrito a mano y
-   * versionado, así que eso deja el árbol sucio en cada verificación y acaba
-   * commiteado sin que nadie lo decida. Las instrucciones del repo viven en
-   * `CLAUDE.md` y `.claude/rules/`; que las escriba un paso de build, no.
+   * Next 16 adds a block of its own to the project's `CLAUDE.md` every time
+   * `next dev` or `next build` runs. Here `CLAUDE.md` is written by hand and
+   * versioned, so that leaves the tree dirty on every verification and ends up
+   * committed without anybody deciding it. The repo's instructions live in
+   * `CLAUDE.md` and `.claude/rules/`; having a build step write them, no.
    */
   agentRules: false,
 
   /**
-   * Desde qué máquinas se puede abrir el servidor de desarrollo.
+   * From which machines the development server can be opened.
    *
-   * **Sin esto, `npm run dev` da una página muerta en cuanto no se entra por `localhost`.**
-   * Next bloquea por defecto los recursos de `/_next/*` cuando la petición llega con un
-   * `Origin` que no reconoce, y contesta un 403 a cada trozo de JavaScript: el HTML carga, el
-   * texto de la portada se ve y no se monta nada. No sale un error de CSP ni una traza — solo
-   * una pantalla a medias—, y por eso se diagnosticó mal durante tandas: no es que al React de
-   * desarrollo le falte `unsafe-eval`, es esto.
+   * **Without this, `npm run dev` gives a dead page as soon as one does not enter through
+   * `localhost`.** By default Next blocks the `/_next/*` resources when the request arrives with
+   * an `Origin` it does not recognise, and answers a 403 to every chunk of JavaScript: the HTML
+   * loads, the text of the front page is seen and nothing is mounted. No CSP error and no trace
+   * comes out — only a half-done screen—, and that is why it was misdiagnosed for rounds: it is
+   * not that the development React is missing `unsafe-eval`, it is this.
    *
-   * Y aquí importa más que en un proyecto normal, porque **el visor no entra por `localhost`**:
-   * se prueba con `dev:https` desde el Quest, contra la IP de esta máquina en la red de casa.
-   * Por eso van los dos rangos privados además del propio equipo.
+   * And here it matters more than in a normal project, because **the headset does not enter
+   * through `localhost`**: it is tested with `dev:https` from the Quest, against this machine's
+   * IP on the home network. That is why the two private ranges go in besides the machine itself.
    *
-   * Es una opción **solo de desarrollo**: `next build` la ignora, así que no afloja nada de lo
-   * que se sirve de verdad.
+   * It is a **development-only** option: `next build` ignores it, so it loosens nothing of
+   * what is really served.
    */
   allowedDevOrigins: ['127.0.0.1', '192.168.*.*', '10.*.*.*'],
 

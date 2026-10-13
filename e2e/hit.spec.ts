@@ -2,18 +2,18 @@ import { expect, test, type Page } from '@playwright/test'
 import { openGame, playMatch } from './helpers'
 
 /**
- * El golpe recibido (`components/xr/GolpeRecibido.tsx`), medido fotograma a fotograma en un
- * navegador de verdad.
+ * The hit feedback (`components/xr/HitFeedback.tsx`), measured frame by frame in a real
+ * browser.
  *
- * Lo que más importa no se ve en una captura: **que la cámara no se mueve en ningún
- * fotograma**. Mover la vista sin que se mueva la cabeza es lo que marea con el visor, y la
- * macro está hecha para sacudir el decorado y nunca la cámara. La sonda del componente
- * (`window.__hitFeedback`) apunta en cada fotograma la pose de la cámara, lo que se ha
- * desplazado la sala, la viñeta, el ritmo del reloj de la mesa y el corte del filtro.
+ * What matters most cannot be seen in a screenshot: **that the camera does not move in any
+ * frame**. Moving the view without the head moving is what causes sickness with the headset,
+ * and the macro is made to shake the backdrop and never the camera. The component's probe
+ * (`window.__hitFeedback`) records on every frame the camera's pose, how far the room has been
+ * displaced, the vignette, the pace of the table's clock and the filter's cutoff.
  */
 
-/** Lo que el componente apunta por fotograma. */
-interface Muestra {
+/** What the component records per frame. */
+interface Sample {
   camera: number[]
   shake: [number, number, number]
   vignette: number
@@ -21,121 +21,121 @@ interface Muestra {
   cutoff: number
 }
 
-const ABIERTO = 20000
+const OPEN = 20000
 
-/** Espera a que la sonda esté puesta: la monta la escena, que se carga aparte. */
-async function sondaLista(page: Page) {
+/** Waits for the probe to be in place: the scene mounts it, and it loads separately. */
+async function probeReady(page: Page) {
   await expect.poll(() => page.evaluate(() => window.__hitFeedback != null)).toBe(true)
 }
 
-/** Lo apuntado hasta ahora. */
-function muestras(page: Page): Promise<Muestra[]> {
-  return page.evaluate(() => (window.__hitFeedback?.samples() ?? []) as Muestra[])
+/** What has been recorded so far. */
+function samples(page: Page): Promise<Sample[]> {
+  return page.evaluate(() => (window.__hitFeedback?.samples() ?? []) as Sample[])
 }
 
 /**
- * Espera a que el golpe haya pasado entero: alguna muestra con viñeta y, detrás, un rato de
- * fotogramas ya en reposo.
+ * Waits for the hit to have passed entirely: some sample with vignette and, after it, a while of
+ * frames already at rest.
  */
-async function hastaQuePase(page: Page): Promise<Muestra[]> {
+async function untilItPasses(page: Page): Promise<Sample[]> {
   await expect
     .poll(
       async () => {
-        const lista = await muestras(page)
-        const ultimoConGolpe = lista.findLastIndex((m) => m.vignette > 0)
-        return ultimoConGolpe >= 0 && lista.length - ultimoConGolpe > 10
+        const list = await samples(page)
+        const lastWithHit = list.findLastIndex((m) => m.vignette > 0)
+        return lastWithHit >= 0 && list.length - lastWithHit > 10
       },
-      { message: 'el golpe no llegó a verse y apagarse', timeout: 60_000 },
+      { message: 'the hit never got to be seen and fade out', timeout: 60_000 },
     )
     .toBe(true)
-  return muestras(page)
+  return samples(page)
 }
 
-function comprobarElGolpeEntero(lista: Muestra[]) {
-  // La cámara, idéntica en todos los fotogramas: matriz, posición y giro.
-  const primera = JSON.stringify(lista[0].camera)
-  expect(lista[0].camera).toHaveLength(16 + 3 + 4)
-  for (const m of lista) expect(JSON.stringify(m.camera)).toBe(primera)
+function checkTheWholeHit(list: Sample[]) {
+  // The camera, identical in every frame: matrix, position and rotation.
+  const first = JSON.stringify(list[0].camera)
+  expect(list[0].camera).toHaveLength(16 + 3 + 4)
+  for (const m of list) expect(JSON.stringify(m.camera)).toBe(first)
 
-  // La sala se ha movido y ha vuelto exactamente a su sitio.
-  expect(lista.some((m) => m.shake.some((v) => v !== 0))).toBe(true)
-  const ultima = lista.at(-1)!
-  expect(ultima.shake).toEqual([0, 0, 0])
-  // La viñeta ha subido y se ha apagado.
-  expect(Math.max(...lista.map((m) => m.vignette))).toBeGreaterThan(0)
-  expect(ultima.vignette).toBe(0)
-  // El reloj de la mesa ha frenado y ha vuelto a su ritmo.
-  expect(Math.min(...lista.map((m) => m.timeScale))).toBeLessThan(1)
-  expect(ultima.timeScale).toBe(1)
-  // Y el oído se ha tapado y destapado.
-  expect(Math.min(...lista.map((m) => m.cutoff))).toBeLessThan(ABIERTO)
-  expect(ultima.cutoff).toBe(ABIERTO)
+  // The room has moved and has gone back exactly to its place.
+  expect(list.some((m) => m.shake.some((v) => v !== 0))).toBe(true)
+  const last = list.at(-1)!
+  expect(last.shake).toEqual([0, 0, 0])
+  // The vignette has gone up and has faded out.
+  expect(Math.max(...list.map((m) => m.vignette))).toBeGreaterThan(0)
+  expect(last.vignette).toBe(0)
+  // The table's clock has slowed down and has gone back to its pace.
+  expect(Math.min(...list.map((m) => m.timeScale))).toBeLessThan(1)
+  expect(last.timeScale).toBe(1)
+  // And the ear has been muffled and unmuffled.
+  expect(Math.min(...list.map((m) => m.cutoff))).toBeLessThan(OPEN)
+  expect(last.cutoff).toBe(OPEN)
 }
 
-test('un golpe mueve la sala, oscurece los bordes, frena la mesa y tapa el oído, sin tocar la cámara', async ({ page }) => {
+test('a hit moves the room, darkens the edges, slows the table and muffles the ear, without touching the camera', async ({ page }) => {
   await openGame(page)
-  await playMatch(page, { goles: 5, nivel: 'Easy' })
-  await sondaLista(page)
+  await playMatch(page, { goals: 5, level: 'Easy' })
+  await probeReady(page)
 
   await page.evaluate(() => {
     window.__hitFeedback!.measure()
     window.__hitFeedback!.hit(1, { x: -1, y: 0, z: 0 })
   })
 
-  comprobarElGolpeEntero(await hastaQuePase(page))
+  checkTheWholeHit(await untilItPasses(page))
 })
 
-test('el gol en contra dispara el golpe, flojo', async ({ page }) => {
+test('the goal against triggers the hit, a weak one', async ({ page }) => {
   await openGame(page)
-  await sondaLista(page)
+  await probeReady(page)
   await page.evaluate(() => window.__hitFeedback!.measure())
-  // Con el mazo quieto, en Imposible la máquina marca en unos segundos.
-  await playMatch(page, { goles: 5, nivel: 'Impossible' })
+  // With the mallet still, on Impossible the machine scores in a few seconds.
+  await playMatch(page, { goals: 5, level: 'Impossible' })
 
-  const lista = await hastaQuePase(page)
-  comprobarElGolpeEntero(lista)
-  // Flojo: nadie te ha tocado. Con toda la fuerza la viñeta llegaría a 0,9.
-  expect(Math.max(...lista.map((m) => m.vignette))).toBeLessThan(0.7)
+  const list = await untilItPasses(page)
+  checkTheWholeHit(list)
+  // Weak: nobody has touched you. At full strength the vignette would reach 0.9.
+  expect(Math.max(...list.map((m) => m.vignette))).toBeLessThan(0.7)
 })
 
-test('con el confort apagado, el golpe no hace nada', async ({ page }) => {
+test('with comfort turned off, the hit does nothing', async ({ page }) => {
   await openGame(page)
-  // Se elige como lo elegiría cualquiera: en la fila del menú, detrás de «Más opciones», que en el
-  // reto no se ofrece (es una partida fija).
+  // It is chosen the way anyone would choose it: in the menu's row, behind «More options», which
+  // the challenge does not offer (it is a fixed match).
   await page.getByRole('button', { name: 'Practice', exact: true }).click()
   await page.getByRole('button', { name: 'More options', exact: true }).click()
   await page.getByRole('button', { name: 'Off', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Off', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await playMatch(page, { goles: 5, nivel: 'Easy' })
-  await sondaLista(page)
+  await playMatch(page, { goals: 5, level: 'Easy' })
+  await probeReady(page)
 
   await page.evaluate(() => {
     window.__hitFeedback!.measure()
     window.__hitFeedback!.hit(1, { x: -1, y: 0, z: 0 })
   })
-  // Un rato de fotogramas: lo que dura un golpe entero y algo más.
+  // A while of frames: what a whole hit lasts and a bit more.
   await page.waitForTimeout(1_200)
-  const lista = await muestras(page)
-  expect(lista.length).toBeGreaterThan(5)
-  for (const m of lista) {
+  const list = await samples(page)
+  expect(list.length).toBeGreaterThan(5)
+  for (const m of list) {
     expect(m.vignette).toBe(0)
     expect(m.shake).toEqual([0, 0, 0])
     expect(m.timeScale).toBe(1)
-    expect(m.cutoff).toBe(ABIERTO)
+    expect(m.cutoff).toBe(OPEN)
   }
 })
 
-test('la captura: la viñeta en su pico, más oscura del lado del golpe', async ({ page }) => {
-  const ruta = process.env.GOLPE_CAPTURA
-  test.skip(ruta == null, 'solo cuando se pide la captura (GOLPE_CAPTURA=ruta.png)')
+test('the screenshot: the vignette at its peak, darker on the side of the hit', async ({ page }) => {
+  const screenshotPath = process.env.HIT_SCREENSHOT
+  test.skip(screenshotPath == null, 'only when the screenshot is asked for (HIT_SCREENSHOT=path.png)')
   await openGame(page)
-  await playMatch(page, { goles: 5, nivel: 'Easy' })
-  await sondaLista(page)
+  await playMatch(page, { goals: 5, level: 'Easy' })
+  await probeReady(page)
   await page.evaluate(() => {
     window.__hitFeedback!.hit(1, { x: -1, y: 0, z: 0 })
-    // El pico de la viñeta: al acabar su entrada.
+    // The vignette's peak: at the end of its attack.
     window.__hitFeedback!.pinAge(0.06)
   })
   await page.waitForTimeout(300)
-  await page.screenshot({ path: ruta! })
+  await page.screenshot({ path: screenshotPath! })
 })

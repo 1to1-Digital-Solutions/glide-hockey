@@ -2,33 +2,35 @@ import { expect, test } from '@playwright/test'
 import { openGame, playMatch } from './helpers'
 
 /**
- * Una partida de verdad, de principio a fin.
+ * A real match, from start to finish.
  *
- * Es lo único que comprueba las piezas juntas: la física, la máquina, el estado
- * y el marcador. Cada una tiene sus tests unitarios, pero que el disco entre en
- * una portería y eso suba el marcador de la pantalla no lo demuestra ninguno.
+ * It is the only thing that checks the pieces together: the physics, the
+ * machine, the state and the scoreboard. Each one has its unit tests, but that
+ * the puck goes into a goal and that raises the scoreboard on screen is proven
+ * by none of them.
  *
- * Se juega **sin tocar el mazo**: con el jugador quieto, la máquina acaba
- * marcando, y ahí se ve el recorrido entero sin depender de la puntería de un
- * test. En Imposible, además, tarda unos segundos en vez de un minuto.
+ * It is played **without touching the mallet**: with the player still, the
+ * machine ends up scoring, and there the whole journey is seen without
+ * depending on a test's aim. On Impossible, besides, it takes a few seconds
+ * instead of a minute.
  */
-test('la máquina marca y la partida termina', async ({ page }) => {
+test('the machine scores and the match ends', async ({ page }) => {
   await openGame(page)
-  await playMatch(page, { goles: 3, nivel: 'Impossible' })
+  await playMatch(page, { goals: 3, level: 'Impossible' })
 
-  // A tres goles y con el mazo parado, la máquina llega antes.
+  // To three goals and with the mallet standing still, the machine gets there first.
   await expect(
     page.getByRole('heading', { name: 'Game lost' }),
   ).toBeVisible()
 
   await expect(page.getByText('Conceded')).toBeVisible()
-  // El resumen enseña el marcador con el que se acabó.
+  // The summary shows the score it ended with.
   await expect(page.getByText('Final score: 0–3.')).toBeVisible()
 })
 
-test('desde el resumen se vuelve al menú', async ({ page }) => {
+test('from the summary one goes back to the menu', async ({ page }) => {
   await openGame(page)
-  await playMatch(page, { goles: 3, nivel: 'Impossible' })
+  await playMatch(page, { goals: 3, level: 'Impossible' })
 
   await expect(
     page.getByRole('heading', { name: 'Game lost' }),
@@ -38,13 +40,13 @@ test('desde el resumen se vuelve al menú', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Glide Hockey' })).toBeVisible()
 })
 
-test('dejar la partida devuelve al menú sin esperar al final', async ({
+test('leaving the match goes back to the menu without waiting for the end', async ({
   page,
 }) => {
   await openGame(page)
-  await playMatch(page, { goles: 15, nivel: 'Easy' })
+  await playMatch(page, { goals: 15, level: 'Easy' })
 
-  // Pregunta antes: el botón se pulsa sin querer y salir pierde los goles.
+  // It asks first: the button gets pressed by accident and leaving loses the goals.
   await page.getByRole('button', { name: 'Leave the game' }).click()
   await expect(page.getByRole('alertdialog')).toBeVisible()
   await page.getByRole('button', { name: 'Leave', exact: true }).click()
@@ -52,7 +54,7 @@ test('dejar la partida devuelve al menú sin esperar al final', async ({
   await expect(page.getByRole('heading', { name: 'Glide Hockey' })).toBeVisible()
 })
 
-test('el menú abre en el reto: no pregunta nivel ni goles, y Jugar sin tocar nada lo empieza', async ({ page }) => {
+test('the menu opens on the challenge: it asks for no level or goals, and Play without touching anything starts it', async ({ page }) => {
   await openGame(page)
 
   await expect(page.getByRole('button', { name: 'Challenge' })).toHaveAttribute('aria-pressed', 'true')
@@ -63,14 +65,14 @@ test('el menú abre en el reto: no pregunta nivel ni goles, y Jugar sin tocar na
   await page.getByRole('button', { name: 'Play', exact: true }).click()
 
   await expect(page.getByText(/Challenge · round 1/)).toBeVisible()
-  // El objetivo, dicho de frente desde el primer segundo: la misión, y después lo que se lleva
-  // y lo que queda. Sin salón no hay listones: la marca a batir es el récord de aquí.
-  const objetivo = page.locator('[data-objetivo]')
-  await expect(objetivo).toHaveText(/^Win games until you lose one/)
-  await expect(objetivo).toHaveText(/Round 1 · to 3 goals · goal \+100/, { timeout: 30_000 })
+  // The goal, said up front from the first second: the mission, and then what has been earned
+  // and what is left. Without a hall there are no thresholds: the mark to beat is the record here.
+  const goal = page.locator('[data-goal]')
+  await expect(goal).toHaveText(/^Win games until you lose one/)
+  await expect(goal).toHaveText(/Round 1 · to 3 goals · goal \+100/, { timeout: 30_000 })
 })
 
-test('la práctica sigue a un toque, y ahí no hay objetivo que colgar', async ({ page }) => {
+test('practice is still one tap away, and there is no goal to hang there', async ({ page }) => {
   await openGame(page)
   await page.getByRole('button', { name: 'Practice', exact: true }).click()
 
@@ -78,5 +80,5 @@ test('la práctica sigue a un toque, y ahí no hay objetivo que colgar', async (
   await page.getByRole('button', { name: 'Play', exact: true }).click()
 
   await expect(page.getByText('Machine')).toBeVisible()
-  await expect(page.locator('[data-objetivo]')).toHaveCount(0)
+  await expect(page.locator('[data-goal]')).toHaveCount(0)
 })

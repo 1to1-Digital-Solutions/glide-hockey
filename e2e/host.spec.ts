@@ -4,17 +4,17 @@ import { ASSETS_BASE, enterHostBooth, isAtSiteRoot, openHost } from './support/h
 import { installXREmulator } from './support/xr'
 
 /**
- * El juego montado como lo monta el salón: dentro de un Canvas ajeno, con una
- * sesión que no es suya y sus ficheros bajo el prefijo del anfitrión.
+ * The game mounted the way the hall mounts it: inside somebody else's Canvas,
+ * with a session that is not its own and its files under the host's prefix.
  *
- * `scripts/scene-contract.test.ts` lee el código y comprueba que desde
- * `<GlideHockeyScene>` no se alcanza un Canvas, un XR ni DOM; esto es lo que
- * demuestra que la escena funciona de verdad montada en el Canvas de otro, y
- * que montarla y jugar no toca la sesión del anfitrión —que es lo que permite
- * pasar del juego al salón sin quitarse el visor—.
+ * `scripts/scene-contract.test.ts` reads the code and checks that from
+ * `<GlideHockeyScene>` no Canvas, XR or DOM is reached; this is what proves
+ * that the scene really works mounted in someone else's Canvas, and that
+ * mounting it and playing does not touch the host's session —which is what
+ * allows going from the game to the hall without taking the headset off—.
  */
-test.describe('Montado dentro de otro anfitrión', () => {
-  test('la escena se monta dentro del Canvas ajeno sin ensuciar la consola', async ({ page }) => {
+test.describe('Mounted inside another host', () => {
+  test('the scene is mounted inside the foreign Canvas without dirtying the console', async ({ page }) => {
     const errors: string[] = []
     page.on('console', (message) => {
       if (message.type() === 'error') errors.push(message.text())
@@ -24,19 +24,19 @@ test.describe('Montado dentro de otro anfitrión', () => {
     await openHost(page)
     await page.waitForTimeout(2_000)
 
-    // Un fallo de la escena no se ve desde fuera: `<GlideHockeyScene>` no pinta
-    // DOM y el Canvas se queda igual de negro. Lo que lo dice es la consola, y
-    // aquí manda la misma política de seguridad que en el salón.
+    // A failure of the scene cannot be seen from outside: `<GlideHockeyScene>`
+    // paints no DOM and the Canvas stays just as black. What tells is the
+    // console, and here the same security policy as in the hall rules.
     expect(errors).toEqual([])
   })
 
-  test('el mando encuentra su perfil bajo el prefijo del anfitrión', async ({ page }) => {
+  test('the controller finds its profile under the host prefix', async ({ page }) => {
     await installXREmulator(page)
     const host = await openHost(page)
 
-    // La sesión y el store son del anfitrión, así que entrar al visor también.
-    // Se reintenta porque el store no acepta la sesión hasta que el Canvas lo ha
-    // conectado con three, un poco después del primer fotograma.
+    // The session and the store belong to the host, so entering the headset
+    // does too. It is retried because the store does not accept the session
+    // until the Canvas has connected it with three, a little after the first frame.
     await expect
       .poll(
         () =>
@@ -46,31 +46,32 @@ test.describe('Montado dentro de otro anfitrión', () => {
               () => false,
             ),
           ),
-        { message: 'el anfitrión no pudo abrir la sesión inmersiva' },
+        { message: 'the host could not open the immersive session' },
       )
       .toBe(true)
     await page.evaluate(() => window.__xrTest.connectControllers())
 
-    // Registrar un mando es leer su perfil; es lo que el contrato pide cablear
-    // al anfitrión (`baseAssetPath`) y lo único que este juego sirve como
-    // estático. Nada se pide desde la raíz, donde el salón no tiene nada.
+    // Registering a controller is reading its profile; it is what the contract
+    // asks to wire to the host (`baseAssetPath`) and the only thing this game
+    // serves as a static file. Nothing is requested from the root, where the
+    // hall has nothing.
     await expect
       .poll(() => host.requested.filter((p) => p.startsWith(`${ASSETS_BASE}webxr-profiles/`)), {
-        message: 'el perfil del mando no se pidió bajo el prefijo del anfitrión',
+        message: 'the controller profile was not requested under the host prefix',
       })
       .not.toEqual([])
     expect(host.requested.filter(isAtSiteRoot)).toEqual([])
     expect(await page.evaluate(() => window.__xrTest.hasSession())).toBe(true)
   })
 
-  test('con un reto, la escena montada dentro de la sesión entra jugando y avisa al acabar', async ({ page }) => {
-    // Como en el salón: se entra en la sesión y después se elige cabina. La escena nace dentro de
-    // una sesión abierta, y eso no puede tomarse como «se entró al visor con una partida de
-    // escritorio a medias», que la descartaría y dejaría el reto en el menú.
+  test('with a challenge, the scene mounted inside the session comes in playing and reports at the end', async ({ page }) => {
+    // As in the hall: one enters the session and afterwards chooses a cabinet. The scene is born
+    // inside an open session, and that cannot be taken as «the headset was entered with a desktop
+    // match half played», which would discard it and leave the challenge in the menu.
     test.setTimeout(120_000)
     await watchTable(page)
     await installXREmulator(page)
-    await openHost(page, undefined, { aLaCarta: true, reto: 20260925 })
+    await openHost(page, undefined, { onDemand: true, challenge: 20260925 })
     await expect
       .poll(
         () =>
@@ -80,23 +81,24 @@ test.describe('Montado dentro de otro anfitrión', () => {
               () => false,
             ),
           ),
-        { message: 'el anfitrión no pudo abrir la sesión inmersiva' },
+        { message: 'the host could not open the immersive session' },
       )
       .toBe(true)
     await page.evaluate(() => window.__xrTest.connectControllers())
     await enterHostBooth(page)
 
-    // Sin tocar «jugar»: la mesa se pone sola, que es lo que dice que hay partida.
+    // Without touching «play»: the table sets itself up, which is what says there is a match.
     await expect
       .poll(() => page.evaluate(() => window.__glideHockeyScene != null), {
         timeout: 15_000,
-        message: 'el reto no llegó a poner la mesa',
+        message: 'the challenge never got to set the table',
       })
       .toBe(true)
 
-    // El saque espera al mazo en la mano: se coge, y se aparta a una banda para que la máquina
-    // marque sola. Sin tutorial, que en el reto no se da: aquí está pendiente (no se ha visto
-    // nunca) y, si saliera, los goles de la máquina no contarían y el reto no acabaría.
+    // The serve waits for the mallet in the hand: it is picked up, and moved aside to a rail so
+    // that the machine scores on its own. Without a tutorial, which is not given in the
+    // challenge: here it is pending (it has never been seen) and, if it came up, the machine's
+    // goals would not count and the challenge would not end.
     await page.evaluate(() => {
       window.__xrTest.placeController('right', 0, 0.95, -0.48)
       window.__xrTest.squeeze('right', true)
@@ -104,16 +106,16 @@ test.describe('Montado dentro de otro anfitrión', () => {
     await page.waitForTimeout(600)
     await page.evaluate(() => window.__xrTest.placeController('right', 0.32, 0.95, -0.4))
 
-    // La máquina gana la primera ronda y el reto se acaba: un aviso, del reto.
+    // The machine wins the first round and the challenge ends: one report, of the challenge.
     await expect
-      .poll(() => page.evaluate(() => window.__terminadas.map(({ mode: modo, points: puntos, challenge: reto }) => ({ modo, puntos, reto }))), {
+      .poll(() => page.evaluate(() => window.__finished.map(({ mode: gameMode, points: score, challenge: isChallenge }) => ({ gameMode, score, isChallenge }))), {
         timeout: 90_000,
-        message: 'la escena no avisó del final del reto',
+        message: 'the scene did not report the end of the challenge',
       })
-      .toEqual([{ modo: 'challenge', puntos: 0, reto: true }])
-    // El mazo aparcado en la banda puede desviar un tiro de la máquina a su propia portería: es
-    // la hazaña oculta, y es la única que esta partida puede dar (`lib/hazanas.ts`).
-    const [aviso] = await page.evaluate(() => window.__terminadas)
-    expect([undefined, ['GH_OWN_GOAL']]).toContainEqual(aviso?.feats)
+      .toEqual([{ gameMode: 'challenge', score: 0, isChallenge: true }])
+    // The mallet parked on the rail can deflect a shot of the machine into its own goal: it is
+    // the hidden feat, and it is the only one this match can give (`lib/feats.ts`).
+    const [report] = await page.evaluate(() => window.__finished)
+    expect([undefined, ['GH_OWN_GOAL']]).toContainEqual(report?.feats)
   })
 })

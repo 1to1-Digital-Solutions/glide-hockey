@@ -1,18 +1,19 @@
 // @vitest-environment node
 
 /**
- * Que la escena que se publica siga siendo una escena.
+ * That the scene that gets published is still a scene.
  *
- * `GlideHockeyScene` es lo que el salón de xrcade monta dentro de su propio
- * Canvas y de su propia sesión de WebXR. El contrato dice que desde ahí no se
- * puede crear un `<Canvas>`, ni un `<XR>`, ni un `<XROrigin>`, ni pintar una
- * sola etiqueta de DOM (ver `docs/xrcade.md`).
+ * `GlideHockeyScene` is what the xrcade hall mounts inside its own Canvas and
+ * its own WebXR session. The contract says that from there a `<Canvas>` cannot
+ * be created, nor an `<XR>`, nor an `<XROrigin>`, nor a single DOM tag painted
+ * (see `docs/xrcade.md`).
  *
- * Romperlo **no rompe el build ni ningún test de aquí**: la web del juego trae
- * su Canvas y sigue funcionando igual. Se descubriría montándolo en el salón,
- * con la sesión del anfitrión cerrándose al entrar o con un `<div>` intentando
- * pintarse dentro de un Canvas. Por eso se comprueba sobre el código: se
- * recorren los imports desde la entrada de la escena y se mira qué usa.
+ * Breaking it **does not break the build or any test here**: the game's web
+ * page brings its Canvas and keeps working the same. It would be discovered by
+ * mounting it in the hall, with the host's session closing on entering or with
+ * a `<div>` trying to paint itself inside a Canvas. That is why it is checked
+ * on the code: the imports are walked from the scene's entry and what it uses
+ * is looked at.
  */
 
 import { readFileSync, statSync } from 'node:fs'
@@ -43,7 +44,7 @@ function resolveRelative(from: string, specifier: string): string | null {
   return null
 }
 
-/** Los módulos del proyecto a los que se llega desde la escena. */
+/** The modules of the project that are reached from the scene. */
 function reachableFromScene(): string[] {
   const seen = new Set<string>()
   const pending = [sceneEntry]
@@ -67,13 +68,13 @@ function reachableFromScene(): string[] {
 }
 
 /**
- * El código sin sus comentarios.
+ * The code without its comments.
  *
- * Media docena de módulos explican en prosa por qué **no** ponen un `<Canvas>`
- * ni un `<XROrigin>`, y buscar sobre el fuente en bruto convertía justo esas
- * explicaciones en el fallo que describen. Se quitan los bloques `/* … *\/`
- * —que es también la forma de los comentarios dentro del JSX— y las líneas de
- * `//`.
+ * Half a dozen modules explain in prose why they do **not** put a `<Canvas>`
+ * or an `<XROrigin>`, and searching over the raw source turned precisely those
+ * explanations into the failure they describe. The `/* … *\/` blocks are
+ * removed —which is also the form of the comments inside JSX— and the `//`
+ * lines.
  */
 function withoutComments(source: string): string {
   return source
@@ -81,7 +82,7 @@ function withoutComments(source: string): string {
     .replace(/^\s*\/\/.*$/gm, ' ')
 }
 
-/** Qué módulos alcanzables usan de verdad alguno de estos fragmentos. */
+/** Which reachable modules really use any of these fragments. */
 function usedBy(patterns: RegExp[]): string[] {
   return reachableFromScene()
     .filter((file) => {
@@ -91,25 +92,25 @@ function usedBy(patterns: RegExp[]): string[] {
     .map((file) => relative(projectRoot, file))
 }
 
-describe('la escena que monta el anfitrión', () => {
-  it('llega a más de un módulo, o no se estaría comprobando nada', () => {
+describe('the scene the host mounts', () => {
+  it('reaches more than one module, or nothing would be being checked', () => {
     expect(reachableFromScene().length).toBeGreaterThan(5)
   })
 
-  it('no crea Canvas, sesión ni origen: son del anfitrión', () => {
-    // `<XR[\\s>]` y no `<XR\\b`: `<XRMenu` y `<XRScoreboard` son la interfaz
-    // inmersiva del juego, que sí es suya.
+  it('creates no Canvas, session or origin: they belong to the host', () => {
+    // `<XR[\\s>]` and not `<XR\\b`: `<XRMenu` and `<XRScoreboard` are the
+    // game's immersive interface, which is its own.
     expect(usedBy([/<Canvas[\s>]/, /<XR[\s>]/, /<XROrigin[\s>]/])).toEqual([])
   })
 
-  it('no abre ni cierra la sesión inmersiva por su cuenta', () => {
-    // `endXrSession` sí se alcanza, y debe: es lo que significa «salir» cuando
-    // el juego es su propia web (ver `game/exit.tsx`). Lo que no puede haber es
-    // una llamada a entrar, que arrancaría una sesión dentro de la del salón.
+  it('neither opens nor closes the immersive session on its own', () => {
+    // `endXrSession` is reached, and must be: it is what «exit» means when the
+    // game is its own web page (see `game/exit.tsx`). What there cannot be is a
+    // call to enter, which would start a session inside the hall's.
     expect(usedBy([/\benterVR\s*\(/, /\benterAR\s*\(/])).toEqual([])
   })
 
-  it('no pinta DOM: dentro de un Canvas solo caben objetos de three', () => {
+  it('paints no DOM: inside a Canvas only three objects fit', () => {
     expect(usedBy([/<(?:div|main|button|p|span|header|section)\b/])).toEqual([])
   })
 })

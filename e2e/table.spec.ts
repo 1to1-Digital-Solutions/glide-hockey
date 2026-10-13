@@ -4,16 +4,16 @@ import { openHost } from './support/host'
 import { drawCallBudget } from './support/budget'
 
 /**
- * Lo que cuesta pintar la mesa, medido sobre la escena de verdad.
+ * What it costs to paint the table, measured on the real scene.
  *
- * En unas gafas lo que se paga no son los triángulos sino las **llamadas de
- * dibujo**, y esas son las mismas aquí que allí (allí, por ojo). Los fps de un
- * escritorio sin GPU no dirían nada del visor; el número de llamadas sí, y es
- * lo que se vigila al meter el mapa de entorno y el halo del disco: el mapa no
- * añade llamadas y el halo es una malla más, solo en partida.
+ * In a pair of goggles what is paid for is not the triangles but the **draw
+ * calls**, and those are the same here as there (there, per eye). The fps of a
+ * desktop without a GPU would say nothing about the headset; the number of
+ * calls does, and it is what is watched when adding the environment map and the
+ * puck's halo: the map adds no calls and the halo is one more mesh, only in a match.
  *
- * Se mide desde fuera, envolviendo el contexto WebGL, para no meter contadores
- * en el código del juego.
+ * It is measured from outside, by wrapping the WebGL context, so as not to put
+ * counters in the game's code.
  */
 
 interface DrawFrame {
@@ -26,7 +26,7 @@ declare global {
   }
 }
 
-/** Envuelve el contexto WebGL para contar llamadas. Antes de `page.goto`. */
+/** Wraps the WebGL context to count calls. Before `page.goto`. */
 async function countDrawCalls(page: Page) {
   await page.addInitScript(() => {
     const frames: DrawFrame[] = []
@@ -50,9 +50,9 @@ async function countDrawCalls(page: Page) {
   })
 }
 
-/** La mediana de llamadas por fotograma, con la escena ya asentada. */
-async function medianaDeLlamadas(page: Page, count = 30, asiento = 1500): Promise<number> {
-  await page.waitForTimeout(asiento)
+/** The median of calls per frame, with the scene already settled. */
+async function medianCalls(page: Page, count = 30, settleMs = 1500): Promise<number> {
+  await page.waitForTimeout(settleMs)
   await page.evaluate(() => {
     window.__drawFrames!.length = 0
   })
@@ -66,66 +66,67 @@ async function medianaDeLlamadas(page: Page, count = 30, asiento = 1500): Promis
 }
 
 /**
- * Techo de llamadas por fotograma de la mesa en el menú: el tablero, las bandas,
- * las marcas, las porterías, las patas y la sala; la interfaz de escritorio
- * no cuenta (es DOM).
+ * Ceiling of calls per frame of the table in the menu: the board, the rails,
+ * the markings, the goals, the legs and the room; the desktop interface
+ * does not count (it is DOM).
  */
-const TECHO_MESA = drawCallBudget('table').max
+const TABLE_CEILING = drawCallBudget('table').max
 
-test('la mesa cabe en su presupuesto de llamadas de dibujo', async ({ page }) => {
+test('the table fits in its draw call budget', async ({ page }) => {
   await countDrawCalls(page)
   await openGame(page)
 
-  const llamadas = await medianaDeLlamadas(page)
-  console.log(`[mesa] llamadas de dibujo por fotograma: ${llamadas}`)
-  expect(llamadas).toBeGreaterThan(0)
-  expect(llamadas).toBeLessThanOrEqual(TECHO_MESA)
+  const calls = await medianCalls(page)
+  console.log(`[table] draw calls per frame: ${calls}`)
+  expect(calls).toBeGreaterThan(0)
+  expect(calls).toBeLessThanOrEqual(TABLE_CEILING)
 })
 
 /**
- * El cartel del objetivo, que cuelga encima del marcador del fondo: **una llamada de dibujo**, y
- * dos como mucho —el fondo, las dos líneas y la barra van en el mismo lienzo—.
+ * The goal sign, which hangs above the back scoreboard: **one draw call**, and
+ * two at most —the background, the two lines and the bar go on the same canvas—.
  *
- * Se mide montado como lo monta el salón, que es donde se cuelga (en la web del juego, sin visor,
- * el objetivo va en el marcador de DOM): con el reto y los listones que pasa el salón, la escena
- * entra jugando con el cartel puesto. Y se mide contra **la misma escena en el mismo momento**,
- * escondiendo el cartel desde el anfitrión de prueba: comparar con otro modo no vale aquí, porque
- * el marcador de cifras pinta un segmento por llamada y cambia con el modo y con cada gol. Por lo
- * mismo se repite la medida con el cartel a los dos lados de la medida sin él, y solo cuenta si
- * las dos coinciden: un gol entre medias cambia las cifras del marcador.
+ * It is measured mounted the way the hall mounts it, which is where it is hung (on the game's web
+ * page, without a headset, the goal goes in the DOM scoreboard): with the challenge and the
+ * thresholds the hall passes, the scene comes in playing with the sign up. And it is measured
+ * against **the same scene at the same moment**, by hiding the sign from the test host: comparing
+ * with another mode is no good here, because the digit scoreboard paints one segment per call
+ * and changes with the mode and with every goal. For the same reason the measurement with the
+ * sign is repeated on both sides of the measurement without it, and it only counts if the two
+ * agree: a goal in between changes the scoreboard's digits.
  *
- * El suelo de una llamada es lo que impide que pase midiendo una escena sin cartel.
+ * The floor of one call is what prevents it from passing by measuring a scene without a sign.
  */
-const CARTEL = drawCallBudget('goal-sign')
+const SIGN = drawCallBudget('goal-sign')
 
-test('el cartel del objetivo añade como mucho dos llamadas de dibujo', async ({ page }) => {
+test('the goal sign adds at most two draw calls', async ({ page }) => {
   await countDrawCalls(page)
   await watchTable(page)
   await openHost(page, undefined, {
-    reto: 20261005,
+    challenge: 20261005,
     goal: { medals: { bronze: 1500, silver: 8000, gold: 20000 }, better: 'higher', unit: 'points in the challenge', record: null, mode: 'challenge' },
   })
-  // Con el disco ya en juego: la cuenta atrás cambia de cifra cada segundo.
+  // With the puck already in play: the countdown changes digit every second.
   await expect
-    .poll(() => page.evaluate(() => window.__glideHockeyScene != null), { message: 'el reto no llegó a poner la mesa' })
+    .poll(() => page.evaluate(() => window.__glideHockeyScene != null), { message: 'the challenge never got to set the table' })
     .toBe(true)
   await page.waitForTimeout(4_000)
   await expect
-    .poll(() => page.evaluate(() => window.__glideHockeyHost.verElCartel(true)), { message: 'el cartel del objetivo no está colgado' })
+    .poll(() => page.evaluate(() => window.__glideHockeyHost.showSign(true)), { message: 'the goal sign is not hung' })
     .toBe(true)
 
-  let medido: { con: number; sin: number } | null = null
-  for (let intento = 0; intento < 6 && medido == null; intento++) {
-    const antes = await medianaDeLlamadas(page, 20, 300)
-    await page.evaluate(() => window.__glideHockeyHost.verElCartel(false))
-    const sin = await medianaDeLlamadas(page, 20, 300)
-    await page.evaluate(() => window.__glideHockeyHost.verElCartel(true))
-    const despues = await medianaDeLlamadas(page, 20, 300)
-    if (antes === despues) medido = { con: antes, sin }
+  let measured: { withSign: number; without: number } | null = null
+  for (let attempt = 0; attempt < 6 && measured == null; attempt++) {
+    const before = await medianCalls(page, 20, 300)
+    await page.evaluate(() => window.__glideHockeyHost.showSign(false))
+    const without = await medianCalls(page, 20, 300)
+    await page.evaluate(() => window.__glideHockeyHost.showSign(true))
+    const after = await medianCalls(page, 20, 300)
+    if (before === after) measured = { withSign: before, without }
   }
 
-  expect(medido, 'la escena no se estuvo quieta entre dos medidas').not.toBeNull()
-  console.log(`[mesa] el cartel del objetivo: ${medido!.con - medido!.sin} llamadas (${medido!.sin} sin él, ${medido!.con} con él)`)
-  expect(medido!.con - medido!.sin).toBeGreaterThanOrEqual(CARTEL.min)
-  expect(medido!.con - medido!.sin).toBeLessThanOrEqual(CARTEL.max)
+  expect(measured, 'the scene did not stay still between two measurements').not.toBeNull()
+  console.log(`[table] the goal sign: ${measured!.withSign - measured!.without} calls (${measured!.without} without it, ${measured!.withSign} with it)`)
+  expect(measured!.withSign - measured!.without).toBeGreaterThanOrEqual(SIGN.min)
+  expect(measured!.withSign - measured!.without).toBeLessThanOrEqual(SIGN.max)
 })

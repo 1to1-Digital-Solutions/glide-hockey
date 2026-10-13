@@ -3,41 +3,42 @@ import { openGame } from './helpers'
 import { enterButton, enterVR, exitButton, exitXR, installXREmulator, startGameInsideSession } from './support/xr'
 
 /**
- * Modo inmersivo, sobre un Quest 3 emulado con IWER.
+ * Immersive mode, on a Quest 3 emulated with IWER.
  *
- * Chromium no trae WebXR, así que sin el emulador estos caminos no se ejecutan
- * nunca: los demás tests entran por el ratón, que es código distinto. Aquí se
- * abre una sesión de verdad y se comprueba en qué estado deja al juego, mirando
- * el DOM que sigue montado detrás de la sesión.
+ * Chromium does not ship WebXR, so without the emulator these paths never run:
+ * the other tests go in through the mouse, which is different code. Here a real
+ * session is opened and it is checked what state it leaves the game in, by
+ * looking at the DOM that stays mounted behind the session.
  *
- * **Lo que estos tests NO cubren, y por qué:** llevar el mazo con el mando.
- * IWER registra los mandos —el juego sirve sus perfiles desde
- * `public/webxr-profiles/`— pero no propaga las poses de los punteros hasta la
- * escena, así que mover el mazo con el rayo y pulsar el menú inmersivo solo se
- * validan con el visor puesto (y cómo se lleva el mazo en VR está por decidir).
- * Lo que sí se comprueba es que entrar en sesión monte la escena inmersiva y
- * deje la partida corriendo sin un solo error.
+ * **What these tests do NOT cover, and why:** carrying the mallet with the
+ * controller. IWER registers the controllers —the game serves their profiles
+ * from `public/webxr-profiles/`— but does not propagate the poses of the
+ * pointers down to the scene, so moving the mallet with the ray and pressing
+ * the immersive menu are only validated with the headset on (and how the mallet
+ * is carried in VR is yet to be decided). What does get checked is that
+ * entering the session mounts the immersive scene and leaves the match running
+ * without a single error.
  */
-test.describe('Sesión inmersiva', () => {
+test.describe('Immersive session', () => {
   test.beforeEach(async ({ page }) => {
     await installXREmulator(page)
     await openGame(page)
   })
 
-  test('con WebXR disponible aparece la entrada al visor', async ({ page }) => {
+  test('with WebXR available the entry to the headset appears', async ({ page }) => {
     await expect(enterButton(page)).toBeVisible()
   })
 
-  test('entrar en el visor abre la sesión y lleva al menú, no a una partida', async ({ page }) => {
+  test('entering the headset opens the session and leads to the menu, not to a match', async ({ page }) => {
     await enterVR(page)
 
     expect(await page.evaluate(() => window.__xrTest.hasSession())).toBe(true)
-    // Se entra al menú: la partida la empieza el jugador. (El menú ofrece
-    // también «Salir» del visor mientras hay sesión; no es el «Salir» del HUD.)
+    // One enters the menu: the match is started by the player. (The menu also
+    // offers «Salir» from the headset while there is a session; it is not the HUD's «Salir».)
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
   })
 
-  test('la escena inmersiva se monta y la partida corre dentro de la sesión', async ({ page }) => {
+  test('the immersive scene is mounted and the match runs inside the session', async ({ page }) => {
     const errors: string[] = []
     page.on('console', (message) => {
       if (message.type() === 'error') errors.push(message.text())
@@ -48,22 +49,22 @@ test.describe('Sesión inmersiva', () => {
     await startGameInsideSession(page)
 
     await expect(exitButton(page)).toBeVisible()
-    // Unos fotogramas de partida con la sesión abierta: la mesa, el marcador en
-    // geometría y el menú inmersivo se pintan aquí, y un fallo suyo solo lo
-    // dice la consola —la escena vive en la raíz de R3F, no en el DOM—.
+    // A few frames of a match with the session open: the table, the scoreboard
+    // in geometry and the immersive menu are painted here, and a failure of
+    // theirs is only told by the console —the scene lives in R3F's root, not in the DOM—.
     await page.waitForTimeout(3_000)
     expect(await page.evaluate(() => window.__xrTest.hasSession())).toBe(true)
     expect(errors).toEqual([])
   })
 
-  test('salir de la sesión devuelve al menú de escritorio', async ({ page }) => {
+  test('leaving the session returns to the desktop menu', async ({ page }) => {
     await enterVR(page)
     await startGameInsideSession(page)
 
     await exitXR(page)
 
-    // Quitarse el visor a media partida vuelve al menú (`XRSessionController`):
-    // la partida del visor no continúa en la pantalla, se empieza otra.
+    // Taking the headset off mid match returns to the menu (`XRSessionController`):
+    // the headset's match does not continue on the screen, another one is started.
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
     await expect(enterButton(page)).toBeVisible()
   })

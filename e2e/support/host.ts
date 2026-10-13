@@ -6,36 +6,36 @@ import type { Trial } from './common'
 import { HOST_BUNDLE } from './globalSetup'
 
 /**
- * El récord de este juego para las capturas comunes (`capturas.spec.ts`): el reto, como lo dice
- * `onFinish`, y más es mejor.
+ * This game's record for the common screenshots (`screenshots.spec.ts`): the challenge, as
+ * `onFinish` reports it, and higher is better.
  */
 export const ENSAYO: Trial = { mode: 'challenge', better: 'higher' }
 
-/** Donde el salón sirve los estáticos de este juego. */
+/** Where the hall serves the static files of this game. */
 export const ASSETS_BASE = '/juegos/glide-hockey/'
-/** Lo que el anfitrión NO sirve desde la raíz: en el salón, ahí no hay nada. */
+/** What the host does NOT serve from the root: in the hall, there is nothing there. */
 const ASSET_ROOTS = ['/webxr-profiles/']
-const PAGE_PATH = '/anfitrion-de-prueba'
-const BUNDLE_PATH = '/anfitrion-de-prueba.js'
+const PAGE_PATH = '/test-host'
+const BUNDLE_PATH = '/test-host.js'
 const PUBLIC_DIR = path.join(process.cwd(), 'public')
 
-/** El HTML del anfitrión. */
-function html(anchor: HostAnchor | undefined, aLaCarta: boolean, reto?: number, objetivo?: Goal): string {
-  const anclaje = anchor === undefined ? '' : ` data-anchor='${JSON.stringify(anchor)}'`
-  const cabina = aLaCarta ? ` data-cabina="a-la-carta"` : ''
-  const conReto = reto === undefined ? '' : ` data-reto="${reto}"`
-  const conObjetivo = objetivo === undefined ? '' : ` data-objetivo='${JSON.stringify(objetivo)}'`
+/** The host's HTML. */
+function html(anchor: HostAnchor | undefined, onDemand: boolean, challenge?: number, goal?: Goal): string {
+  const anchorAttr = anchor === undefined ? '' : ` data-anchor='${JSON.stringify(anchor)}'`
+  const cabinet = onDemand ? ` data-cabinet="on-demand"` : ''
+  const withChallenge = challenge === undefined ? '' : ` data-challenge="${challenge}"`
+  const withGoal = goal === undefined ? '' : ` data-goal='${JSON.stringify(goal)}'`
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Anfitrión de prueba</title>
+    <title>Test host</title>
     <style>
-      html, body, #juego { height: 100%; margin: 0; }
+      html, body, #game { height: 100%; margin: 0; }
     </style>
   </head>
   <body>
-    <div id="juego" data-assets-base="${ASSETS_BASE}"${anclaje}${cabina}${conReto}${conObjetivo}></div>
+    <div id="game" data-assets-base="${ASSETS_BASE}"${anchorAttr}${cabinet}${withChallenge}${withGoal}></div>
     <script src="${BUNDLE_PATH}"></script>
   </body>
 </html>
@@ -43,7 +43,7 @@ function html(anchor: HostAnchor | undefined, aLaCarta: boolean, reto?: number, 
 }
 
 export interface TestHost {
-  /** Las rutas que la página ha pedido, en orden. */
+  /** The paths the page has requested, in order. */
   requested: string[]
 }
 
@@ -53,34 +53,34 @@ export function isAtSiteRoot(pathname: string): boolean {
 
 export interface HostOptions {
   /**
-   * Montar la escena solo cuando se pida (`enterHostBooth`), **como en el salón**: allí se
-   * elige cabina con el visor ya puesto, así que la escena nace dentro de una sesión abierta
-   * y sin haber pintado nada en la pantalla. Por defecto se monta con la página, que es lo
-   * que le vale al resto de la suite.
+   * Mount the scene only when asked (`enterHostBooth`), **as in the hall**: there a cabinet
+   * is chosen with the headset already on, so the scene is born inside an open session and
+   * without having painted anything on the screen. By default it is mounted with the page,
+   * which is what suits the rest of the suite.
    */
-  aLaCarta?: boolean
-  /** La semilla del reto que pasa el salón: la escena entra ya jugándolo (`reto`). */
-  reto?: number
-  /** Los listones de medalla que pasa el salón, para el cartel del objetivo (`objetivo`). */
+  onDemand?: boolean
+  /** The seed of the challenge the hall passes: the scene comes in already playing it (`challenge`). */
+  challenge?: number
+  /** The medal thresholds the hall passes, for the goal sign (`goal`). */
   goal?: Goal
 }
 
 /**
- * Sirve una página que monta el juego como lo montaría el salón: bajo su
- * prefijo, con la misma política de seguridad que la web del juego, y con la
- * raíz de estáticos respondiendo 404.
+ * Serves a page that mounts the game the way the hall would mount it: under its
+ * prefix, with the same security policy as the game's web page, and with the
+ * static root answering 404.
  */
 /**
- * @param anchor Dónde y con qué rumbo quiere el anfitrión que se plante el mundo. Sin él, el juego
- *   se ancla a la mirada, que es lo que hace en su propia web.
+ * @param anchor Where and with what heading the host wants the world to be planted. Without it, the
+ *   game anchors to the gaze, which is what it does on its own web page.
  */
 export async function openHost(
   page: Page,
   anchor?: HostAnchor,
-  { aLaCarta = false, reto, goal: objetivo }: HostOptions = {},
+  { onDemand = false, challenge, goal: hallGoal }: HostOptions = {},
 ): Promise<TestHost> {
   const csp = (await page.request.get('/')).headers()['content-security-policy']
-  expect(csp, 'el servidor no devolvió política de seguridad').toBeTruthy()
+  expect(csp, 'the server returned no security policy').toBeTruthy()
 
   const requested: string[] = []
   await page.route('**/*', async (route) => {
@@ -90,7 +90,7 @@ export async function openHost(
       return route.fulfill({
         contentType: 'text/html; charset=utf-8',
         headers: { 'content-security-policy': csp },
-        body: html(anchor, aLaCarta, reto, objetivo),
+        body: html(anchor, onDemand, challenge, hallGoal),
       })
     }
     if (pathname === BUNDLE_PATH) {
@@ -109,15 +109,16 @@ export async function openHost(
   await expect
     .poll(async () => (await canvas.boundingBox())?.width ?? 0, {
       timeout: 30_000,
-      message: 'la escena no llegó a pintarse dentro del anfitrión',
+      message: 'the scene never got painted inside the host',
     })
     .toBeGreaterThan(0)
   return { requested }
 }
 
 /**
- * Entra al visor desde el anfitrión y enciende los mandos. Se reintenta porque el store no acepta
- * la sesión hasta que el Canvas lo ha conectado con three, un poco después del primer fotograma.
+ * Enters the headset from the host and turns the controllers on. It is retried because the store
+ * does not accept the session until the Canvas has connected it with three, a little after the
+ * first frame.
  */
 export async function enterHostVR(page: Page): Promise<void> {
   await expect
@@ -129,13 +130,13 @@ export async function enterHostVR(page: Page): Promise<void> {
             () => false,
           ),
         ),
-      { message: 'el anfitrión no pudo abrir la sesión inmersiva' },
+      { message: 'the host could not open the immersive session' },
     )
     .toBe(true)
   await page.evaluate(() => window.__xrTest.connectControllers())
 }
 
-/** Entra en la cabina: monta la escena. Solo hace algo con `aLaCarta`. */
+/** Enters the cabinet: mounts the scene. It only does something with `onDemand`. */
 export async function enterHostBooth(page: Page): Promise<void> {
-  await page.evaluate(() => window.__glideHockeyHost.entrarEnLaCabina())
+  await page.evaluate(() => window.__glideHockeyHost.enterCabinet())
 }

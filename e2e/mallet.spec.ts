@@ -10,103 +10,103 @@ import {
 } from './helpers'
 
 /**
- * Mover el mazo con el ratón, que es la interacción principal del juego.
+ * Moving the mallet with the mouse, which is the game's main interaction.
  *
- * Desde el DOM no se ve nada de esto: el mazo y el disco son objetos de three
- * dentro de un canvas. Se miran por donde la escena los publica cuando un test
- * lo pide (ver `src/lib/sceneProbe.ts`), y no por el marcador: esperar a que
- * caiga un gol convertiría estos tests en una apuesta sobre la puntería y sobre
- * lo rápido que vaya la máquina donde corran.
+ * From the DOM none of this can be seen: the mallet and the puck are three
+ * objects inside a canvas. They are watched through where the scene publishes
+ * them when a test asks for it (see `src/lib/sceneProbe.ts`), and not through
+ * the scoreboard: waiting for a goal to fall would turn these tests into a bet
+ * on aim and on how fast the machine they run on goes.
  *
- * Se juega en Fácil y a quince goles para que la partida no se acabe sola
- * mientras se mira.
+ * It is played on Easy and to fifteen goals so that the match does not end on
+ * its own while it is being watched.
  */
 
-/** Distancia entre dos puntos de la mesa, en metros. */
-function distancia(a: Vec2, b: Vec2): number {
+/** Distance between two points of the table, in metres. */
+function distance(a: Vec2, b: Vec2): number {
   return Math.hypot(a.x - b.x, a.z - b.z)
 }
 
 /**
- * Cuánto se le consiente al mazo quedarse del punto al que se apuntó.
+ * How far the mallet is allowed to stay from the point that was aimed at.
  *
- * El ratón se mueve a un píxel entero y la mesa mide dos metros repartidos en
- * unos cientos de píxeles, así que entre proyectar el disco y volver a apuntar
- * ahí se pierden milímetros. Tres centímetros es menos de medio mazo: no hay
- * forma de cumplirlo quedándose quieto en el otro extremo de la mesa.
+ * The mouse moves to a whole pixel and the table measures two metres spread
+ * over a few hundred pixels, so between projecting the puck and aiming there
+ * again millimetres are lost. Three centimetres is less than half a mallet:
+ * there is no way to meet it by staying still at the other end of the table.
  */
-const TOLERANCIA = 0.03
+const TOLERANCE = 0.03
 
 /**
- * Apunta con el ratón al disco y espera a que el mazo llegue hasta él.
+ * Aims with the mouse at the puck and waits for the mallet to reach it.
  *
- * El disco es el único punto de la mesa del que el test sabe a la vez el píxel
- * en el que se ve y las coordenadas a las que corresponde, así que es la única
- * forma de comprobar que el mazo va **a donde se apunta** y no a cualquier
- * sitio. El mazo no cruza la línea de medio campo, de ahí el `constrainMallet`.
+ * The puck is the only point of the table of which the test knows at once the
+ * pixel it is seen at and the coordinates it corresponds to, so it is the only
+ * way to check that the mallet goes **where it is aimed** and not just
+ * anywhere. The mallet does not cross the halfway line, hence the `constrainMallet`.
  */
-async function llevarElMazoAlDisco(page: Page): Promise<Vec2> {
-  const mesa = await readTable(page)
-  // Recién empezada la partida el disco espera el saque en el centro de la
-  // mesa. Si estuviera lejos de ahí es que se ha jugado media partida antes de
-  // mirar, y entonces ni el mazo está donde se cree ni el píxel al que se
-  // apunta tiene por qué caer sobre la mesa.
+async function takeTheMalletToThePuck(page: Page): Promise<Vec2> {
+  const table = await readTable(page)
+  // With the match just started the puck waits for the serve at the centre of
+  // the table. If it were far from there, half a match has been played before
+  // looking, and then neither is the mallet where it is believed to be nor
+  // does the pixel aimed at have to fall on the table.
   expect(
-    distancia(mesa.puck, { x: 0, z: 0 }),
-    'el disco ya no estaba saliendo del centro',
+    distance(table.puck, { x: 0, z: 0 }),
+    'the puck was no longer leaving from the centre',
   ).toBeLessThan(0.3)
 
-  const destino = constrainMallet(mesa.puck, 'player')
-  await page.mouse.move(mesa.puckScreen.x, mesa.puckScreen.y)
+  const target = constrainMallet(table.puck, 'player')
+  await page.mouse.move(table.puckScreen.x, table.puckScreen.y)
 
   await expect
     .poll(
-      async () => distancia((await readTable(page)).playerMallet, destino),
-      { message: 'el mazo no fue a donde apuntaba el ratón' },
+      async () => distance((await readTable(page)).playerMallet, target),
+      { message: 'the mallet did not go where the mouse was aiming' },
     )
-    .toBeLessThan(TOLERANCIA)
+    .toBeLessThan(TOLERANCE)
 
-  return destino
+  return target
 }
 
-test('el ratón mueve el mazo del jugador a donde apunta', async ({ page }) => {
+test('the mouse moves the mallet of the player to where it aims', async ({ page }) => {
   await watchTable(page)
   await openGame(page)
-  await playMatch(page, { goles: 15, nivel: 'Easy' })
+  await playMatch(page, { goals: 15, level: 'Easy' })
 
-  const inicio = await waitForTable(page)
-  // El mazo sale delante de su portería, a media mesa del centro: si ya
-  // estuviera donde se le va a mandar, llegar no demostraría nada.
+  const start = await waitForTable(page)
+  // The mallet starts in front of its goal, half a table from the centre: if it
+  // were already where it is going to be sent, arriving would prove nothing.
   expect(
-    distancia(inicio.playerMallet, constrainMallet(inicio.puck, 'player')),
+    distance(start.playerMallet, constrainMallet(start.puck, 'player')),
   ).toBeGreaterThan(0.4)
 
-  await llevarElMazoAlDisco(page)
+  await takeTheMalletToThePuck(page)
 })
 
-test('el mazo golpea el disco cuando se le persigue con el ratón', async ({
+test('the mallet hits the puck when it is chased with the mouse', async ({
   page,
 }) => {
   await watchTable(page)
   await openGame(page)
-  await playMatch(page, { goles: 15, nivel: 'Easy' })
+  await playMatch(page, { goals: 15, level: 'Easy' })
   await waitForTable(page)
 
-  // Primero se comprueba que el ratón manda de verdad. Sin esto, un mazo
-  // clavado delante de su portería acabaría tocando el disco de rebote y el
-  // test daría por bueno un juego en el que el ratón no mueve nada.
-  await llevarElMazoAlDisco(page)
+  // First it is checked that the mouse really is in charge. Without this, a
+  // mallet nailed in front of its goal would end up touching the puck on the
+  // rebound and the test would pass a game in which the mouse moves nothing.
+  await takeTheMalletToThePuck(page)
 
-  // Y ahora se le persigue, que es lo que hace quien juega. No se espera a un
-  // gol ni a un número de golpes: basta con que el mazo alcance el disco una
-  // vez y la física cuente el golpe.
+  // And now it is chased, which is what whoever plays does. No goal and no
+  // number of hits is waited for: it is enough for the mallet to reach the puck
+  // once and for the physics to count the hit.
   await expect
     .poll(() => chasePuck(page), {
-      // Cada vuelta lee dónde se ve el disco y lleva el ratón hasta ahí: cuanto
-      // más seguidas, menos se le escapa.
+      // Each lap reads where the puck is seen and takes the mouse there: the
+      // closer together they are, the less it gets away.
       intervals: [20],
       timeout: 60_000,
-      message: 'el mazo no llegó a golpear el disco persiguiéndolo con el ratón',
+      message: 'the mallet never got to hit the puck by chasing it with the mouse',
     })
     .toBeGreaterThan(0)
 })

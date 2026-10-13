@@ -2,17 +2,17 @@ import { expect, test } from '@playwright/test'
 import { openGame, playMatch } from './helpers'
 
 /**
- * Los modos nuevos desde fuera del lienzo: la partida sin fin no se acaba por
- * goles y la cierra «Terminar»; Niveles empieza por el primero con el resto
- * con candado. Ganar un nivel lo cubren los unitarios del store: desde fuera no
- * se puede meter un gol sin depender del pulso del ratón.
+ * The new modes from outside the canvas: the endless match does not end by
+ * goals and «Terminar» closes it; Levels starts with the first one with the
+ * rest padlocked. Winning a level is covered by the store's unit tests: from
+ * outside a goal cannot be scored without depending on the steadiness of the mouse.
  */
-test('sin fin: la máquina marca y la partida sigue hasta que se termina', async ({ page }) => {
+test('endless: the machine scores and the match goes on until it is ended', async ({ page }) => {
   await openGame(page)
-  await playMatch(page, { goles: 3, nivel: 'Impossible', sinFin: true })
+  await playMatch(page, { goals: 3, level: 'Impossible', endless: true })
 
   await expect(page.getByText('endless')).toBeVisible()
-  // La máquina marca tres veces —lo que sería la partida entera— y no pasa nada.
+  // The machine scores three times —what would be the whole match— and nothing happens.
   await expect(page.getByText('3', { exact: true }).first()).toBeVisible({ timeout: 60_000 })
   await expect(page.getByRole('button', { name: 'Again' })).toBeHidden()
 
@@ -21,13 +21,13 @@ test('sin fin: la máquina marca y la partida sigue hasta que se termina', async
   await expect(page.getByRole('button', { name: 'Again' })).toBeVisible()
 })
 
-test('niveles: se empieza por el primero y el resto tiene candado', async ({ page }) => {
+test('levels: one starts with the first and the rest are padlocked', async ({ page }) => {
   await openGame(page)
   await page.getByRole('button', { name: 'Levels' }).click()
 
   await expect(page.getByRole('button', { name: /^Level 1,/ })).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Level 2, locked' })).toBeDisabled()
-  // El nivel de la máquina y los goles los manda la escalera: ni se ofrecen.
+  // The machine's level and the goals are set by the ladder: they are not even offered.
   await expect(page.getByLabel(/^Goals/)).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Impossible' })).toHaveCount(0)
 

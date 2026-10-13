@@ -14,29 +14,30 @@ import { enterHostBooth, openHost } from './support/host'
 import { installXREmulator } from './support/xr'
 
 /**
- * Que al entrar en la cabina no se compile un shader por fotograma.
+ * That on entering the cabinet a shader is not compiled per frame.
  *
- * **Lo que se arregló.** El precalentado (`<Calentar />`) colgaba del Canvas de la web del
- * juego, que es uno de sus dos anfitriones. El otro es el salón, y el salón monta la escena y
- * no el Canvas: justo donde se juega de verdad no se precalentaba nada.
+ * **What was fixed.** The prewarming (`<PrewarmShaders />`) hung from the Canvas of the game's
+ * web page, which is one of its two hosts. The other is the hall, and the hall mounts the scene
+ * and not the Canvas: right where it is really played nothing was prewarmed.
  *
- * **Por qué ahí es peor.** En la web se entra al visor desde una página que lleva un rato
- * pintando la escena, así que casi todo está compilado antes de abrir la sesión. En el salón
- * se elige cabina **con el visor ya puesto**: la escena nace dentro de una sesión abierta y
- * sin haber pintado un solo fotograma, de modo que se compila todo en marcha, un material por
- * fotograma, y compilar bloquea el hilo. Ese es el tirón de los primeros segundos de partida.
+ * **Why it is worse there.** On the web one enters the headset from a page that has been
+ * painting the scene for a while, so almost everything is compiled before opening the session.
+ * In the hall a cabinet is chosen **with the headset already on**: the scene is born inside an
+ * open session and without having painted a single frame, so everything is compiled on the go,
+ * one material per frame, and compiling blocks the thread. That is the hitch of the first
+ * seconds of a match.
  *
- * **Cómo se ve sin gafas.** No por cuántos shaders se compilan —son los mismos con
- * precalentado y sin él—, sino por **cuándo**: se fecha cada compilación en llamadas de
- * dibujo (`e2e/support/scenery.ts`). Calentando salen **todas con la misma fecha**, en una
- * tanda y antes de pintar; sin calentar no hay tanda, cada una va en su fotograma.
+ * **How it is seen without goggles.** Not by how many shaders are compiled —they are the same
+ * with prewarming and without it—, but by **when**: each compilation is dated in draw calls
+ * (`e2e/support/scenery.ts`). When warming, **all of them come out with the same date**, in one
+ * batch and before painting; without warming there is no batch, each one goes in its own frame.
  *
- * El anfitrión de prueba monta la escena a la carta para poder reproducirlo: se entra primero
- * en la sesión y la escena se monta después, como en el arco de cabinas.
+ * The test host mounts the scene on demand in order to reproduce it: one enters the session
+ * first and the scene is mounted afterwards, as in the arc of cabinets.
  */
 
-/** Entra como entra el salón: en realidad aumentada, que es donde manda el escenario. */
-async function entrarComoElSalon(page: Page) {
+/** Enters the way the hall enters: in augmented reality, which is where the scenery rules. */
+async function enterAsTheHall(page: Page) {
   await expect
     .poll(
       () =>
@@ -46,77 +47,78 @@ async function entrarComoElSalon(page: Page) {
             () => false,
           ),
         ),
-      { message: 'el anfitrión no pudo abrir la sesión de realidad aumentada' },
+      { message: 'the host could not open the augmented reality session' },
     )
     .toBe(true)
 }
 
-test.describe('Los shaders están calientes donde se juega', () => {
-  test('la escena que monta el salón compila sus shaders de una tanda, no de uno en uno', async ({
+test.describe('The shaders are warm where it is played', () => {
+  test('the scene the hall mounts compiles its shaders in one batch, not one by one', async ({
     page,
   }) => {
     await installDrawCallCounter(page)
     await watchPrograms(page)
     await installXREmulator(page)
-    // En «tu habitación», que es el escenario con menos cosas a la vista: así la sala queda
-    // montada y oculta, y lo que se calienta de ella no lo ha pintado nadie.
+    // In «your room», which is the scenery with the fewest things in view: that way the room
+    // stays mounted and hidden, and what gets warmed of it has been painted by nobody.
     await storeBeforeOpen(page, SCENERY_KEY, 'room')
-    await openHost(page, undefined, { aLaCarta: true })
-    await entrarComoElSalon(page)
-    // Lo del anfitrión —sus rayos, su puntero— se compila al entrar y no es del juego: se le
-    // deja asentarse para que no cuente como shader de la escena.
+    await openHost(page, undefined, { onDemand: true })
+    await enterAsTheHall(page)
+    // What belongs to the host —its rays, its pointer— is compiled on entering and is not the
+    // game's: it is left to settle so that it does not count as a shader of the scene.
     await letSettle(page)
 
-    const antesDeLaCabina = (await linkTimes(page)).length
+    const beforeTheCabinet = (await linkTimes(page)).length
     await enterHostBooth(page)
     await letSettle(page)
 
-    const deLaEscena = (await linkTimes(page)).slice(antesDeLaCabina)
-    const { largestBatch: mayorTanda, stray: sueltos } = inBatches(deLaEscena)
+    const fromTheScene = (await linkTimes(page)).slice(beforeTheCabinet)
+    const { largestBatch: biggestBatch, stray: loose } = inBatches(fromTheScene)
     console.log(
-      `[calentado] la escena compiló ${deLaEscena.length} shaders: ${mayorTanda} de una tanda y ${sueltos} sueltos`,
+      `[prewarm] the scene compiled ${fromTheScene.length} shaders: ${biggestBatch} in one batch and ${loose} loose`,
     )
 
-    expect(deLaEscena.length, 'la escena no compiló ningún shader: el test no mide nada').toBeGreaterThan(
+    expect(fromTheScene.length, 'the scene compiled no shader at all: the test measures nothing').toBeGreaterThan(
       3,
     )
     expect(
-      mayorTanda,
-      'la escena compiló sus shaders de uno en uno, según le tocaba pintar cada material: eso es un tirón por fotograma al entrar en la cabina',
-    ).toBeGreaterThan(sueltos)
+      biggestBatch,
+      'the scene compiled its shaders one by one, as it came to paint each material: that is a hitch per frame on entering the cabinet',
+    ).toBeGreaterThan(loose)
   })
 
-  test('y el decorado que se enseña al cambiar de escenario ya estaba caliente', async ({
+  test('and the backdrop that is shown on changing scenery was already warm', async ({
     page,
   }) => {
-    // «Tu habitación» y la sala son dos juegos de materiales, y al entrar solo se ve uno. El
-    // otro está montado y oculto —por eso se oculta en vez de desmontarse—, así que el
-    // precalentado lo recorre igual: enseñarlo no puede compilar nada.
+    // «Your room» and the room are two sets of materials, and on entering only one is seen. The
+    // other is mounted and hidden —that is why it is hidden instead of unmounted—, so the
+    // prewarming goes through it all the same: showing it cannot compile anything.
     await installDrawCallCounter(page)
     await watchPrograms(page)
     await installXREmulator(page)
     await storeBeforeOpen(page, SCENERY_KEY, 'room')
-    await openHost(page, undefined, { aLaCarta: true })
-    await entrarComoElSalon(page)
+    await openHost(page, undefined, { onDemand: true })
+    await enterAsTheHall(page)
     await letSettle(page)
     await enterHostBooth(page)
     await letSettle(page)
 
-    const asentado = (await shaderTypes(page)).length
+    const settled = (await shaderTypes(page)).length
     await chooseInSalon(page, 'place')
     await letSettle(page)
     await chooseInSalon(page, 'room')
     await letSettle(page)
 
-    // Lo que se pinta tiene que estar caliente: el precalentado recorre la escena entera, se
-    // vea o no. **El mapa de sombras no**: `compile()` solo prepara la pasada que se ve, y
-    // three no compila el `MeshDepthMaterial` de algo que no proyecta porque está oculto. Es
-    // un shader, una vez por visita, y no hay forma de adelantarlo desde la escena.
-    const nuevos = (await shaderTypes(page)).slice(asentado)
-    console.log(`[calentado] al cambiar de escenario se compiló: ${nuevos.join(', ') || 'nada'}`)
+    // What is painted has to be warm: the prewarming goes through the whole scene, whether it
+    // is seen or not. **The shadow map is not**: `compile()` only prepares the pass that is
+    // seen, and three does not compile the `MeshDepthMaterial` of something that casts nothing
+    // because it is hidden. It is one shader, once per visit, and there is no way to bring it
+    // forward from the scene.
+    const newOnes = (await shaderTypes(page)).slice(settled)
+    console.log(`[prewarm] on changing scenery this was compiled: ${newOnes.join(', ') || 'nothing'}`)
     expect(
-      nuevos.filter((tipo) => tipo !== 'MeshDepthMaterial'),
-      'enseñar el decorado compiló shaders de lo que se pinta: eso es un tirón al cambiar de escenario con el visor puesto',
+      newOnes.filter((type) => type !== 'MeshDepthMaterial'),
+      'showing the backdrop compiled shaders of what is painted: that is a hitch on changing scenery with the headset on',
     ).toEqual([])
   })
 })

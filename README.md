@@ -1,94 +1,134 @@
 # Glide Hockey
 
-Hockey sobre colchón de aire contra la máquina, en 3D y en el navegador. Se
-elige el nivel y a cuántos goles se juega, y se mueve el mazo con el ratón —o con
-el rayo del mando si se juega con el visor—. Cada gol suma puntos y cada gol
-encajado los resta.
+Air hockey against the machine, in 3D, in the browser and in a VR/AR headset (WebXR). You pick
+how good the machine is and how many goals the match goes to, and you push the puck with a mallet:
+with the mouse on a screen, with your hand in the headset. Every goal you score adds points and
+every goal you concede takes some away.
 
-Es un juego de **xrcade**: se monta dentro del salón inmersivo del hub, no se
-enlaza. Esta web es uno de sus anfitriones, el que permite probarlo con el visor
-sin levantar el hub entero.
+**Live demo:** <https://glide-hockey.vercel.app>
 
-Se llamó `air-hockey` hasta el cambio de nombres
-(`xrcade/docs/nombres-y-marcas.md`): «AIR-HOCKEY» sigue registrada a nombre de
-Brunswick, y aunque hoy el término se comporte como descriptivo, una cabina
-rotulada es justo donde deja de serlo. El nombre cambió entero —repositorio,
-paquete, exportaciones y claves de almacenamiento—, y lo que hubiera guardado con
-las claves viejas se traslada solo la primera vez que se juega
-(`src/lib/legacyKeys.ts`). El mueble se sigue llamando mesa de air hockey en los
-comentarios: ahí es el objeto, no el producto.
+Glide Hockey is one of the games of **xrcade**, an arcade hall you walk around in with the headset
+on. The hall does not link to the game: it installs it as a package and mounts its scene inside
+its own WebXR session. This repository is the game, plus a small website of its own that hosts the
+same scene so it can be played and tested without the hall.
 
-## Cómo se juega
+The game was called `air-hockey` before; saves written under the old storage keys are moved over
+the first time it is played (`src/lib/legacyKeys.ts`).
 
-| | |
+## How to play
+
+| Mode | |
 | --- | --- |
-| **Prueba** | Eliges nivel (de Fácil a Imposible) y a cuántos goles se juega, de 3 a 15. Perder no cuesta nada. |
-| **Reto** | Se empieza por lo más fácil y la escalera va apretando: primero partidas más largas y después más nivel. Cada partida ganada encadena la siguiente; la primera que pierdas se acabó. |
-| **Duelo** | Dos personas y un mando: cada una juega una partida contra la misma máquina (Media, a 7, con la misma semilla) y gana quien le saque más ventaja. Entre las dos partidas se pide pasar el mando. Lo que lleva la pareja se apunta aparte; el récord no se toca. |
+| **Challenge** | Starts easy and steps up on its own: longer matches first, a better machine after. Every match you win chains the next one; the first one you lose ends the run. Inside the hall this is the mode that counts for a medal. |
+| **Practice** | You choose the machine's level (five, from Easy to Impossible) and the goals the match goes to (3 to 15, or endless). Losing costs nothing. |
+| **Levels** | One match at a time, each level harder than the one before, with up to three stars each. A level you win stays unlocked. |
+| **Duel** | Two people and one controller: each plays one match against the same machine (Medium, to 7 goals, same seed) and whoever beats it by more wins. The pair's tally is kept apart from the records. |
 
-La puntuación premia marcarle a un nivel alto y encadenar goles sin encajar. Un
-gol en contra descuenta y corta la racha. El récord de cada modo se guarda en el
-navegador.
+Scoring rewards beating a strong machine and chaining goals without conceding; a goal against
+takes points away and breaks the streak. Records, unlocked levels and settings are kept in the
+browser (`localStorage`).
 
-## Ponerlo en marcha
+**On a screen (desktop).** Open the page and press *Play*. The mallet follows the mouse over your
+half of the table. *Leave the game* asks before quitting; that dialog closes with Escape.
+
+**In a headset.** Open the page in the headset's browser over HTTPS and press the button that
+enters the immersive session (AR where the headset supports it, VR otherwise). The menu, the
+scoreboard and the tutorial are panels inside the scene, operated with the controller's ray. To
+play, grab the mallet: with the grip button of a controller near it, or pinching it with a bare
+hand (hand tracking). The countdown waits on its last second until the mallet is in your hand. A
+short tutorial and a few wordless hints explain the gesture the first time.
+
+The interface is in English and Spanish. There is no language switch in the game: the language is
+chosen once in the hall and reaches the game in a cookie; on its own, the game is served in
+English.
+
+## Run it locally
 
 ```sh
-nvm use          # la versión exacta está en .nvmrc
+nvm use          # the exact Node version is in .nvmrc
 npm install
 npm run dev      # http://localhost:3000
 ```
 
-Para probarlo con el visor hace falta HTTPS, porque WebXR solo arranca en un
-contexto seguro:
+WebXR only starts in a secure context, so to try it from a headset on your network:
 
 ```sh
 npm run dev:https
 ```
 
-## Verificación
+`npm run build` and `npm run start` build and serve the production site.
+
+## How it fits the xrcade hub
+
+What the package exports is **a scene** — three.js objects drawn inside a `<Canvas>` that somebody
+else owns — never an application. Whoever owns the Canvas owns the WebXR session, and that is the
+host: the hall, or this repository's own website.
+
+```tsx
+import { GlideHockeyScene } from 'glide-hockey'
+```
+
+- [`docs/mounting-the-game.md`](docs/mounting-the-game.md): the ways to mount it
+  (`<GlideHockeyScene>` inside an existing Canvas; `<GlideHockey>` / `mountGlideHockey` with a
+  Canvas of its own), the props, and the `glide-hockey-assets` command that copies the static
+  files into the host's `public/`.
+- [`docs/xrcade.md`](docs/xrcade.md): the contract with the hall — what the scene must not do,
+  what `package.json` has to declare, and what the hall's content security policy rules out.
+
+Three things the game does not do, on purpose:
+
+- **It does not go to the network.** No CDN, no remote fonts, no telemetry: the hall's security
+  policy blocks it, and so does a headset with no internet.
+- **It does not use WebAssembly.** The puck's physics are formulas, not an engine.
+- **It does not move the player.** It places the table around wherever the host has put them.
+
+## How the code is laid out
+
+```
+src/
+  lib/          The logic, as pure functions testable without a browser: the puck's
+                physics, the machine opponent, the challenge ladder, scoring and the
+                state of the match.
+  components/
+    game/       The three.js scene: table, puck, mallets and the loop.
+    ui/         The menu and the scoreboard on a screen (DOM).
+    xr/         Their equivalents inside the headset, which are geometry.
+  game/         What is published: the scene, the game with its own Canvas and the
+                mount function for hosts that do not use React.
+  app/          The website around the game. It is not the game.
+e2e/            Browser tests (Playwright), with an emulated headset.
+godot/          A port of the same game for xrcade's native hub: Godot scenes and UI
+                running the logic of src/lib unchanged. See godot/README.md.
+```
+
+## Tests
 
 ```sh
 npm run lint
 npm run typecheck
-npm test          # unitarios: la física, la máquina, el estado y el paquete
-npm run test:e2e  # navegador, contra el build de producción
+npm test            # unit tests (Vitest): physics, opponent, state, panels, package contract
+npm run coverage    # the same, with coverage: src/lib must stay at 100 %
+npm run build
+npm run test:e2e    # Playwright, against the production build
 ```
 
-Los tests de navegador se sirven en el puerto de `PORT` (o `E2E_PORT`), no en el
-3000.
+The browser tests build the site and serve it on the port in `E2E_PORT` (or `PORT`; 3100 by
+default), not on 3000.
 
-## Cómo está montado
+### Scripts that need other repositories
 
-```
-src/
-  lib/          La lógica, en funciones puras y probables sin navegador:
-                la física del disco, la máquina rival, la escalera del reto,
-                la puntuación y el estado de la partida.
-  components/
-    game/       La escena de three: la mesa, el disco, los mazos y el bucle.
-    ui/         El menú y el marcador de escritorio (DOM).
-    xr/         Sus equivalentes dentro del visor, que son geometría.
-  game/         Lo que se publica: la escena, el juego con su Canvas y el
-                montador para quien no usa React.
-  app/          La web que envuelve al juego. No es el juego.
-```
+Some scripts reach outside this repository, into sibling checkouts that are not part of it. They
+are not needed to run, build or test the web game, and each npm script stops with a message
+saying what is missing:
 
-La separación no es decorativa: **lo que se publica es una escena**, objetos de
-three que se pintan dentro del Canvas de otro. Quien es dueño del Canvas es
-dueño de la sesión de WebXR, y ese es el anfitrión. El contrato completo está en
-[`docs/xrcade.md`](docs/xrcade.md) y cómo montarlo, en
-[`docs/mounting-the-game.md`](docs/mounting-the-game.md).
+| Script | Needs |
+| --- | --- |
+| `npm run comunes` | `../organizate`: the gate that checks that the files shared by every xrcade game are identical across them. |
+| `npm run godot:build`, `godot:sfx`, `godot:controllers` | `../xrcade` (its `godot-kit/`): the build of the Godot port. |
+| `npm run godot:test` | `../xrcade` and a Godot editor built with GodotJS, given in `GODOT`. |
+| `npx tsc -p godot --noEmit` | `../xrcade`, and the engine typings generated into `godot/typings/`. |
 
-Tres cosas que el juego no hace, y que no son casualidad:
+## Licence
 
-- **No sale a la red.** Ni CDN, ni fuentes remotas, ni telemetría: la política de
-  seguridad del salón lo bloquea y un visor sin internet, también.
-- **No usa WebAssembly.** La física del disco son fórmulas, no un motor: los del
-  ecosistema de R3F van en wasm y la CSP del salón los rechaza.
-- **No mueve al jugador.** Coloca la mesa a su alrededor, que es lo que permite
-  montarlo en un salón que ya lo ha situado.
-
-## Licencia
-
-MIT. Los ficheros de `public/` vienen de fuera y llevan su propia licencia: ver
+[MIT](LICENSE). The files under `public/` come from elsewhere and carry their own licences: see
 [`public/CREDITS.md`](public/CREDITS.md).

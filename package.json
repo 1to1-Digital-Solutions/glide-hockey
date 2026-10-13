@@ -2,7 +2,8 @@
   "name": "glide-hockey",
   "version": "0.29.0",
   "private": true,
-  "description": "Glide Hockey: disco y mazos sobre un colchón de aire, contra la máquina. Juego web en 3D para navegador y realidad mixta (VR/AR), montable dentro de otra aplicación.",
+  "description": "Glide Hockey: air hockey against the machine. A 3D web game for the browser and for VR/AR headsets (WebXR), mountable inside another application.",
+  "homepage": "https://glide-hockey.vercel.app",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -57,14 +58,14 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "comunes": "python3 \"$(git rev-parse --path-format=absolute --git-common-dir)/../../organizate/scripts/repos/comunes.py\" --comprobar glide-hockey",
+    "comunes": "gate=\"$(git rev-parse --path-format=absolute --git-common-dir)/../../organizate/scripts/repos/comunes.py\"; test -e \"$gate\" || { echo \"comunes needs the organizate repository checked out next to this one ($gate): it is not part of this repository.\" >&2; exit 1; }; python3 \"$gate\" --comprobar glide-hockey",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "sync:xr-profiles": "node scripts/sync-xr-profiles.mjs",
     "coverage": "vitest run --coverage",
-    "godot:build": "node ../xrcade/godot-kit/build.mjs --project godot",
-    "godot:sfx": "node ../xrcade/godot-kit/render-sfx.mjs --project godot",
-    "godot:controllers": "node ../xrcade/godot-kit/controllers.mjs --project godot",
+    "godot:build": "test -e ../xrcade/godot-kit/build.mjs || { echo 'godot:build needs the xrcade repository checked out next to this one (../xrcade/godot-kit/build.mjs): it is not part of this repository.' >&2; exit 1; }; node ../xrcade/godot-kit/build.mjs --project godot",
+    "godot:sfx": "test -e ../xrcade/godot-kit/render-sfx.mjs || { echo 'godot:sfx needs the xrcade repository checked out next to this one (../xrcade/godot-kit/render-sfx.mjs): it is not part of this repository.' >&2; exit 1; }; node ../xrcade/godot-kit/render-sfx.mjs --project godot",
+    "godot:controllers": "test -e ../xrcade/godot-kit/controllers.mjs || { echo 'godot:controllers needs the xrcade repository checked out next to this one (../xrcade/godot-kit/controllers.mjs): it is not part of this repository.' >&2; exit 1; }; node ../xrcade/godot-kit/controllers.mjs --project godot",
     "godot:test": "godot/tests/run.sh"
   },
   "peerDependencies": {

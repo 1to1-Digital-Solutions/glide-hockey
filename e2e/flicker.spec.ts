@@ -30,9 +30,9 @@ test('the world is mounted only once when the page opens', async ({ page }) => {
     window.__mounts = {}
   })
   await page.goto('/')
-  await expect.poll(async () => (await mounts(page)).mundo ?? 0).toBeGreaterThan(0)
+  await expect.poll(async () => (await mounts(page)).world ?? 0).toBeGreaterThan(0)
 
-  expect((await mounts(page)).mundo, 'the world was mounted more than once').toBe(1)
+  expect((await mounts(page)).world, 'the world was mounted more than once').toBe(1)
 })
 
 test('and entering the headset does not mount it again', async ({ page }) => {
@@ -41,13 +41,13 @@ test('and entering the headset does not mount it again', async ({ page }) => {
   })
   await installXREmulator(page)
   await page.goto('/')
-  await expect.poll(async () => (await mounts(page)).mundo ?? 0).toBeGreaterThan(0)
+  await expect.poll(async () => (await mounts(page)).world ?? 0).toBeGreaterThan(0)
 
   await enterVR(page)
   await page.waitForTimeout(1500)
 
   expect(
-    (await mounts(page)).mundo,
+    (await mounts(page)).world,
     'entering the session remounts the world: that is the flicker',
   ).toBe(1)
 })

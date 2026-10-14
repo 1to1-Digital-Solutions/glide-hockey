@@ -1,6 +1,6 @@
 {
   "name": "glide-hockey",
-  "version": "0.29.0",
+  "version": "0.30.0",
   "private": true,
   "description": "Glide Hockey: air hockey against the machine. A 3D web game for the browser and for VR/AR headsets (WebXR), mountable inside another application.",
   "homepage": "https://glide-hockey.vercel.app",

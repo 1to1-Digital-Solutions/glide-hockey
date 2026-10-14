@@ -1,0 +1,10 @@
+# Paths that stay on develop for agents and Organízate, and are left out of main when
+# publishing: main is what the public repository shows.
+CLAUDE.md
+AGENTS.md
+ESTADO.md
+TODO.md
+.claude
+.organizate
+docs/historial.md
+src/handoff.test.ts

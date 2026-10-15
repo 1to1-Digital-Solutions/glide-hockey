@@ -1,13 +1,13 @@
 /**
- * El almacenamiento del navegador, cuando deja tocarlo, y las preferencias que
- * viven en él.
+ * The browser's storage, when it lets us touch it, and the preferences that
+ * live in it.
  *
- * En modo privado, o con el almacenamiento vetado por política, leer
- * `window.localStorage` **lanza** en vez de devolver `null`. Todo lo que el
- * juego guarda —el récord y lo que se elige en el menú— es prescindible, así
- * que aquí ese fallo se traduce a «no hay almacenamiento» y cada cosa decide
- * con qué valor se queda. En el servidor tampoco lo hay, y eso es lo que
- * mantiene igual el HTML que se prerenderiza y el que se hidrata.
+ * In private mode, or with storage vetoed by policy, reading
+ * `window.localStorage` **throws** instead of returning `null`. Everything the
+ * game saves —the record and what is chosen in the menu— is dispensable, so
+ * here that failure is translated to "there is no storage" and each thing
+ * decides which value it keeps. On the server there is none either, and that is
+ * what keeps the prerendered HTML and the hydrated one the same.
  */
 export function gameStorage(): Storage | null {
   try {
@@ -18,67 +18,67 @@ export function gameStorage(): Storage | null {
 }
 
 /**
- * Una preferencia guardada en el navegador, vista desde React.
+ * A preference saved in the browser, seen from React.
  *
- * `subscribe`/`get`/`getServer` son justo los tres argumentos que pide
- * `useSyncExternalStore`: la preferencia no es estado de React sino algo que
- * vive fuera y que el juego consulta, que es lo que evita sincronizarla con
- * efectos. `Args` son los datos que hacen falta para saber de qué clave se
- * habla, y está vacío salvo cuando hay una clave por variante (el récord tiene
- * una por modo).
+ * `subscribe`/`get`/`getServer` are exactly the three arguments that
+ * `useSyncExternalStore` asks for: the preference is not React state but
+ * something that lives outside and that the game consults, which is what avoids
+ * synchronising it with effects. `Args` are the data needed to know which key
+ * is meant, and it is empty except when there is one key per variant (the
+ * record has one per mode).
  */
 export interface StoredPreference<T, Args extends unknown[] = []> {
   /**
-   * Valor vigente. Se lee del navegador cada vez en lugar de guardar una copia:
-   * el almacenamiento es la única fuente de verdad, así que no hay dos
-   * versiones que puedan discrepar.
+   * Current value. It is read from the browser every time instead of keeping a
+   * copy: the storage is the only source of truth, so there are no two
+   * versions that could disagree.
    */
   get(...args: Args): T
   /**
-   * Lo que ve el servidor al prerenderizar: no hay navegador, así que el valor
-   * de entrada. Sin esto el HTML del servidor y el del cliente diferirían y
-   * React avisaría de un error de hidratación.
+   * What the server sees when prerendering: there is no browser, so the
+   * default value. Without this the server's HTML and the client's would differ
+   * and React would report a hydration error.
    */
   getServer(): T
-  /** Suscripción para `useSyncExternalStore`, también entre pestañas. */
+  /** Subscription for `useSyncExternalStore`, across tabs too. */
   subscribe(listener: () => void): () => void
-  /** Guarda el valor y avisa a quien lo esté mirando. */
+  /** Saves the value and notifies whoever is watching it. */
   save(value: T, ...args: Args): void
 }
 
-/** Lo único que distingue a una preferencia de otra. */
+/** The only thing that tells one preference from another. */
 interface PreferenceSpec<T, Args extends unknown[]> {
-  /** Clave en el almacenamiento, o cuál toca cuando hay una por variante. */
+  /** Key in the storage, or which one applies when there is one per variant. */
   key: string | ((...args: Args) => string)
   /**
-   * Interpreta lo leído. Es entrada externa —cualquiera puede editarla desde
-   * las herramientas del navegador—, así que solo debe aceptar lo que existe.
-   * Lo que devuelva ante `null` es el valor de entrada: el que vale cuando no
-   * hay nada guardado, no hay almacenamiento o está bloqueado.
+   * Interprets what is read. It is external input —anyone can edit it from
+   * the browser's tools—, so it must only accept what exists.
+   * Whatever it returns for `null` is the default value: the one that holds
+   * when nothing is saved, there is no storage or it is blocked.
    *
-   * Tiene que devolver algo **comparable con `Object.is`** —un número, un
-   * texto, un booleano—: como `get` vuelve a parsear en cada lectura y así es
-   * como `useSyncExternalStore` compara dos lecturas seguidas, uno que
-   * devolviera un objeto nuevo cada vez dejaría a React repintando sin parar.
+   * It has to return something **comparable with `Object.is`** —a number, a
+   * string, a boolean—: since `get` parses again on every read and that is
+   * how `useSyncExternalStore` compares two consecutive reads, one that
+   * returned a new object every time would leave React repainting endlessly.
    */
   parse: (raw: string | null) => T
-  /** Qué texto se guarda para un valor. */
+  /** Which text is saved for a value. */
   serialize: (value: T) => string
 }
 
 /**
- * Monta una preferencia sobre el almacenamiento del navegador.
+ * Builds a preference on top of the browser's storage.
  *
- * Aquí vive lo que no se ve al copiar una preferencia en otra: **avisar a quien
- * mira después de escribir** —sin eso, un ajuste que se cambia en el menú del
- * visor deja al de escritorio enseñando el anterior, un fallo que solo se ve
- * con las gafas puestas— y **escuchar el evento `storage`**, que es como el
- * navegador cuenta que ha sido otra pestaña. Cada preferencia solo pone su
- * clave y cómo se traduce.
+ * Here lives what is not seen when copying one preference into another:
+ * **notifying whoever is watching after writing** —without that, a setting
+ * changed in the headset's menu leaves the desktop one showing the previous
+ * one, a bug that is only seen with the goggles on— and **listening to the
+ * `storage` event**, which is how the browser tells that it was another tab.
+ * Each preference only provides its key and how it is translated.
  *
- * El acceso es tolerante a fallos: con el almacenamiento bloqueado se juega con
- * el valor de entrada, que es una función de menos y no una razón para
- * interrumpir la partida con un aviso.
+ * Access is fault-tolerant: with storage blocked the game is played with
+ * the default value, which is one feature less and not a reason to
+ * interrupt the run with a notice.
  */
 export function createStoredPreference<T, Args extends unknown[] = []>({
   key,
@@ -89,28 +89,28 @@ export function createStoredPreference<T, Args extends unknown[] = []>({
     typeof key === 'string' ? () => key : key
   const listeners = new Set<() => void>()
   /**
-   * Lo último que se quiso guardar y el almacenamiento no aceptó, por clave.
-   * Sin esto, con el almacenamiento bloqueado —ventana privada, cuota agotada,
-   * política del navegador— pulsar «izquierda» o el silencio no hacía nada: la
-   * escritura fallaba en silencio y la relectura devolvía lo de antes. Mientras
-   * el almacenamiento responda sigue mandando él, para que dos pestañas no
-   * discrepen; esto solo cubre la elección que él no pudo recoger, y se vacía
-   * en cuanto una escritura vuelve a entrar.
+   * The last thing that was meant to be saved and the storage did not accept,
+   * by key. Without this, with storage blocked —private window, exhausted
+   * quota, browser policy— pressing «izquierda» or the mute did nothing: the
+   * write failed silently and the re-read returned what was there before. While
+   * the storage responds it keeps ruling, so that two tabs do not
+   * disagree; this only covers the choice it could not take in, and it is
+   * emptied as soon as a write goes in again.
    */
-  const pendientes = new Map<string, string>()
+  const pendingByKey = new Map<string, string>()
 
   return {
     get(...args) {
-      const clave = keyFor(...args)
-      const pendiente = pendientes.get(clave)
-      if (pendiente !== undefined) return parse(pendiente)
+      const storageKey = keyFor(...args)
+      const pending = pendingByKey.get(storageKey)
+      if (pending !== undefined) return parse(pending)
       const storage = gameStorage()
-      // Con lo pendiente en memoria ya se ha devuelto arriba: esto solo actúa
-      // en el prerenderizado, donde no hay nada pendiente.
+      // With something pending in memory it has already been returned above:
+      // this only acts in the prerender, where nothing is pending.
       /* v8 ignore next */
       if (!storage) return parse(null)
       try {
-        return parse(storage.getItem(clave))
+        return parse(storage.getItem(storageKey))
       } catch {
         return parse(null)
       }
@@ -128,20 +128,21 @@ export function createStoredPreference<T, Args extends unknown[] = []>({
     },
 
     save(value, ...args) {
-      const clave = keyFor(...args)
-      const serializado = serialize(value)
+      const storageKey = keyFor(...args)
+      const serialized = serialize(value)
       try {
         const storage = gameStorage()
-        // En el prerenderizado no se guarda nada: no hay menú que pulsar.
+        // In the prerender nothing is saved: there is no menu to press.
         /* v8 ignore next */
         if (storage == null) throw new Error('no storage')
-        storage.setItem(clave, serializado)
-        pendientes.delete(clave)
+        storage.setItem(storageKey, serialized)
+        pendingByKey.delete(storageKey)
       } catch {
-        // Cuota agotada o escritura prohibida: esa elección no llega a
-        // guardarse, pero vale al menos para esta visita. Se avisa igual, para
-        // que quien mira vuelva a leer y enseñe lo que hay de verdad.
-        pendientes.set(clave, serializado)
+        // Exhausted quota or forbidden write: that choice never gets
+        // saved, but it holds at least for this visit. Listeners are notified
+        // all the same, so that whoever is watching reads again and shows what
+        // is really there.
+        pendingByKey.set(storageKey, serialized)
       }
       for (const listener of listeners) listener()
     },

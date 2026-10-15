@@ -5,42 +5,49 @@ import { GameProvider } from '../components/GameProvider'
 import { GameScene } from '../components/game/GameScene'
 import { endXrSession } from '../components/xr/xrStore'
 import { setAssetsBase } from '../lib/assets'
+import type { GameResult, Challenge } from '../lib/seed'
 import { ExitProvider } from './exit'
 
 export interface GlideHockeyProps {
   /**
-   * De dónde cuelgan los ficheros estáticos del juego: los perfiles de mando de
-   * WebXR, sin los cuales el visor se queda sin mandos. Por defecto la raíz del
-   * sitio, que es donde los sirve su propia web.
+   * Where the game's static files hang from: the WebXR controller profiles,
+   * without which the headset is left with no controllers. By default the root
+   * of the site, which is where its own website serves them.
    */
   assetsBase?: string
+  /** The challenge being played, as in `<GlideHockeyScene>`. */
+  challenge?: Challenge
+  /** Who to tell about each finished match, as in `<GlideHockeyScene>`. */
+  onFinish?: (result: GameResult) => void
 }
 
 /**
- * El juego entero **con su Canvas y su sesión**, listo para montar dentro de
- * cualquier aplicación de React que quiera una página de juego.
+ * The whole game **with its Canvas and its session**, ready to mount inside
+ * any React application that wants a game page.
  *
- * Ocupa lo que mida su contenedor —dale una altura— y no sabe nada de rutas,
- * layout ni metadatos: quien lo monta decide dónde vive y qué hay alrededor.
+ * It takes up whatever its container measures —give it a height— and knows
+ * nothing about routes, layout or metadata: whoever mounts it decides where it
+ * lives and what is around it.
  *
- * Para montarlo DENTRO de un Canvas y una sesión que ya existen —lo que hace el
- * salón inmersivo de xrcade, y lo que permite volver sin quitarse el visor— hay
- * que usar `<GlideHockeyScene>`. Este de aquí abre su propia sesión, y en un
- * documento solo cabe una. El contrato completo está en
- * `docs/montar-el-juego.md`.
+ * To mount it INSIDE a Canvas and a session that already exist —what the
+ * immersive hall of xrcade does, and what allows going back without taking the
+ * headset off— `<GlideHockeyScene>` has to be used. This one here opens its own
+ * session, and a document only has room for one. The full contract is in
+ * `docs/mounting-the-game.md`.
  */
-export function GlideHockey({ assetsBase }: GlideHockeyProps) {
+export function GlideHockey({ assetsBase, challenge, onFinish }: GlideHockeyProps) {
   if (assetsBase !== undefined) setAssetsBase(assetsBase)
 
-  // Quitar el juego tiene que devolver el visor a quien lo montó: la sesión no
-  // se cierra sola al desmontar el árbol (ver `xr/xrStore.ts`). Aquí y no en la
-  // escena porque es el borde del montaje, lo mismo que promete `unmount()`.
+  // Removing the game has to give the headset back to whoever mounted it: the
+  // session does not close by itself when the tree unmounts (see
+  // `xr/xrStore.ts`). Here and not in the scene because it is the edge of the
+  // mount, the same thing `unmount()` promises.
   useEffect(() => () => endXrSession(), [])
 
   return (
-    <GameProvider>
-      {/* Aquí salir es cerrar la sesión: esta web es el juego y no hay ningún
-          sitio al que volver. En el salón significa lo contrario. */}
+    <GameProvider challenge={challenge} onFinish={onFinish}>
+      {/* Here exiting is closing the session: this website is the game and there
+          is nowhere to go back to. In the hall it means the opposite. */}
       <ExitProvider onExit={endXrSession}>
         <GameScene />
       </ExitProvider>

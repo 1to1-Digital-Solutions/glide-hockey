@@ -8,26 +8,27 @@ import {
 } from './legacyKeys'
 
 /**
- * Que el cambio de nombre no le cueste el récord a quien ya jugó.
+ * That the name change does not cost the record to whoever already played.
  *
- * Es lo único del renombrado que puede romper algo de quien juega: el resto —el repositorio,
- * el paquete, las exportaciones— se arregla recompilando, y una marca perdida no se recupera.
+ * It is the only part of the renaming that can break something for whoever plays: the rest
+ * —the repository, the package, the exports— is fixed by recompiling, and a lost score is not
+ * recovered.
  */
 
-/** Un almacenamiento que lanza a la primera, como el de una ventana privada. */
-function almacenamientoCapado(): Storage {
-  const lanza = () => {
-    throw new DOMException('denegado', 'SecurityError')
+/** A storage that throws straight away, like that of a private window. */
+function blockedStorage(): Storage {
+  const throws = () => {
+    throw new DOMException('denied', 'SecurityError')
   }
   return {
     get length(): number {
-      return lanza()
+      return throws()
     },
-    key: lanza,
-    getItem: lanza,
-    setItem: lanza,
-    removeItem: lanza,
-    clear: lanza,
+    key: throws,
+    getItem: throws,
+    setItem: throws,
+    removeItem: throws,
+    clear: throws,
   } as unknown as Storage
 }
 
@@ -36,8 +37,8 @@ beforeEach(() => {
   resetLegacyKeysMigration()
 })
 
-describe('el traslado de las claves viejas', () => {
-  it('lleva al prefijo nuevo todo lo que empezaba por el viejo', () => {
+describe('the move of the old keys', () => {
+  it('takes to the new prefix everything that started with the old one', () => {
     window.localStorage.setItem(`${LEGACY_PREFIX}best-points:challenge`, '1240')
     window.localStorage.setItem(`${LEGACY_PREFIX}levels:unlocked`, '7')
     window.localStorage.setItem(`${LEGACY_PREFIX}levels:stars`, '3,2,0')
@@ -49,7 +50,7 @@ describe('el traslado de las claves viejas', () => {
     expect(window.localStorage.getItem(`${KEY_PREFIX}levels:stars`)).toBe('3,2,0')
   })
 
-  it('borra las viejas, para que no queden dos verdades', () => {
+  it('deletes the old ones, so that two truths are not left', () => {
     window.localStorage.setItem(`${LEGACY_PREFIX}tutorial-seen`, '1')
 
     migrateLegacyKeys(window.localStorage)
@@ -57,7 +58,7 @@ describe('el traslado de las claves viejas', () => {
     expect(window.localStorage.getItem(`${LEGACY_PREFIX}tutorial-seen`)).toBeNull()
   })
 
-  it('no toca nada que no sea suyo', () => {
+  it('touches nothing that is not its own', () => {
     window.localStorage.setItem('xrcade:scenery', 'room')
     window.localStorage.setItem('bowling:best-points', '180')
 
@@ -67,19 +68,19 @@ describe('el traslado de las claves viejas', () => {
     expect(window.localStorage.getItem('bowling:best-points')).toBe('180')
   })
 
-  it('traslada también las claves que nadie escribió en la tabla de la documentación', () => {
-    // El traslado va por prefijo justo por esto: una lista a mano se queda corta y esa marca
-    // se pierde sin que nadie lo note.
-    window.localStorage.setItem(`${LEGACY_PREFIX}lo-que-venga`, 'algo')
+  it('also moves the keys nobody wrote in the table of the documentation', () => {
+    // The move goes by prefix precisely because of this: a hand-made list falls short and that
+    // score is lost without anybody noticing.
+    window.localStorage.setItem(`${LEGACY_PREFIX}whatever-comes`, 'something')
 
     migrateLegacyKeys(window.localStorage)
 
-    expect(window.localStorage.getItem(`${KEY_PREFIX}lo-que-venga`)).toBe('algo')
+    expect(window.localStorage.getItem(`${KEY_PREFIX}whatever-comes`)).toBe('something')
   })
 
-  it('deja ganar a lo guardado con el nombre nuevo', () => {
-    // Ya se jugó con el nombre nuevo: esa marca es la buena. Pisarla con la vieja sería
-    // devolverle a alguien un récord peor por abrir una pestaña antigua.
+  it('lets what is stored under the new name win', () => {
+    // It was already played under the new name: that score is the good one. Overwriting it with
+    // the old one would be handing someone back a worse record for opening an old tab.
     window.localStorage.setItem(`${LEGACY_PREFIX}best-points`, '400')
     window.localStorage.setItem(`${KEY_PREFIX}best-points`, '900')
 
@@ -89,15 +90,15 @@ describe('el traslado de las claves viejas', () => {
     expect(window.localStorage.getItem(`${LEGACY_PREFIX}best-points`)).toBeNull()
   })
 
-  it('con el almacenamiento capado no lanza', () => {
-    expect(() => migrateLegacyKeys(almacenamientoCapado())).not.toThrow()
+  it('with the storage blocked it does not throw', () => {
+    expect(() => migrateLegacyKeys(blockedStorage())).not.toThrow()
   })
 
-  it('sin almacenamiento tampoco', () => {
+  it('nor without storage', () => {
     expect(() => migrateLegacyKeys(null)).not.toThrow()
   })
 
-  it('repetirlo no cambia nada', () => {
+  it('repeating it changes nothing', () => {
     window.localStorage.setItem(`${LEGACY_PREFIX}best-points`, '120')
 
     migrateLegacyKeys(window.localStorage)
@@ -107,8 +108,8 @@ describe('el traslado de las claves viejas', () => {
   })
 })
 
-describe('el traslado de una sola vez', () => {
-  it('traslada a la primera llamada', () => {
+describe('the one-time move', () => {
+  it('moves on the first call', () => {
     window.localStorage.setItem(`${LEGACY_PREFIX}best-points`, '55')
 
     migrateLegacyKeysOnce()
@@ -116,10 +117,10 @@ describe('el traslado de una sola vez', () => {
     expect(window.localStorage.getItem(`${KEY_PREFIX}best-points`)).toBe('55')
   })
 
-  it('y en la segunda ya no recorre nada', () => {
+  it('and on the second it no longer walks anything', () => {
     migrateLegacyKeysOnce()
-    // Lo que aparezca después de la primera pasada no es de una versión vieja: en esta carga
-    // de página ya se trasladó lo que había.
+    // Whatever shows up after the first pass is not from an old version: in this page load
+    // what was there has already been moved.
     window.localStorage.setItem(`${LEGACY_PREFIX}best-points`, '55')
 
     migrateLegacyKeysOnce()

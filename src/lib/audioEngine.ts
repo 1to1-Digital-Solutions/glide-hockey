@@ -1,172 +1,203 @@
 /**
- * Los sonidos del juego, **sintetizados en el momento**.
+ * The sounds of the game, **synthesised on the spot**.
  *
- * Ni un fichero de audio, y no por ahorrar: un juego de xrcade no puede pedir
- * nada a otro origen y todo lo que sirva tiene que copiarlo el anfitrión a su
- * `public/` con `npx glide-hockey-assets` (ver `docs/xrcade.md`). Un golpe de
- * mazo y un rebote en la banda son ruido con una envolvente cortísima —lo que
- * hace la Web Audio API sin descargar nada—, así que aquí no se echa de menos
- * un `.wav`, y de paso no hay ficheros que copiar ni versión que sincronizar.
+ * Not a single audio file, and not to save anything: an xrcade game cannot
+ * request anything from another origin and whatever it serves has to be copied
+ * by the host into its `public/` with `npx glide-hockey-assets` (see
+ * `docs/xrcade.md`). A mallet strike and a bounce off the rail are noise with
+ * a very short envelope —what the Web Audio API does without downloading
+ * anything—, so a `.wav` is not missed here, and on top of that there are no
+ * files to copy nor a version to keep in sync.
  *
- * Cada sonido son dos capas: **ruido filtrado**, que es lo que le da el
- * material (el plástico duro del mazo, la madera sorda de la banda), y uno o
- * más **tonos**, que son el cuerpo del golpe y, en el gol, la melodía. Con las
- * dos, un golpe suena a golpe; solo con la primera, a estática.
+ * Each sound is two layers: **filtered noise**, which is what gives it the
+ * material (the hard plastic of the mallet, the dull wood of the rail), and
+ * one or more **tones**, which are the body of the strike and, in the goal,
+ * the melody. With both, a strike sounds like a strike; with only the first,
+ * like static.
  *
- * **El contexto se crea con el primer sonido, no al montar la escena.** Los
- * navegadores arrancan en suspenso cualquier `AudioContext` creado sin que
- * nadie haya tocado nada, y la mesa se monta antes de que el jugador pulse
- * «Jugar»: creándolo aquí, el primer golpe llega con el permiso ya dado. El
- * `resume()` de cada sonido cubre el otro caso, que es volver al juego después
- * de que el sistema lo suspendiera por dejar de mirar.
+ * **The context is created with the first sound, not when the scene mounts.**
+ * Browsers start suspended any `AudioContext` created before anybody has
+ * touched anything, and the table mounts before the player presses «Jugar»:
+ * creating it here, the first strike arrives with the permission already
+ * given. The `resume()` of each sound covers the other case, which is coming
+ * back to the game after the system suspended it because nobody was looking.
  *
- * Que no haya Web Audio —o que el navegador se niegue a dar un contexto— deja
- * el juego mudo y nada más: el sonido cuenta lo que pasa, no decide nada.
+ * Having no Web Audio —or the browser refusing to give a context— leaves the
+ * game mute and nothing else: the sound tells what happens, it decides nothing.
  */
 
-/** Lo que suena en una partida: los tres golpes, y cómo acaba. */
+/** What sounds in a match: the three strikes, and how it ends. */
 import { MAX_PUCK_SPEED } from './gameConfig'
-import { STALL_SPEED } from './puckPhysics'
+import { SLIDE_PITCH_MIN, SLIDE_SMOOTHING, slideLevel, slidePitch } from './slideSound'
 
-export type GameSound = 'strike' | 'bounce' | 'goal' | 'win' | 'loss' | 'record'
+export type GameSound =
+  | 'strike'
+  | 'bounce'
+  | 'goal'
+  | 'win'
+  | 'loss'
+  | 'record'
+  /** A medal threshold is crossed (`THRESHOLD_SOUND` of `scoreboardSign.ts`). */
+  | 'medal-bronze'
+  | 'medal-silver'
+  | 'medal-gold'
 
+// The slide of the puck: how loud and at what pitch, depending on the speed. Kept apart because
+// the Godot port uses it as is to modulate its loop, and this file, which opens the browser's
+// audio, cannot go into the engine.
+export { slideLevel, slidePitch } from './slideSound'
 /**
- * Cuánto se oye el disco deslizándose, de 0 a 1, según su velocidad en m/s.
- *
- * Nada por debajo de la velocidad a la que el disco cuenta como parado
- * (`STALL_SPEED`): un disco quieto no roza. De ahí sube con la raíz de la
- * velocidad —el oído nota más el arranque que la punta— hasta el tope a la
- * velocidad máxima. Es un sonido de fondo: nunca llega al volumen de un golpe.
- */
-export function slideLevel(speed: number): number {
-  if (!Number.isFinite(speed) || speed <= STALL_SPEED) return 0
-  const t = Math.min(1, (speed - STALL_SPEED) / (MAX_PUCK_SPEED - STALL_SPEED))
-  return SLIDE_MAX_LEVEL * Math.sqrt(t)
-}
-
-/**
- * A qué frecuencia se filtra el roce según la velocidad: más rápido, más agudo.
- * Es lo que hace que la velocidad se oiga y no solo el volumen.
- */
-export function slidePitch(speed: number): number {
-  const s = Number.isFinite(speed) ? Math.min(1, Math.max(0, speed / MAX_PUCK_SPEED)) : 0
-  return SLIDE_PITCH_MIN + (SLIDE_PITCH_MAX - SLIDE_PITCH_MIN) * s
-}
-
-/** Tope del roce respecto a un golpe entero, y su banda de frecuencias en Hz. */
-const SLIDE_MAX_LEVEL = 0.28
-const SLIDE_PITCH_MIN = 380
-const SLIDE_PITCH_MAX = 1900
-/** Segundos que tarda el roce en seguir a la velocidad: sin saltos entre fotogramas. */
-const SLIDE_SMOOTHING = 0.05
-/**
- * Cuánto de fuerte es un impacto, de 0 a 1, a partir de su velocidad en m/s.
- * El tope es la velocidad máxima del disco: un golpe a esa velocidad es el
- * sonido entero; un disco que roza la banda a un palmo por segundo, apenas se
- * oye. Es lo que apaga el caso feo de un disco atrapado en una esquina
- * repiqueteando a volumen completo.
+ * How strong an impact is, from 0 to 1, from its speed in m/s.
+ * The cap is the puck's maximum speed: a strike at that speed is the whole
+ * sound; a puck that brushes the rail at a hand's width per second can barely
+ * be heard. It is what silences the ugly case of a puck trapped in a corner
+ * rattling at full volume.
  */
 export function impactStrength(speed: number): number {
   if (!Number.isFinite(speed) || speed <= 0) return 0
   return Math.min(1, speed / MAX_PUCK_SPEED)
 }
 
-/** Cuánto suena un golpe de fuerza cero: nunca del todo mudo si lo hubo. */
+/** How loud a strike of zero strength is: never fully mute if there was one. */
 const MIN_LEVEL = 0.2
-/** Cuánto sube de tono un golpe fuerte respecto a uno flojo. */
+/** How much higher in pitch a strong strike is compared with a weak one. */
 const PITCH_SPREAD = 0.2
-/** Reproductor de los sonidos del juego. */
+/** Player of the game's sounds. */
 export interface GlideHockeyAudio {
   /**
-   * Suelta un sonido. `strength` (0 a 1) es la fuerza del impacto: escala el
-   * volumen y un poco el tono del golpe y del rebote; el gol no la mira, que es
-   * una celebración y no un impacto. Si no hay con qué, no hace nada.
+   * Fires a sound. `strength` (0 to 1) is the strength of the impact: it scales
+   * the volume and slightly the pitch of the strike and of the bounce; the goal
+   * ignores it, being a celebration and not an impact. With nothing to play it
+   * with, it does nothing.
    */
   play: (sound: GameSound, strength?: number) => void
   /**
-   * El disco deslizándose: un roce continuo cuyo volumen y tono siguen la
-   * velocidad (m/s). Se llama cada fotograma; a 0 se apaga. No abre el contexto
-   * por su cuenta: hasta el primer golpe no hay nada que roce.
+   * The puck sliding: a continuous rub whose volume and pitch follow the speed
+   * (m/s). It is called every frame; at 0 it goes silent. It does not open the
+   * context on its own: until the first strike there is nothing to slide.
    */
   slide: (speed: number) => void
-  /** Suelta el contexto. Sin esto queda un audio abierto por escena montada. */
+  /** Releases the context. Without this one audio stays open per mounted scene. */
   close: () => void
   /**
-   * Cuánto de todo esto se oye, de 0 a 1: el volumen de efectos de los ajustes
-   * del arcade. Multiplica al maestro del juego y no lo sustituye —`MASTER_GAIN`
-   * dice cuánto pega este juego frente a los demás—, y se puede llamar con el
-   * audio aún sin abrir: se aplica al abrirlo.
+   * How much of all this is heard, from 0 to 1: the effects volume of the hall's
+   * settings. It multiplies the game's master and does not replace it
+   * —`MASTER_GAIN` says how loud this game is against the others—, and it can be
+   * called with the audio not open yet: it is applied when it opens.
    */
   setVolume: (factor: number) => void
+  /**
+   * The cutoff of the bus low-pass, in hertz: the «muffled ear» of a hit taken
+   * (`components/xr/HitFeedback.tsx`). Fully open it removes nothing that can
+   * be heard. It can be called with the audio not open yet: it is applied when
+   * it opens, just like the volume.
+   */
+  setLowpass: (hz: number) => void
 }
 
 /**
- * Volumen general, de 0 a 1.
+ * Overall volume, from 0 to 1.
  *
- * **El mismo número en los trece juegos**, y ese es el punto: el volumen de efectos se elige
- * una vez en el arcade y saltar de cabina no puede cambiar lo que se oye. Estaba en 0,28 en
- * ocho, 0,40 en tres y 0,45 en dos —con este mismo comentario en todos—, así que la misma
- * posición del deslizador sonaba tres o cuatro decibelios distinta según el juego.
+ * **The same number in the thirteen games**, and that is the point: the effects volume is
+ * chosen once in the hall and hopping to another cabinet cannot change what is heard. It was
+ * 0.28 in eight, 0.40 in three and 0.45 in two —with this very comment in all of them—, so the
+ * same slider position sounded three or four decibels different depending on the game.
  *
- * Por debajo de la mitad a propósito: se juega con un visor puesto y el sonido va a un palmo
- * de las orejas. Si un juego suena flojo o fuerte comparado con los demás, lo que hay que
- * mover es **su receta**, no este número: moverlo aquí vuelve a descuadrar los trece.
+ * Below half on purpose: it is played with a headset on and the sound is a hand's width from
+ * the ears. If a game sounds weak or loud compared with the others, what has to move is
+ * **its recipe**, not this number: moving it here throws the thirteen out of line again.
  */
 const MASTER_GAIN = 0.35
 
-/** Valor al que se apaga una envolvente. Cero no vale: las rampas
- * exponenciales de la Web Audio API lo prohíben. */
+/**
+ * The bus low-pass, open: above what can be heard, so it removes nothing.
+ * Butterworth Q, the flattest: with more, the cutoff would make a peak that
+ * would be heard as a whistle as it closes.
+ */
+export const LOWPASS_OPEN = 20000
+const LOWPASS_Q = Math.SQRT1_2
+
+/**
+ * How long the cutoff takes to reach where it is asked to go, in seconds. A
+ * new one is requested every frame while the hit lasts, and a hard jump in
+ * frequency on each one would crackle.
+ */
+const LOWPASS_SMOOTHING = 0.01
+
+/** Value an envelope fades out to. Zero will not do: the exponential
+ * ramps of the Web Audio API forbid it. */
 const SILENCE = 0.0001
 
-/** Segundos de ruido que se generan una vez y se reaprovechan en cada golpe. */
+/** Seconds of noise generated once and reused on every strike. */
 const NOISE_SECONDS = 1
 
-/** La capa de ruido de un sonido: qué material se está oyendo. */
+/** The noise layer of a sound: which material is being heard. */
 interface NoiseLayer {
-  /** Qué se deja pasar: agudos (el mazo) o una banda estrecha (la madera). */
+  /** What is let through: highs (the mallet) or a narrow band (the wood). */
   filter: BiquadFilterType
   frequency: number
-  /** Cuánto se estrecha el filtro. Alto = más «tonal», bajo = más ruido. */
+  /** How narrow the filter gets. High = more «tonal», low = more noise. */
   q: number
   peak: number
-  /** Subida, en segundos. Instantánea chasca; alargarla ablanda el golpe. */
+  /** Rise, in seconds. Instant it clicks; lengthening it softens the strike. */
   attack: number
-  /** Cuánto dura hasta apagarse, en segundos. */
+  /** How long it lasts until it fades out, in seconds. */
   seconds: number
 }
 
-/** Un tono: el cuerpo del golpe, o una nota de la melodía del gol. */
+/** A tone: the body of the strike, or a note of the goal's melody. */
 interface ToneLayer {
   type: OscillatorType
-  /** De qué frecuencia a cuál, en Hz. Iguales es una nota tenida. */
+  /** From which frequency to which, in Hz. Equal is a held note. */
   from: number
   to: number
   peak: number
-  /** Cuándo entra, en segundos desde el principio del sonido. */
+  /** When it comes in, in seconds from the start of the sound. */
   delay: number
   seconds: number
 }
 
 interface SoundRecipe {
   /**
-   * El siseo del golpe. Opcional porque los cierres no lo llevan: un final no golpea nada,
-   * y el ruido de un impacto ahí sonaría a que se ha roto algo.
+   * The hiss of the strike. Optional because the closings do not carry it: an ending strikes
+   * nothing, and the noise of an impact there would sound as if something had broken.
    */
   noise?: NoiseLayer
   tones: readonly ToneLayer[]
 }
 
 /**
- * Cómo suena cada cosa.
+ * How each thing sounds.
  *
- * Los tres tienen que distinguirse **sin mirar el marcador**, así que se
- * separan por registro y por duración, no por volumen: el mazo es un chasquido
- * agudo y cortísimo, la banda un golpe más sordo y un pelo más largo, y el gol
- * lo único con melodía —dos notas que suben una quinta— porque es lo único que
- * hay que celebrar.
+ * The three have to be told apart **without looking at the scoreboard**, so
+ * they are separated by register and by duration, not by volume: the mallet is
+ * a sharp and very short click, the rail a duller strike and a touch longer,
+ * and the goal the only one with melody —two notes going up a fifth— because
+ * it is the only thing to celebrate.
  */
-/** Lo que suena igual de fuerte pase lo que pase: no son impactos. */
-const SIN_FUERZA = new Set<GameSound>(['goal', 'win', 'loss', 'record'])
+/** What sounds just as loud whatever happens: they are not impacts. */
+const NO_STRENGTH = new Set<GameSound>(['goal', 'win', 'loss', 'record', 'medal-bronze', 'medal-silver', 'medal-gold'])
+
+/** How long it waits for the goal that crossed the threshold to fade out, in seconds. */
+const MEDAL_DELAY = 0.5
+
+/**
+ * The threshold crossed: two short notes going up, a fifth, higher the better the medal is
+ * —C, E and G, those of the chord a win is played with—. Short on purpose, since the match
+ * goes on, and with no hiss: it strikes nothing.
+ */
+function medalRecipe(base: number): SoundRecipe {
+  return {
+    tones: [base, base * 1.5].map((hz, index) => ({
+      type: 'sine' as const,
+      from: hz,
+      to: hz,
+      peak: 0.3,
+      delay: MEDAL_DELAY + index * 0.09,
+      seconds: index === 0 ? 0.09 : 0.2,
+    })),
+  }
+}
 
 const RECIPES: Record<GameSound, SoundRecipe> = {
   strike: {
@@ -211,7 +242,7 @@ const RECIPES: Record<GameSound, SoundRecipe> = {
       attack: 0.002,
       seconds: 0.12,
     },
-    // Do y sol: una quinta hacia arriba, que es lo que se lee como «bien».
+    // C and G: a fifth going up, which is what reads as «good».
     tones: [
       {
         type: 'triangle',
@@ -232,12 +263,12 @@ const RECIPES: Record<GameSound, SoundRecipe> = {
     ],
   },
   /**
-   * Ganar el partido. Antes terminar era silencio: se metía el último gol, sonaba como
-   * cualquier otro y aparecía la pantalla de fin sin avisar. Con el visor puesto es peor
-   * todavía, porque el marcador está donde uno no siempre está mirando.
+   * Winning the match. Finishing used to be silence: the last goal went in, it sounded like
+   * any other and the end screen appeared without warning. With the headset on it is even
+   * worse, because the scoreboard is where one is not always looking.
    *
-   * Sube y dura, que es lo que separa un final de un gol: la misma quinta del gol pero
-   * resuelta una octava arriba, y tres notas en vez de dos.
+   * It rises and it lasts, which is what separates an ending from a goal: the same fifth as
+   * the goal but resolved an octave up, and three notes instead of two.
    */
   win: {
     tones: [
@@ -247,7 +278,7 @@ const RECIPES: Record<GameSound, SoundRecipe> = {
       { type: 'sine', from: 1046.5, to: 1046.5, peak: 0.16, delay: 0.26, seconds: 0.48 },
     ],
   },
-  /** Perderlo: lo contrario, cayendo y grave. Sin ruido: un final no golpea nada. */
+  /** Losing it: the opposite, falling and low. No noise: an ending strikes nothing. */
   loss: {
     tones: [
       { type: 'triangle', from: 329.63, to: 329.63, peak: 0.3, delay: 0, seconds: 0.24 },
@@ -256,8 +287,9 @@ const RECIPES: Record<GameSound, SoundRecipe> = {
     ],
   },
   /**
-   * Y la marca batida, por encima del cierre y no en su lugar: se puede batir ganando o
-   * perdiendo el partido, y hay que oír las dos cosas. Cae cuando el cierre se apaga.
+   * And the record beaten, on top of the closing and not instead of it: it can be beaten
+   * winning or losing the match, and both things have to be heard. It lands when the closing
+   * fades out.
    */
   record: {
     tones: [
@@ -266,34 +298,38 @@ const RECIPES: Record<GameSound, SoundRecipe> = {
       { type: 'sine', from: 1760, to: 1975.5, peak: 0.28, delay: 0.62, seconds: 0.34 },
     ],
   },
+  'medal-bronze': medalRecipe(523.25),
+  'medal-silver': medalRecipe(659.25),
+  'medal-gold': medalRecipe(784),
 }
 
 /**
- * Descarta lo que devuelva el contexto.
+ * Discards whatever the context returns.
  *
- * `resume()` y `close()` devuelven promesas **que se rechazan**: la primera
- * cuando el navegador no da por buena todavía la interacción del jugador
- * —política de reproducción automática—, la segunda si el contexto ya estaba
- * cerrado. Sin recogerlo, cada sonido de una partida así deja un rechazo sin
- * atender en la consola, y la consola limpia es lo que vigila
- * `e2e/consola.spec.ts`. No hay nada que hacer con el fallo: significa que no
- * suena, que es exactamente lo que se acepta aquí.
+ * `resume()` and `close()` return promises **that reject**: the first when the
+ * browser does not yet accept the player's interaction —autoplay policy—, the
+ * second if the context was already closed. Without catching it, every sound
+ * of such a match leaves an unhandled rejection in the console, and the clean
+ * console is what `e2e/console.spec.ts` watches. There is nothing to do with
+ * the failure: it means it does not sound, which is exactly what is accepted
+ * here.
  */
 /**
- * La misma receta, con la fuerza del impacto: el volumen entre un quinto y el
- * entero, y el tono un poco más grave cuanto más flojo. La duración no cambia:
- * es lo que dice qué se ha oído.
+ * The same recipe, with the strength of the impact: the volume between a fifth
+ * and the whole, and the pitch a little lower the weaker it is. The duration
+ * does not change: it is what tells what has been heard.
  */
 function scaled(recipe: SoundRecipe, strength: number): SoundRecipe {
-  // Quien llama ya pasa la fuerza por `impactStrength`, que descarta lo que no
-  // es número; el 1 de aquí es el resguardo de que esta receta valga sola.
+  // The caller already passes the strength through `impactStrength`, which
+  // discards what is not a number; the 1 here is the guard that lets this
+  // recipe stand on its own.
   /* v8 ignore next */
   const s = Math.min(1, Math.max(0, Number.isFinite(strength) ? strength : 1))
   const level = MIN_LEVEL + (1 - MIN_LEVEL) * s
   const pitch = 1 - PITCH_SPREAD / 2 + PITCH_SPREAD * s
   return {
-    // Solo escalan las recetas de impacto, y todas llevan siseo: `SIN_FUERZA` deja fuera a
-    // las que no lo tienen. El resguardo está por si esta receta se usa suelta.
+    // Only the impact recipes scale, and all of them carry hiss: `NO_STRENGTH` leaves out
+    // those that have none. The guard is there in case this recipe is used on its own.
     /* v8 ignore next */
     noise: recipe.noise && {
       ...recipe.noise,
@@ -313,19 +349,19 @@ function ignore(promise: Promise<void>): void {
   promise.catch(() => {})
 }
 
-/** El contexto del navegador, si es que lo hay. */
+/** The browser's context, if there is one. */
 function browserAudioContext(): AudioContext | null {
   if (typeof window === 'undefined' || window.AudioContext == null) return null
   try {
     return new window.AudioContext()
   } catch {
-    // Sin permiso, sin salida de audio o con demasiados contextos abiertos: se
-    // juega en silencio, que es mejor que llevarse la escena por delante.
+    // No permission, no audio output or too many contexts open: it is played
+    // in silence, which is better than taking the scene down with it.
     return null
   }
 }
 
-/** Ruido blanco del que se corta un trozo distinto en cada golpe. */
+/** White noise from which a different piece is cut on every strike. */
 function noiseBuffer(context: AudioContext): AudioBuffer {
   const length = Math.floor(context.sampleRate * NOISE_SECONDS)
   const buffer = context.createBuffer(1, length, context.sampleRate)
@@ -334,7 +370,7 @@ function noiseBuffer(context: AudioContext): AudioBuffer {
   return buffer
 }
 
-/** Sube al pico y se desploma: la forma de cualquier golpe. */
+/** Rises to the peak and collapses: the shape of any strike. */
 function envelope(
   param: AudioParam,
   start: number,
@@ -346,23 +382,26 @@ function envelope(
 }
 
 /**
- * Crea el reproductor. Recibe de dónde sale el contexto para poder probarlo
- * sin navegador, que es donde corren los tests de la lógica del juego.
+ * Creates the player. It receives where the context comes from so that it can
+ * be tested without a browser, which is where the game logic tests run.
  */
 export function createGlideHockeyAudio(
   createContext: () => AudioContext | null = browserAudioContext,
 ): GlideHockeyAudio {
   let context: AudioContext | null = null
   let master: GainNode | null = null
+  /** The low-pass between the master and the output, and the cutoff requested of it. */
+  let lowpass: BiquadFilterNode | null = null
+  let cutoff = LOWPASS_OPEN
   let noise: AudioBuffer | null = null
-  /** La voz del roce, una para toda la partida: ruido en bucle, filtro y volumen. */
+  /** The slide voice, one for the whole match: looped noise, filter and volume. */
   let slideVoice: { filter: BiquadFilterNode; gain: GainNode; source: AudioBufferSourceNode } | null = null
-  // Que ya se haya intentado y no haya salido: sin esto, un navegador sin Web
-  // Audio se lleva un intento de crear contexto por cada golpe de la partida,
-  // y de esos hay decenas.
+  // That it has already been tried and did not work: without this, a browser
+  // without Web Audio gets one attempt at creating a context per strike of
+  // the match, and there are dozens of those.
   let unavailable = false
-  /** Lo que dicen los ajustes del arcade. 1 hasta que alguien diga otra cosa. */
-  let volumen = 1
+  /** What the hall's settings say. 1 until somebody says otherwise. */
+  let volume = 1
 
   function ready(): AudioContext | null {
     if (context != null || unavailable) return context
@@ -372,8 +411,15 @@ export function createGlideHockeyAudio(
       return null
     }
     master = context.createGain()
-    master.gain.value = MASTER_GAIN * volumen
-    master.connect(context.destination)
+    master.gain.value = MASTER_GAIN * volume
+    // Everything that sounds goes through the master, so the filter goes after
+    // it: a single node muffles the whole game.
+    lowpass = context.createBiquadFilter()
+    lowpass.type = 'lowpass'
+    lowpass.frequency.value = cutoff
+    lowpass.Q.value = LOWPASS_Q
+    master.connect(lowpass)
+    lowpass.connect(context.destination)
     noise = noiseBuffer(context)
     return context
   }
@@ -381,19 +427,20 @@ export function createGlideHockeyAudio(
   function play(sound: GameSound, strength = 1): void {
     const ctx = ready()
     if (ctx == null || master == null || noise == null) return
-    // Suspendido: el navegador lo para al dejar de mirar la pestaña y no se
-    // recupera solo. Sin esto, volver al juego después de un rato es jugar mudo.
+    // Suspended: the browser stops it when the tab is no longer looked at and
+    // it does not recover on its own. Without this, coming back to the game
+    // after a while is playing mute.
     if (ctx.state === 'suspended') ignore(ctx.resume())
 
     const now = ctx.currentTime
-    // El gol y los cierres no miran la fuerza: son celebraciones, no impactos.
-    const recipe = SIN_FUERZA.has(sound) ? RECIPES[sound] : scaled(RECIPES[sound], strength)
-    // Un cierre no golpea nada: sin siseo, que ahí sonaría a que se ha roto algo.
+    // The goal and the closings ignore the strength: they are celebrations, not impacts.
+    const recipe = NO_STRENGTH.has(sound) ? RECIPES[sound] : scaled(RECIPES[sound], strength)
+    // A closing strikes nothing: no hiss, which there would sound as if something had broken.
     if (recipe.noise != null) playNoise(ctx, master, noise, now, recipe.noise)
     for (const tone of recipe.tones) playTone(ctx, master, now, tone)
   }
 
-  /** Monta la voz del roce sobre el contexto que ya hay. */
+  /** Sets up the slide voice on the context that already exists. */
   function slideReady(ctx: AudioContext) {
     if (slideVoice != null || master == null || noise == null) return slideVoice
     const source = ctx.createBufferSource()
@@ -414,16 +461,16 @@ export function createGlideHockeyAudio(
   }
 
   function slide(speed: number): void {
-    // Sin contexto no se roza: el primer golpe es quien lo abre.
+    // Without a context nothing slides: the first strike is what opens it.
     if (context == null) return
     const voice = slideReady(context)
-    // Solo sería nulo con el contexto abierto y sin maestro ni ruido montados,
-    // que es un estado que no llega a darse: los tres se crean a la vez.
+    // It would only be null with the context open and neither master nor noise
+    // set up, which is a state that never happens: the three are created at once.
     /* v8 ignore next */
     if (voice == null) return
     const now = context.currentTime
-    // Suavizado y no un salto: la velocidad cambia cada fotograma y un volumen
-    // que salte con ella crepita.
+    // Smoothed and not a jump: the speed changes every frame and a volume
+    // that jumps with it crackles.
     voice.gain.gain.setTargetAtTime(slideLevel(speed), now, SLIDE_SMOOTHING)
     voice.filter.frequency.setTargetAtTime(slidePitch(speed), now, SLIDE_SMOOTHING)
   }
@@ -433,26 +480,35 @@ export function createGlideHockeyAudio(
       try {
         slideVoice.source.stop()
       } catch {
-        // Ya parada: el contexto se cierra igual.
+        // Already stopped: the context closes all the same.
       }
     }
     slideVoice = null
     if (context != null) ignore(context.close())
     context = null
     master = null
+    lowpass = null
     noise = null
   }
 
-  /** Ver `setVolume` en la interfaz. */
+  /** See `setVolume` in the interface. */
   function setVolume(factor: number): void {
-    volumen = Math.min(1, Math.max(0, factor))
-    if (master != null) master.gain.value = MASTER_GAIN * volumen
+    volume = Math.min(1, Math.max(0, factor))
+    if (master != null) master.gain.value = MASTER_GAIN * volume
   }
 
-  return { play, slide, close, setVolume }
+  /** See `setLowpass` in the interface. */
+  function setLowpass(hz: number): void {
+    cutoff = Math.min(LOWPASS_OPEN, Math.max(20, hz))
+    // The node knows which context it belongs to: with the audio not open yet
+    // there is no node and the cutoff is applied when it opens.
+    if (lowpass != null) lowpass.frequency.setTargetAtTime(cutoff, lowpass.context.currentTime, LOWPASS_SMOOTHING)
+  }
+
+  return { play, slide, close, setVolume, setLowpass }
 }
 
-/** La capa de ruido: el material del golpe. */
+/** The noise layer: the material of the strike. */
 function playNoise(
   ctx: AudioContext,
   master: GainNode,
@@ -462,9 +518,9 @@ function playNoise(
 ): void {
   const source = ctx.createBufferSource()
   source.buffer = buffer
-  // Cada golpe corta el ruido por otro sitio y con otro tono: en una partida
-  // hay decenas, y dos idénticos seguidos delatan que es el mismo sonido
-  // repetido en vez de dos golpes distintos.
+  // Each strike cuts the noise at another place and with another pitch: in a
+  // match there are dozens, and two identical ones in a row give away that it
+  // is the same sound repeated instead of two different strikes.
   source.playbackRate.value = 0.92 + Math.random() * 0.16
 
   const filter = ctx.createBiquadFilter()
@@ -483,8 +539,8 @@ function playNoise(
 }
 
 /**
- * Un tono. El del gol es una nota y no se desafina: la variación aleatoria se
- * queda en el ruido, que es donde no hay afinación que romper.
+ * A tone. The goal's is a note and does not go out of tune: the random
+ * variation stays in the noise, which is where there is no tuning to break.
  */
 function playTone(
   ctx: AudioContext,

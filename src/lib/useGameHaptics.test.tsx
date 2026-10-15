@@ -1,13 +1,13 @@
-import { type ThreeEvent } from '@react-three/fiber'
 import { renderHook } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
-import { GOAL_PULSE, STRIKE_PULSE, type HapticSession } from './haptics'
-import { scaledPulse, useGameHaptics } from './useGameHaptics'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { type HapticSession } from './haptics'
+import { HAPTIC_RECIPES } from './hapticFeedback'
+import { useGameHaptics } from './useGameHaptics'
 
 /**
- * Lo único que el hook añade sobre `haptics.ts` (que ya tiene sus tests): que
- * los golpes van a la sesión que hay abierta y a la mano que la mesa dijo que
- * lleva el mazo, y que mientras no lo haya dicho van a las dos.
+ * What the hook adds on top of `haptics.ts` (which already has its tests): that the strikes go
+ * to the open session and **only** to the hand `MalletHand` said holds the mallet, that with no
+ * hand nothing vibrates, and that the tail of the strike is cancelled on unmount.
  */
 const xr = vi.hoisted(() => ({
   left: vi.fn(),
@@ -30,85 +30,81 @@ function withHeadset() {
   }
 }
 
-const aimWith = (handedness: string) =>
-  ({ nativeEvent: { inputSource: { handedness } } }) as unknown as ThreeEvent<PointerEvent>
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('useGameHaptics', () => {
-  it('antes de saber qué mano lleva el mazo, el golpe va a las dos', () => {
+  it('with nobody holding the mallet, a strike vibrates in neither hand', () => {
     withHeadset()
     const { result } = renderHook(() => useGameHaptics())
 
-    result.current.pulse('strike')
+    result.current.feel({ type: 'hit', strength: 1 })
 
-    expect(xr.left).toHaveBeenCalledWith(STRIKE_PULSE.intensity, STRIKE_PULSE.durationMs)
-    expect(xr.right).toHaveBeenCalledWith(STRIKE_PULSE.intensity, STRIKE_PULSE.durationMs)
+    expect(xr.left).not.toHaveBeenCalled()
+    expect(xr.right).not.toHaveBeenCalled()
   })
 
-  it('en cuanto un mando mueve el mazo, el golpe va solo a esa mano', () => {
+  it('with the mallet in the left hand, the strike and its tail go to the left and nowhere else', () => {
+    vi.useFakeTimers()
     withHeadset()
     const { result } = renderHook(() => useGameHaptics())
 
-    result.current.noteAim(aimWith('left'))
-    result.current.pulse('strike')
-    result.current.pulse('bounce')
+    result.current.noteHand('left')
+    result.current.feel({ type: 'hit', strength: 1 })
+    expect(xr.left).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(HAPTIC_RECIPES.impact.ms)
 
     expect(xr.left).toHaveBeenCalledTimes(2)
     expect(xr.right).not.toHaveBeenCalled()
   })
 
-  it('cambiar el mazo de mano cambia la mano que vibra; el ratón no la borra', () => {
+  it('changing the mallet to the other hand changes the hand that vibrates, and releasing it turns it off', () => {
     withHeadset()
     const { result } = renderHook(() => useGameHaptics())
 
-    result.current.noteAim(aimWith('left'))
-    result.current.noteAim(aimWith('right'))
-    result.current.noteAim({ nativeEvent: {} } as unknown as ThreeEvent<PointerEvent>)
-    result.current.pulse('strike')
-
+    result.current.noteHand('left')
+    result.current.noteHand('right')
+    result.current.feel({ type: 'goal' })
     expect(xr.right).toHaveBeenCalledTimes(1)
     expect(xr.left).not.toHaveBeenCalled()
+
+    result.current.noteHand(null)
+    result.current.feel({ type: 'goal' })
+    expect(xr.right).toHaveBeenCalledTimes(1)
   })
 
-  it('el gol se nota en las dos manos, lleve el mazo quien lo lleve', () => {
+  it('unmounting cancels the tail that was still to play', () => {
+    vi.useFakeTimers()
     withHeadset()
-    const { result } = renderHook(() => useGameHaptics())
+    const { result, unmount } = renderHook(() => useGameHaptics())
 
-    result.current.noteAim(aimWith('right'))
-    result.current.pulse('goal')
+    result.current.noteHand('right')
+    result.current.feel({ type: 'hit', strength: 1 })
+    unmount()
+    vi.advanceTimersByTime(1000)
 
-    expect(xr.left).toHaveBeenCalledWith(GOAL_PULSE.intensity, GOAL_PULSE.durationMs)
-    expect(xr.right).toHaveBeenCalledWith(GOAL_PULSE.intensity, GOAL_PULSE.durationMs)
+    expect(xr.right).toHaveBeenCalledTimes(1)
   })
 
-  it('sin sesión inmersiva no hay mandos que pulsar, y no pasa nada', () => {
+  it('without an immersive session there are no controllers to pulse, and nothing happens', () => {
     withHeadset()
     xr.session = null
     const { result } = renderHook(() => useGameHaptics())
 
-    expect(() => result.current.pulse('goal')).not.toThrow()
-    expect(xr.left).not.toHaveBeenCalled()
-  })
-})
-
-describe('la fuerza del impacto en la mano', () => {
-  it('un roce vibra menos que un golpe seco, pero se nota', () => {
-    const seco = scaledPulse(STRIKE_PULSE, 1).intensity
-    const roce = scaledPulse(STRIKE_PULSE, 0).intensity
-    expect(seco).toBe(STRIKE_PULSE.intensity)
-    expect(roce).toBeGreaterThan(0)
-    expect(roce).toBeLessThan(seco)
-    expect(scaledPulse(STRIKE_PULSE, 0).durationMs).toBe(STRIKE_PULSE.durationMs)
+    result.current.noteHand('right')
+    expect(() => result.current.feel({ type: 'hit', strength: 1 })).not.toThrow()
+    expect(xr.right).not.toHaveBeenCalled()
   })
 
-  it('llega al mando escalado, y el gol siempre entero', () => {
+  it('the pulse of the hit feedback goes to the hand it says, whether or not it holds the mallet', () => {
     withHeadset()
     const { result } = renderHook(() => useGameHaptics())
-    result.current.noteAim(aimWith('right'))
 
-    result.current.pulse('strike', 0)
-    result.current.pulse('goal', 0)
+    result.current.pulse({ hand: 'left', intensity: 0.6, ms: 220, delay: 0 })
+    result.current.pulse({ hand: 'right', intensity: 0.6, ms: 220, delay: 0 })
 
-    expect(xr.right.mock.calls[0][0]).toBeLessThan(STRIKE_PULSE.intensity)
-    expect(xr.right.mock.calls[1][0]).toBe(GOAL_PULSE.intensity)
+    expect(xr.left).toHaveBeenCalledWith(0.6, 220)
+    expect(xr.right).toHaveBeenCalledWith(0.6, 220)
   })
 })

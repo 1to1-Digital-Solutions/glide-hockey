@@ -1,39 +1,31 @@
 'use client'
 
 import { createContext, useContext, type ReactNode } from 'react'
+
 import { endXrSession } from '../components/xr/xrStore'
 
 /**
- * Qué significa «salir» en este juego, que lo decide quien lo monta.
+ * What the exit button does, which depends on who has mounted the game.
  *
- * En su propia web, salir es cerrar la sesión inmersiva: no hay ningún sitio al
- * que volver. Montado dentro del salón de xrcade significa lo contrario —el
- * salón es el dueño de la sesión y hay que dejársela abierta—, así que salir es
- * devolverle al jugador. El juego no puede decidir eso: solo sabe que el
- * jugador quiere irse, no a dónde.
+ * **Mounted in the xrcade hall**, exiting is going back to the arc of cabinets: the hub passes its
+ * own function (`onExit`) and unmounts the scene without closing the session, which is what allows
+ * changing game without taking the headset off.
  *
- * Por eso la salida es una prop del montaje y no una llamada a la sesión: con
- * un `session.end()` escrito dentro del menú, montar el juego en un salón
- * inmersivo significaría que salir del juego arranca a todo el mundo del visor.
+ * **On the game's own web** there is nowhere to go back to, so exiting is the only thing that makes
+ * sense there: closing the immersive session and returning whoever plays to the page. It is the
+ * default value and not an error: an exit button that did nothing would leave someone locked
+ * inside the session with the headset on.
+ *
+ * It goes in a context and not as a prop of each panel because the one who calls it is the menu,
+ * which is three levels below where the game is mounted, and passing it from hand to hand would
+ * force every piece of scene it goes through to know about it.
  */
-const ExitContext = createContext<() => void>(endXrSession)
+const ExitContext = createContext<(() => void) | null>(null)
 
-export function ExitProvider({
-  onExit,
-  children,
-}: {
-  onExit: () => void
-  children: ReactNode
-}) {
-  return <ExitContext.Provider value={onExit}>{children}</ExitContext.Provider>
+export function ExitProvider({ onExit, children }: { onExit?: () => void; children: ReactNode }) {
+  return <ExitContext.Provider value={onExit ?? null}>{children}</ExitContext.Provider>
 }
 
-/**
- * Devolver al jugador a donde estaba antes de entrar.
- *
- * Sin nadie que lo diga, cierra la sesión: es lo que significa salir cuando el
- * juego es lo único que hay en la página.
- */
 export function useExit(): () => void {
-  return useContext(ExitContext)
+  return useContext(ExitContext) ?? endXrSession
 }

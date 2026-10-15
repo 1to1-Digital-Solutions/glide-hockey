@@ -1,36 +1,36 @@
 import { describe, expect, it, vi } from 'vitest'
 import { PRESS_DEBOUNCE_MS, pressCounts, pressTime } from './xrPress'
 
-describe('cuándo cuenta una pulsación del visor', () => {
-  it('la primera siempre cuenta', () => {
+describe('when a press in the headset counts', () => {
+  it('the first always counts', () => {
     expect(pressCounts(1000, null)).toBe(true)
   })
 
-  it('una segunda inmediata es el otro puntero del mismo gesto', () => {
+  it('an immediate second one is the other pointer of the same gesture', () => {
     expect(pressCounts(1000, 1000 - PRESS_DEBOUNCE_MS + 1)).toBe(false)
   })
 
-  it('pasada la ventana vuelve a contar', () => {
+  it('past the window it counts again', () => {
     expect(pressCounts(1000, 1000 - PRESS_DEBOUNCE_MS)).toBe(true)
   })
 
-  it('un botón apagado no responde', () => {
+  it('a disabled button does not respond', () => {
     expect(pressCounts(1000, null, true)).toBe(false)
   })
 
-  it('sin reloj cuenta, que es preferible a un menú mudo', () => {
+  it('without a clock it counts, which is preferable to a mute menu', () => {
     expect(pressCounts(null, 500)).toBe(true)
   })
 })
 
-describe('cuándo se ha pulsado', () => {
-  it('en el navegador, el reloj de precisión', () => {
+describe('when it was pressed', () => {
+  it('in the browser, the precision clock', () => {
     expect(pressTime()).toBeCloseTo(performance.now(), -2)
   })
 
-  it('sin reloj del que fiarse, no se sabe, y entonces la pulsación cuenta', () => {
-    // Ante la duda un botón responde: un menú entero que no reacciona no deja
-    // ni rastro en consola que lo explique.
+  it('with no clock to trust, it is not known, and then the press counts', () => {
+    // When in doubt a button responds: a whole menu that does not react leaves
+    // no trace in the console to explain it.
     vi.stubGlobal('performance', undefined)
     expect(pressTime()).toBeNull()
     expect(pressCounts(pressTime(), 0, false)).toBe(true)

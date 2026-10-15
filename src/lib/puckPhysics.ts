@@ -12,18 +12,19 @@ import {
 } from './gameConfig'
 
 /**
- * La física del disco: rebotes, golpes y goles.
+ * The physics of the puck: bounces, hits and goals.
  *
- * Es un plano, no un mundo en 3D. El disco no despega de la mesa, así que la
- * simulación son dos coordenadas —`x` a lo ancho, `z` a lo largo— y la escena
- * solo las sube a la altura de la superficie. Eso es lo que permite que todo
- * esto sean funciones puras que se pueden probar sin abrir el navegador, y lo
- * que evita meter un motor de física: los que usa el ecosistema de R3F van en
- * WebAssembly y la política de seguridad del salón de xrcade los bloquea (ver
+ * It is a plane, not a 3D world. The puck never leaves the table, so the
+ * simulation is two coordinates —`x` across, `z` along— and the scene only
+ * lifts them to the height of the surface. That is what lets all of this be
+ * pure functions that can be tested without opening the browser, and what
+ * avoids bringing in a physics engine: the ones the R3F ecosystem uses run in
+ * WebAssembly and the security policy of the xrcade hall blocks them (see
  * `docs/xrcade.md`).
  *
- * El origen es el centro de la mesa. El jugador defiende el fondo de `z`
- * positivo, que es el que tiene delante; la máquina, el de `z` negativo.
+ * The origin is the centre of the table. The player defends the end of
+ * positive `z`, which is the one in front of them; the machine, the one of
+ * negative `z`.
  */
 
 export interface Vec2 {
@@ -31,33 +32,33 @@ export interface Vec2 {
   z: number
 }
 
-/** Un objeto redondo que se mueve por la mesa. */
+/** A round object that moves across the table. */
 export interface Body {
   position: Vec2
   velocity: Vec2
 }
 
-/** Quién ha metido el gol. */
+/** Who has scored the goal. */
 export type Scorer = 'player' | 'opponent'
 
-/** De quién es cada mitad de la mesa. */
+/** Whose each half of the table is. */
 export type Side = 'player' | 'opponent'
 
 export const HALF_WIDTH = TABLE_WIDTH / 2
 export const HALF_LENGTH = TABLE_LENGTH / 2
 
 /**
- * Cuánto puede avanzar el disco dentro de un paso de simulación.
+ * How far the puck may advance within one simulation step.
  *
- * A tope de velocidad recorre 10 cm por fotograma, más que el radio del disco:
- * en un solo paso se plantaría al otro lado de un mazo sin haberlo tocado. Con
- * los pasos cortos el golpe se detecta siempre, y de paso el rebote en la banda
- * cae donde toca en vez de un fotograma después.
+ * At top speed it covers 10 cm per frame, more than the radius of the puck: in
+ * a single step it would land on the other side of a mallet without having
+ * touched it. With short steps the hit is always detected, and on top of that
+ * the bounce off the rail falls where it should instead of one frame later.
  */
 const MAX_STEP_DISTANCE = 0.02
 
-/** Sub-pasos por fotograma. El tope corta un `dt` disparatado —una pestaña que
- * vuelve de segundo plano— en vez de colgar el bucle. */
+/** Sub-steps per frame. The cap cuts short an absurd `dt` —a tab coming back
+ * from the background— instead of hanging the loop. */
 const MAX_SUBSTEPS = 24
 
 function magnitude(v: Vec2): number {
@@ -68,7 +69,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
-/** Recorta la velocidad al tope del juego conservando la dirección. */
+/** Clips the speed to the game's cap while keeping the direction. */
 function capSpeed(velocity: Vec2): Vec2 {
   const speed = magnitude(velocity)
   if (speed <= MAX_PUCK_SPEED || speed === 0) return velocity
@@ -77,22 +78,23 @@ function capSpeed(velocity: Vec2): Vec2 {
 }
 
 /**
- * Si el disco cabe entero por el hueco de la portería.
+ * Whether the whole puck fits through the gap of the goal.
  *
- * Se exige que quepa entero y no que lo roce: por el borde justo, el disco
- * pasaría por donde la escena dibuja el poste, y un gol que se ve entrar por
- * dentro del hierro no se acepta como gol.
+ * It is required to fit whole, not to graze it: right at the edge, the puck
+ * would go through where the scene draws the post, and a goal that is seen
+ * going in through the iron is not accepted as a goal.
  */
 export function fitsThroughGoal(x: number): boolean {
   return Math.abs(x) <= GOAL_WIDTH / 2 - PUCK_RADIUS
 }
 
-/** Mantiene un mazo dentro de la mesa y de su propia mitad. */
+/** Keeps a mallet inside the table and inside its own half. */
 export function constrainMallet(position: Vec2, side: Side): Vec2 {
   const sideLimit = HALF_WIDTH - MALLET_RADIUS
-  // El mazo no cruza la línea de medio campo: es la regla del juego de mesa y,
-  // sin ella, la máquina defendería dentro de la portería contraria. Se mide
-  // por el borde del mazo, así que su centro se queda a un radio del centro.
+  // The mallet does not cross the centre line: it is the rule of the table
+  // game and, without it, the machine would defend inside the opposite goal.
+  // It is measured by the edge of the mallet, so its centre stays one radius
+  // away from the centre.
   const centerLimit = MALLET_RADIUS
   const backLimit = HALF_LENGTH - MALLET_RADIUS
 
@@ -106,21 +108,21 @@ export function constrainMallet(position: Vec2, side: Side): Vec2 {
 }
 
 /**
- * Resuelve el golpe de un mazo contra el disco.
+ * Resolves the hit of a mallet against the puck.
  *
- * El mazo tiene masa infinita —lo lleva una mano, no la física—, así que el
- * choque se resuelve en su sistema de referencia: solo cambia la velocidad del
- * disco, y lo hace reflejando la componente que los acerca. Sumar la velocidad
- * del mazo es lo que convierte un golpe seco en un disparo y un acompañamiento
- * en un pase.
+ * The mallet has infinite mass —a hand carries it, not the physics—, so the
+ * collision is resolved in its frame of reference: only the velocity of the
+ * puck changes, and it does so by reflecting the component that brings them
+ * together. Adding the velocity of the mallet is what turns a sharp hit into a
+ * shot and a follow-through into a pass.
  *
- * Devuelve `null` si no se tocan.
+ * Returns `null` if they do not touch.
  */
 /**
- * Con qué fuerza se ha dado cada cosa en un paso, en metros por segundo: la
- * velocidad de aproximación del golpe del mazo y la componente normal con la
- * que el disco llegó a la banda. Cero si no hubo. Es lo que separa un roce de
- * un golpe seco, y quien suena y quien vibra lo escalan con ello.
+ * How hard each thing happened in a step, in metres per second: the approach
+ * speed of the mallet hit and the normal component with which the puck reached
+ * the rail. Zero if there was none. It is what tells a graze from a sharp hit,
+ * and whoever sounds and whoever vibrates scale with it.
  */
 export interface Impact {
   strike: number
@@ -129,12 +131,12 @@ export interface Impact {
 
 export const NO_IMPACT: Impact = { strike: 0, bounce: 0 }
 
-/** El impacto más fuerte de cada clase entre dos. */
+/** The strongest impact of each kind between two. */
 export function strongerImpact(a: Impact, b: Impact): Impact {
   return { strike: Math.max(a.strike, b.strike), bounce: Math.max(a.bounce, b.bounce) }
 }
 
-/** El disco tras un golpe de mazo, con la velocidad de aproximación que lo dio. */
+/** The puck after a mallet hit, with the approach speed that caused it. */
 export type MalletHit = Body & { approach: number }
 
 export function resolveMalletHit(puck: Body, mallet: Body): MalletHit | null {
@@ -146,9 +148,10 @@ export function resolveMalletHit(puck: Body, mallet: Body): MalletHit | null {
   const distance = magnitude(offset)
   if (distance >= contact) return null
 
-  // Centros exactamente superpuestos: no hay dirección de choque que deducir,
-  // así que se le da una hacia la portería contraria al mazo y se sigue. Pasa
-  // al empezar la partida si alguien deja el mazo sobre el punto de saque.
+  // Centres exactly on top of each other: there is no collision direction to
+  // deduce, so it is given one towards the goal opposite the mallet and we
+  // carry on. It happens at the start of the match if someone leaves the
+  // mallet on the serve spot.
   const normal =
     distance > 0
       ? { x: offset.x / distance, z: offset.z / distance }
@@ -164,8 +167,8 @@ export function resolveMalletHit(puck: Body, mallet: Body): MalletHit | null {
     z: puck.velocity.z - mallet.velocity.z,
   }
   const approach = relative.x * normal.x + relative.z * normal.z
-  // Ya se estaban separando: el contacto es el resto de un golpe anterior y
-  // volver a reflejar aquí lo dejaría vibrando pegado al mazo.
+  // They were already moving apart: the contact is what is left of an earlier
+  // hit and reflecting again here would leave it buzzing stuck to the mallet.
   if (approach >= 0) return { position, velocity: puck.velocity, approach: 0 }
 
   const impulse = (1 + MALLET_RESTITUTION) * approach
@@ -180,18 +183,18 @@ export function resolveMalletHit(puck: Body, mallet: Body): MalletHit | null {
 }
 
 /**
- * Dónde estaba el mazo a la fracción `t` del paso.
+ * Where the mallet was at fraction `t` of the step.
  *
- * El mazo llega a `position` con `velocity`, así que de dónde salió se deduce:
- * `position - velocity * dt`. Barrerlo por ese segmento es lo que hace que un
- * golpe se detecte donde se dio y no donde acabó la mano.
+ * The mallet arrives at `position` with `velocity`, so where it came from can
+ * be deduced: `position - velocity * dt`. Sweeping it along that segment is
+ * what makes a hit be detected where it happened and not where the hand ended.
  */
 function malletAt(mallet: Body, dt: number, t: number): Body {
-  const queda = (1 - t) * dt
+  const remaining = (1 - t) * dt
   return {
     position: {
-      x: mallet.position.x - mallet.velocity.x * queda,
-      z: mallet.position.z - mallet.velocity.z * queda,
+      x: mallet.position.x - mallet.velocity.x * remaining,
+      z: mallet.position.z - mallet.velocity.z * remaining,
     },
     velocity: mallet.velocity,
   }
@@ -199,49 +202,50 @@ function malletAt(mallet: Body, dt: number, t: number): Body {
 
 export interface StepInput {
   puck: Body
-  /** Los mazos que pueden golpearlo, con la velocidad que llevan. */
+  /** The mallets that can hit it, with the velocity they carry. */
   mallets: readonly Body[]
-  /** Segundos transcurridos desde el paso anterior. */
+  /** Seconds elapsed since the previous step. */
   dt: number
 }
 
 export interface StepResult {
   puck: Body
-  /** Quién ha marcado en este paso, o `null` si la jugada sigue. */
+  /** Who has scored in this step, or `null` if the rally goes on. */
   goal: Scorer | null
-  /** El disco ha rebotado en una banda. */
+  /** The puck has bounced off a rail. */
   bounced: boolean
   /**
-   * Qué mazos lo han golpeado, por su posición en `mallets`.
+   * Which mallets have hit it, by their position in `mallets`.
    *
-   * Se dice cuál y no solo que hubo golpe porque los dos mazos golpean el mismo
-   * disco y quien llama necesita saber de quién fue: es lo que separa un
-   * contraataque del jugador de un despeje de la máquina.
+   * It says which one and not only that there was a hit because both mallets
+   * hit the same puck and the caller needs to know whose it was: it is what
+   * tells a counter-attack by the player from a clearance by the machine.
    */
   struckBy: readonly number[]
-  /** Con qué fuerza se dio el golpe y el rebote más fuertes del paso. */
+  /** How hard the strongest hit and the strongest bounce of the step were. */
   impact: Impact
 }
 
 /**
- * Avanza la simulación `dt` segundos.
+ * Advances the simulation `dt` seconds.
  *
- * En cuanto hay gol se para: el disco se queda donde entró y quien llama decide
- * qué hacer con la jugada (celebrarla y sacar de centro, ver `serve`).
+ * As soon as there is a goal it stops: the puck stays where it went in and the
+ * caller decides what to do with the rally (celebrate it and serve from the
+ * centre, see `serve`).
  */
 export function stepPuck({ puck, mallets, dt }: StepInput): StepResult {
   if (!Number.isFinite(dt) || dt <= 0) {
     return { puck, goal: null, bounced: false, struckBy: [], impact: NO_IMPACT }
   }
 
-  // Lo que se mueve dentro del paso no es solo el disco: **el mazo también**, y
-  // con el visor puesto va en la mano, sin tope de velocidad. Si se le diera por
-  // hecho quieto en su sitio de llegada, una mano rápida aparecería al otro lado
-  // del disco sin haberlo rozado. Así que los sub-pasos los marca el que más
-  // corra de los dos.
+  // What moves within the step is not only the puck: **the mallet too**, and
+  // with the headset on it is in the hand, with no speed cap. If it were taken
+  // to be still at the place where it arrives, a fast hand would appear on the
+  // other side of the puck without having grazed it. So the sub-steps are set
+  // by whichever of the two runs faster.
   const speed = magnitude(puck.velocity)
   const malletTravel = mallets.reduce(
-    (mayor, mallet) => Math.max(mayor, magnitude(mallet.velocity) * dt),
+    (largest, mallet) => Math.max(largest, magnitude(mallet.velocity) * dt),
     0,
   )
   const steps = clamp(
@@ -268,10 +272,10 @@ export function stepPuck({ puck, mallets, dt }: StepInput): StepResult {
     for (let index = 0; index < mallets.length; index++) {
       const hit = resolveMalletHit(current, malletAt(mallets[index], dt, (i + 1) / steps))
       if (hit == null) continue
-      // Un contacto que no cambia la velocidad es el rastro del golpe anterior:
-      // el disco ya se estaba separando y aquí solo se le recoloca. Anotarlo
-      // como golpe contaría un mismo empujón tantas veces como fotogramas
-      // tarden en despegarse.
+      // A contact that does not change the velocity is the trace of the
+      // previous hit: the puck was already moving apart and here it is only
+      // put back in place. Recording it as a hit would count one same push as
+      // many times as the frames they take to come apart.
       const pushed =
         hit.velocity.x !== current.velocity.x ||
         hit.velocity.z !== current.velocity.z
@@ -283,20 +287,21 @@ export function stepPuck({ puck, mallets, dt }: StepInput): StepResult {
   return { puck: current, goal: null, bounced, struckBy, impact }
 }
 
-/** Un sub-paso: rozamiento, avance y choque contra las bandas. */
+/** One sub-step: friction, advance and collision against the rails. */
 function advance(
   puck: Body,
   dt: number,
 ): { puck: Body; goal: Scorer | null; bounced: boolean; bounceSpeed: number } {
-  // Decaimiento exponencial y no una resta: así frenar no depende de cada
-  // cuánto se llame, que es lo que pasaría con una pérdida fija por paso.
+  // Exponential decay and not a subtraction: this way slowing down does not
+  // depend on how often it is called, which is what would happen with a fixed
+  // loss per step.
   const drag = Math.exp(-PUCK_FRICTION * dt)
   let velocity = { x: puck.velocity.x * drag, z: puck.velocity.z * drag }
   let x = puck.position.x + velocity.x * dt
   let z = puck.position.z + velocity.z * dt
   let bounced = false
-  // Con qué velocidad llegó a la banda, en la dirección de la banda: es lo que
-  // se oye y lo que se siente, antes de que el rebote se la quede.
+  // The speed at which it reached the rail, in the direction of the rail: it
+  // is what is heard and what is felt, before the bounce takes it away.
   let bounceSpeed = 0
   const sideLimit = HALF_WIDTH - PUCK_RADIUS
   if (x < -sideLimit || x > sideLimit) {
@@ -309,7 +314,7 @@ function advance(
   const endLimit = HALF_LENGTH - PUCK_RADIUS
   if (z < -endLimit || z > endLimit) {
     if (fitsThroughGoal(x)) {
-      // Fondo de la máquina (z negativo) es gol del jugador, y al revés.
+      // The machine's end (negative z) is a goal for the player, and vice versa.
       return {
         puck: { position: { x, z }, velocity },
         goal: z < 0 ? 'player' : 'opponent',
@@ -326,24 +331,24 @@ function advance(
 }
 
 /**
- * Velocidad por debajo de la cual el disco se da por muerto, en m/s.
+ * Speed below which the puck is taken for dead, in m/s.
  *
- * No es cero: un disco que se arrastra a diez centímetros por segundo en una
- * esquina donde nadie llega es, a efectos de la partida, un disco parado.
+ * It is not zero: a puck crawling at ten centimetres per second in a corner
+ * nobody reaches is, as far as the match goes, a stopped puck.
  */
 export const STALL_SPEED = 0.35
 
-/** Segundos que puede quedarse así antes de volver a sacar de centro. */
+/** Seconds it may stay like that before serving from the centre again. */
 export const STALL_SECONDS = 4
 
 /**
- * Cuánto lleva el disco parado tras `dt` segundos.
+ * How long the puck has been stopped after `dt` seconds.
  *
- * Se acumula mientras vaya lento y se pone a cero en cuanto alguien lo mueve.
- * Hace falta porque los dos mazos tienen prohibido cruzar la línea de medio
- * campo: un disco que se queda quieto en la mitad de la máquina, más allá de
- * donde ella sale a buscarlo, no lo puede tocar nadie y la partida se congela
- * sin que nada falle. Las mesas de verdad tienen la misma regla.
+ * It accumulates while it goes slowly and resets to zero as soon as someone
+ * moves it. It is needed because both mallets are forbidden to cross the
+ * centre line: a puck that comes to rest in the machine's half, beyond where
+ * the machine comes out to fetch it, cannot be touched by anyone and the match
+ * freezes without anything failing. Real tables have the same rule.
  */
 export function stallSeconds(previous: number, puck: Body, dt: number): number {
   if (!Number.isFinite(dt) || dt <= 0) return previous
@@ -351,42 +356,43 @@ export function stallSeconds(previous: number, puck: Body, dt: number): number {
   return speed < STALL_SPEED ? previous + dt : 0
 }
 
-/** Si toca sacar de nuevo porque el disco lleva demasiado tiempo muerto. */
+/** Whether it is time to serve again because the puck has been dead too long. */
 export function isStalled(seconds: number): boolean {
   return seconds >= STALL_SECONDS
 }
 
 /**
- * Segundos que puede durar una jugada sin gol antes de volver a sacar.
+ * Seconds a rally may last without a goal before serving again.
  *
- * La regla del disco muerto no coge todo: hay jugadas en las que el disco no
- * se para nunca —un peloteo rápido entre el mazo de la máquina y una banda, o
- * entre los dos mazos, que se repite igual porque la máquina golpea siempre
- * hacia el mismo sitio— y sin esto no acaban. Con el mazo del jugador quieto,
- * un 4 % de las partidas simuladas seguían vivas a los 200 segundos. Una
- * jugada normal contra la máquina dura pocos segundos: veinte sin gol es un
- * peloteo, no una partida.
+ * The dead-puck rule does not catch everything: there are rallies in which the
+ * puck never stops —a fast exchange between the machine's mallet and a rail,
+ * or between the two mallets, that repeats itself identically because the
+ * machine always hits towards the same place— and without this they never end.
+ * With the player's mallet still, 4 % of the simulated matches were still
+ * alive at 200 seconds. A normal rally against the machine lasts a few
+ * seconds: twenty without a goal is an exchange, not a match.
  */
 export const RALLY_SECONDS = 20
 
-/** Cuánto lleva la jugada sin gol tras `dt` segundos más. */
+/** How long the rally has gone without a goal after `dt` more seconds. */
 export function rallySeconds(previous: number, dt: number): number {
   if (!Number.isFinite(dt) || dt <= 0) return previous
   return previous + dt
 }
 
-/** Si toca sacar de nuevo porque la jugada no se acaba. */
+/** Whether it is time to serve again because the rally does not end. */
 export function isRallyOver(seconds: number): boolean {
   return seconds >= RALLY_SECONDS
 }
 
 /**
- * El disco puesto en el centro para sacar.
+ * The puck placed at the centre to serve.
  *
- * Sale hacia quien acaba de encajar el gol —hacia el jugador si marcó la
- * máquina—, que es como se saca en la mesa: el que va perdiendo el punto tiene
- * la primera opción. Al empezar la partida no ha marcado nadie y el disco sale
- * hacia la máquina, para que el primer movimiento sea del jugador.
+ * It goes towards whoever has just conceded the goal —towards the player if
+ * the machine scored—, which is how the serve goes on the table: the one who
+ * is losing the point gets the first chance. At the start of the match nobody
+ * has scored and the puck goes towards the machine, so that the first move is
+ * the player's.
  */
 export function serve(lastScorer: Scorer | null): Body {
   const towardsPlayer = lastScorer === 'opponent'

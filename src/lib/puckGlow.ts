@@ -1,25 +1,25 @@
 import { MAX_PUCK_SPEED } from './gameConfig'
 
 /**
- * Cuánto brilla el disco según lo rápido que va.
+ * How much the puck glows according to how fast it goes.
  *
- * En el visor el disco cruza la mesa en medio segundo y un naranja mate se pierde contra el
- * tablero blanco; que se encienda con la velocidad es lo que deja seguirlo con el rabillo del
- * ojo. Es una cuenta pura sobre la velocidad (m/s) para poder fijarla sin escena: la pinta
- * `Puck.tsx`.
+ * In the headset the puck crosses the table in half a second and a matt orange gets lost
+ * against the white board; lighting up with speed is what lets one follow it out of the corner
+ * of the eye. It is a pure calculation over the speed (m/s) so that it can be pinned down
+ * without a scene: `Puck.tsx` draws it.
  *
- * **Y ya no lleva anillo.** Tenía además un halo que se ensanchaba con la velocidad, y con el
- * visor puesto no se leía como un disco rápido sino como un foco: «tiene como una aureola
- * alrededor, como un haz de luz; eso lo quitaría». El disco encendido hace el mismo trabajo
- * —dice dónde está sin mirarlo de frente— sin parecer otra cosa.
+ * **And it no longer has a ring.** It also had a halo that widened with speed, and with the
+ * headset on it did not read as a fast puck but as a spotlight: «it has a sort of halo
+ * around it, like a beam of light; I would take that out». The lit puck does the same job
+ * —it says where it is without looking straight at it— without looking like something else.
  */
 
 export interface PuckGlow {
-  /** Intensidad emisiva del disco: un punto en reposo, mucho más a toda velocidad. */
+  /** Emissive intensity of the puck: a touch at rest, much more at full speed. */
   emissive: number
 }
 
-/** Brillo en reposo y a toda velocidad. */
+/** Glow at rest and at full speed. */
 const EMISSIVE_REST = 0.12
 const EMISSIVE_MAX = 1.1
 

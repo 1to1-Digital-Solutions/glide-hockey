@@ -1,59 +1,75 @@
 'use client'
 
-import { useCallback, useMemo, useRef } from 'react'
-import { type ThreeEvent } from '@react-three/fiber'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useXR } from '@react-three/xr'
-import { type GameSound } from './audioEngine'
-import { type Handedness, type HapticPulse, handednessOf, pulseFor, pulseSession } from './haptics'
+import { eventPulses, playPulses, type Handedness, type HandEvent } from './haptics'
+import type { HandPulse } from './hapticFeedback'
 
 export interface GameHaptics {
+  /** What is felt of an event of the table, in the hand that holds the mallet (if one does). */
+  feel: (event: HandEvent) => void
   /**
-   * Da el golpe que corresponde a un suceso de la mesa, si hay mandos.
-   * `strength` (0 a 1) es la fuerza del impacto: un roce vibra menos que un
-   * golpe seco. El gol no la mira.
+   * Which hand holds the mallet, or `null` if none does. `MalletHand` says it every
+   * frame the mallet is held, and on release.
    */
-  pulse: (sound: GameSound, strength?: number) => void
+  noteHand: (hand: Handedness | null) => void
   /**
-   * Apunta qué mano ha movido el mazo. La mesa lo llama con cada evento de
-   * puntero que mueve el mazo, y es lo que decide a qué mando va el golpe.
+   * A ready-made pulse, in the hand it says. It is where the hit feedback vibrates
+   * (`components/xr/HitFeedback.tsx`), which brings its own from the shared recipe
+   * and in both hands: the body takes the hit, not the mallet hand.
    */
-  noteAim: (event: ThreeEvent<PointerEvent>) => void
+  pulse: (handPulse: HandPulse) => void
 }
 
 /**
- * Hace vibrar los mandos con lo que pasa en la mesa.
+ * Makes the controllers vibrate with what happens on the table.
  *
- * Es imperativo, como `useGameAudio`, porque los sucesos —golpe, rebote, gol—
- * los decide el bucle de la mesa fotograma a fotograma, no un cambio de estado
- * del almacén. Sin sesión inmersiva no hay mandos y no hace nada. No mira el
- * silencio: silenciar apaga el altavoz, no la mano.
+ * It is imperative, like `useGameAudio`, because the events are decided by the table loop
+ * frame by frame. Without an immersive session there are no controllers and it does nothing. It
+ * ignores the mute: muting turns off the speaker, not the hand.
+ *
+ * **Nothing vibrates for sliding.** There is no slide here: it was a train of overlapping
+ * pulses every frame, and since `pulse()` does not queue, what reached the hand was an endless
+ * buzz.
  */
-/** Cuánto de la amplitud se conserva con el impacto más flojo: se nota, pero poco. */
-const MIN_PULSE = 0.35
-
-/** La misma receta con la fuerza del impacto; la duración no cambia. */
-export function scaledPulse(pulse: HapticPulse, strength: number): HapticPulse {
-  const s = Math.min(1, Math.max(0, Number.isFinite(strength) ? strength : 1))
-  return { ...pulse, intensity: pulse.intensity * (MIN_PULSE + (1 - MIN_PULSE) * s) }
-}
-
 export function useGameHaptics(): GameHaptics {
   const session = useXR((state) => state.session)
   const mallet = useRef<Handedness | null>(null)
+  /** The tails of the strikes waiting for their turn, to cancel them on unmount. */
+  const pending = useRef(new Set<ReturnType<typeof setTimeout>>())
 
-  const noteAim = useCallback((event: ThreeEvent<PointerEvent>) => {
-    const hand = handednessOf(event)
-    if (hand != null) mallet.current = hand
+  useEffect(() => {
+    const tails = pending.current
+    return () => {
+      for (const id of tails) clearTimeout(id)
+      tails.clear()
+    }
   }, [])
 
-  const pulse = useCallback(
-    (sound: GameSound, strength = 1) => {
+  const noteHand = useCallback((hand: Handedness | null) => {
+    mallet.current = hand
+  }, [])
+
+  const play = useCallback(
+    (pulses: HandPulse[]) => {
       if (session == null) return
-      const pulse = scaledPulse(pulseFor(sound), sound === 'goal' ? 1 : strength)
-      pulseSession(session, pulse, mallet.current)
+      playPulses(session, pulses, (fire, ms) => {
+        const id = setTimeout(() => {
+          pending.current.delete(id)
+          fire()
+        }, ms)
+        pending.current.add(id)
+      })
     },
     [session],
   )
 
-  return useMemo(() => ({ pulse, noteAim }), [pulse, noteAim])
+  const feel = useCallback(
+    (event: HandEvent) => play(eventPulses(event, mallet.current)),
+    [play],
+  )
+
+  const pulse = useCallback((handPulse: HandPulse) => play([handPulse]), [play])
+
+  return useMemo(() => ({ feel, noteHand, pulse }), [feel, noteHand, pulse])
 }

@@ -1,33 +1,35 @@
-# Créditos de los ficheros estáticos
+# Credits for the static files
 
-Todo lo que hay en `public/` viene de fuera del proyecto. Aquí queda de dónde,
-con qué licencia y qué obliga esa licencia, porque es lo que se copia al
-`public/` de quien monte el juego (`npx glide-hockey-assets`) y viaja con él.
+Everything in `public/` comes from outside the project. Here is where from,
+under which licence and what that licence requires, because it is what gets
+copied into the `public/` of whoever mounts the game (`npx glide-hockey-assets`)
+and travels with it.
 
-El resto del juego —la mesa, el disco, los mazos, la sala— es geometría
-generada en código, y los golpes y los goles son osciladores: no hay modelos ni
-texturas que acreditar, y el único fichero de sonido es la música de fondo.
+The rest of the game —the table, the puck, the mallets, the room— is geometry
+generated in code, and the hits and the goals are oscillators: there are no
+models or textures to credit, and the only sound file is the background music.
 
-## Música de fondo — `audio/sala.mp3`
+## Background music — `audio/sala.mp3`
 
 [Calm Ambient 1 (Synthwave 4k)](https://opengameart.org/content/calm-ambient-1-synthwave-4k),
-de The Cynic Project, publicada en OpenGameArt bajo **CC0** (dominio público):
-se puede usar y modificar sin atribución. Se acredita igualmente por cortesía.
+by The Cynic Project, published on OpenGameArt under **CC0** (public domain):
+it can be used and modified without attribution. It is credited anyway as a
+courtesy.
 
-Son pads tranquilos de dos minutos y medio, que es lo que pide el fondo de un
-salón recreativo: se oye cuando no pasa nada y desaparece debajo del disco en
-cuanto lo hay. Se sirve en mono a 64 kbps (1,2 MB) porque va de fondo y a poco
-volumen; el original son 6 MB en estéreo a 320. Empieza y acaba casi en
-silencio, así que el bucle no tiene costura.
+They are calm pads lasting two and a half minutes, which is what the background
+of an arcade calls for: it is heard when nothing is happening and disappears
+under the puck as soon as there is one. It is served in mono at 64 kbps (1.2 MB)
+because it sits in the background at low volume; the original is 6 MB in stereo
+at 320. It starts and ends almost in silence, so the loop has no seam.
 
-## Perfiles de mando de WebXR — `webxr-profiles/`
+## WebXR controller profiles — `webxr-profiles/`
 
 [@webxr-input-profiles/assets](https://github.com/immersive-web/webxr-input-profiles)
-v1.0.20, del grupo Immersive Web del W3C. Son el mapa de botones de cada mando;
-sin ellos, `@react-three/xr` no llega a registrar ninguno (ver
-`scripts/sync-xr-profiles.mjs`). Se copian con `npm run sync:xr-profiles`.
+v1.0.20, by the W3C Immersive Web group. They are the button map of each
+controller; without them, `@react-three/xr` never gets to register any (see
+`scripts/sync-xr-profiles.mjs`). They are copied with `npm run sync:xr-profiles`.
 
-Licencia **MIT**, que exige llevar el aviso en cada copia:
+**MIT** licence, which requires carrying the notice in every copy:
 
 ```
 MIT License

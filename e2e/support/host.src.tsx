@@ -1,79 +1,130 @@
 import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
+import { Vector3 } from 'three'
 import { XR, XROrigin, createXRStore } from '@react-three/xr'
-import { GlideHockeyScene } from '../../src/game'
+import { GlideHockeyScene, type Goal, type GameResult } from '../../src/game'
+import type { HostAnchor } from '../../src/lib/hostAnchor'
+import { XRControllerGrip } from '../../src/components/xr/XRControllerGrip'
 
 /**
- * El anfitrión de prueba: monta `<GlideHockeyScene>` dentro de un Canvas y una
- * sesión que no son suyos, como hace el salón de xrcade. Es el único sitio de la
- * suite que ejercita el contrato de montaje (`docs/montar-el-juego.md`): la web
- * del juego monta `<GlideHockey>`, que trae su propio Canvas.
+ * The test host: it mounts `<GlideHockeyScene>` inside a Canvas and a session
+ * that are not its own, the way the xrcade hall does. It is the only place in the
+ * suite that exercises the mounting contract (`docs/mounting-the-game.md`): the
+ * game's web page mounts `<GlideHockey>`, which brings its own Canvas.
  */
-const mount = document.getElementById('juego')
+const mount = document.getElementById('game')
 if (mount == null) {
-  throw new Error('El anfitrión de prueba no tiene dónde montar el juego')
+  throw new Error('The test host has nowhere to mount the game')
 }
 const assetsBase = mount.dataset.assetsBase ?? '/'
 
 /**
- * Si la escena espera a que la manden entrar, **como en el salón**.
+ * Whether the scene waits to be told to come in, **as in the hall**.
  *
- * Por defecto se monta con la página, que es lo cómodo para el resto de la suite. Pero el
- * salón no hace eso: quien elige cabina ya lleva el visor puesto, así que la escena se monta
- * **dentro de una sesión que ya está abierta** y sin haber pintado un solo fotograma en
- * pantalla. Es la diferencia que importa para los shaders —lo que se pinta en la página se
- * compila ahí, fuera de la sesión, y así ningún fallo de precalentado se nota— y la única
- * forma de medirla desde aquí.
+ * By default it is mounted with the page, which is what is convenient for the rest of the
+ * suite. But the hall does not do that: whoever chooses a cabinet already has the headset on,
+ * so the scene is mounted **inside a session that is already open** and without having painted
+ * a single frame on screen. It is the difference that matters for the shaders —what is painted
+ * on the page gets compiled there, outside the session, and that way no prewarming failure
+ * is noticed— and the only way to measure it from here.
  */
-const aLaCarta = mount.dataset.cabina === 'a-la-carta'
+const onDemand = mount.dataset.cabinet === 'on-demand'
+
+/**
+ * The seed of the challenge, if the hall is passing it (`data-challenge`). What the scene
+ * reports at the end of each match is left in `window.__finished`, which is what the hall would
+ * take as its own.
+ */
+const challengeSeed = mount.dataset.challenge
+const challenge = challengeSeed === undefined ? undefined : { seed: Number(challengeSeed) }
+/** The anchor, if the host lends it (`data-anchor`, as JSON); without it, to the gaze. */
+const anchor = mount.dataset.anchor === undefined ? undefined : (JSON.parse(mount.dataset.anchor) as HostAnchor)
+/** The medal thresholds, if the hall is passing them (`data-goal`, as JSON). */
+const goal = mount.dataset.goal === undefined ? undefined : (JSON.parse(mount.dataset.goal) as Goal)
+window.__finished = []
+const recordFinished = (result: GameResult) => {
+  window.__finished.push(result)
+}
 
 const store = createXRStore({
-  // Lo que el contrato pide cablear al anfitrión: los perfiles de mando bajo su
-  // propio prefijo.
+  // What the contract asks to wire to the host: the controller profiles under
+  // its own prefix.
   baseAssetPath: new URL(`${assetsBase}webxr-profiles/`, window.location.origin).href,
-  controller: { model: false },
+  // The hall's controller (`xrcade/src/components/salon/salonStore.ts`): without a model, but
+  // with its pose in the fist. With `{ model: false }` there is no `state.object` and the mallet
+  // cannot be picked up, so the challenge's serve would be left waiting for it forever.
+  controller: XRControllerGrip,
   hand: { model: false },
 })
 
 declare global {
   interface Window {
+    __finished: GameResult[]
     __glideHockeyHost: {
       enterVR: () => Promise<void>
       enterAR: () => Promise<void>
-      /** Monta la escena, como al elegir cabina. Solo hace algo con `data-cabina`. */
-      entrarEnLaCabina: () => void
+      /** Mounts the scene, as when choosing a cabinet. It only does something with `data-cabinet`. */
+      enterCabinet: () => void
+      /**
+       * Shows or hides the goal sign, and says whether it was hung. It is for measuring what it
+       * costs to paint it: the same scene, on the same frame of the match, with it and without it.
+       */
+      showSign: (visible: boolean) => boolean
     }
   }
 }
 
-let entrar = () => {}
+let enter = () => {}
+let showSign: (visible: boolean) => boolean = () => false
 
 window.__glideHockeyHost = {
   async enterVR() {
     await store.enterVR()
   },
-  // Como entra el salón: en realidad aumentada siempre que el visor la tiene, y el decorado lo
-  // decide el escenario del arcade, no el tipo de sesión.
+  // The way the hall enters: in augmented reality whenever the headset has it, and the backdrop
+  // is decided by the arcade's scenery, not by the type of session.
   async enterAR() {
     await store.enterAR()
   },
-  entrarEnLaCabina: () => entrar(),
+  enterCabinet: () => enter(),
+  showSign: (visible) => showSign(visible),
 }
 
-/** La cabina: la escena, montada cuando toca. */
-function Cabina() {
-  const [dentro, setDentro] = useState(!aLaCarta)
+/** Gives the test host the hand with which to look for the sign in the scene. */
+function HandInTheScene() {
+  const scene = useThree((state) => state.scene)
+  const camera = useThree((state) => state.camera)
   useEffect(() => {
-    entrar = () => setDentro(true)
+    showSign = (visible) => {
+      const sign = scene.getObjectByName('cartel-de-objetivo')
+      if (sign == null) return false
+      // This host's camera is nobody's head: it is set looking at the sign, since what falls
+      // outside the image is not painted and there would be nothing to measure.
+      camera.lookAt(sign.getWorldPosition(new Vector3()))
+      sign.visible = visible
+      return true
+    }
     return () => {
-      entrar = () => {}
+      showSign = () => false
+    }
+  }, [scene, camera])
+  return null
+}
+
+/** The cabinet: the scene, mounted when it is time. */
+function Cabinet() {
+  const [inside, setInside] = useState(!onDemand)
+  useEffect(() => {
+    enter = () => setInside(true)
+    return () => {
+      enter = () => {}
     }
   }, [])
 
-  if (!dentro) return null
-  // Volver es cosa del anfitrión, y aquí no hay a dónde.
-  return <GlideHockeyScene assetsBase={assetsBase} onExit={() => {}} />
+  if (!inside) return null
+  // Going back is the host's business, and here there is nowhere to go.
+  return <GlideHockeyScene assetsBase={assetsBase} anchor={anchor} onExit={() => {}} challenge={challenge} onFinish={recordFinished} goal={goal} />
 }
 
 function Host() {
@@ -81,7 +132,8 @@ function Host() {
     <Canvas shadows="percentage" camera={{ position: [0, 1.6, 0.9], fov: 62, near: 0.05, far: 60 }}>
       <XR store={store}>
         <XROrigin position={[0, 0, 0]} />
-        <Cabina />
+        <Cabinet />
+        <HandInTheScene />
       </XR>
     </Canvas>
   )

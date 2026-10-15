@@ -1,9 +1,9 @@
 /**
- * Deja una malla fuera del alcance de cualquier rayo, del ratón o del mando.
+ * Leaves a mesh out of reach of any ray, the mouse's or the controller's.
  *
- * R3F pregunta a cada malla por dónde la cruza el rayo para saber a qué se
- * apunta; una que no contesta nada sigue viéndose pero no intercepta. Lo usan
- * tanto los paneles de la interfaz como el punto de mira de quien tira, así que
- * vive fuera de los dos.
+ * R3F asks each mesh where the ray crosses it to know what is being pointed
+ * at; one that answers nothing is still seen but does not intercept. Both the
+ * interface panels and the crosshair of whoever shoots use it, so it lives
+ * outside the two.
  */
 export const NO_RAYCAST = () => {}

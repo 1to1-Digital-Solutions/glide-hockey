@@ -1,15 +1,16 @@
 // @vitest-environment node
 
 /**
- * Lo que `npx glide-hockey-assets` deja en el `public/` de quien monta el juego.
+ * What `npx glide-hockey-assets` leaves in the `public/` of whoever mounts the game.
  *
- * Vive aquí, junto al ejecutable, porque el typecheck no mira dentro de un
- * `.mjs` y el lint solo comprueba su sintaxis: sin estos tests, que la copia
- * llegue completa no lo vigila nada. Y llegar incompleta no rompe el build: se
- * nota en el visor y tarde, con el jugador sin mandos y sin explicación.
+ * It lives here, next to the executable, because the typecheck does not look
+ * inside an `.mjs` and the lint only checks its syntax: without these tests,
+ * nothing watches that the copy arrives complete. And arriving incomplete does
+ * not break the build: it is noticed in the headset and late, with the player
+ * without controllers and without an explanation.
  *
- * Se ejecuta el ejecutable de verdad, en un proceso aparte y contra un destino
- * temporal, que es exactamente lo que hace el anfitrión.
+ * The real executable is run, in a separate process and against a temporary
+ * destination, which is exactly what the host does.
  */
 
 import { execFile } from 'node:child_process'
@@ -31,7 +32,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 const projectRoot = fileURLToPath(new URL('..', import.meta.url))
 const bin = join(projectRoot, 'scripts/copy-assets.mjs')
 
-/** Directorios temporales de la prueba en curso, para barrerlos al acabar. */
+/** Temporary directories of the test under way, to sweep them when it ends. */
 const temporary: string[] = []
 
 afterEach(async () => {
@@ -53,8 +54,8 @@ interface Run {
 }
 
 /**
- * Ejecuta el copiador y devuelve cómo acabó, sin lanzar: aquí un código de
- * salida distinto de cero es un resultado que se comprueba, no un accidente.
+ * Runs the copier and returns how it ended, without throwing: here a non-zero
+ * exit code is a result that gets checked, not an accident.
  */
 function copyAssets(args: string[], script = bin): Promise<Run> {
   return new Promise((resolve) => {
@@ -68,7 +69,7 @@ function copyAssets(args: string[], script = bin): Promise<Run> {
   })
 }
 
-/** Rutas relativas de todos los ficheros que hay bajo un directorio. */
+/** Relative paths of all the files there are under a directory. */
 async function filesIn(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { recursive: true, withFileTypes: true })
   return entries
@@ -82,17 +83,18 @@ interface ProfilesList {
 }
 
 describe('glide-hockey-assets', () => {
-  it('deja los perfiles de mando que la lista declara', async () => {
-    const destination = await temporaryDir('destino')
+  it('leaves the controller profiles the list declares', async () => {
+    const destination = await temporaryDir('destination')
 
     const run = await copyAssets([destination])
 
     expect(run.stderr).toBe('')
     expect(run.code).toBe(0)
 
-    // Es el recorrido que hace @react-three/xr al conectarse un mando: pide la
-    // lista y de ahí el perfil de ese mando. Si falta uno, ese mando no se
-    // registra: ni rayo, ni forma de mover el mazo ni de pulsar el menú.
+    // It is the path @react-three/xr takes when a controller connects: it asks
+    // for the list and from there the profile of that controller. If one is
+    // missing, that controller is not registered: no ray, no way to move the
+    // mallet or to press the menu.
     const listPath = join(destination, 'webxr-profiles/profilesList.json')
     expect(existsSync(listPath)).toBe(true)
     const list = JSON.parse(await readFile(listPath, 'utf8')) as ProfilesList
@@ -105,8 +107,8 @@ describe('glide-hockey-assets', () => {
     expect(missing).toEqual([])
   })
 
-  it('deja los créditos, que la licencia de los perfiles exige copiar', async () => {
-    const destination = await temporaryDir('destino')
+  it('leaves the credits, which the licence of the profiles requires copying', async () => {
+    const destination = await temporaryDir('destination')
 
     await copyAssets([destination])
 
@@ -114,8 +116,8 @@ describe('glide-hockey-assets', () => {
     expect(credits).toContain('MIT')
   })
 
-  it('deja lo mismo al ejecutarlo dos veces', async () => {
-    const destination = await temporaryDir('destino')
+  it('leaves the same thing when run twice', async () => {
+    const destination = await temporaryDir('destination')
 
     await copyAssets([destination])
     const first = await filesIn(destination)
@@ -125,22 +127,22 @@ describe('glide-hockey-assets', () => {
     expect(await filesIn(destination)).toEqual(first)
   })
 
-  it('se lleva por delante lo que dejara una versión anterior', async () => {
-    const destination = await temporaryDir('destino')
+  it('sweeps away whatever a previous version left', async () => {
+    const destination = await temporaryDir('destination')
     await copyAssets([destination])
-    const orphan = join(destination, 'webxr-profiles/mando-viejo.json')
-    await writeFile(orphan, 'de la versión de antes')
+    const orphan = join(destination, 'webxr-profiles/old-controller.json')
+    await writeFile(orphan, 'from the previous version')
 
     await copyAssets([destination])
 
     expect(existsSync(orphan)).toBe(false)
   })
 
-  it('no toca lo que el anfitrión ya tuviera en el destino', async () => {
-    const destination = await temporaryDir('destino')
-    // El destino puede ser un directorio compartido con otras cosas del
-    // anfitrión: solo se rehace lo que se copia.
-    const neighbour = join(destination, 'otro-juego/nivel.json')
+  it('does not touch what the host already had in the destination', async () => {
+    const destination = await temporaryDir('destination')
+    // The destination may be a directory shared with other things of the
+    // host: only what is copied is redone.
+    const neighbour = join(destination, 'another-game/level.json')
     await mkdir(dirname(neighbour), { recursive: true })
     await writeFile(neighbour, '{}')
 
@@ -149,8 +151,8 @@ describe('glide-hockey-assets', () => {
     expect(existsSync(neighbour)).toBe(true)
   })
 
-  it('crea el destino si no existe', async () => {
-    const parent = await temporaryDir('destino')
+  it('creates the destination if it does not exist', async () => {
+    const parent = await temporaryDir('destination')
     const destination = join(parent, 'public/juegos/glide-hockey')
 
     const run = await copyAssets([destination])
@@ -161,11 +163,11 @@ describe('glide-hockey-assets', () => {
     ).toBe(true)
   })
 
-  it('para y dice qué falta si el paquete llega incompleto', async () => {
-    // Un paquete de mentira con el ejecutable de verdad y solo una parte de sus
-    // ficheros: es lo que se vería si alguna vez se renombra un directorio de
-    // `public/` y la lista del copiador se queda atrás.
-    const root = await temporaryDir('paquete')
+  it('stops and says what is missing if the package arrives incomplete', async () => {
+    // A fake package with the real executable and only a part of its files: it
+    // is what would be seen if a directory of `public/` is ever renamed and the
+    // copier's list is left behind.
+    const root = await temporaryDir('package')
     await mkdir(join(root, 'public'), { recursive: true })
     await mkdir(join(root, 'scripts'), { recursive: true })
     await cp(bin, join(root, 'scripts/copy-assets.mjs'))
@@ -173,21 +175,21 @@ describe('glide-hockey-assets', () => {
       join(projectRoot, 'public/CREDITS.md'),
       join(root, 'public/CREDITS.md'),
     )
-    const destination = join(await temporaryDir('destino'), 'glide-hockey')
+    const destination = join(await temporaryDir('destination'), 'glide-hockey')
 
     const run = await copyAssets([destination], join(root, 'scripts/copy-assets.mjs'))
 
     expect(run.code).toBe(1)
     expect(run.stderr).toContain('webxr-profiles')
-    // Se para antes de tocar el destino: media copia es peor que ninguna,
-    // porque el anfitrión se la encuentra y la da por buena.
+    // It stops before touching the destination: half a copy is worse than
+    // none, because the host finds it and takes it as good.
     expect(existsSync(destination)).toBe(false)
   })
 
-  it('pide el destino, que es la decisión del anfitrión', async () => {
+  it('asks for the destination, which is the decision of the host', async () => {
     const run = await copyAssets([])
 
     expect(run.code).toBe(1)
-    expect(run.stderr).toContain('glide-hockey-assets <directorio de destino>')
+    expect(run.stderr).toContain('glide-hockey-assets <destination directory>')
   })
 })

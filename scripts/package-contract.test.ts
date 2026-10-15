@@ -1,18 +1,18 @@
 // @vitest-environment node
 
 /**
- * Que el paquete publicado lleve dentro lo que hace falta para montarlo.
+ * That the published package carries inside what is needed to mount it.
  *
- * `files` decide qué sube a npm, y lo que se deje fuera no falla al empaquetar
- * ni al construir: falla en la aplicación que instala el juego, que importa un
- * módulo que no está o sirve unos ficheros que nunca llegaron.
+ * `files` decides what goes up to npm, and what is left out does not fail on
+ * packing or on building: it fails in the application that installs the game,
+ * which imports a module that is not there or serves files that never arrived.
  *
- * El resto del `package.json` —`exports`, `peerDependencies`, `sideEffects`—
- * lo valida `npm run catalog:validate` desde xrcade al dar de alta el juego
- * (ver `docs/xrcade.md`). Aquí se comprueba lo que aquel no puede saber: que
- * las rutas que declara existen de verdad dentro del paquete, y que la entrada
- * llega con todo lo que importa detrás — que es lo que de verdad decide si el
- * anfitrión puede montarlo.
+ * The rest of `package.json` —`exports`, `peerDependencies`, `sideEffects`— is
+ * validated by `npm run catalog:validate` from xrcade when registering the game
+ * (see `docs/xrcade.md`). Here what that one cannot know is checked: that the
+ * paths it declares really exist inside the package, and that the entry arrives
+ * with everything it imports behind it — which is what really decides whether
+ * the host can mount it.
  */
 
 import { execFile } from 'node:child_process'
@@ -31,7 +31,7 @@ interface PackageManifest {
   dependencies?: Record<string, string>
 }
 
-/** Los ficheros que subirían a npm, según lo que declara `files`. */
+/** The files that would go up to npm, according to what `files` declares. */
 function packedFiles(): Promise<string[]> {
   return new Promise((resolve, reject) => {
     execFile(
@@ -51,12 +51,12 @@ function packedFiles(): Promise<string[]> {
 }
 
 /**
- * Módulos que un fichero fuente pide por su nombre: `from '…'`, un import
- * suelto por sus efectos, un `import('…')` diferido o un `require('…')`.
+ * Modules a source file asks for by name: `from '…'`, a bare import for its
+ * effects, a deferred `import('…')` or a `require('…')`.
  */
 const SPECIFIER = /(?:\bfrom|\bimport|\brequire)\s*\(?\s*(['"])([^'"]+)\1/g
 
-/** Sufijos que prueba un empaquetador al resolver una ruta relativa. */
+/** Suffixes a bundler tries when resolving a relative path. */
 const RESOLUTION_ORDER = ['', '.ts', '.tsx', '/index.ts', '/index.tsx']
 
 function existsAsFile(candidate: string): boolean {
@@ -77,13 +77,13 @@ function resolveRelative(from: string, specifier: string): string | null {
 }
 
 /**
- * Todos los ficheros del propio proyecto a los que se llega desde unas entradas,
- * siguiendo sus imports relativos.
+ * All the files of the project itself that are reached from some entries,
+ * following their relative imports.
  *
- * Los que van por su nombre a secas (`three`, `react`) son los de
- * `peerDependencies` y los pone el anfitrión, así que aquí no cuentan. Un
- * especificador relativo que no resuelva se ignora en vez de fallar: eso ya lo
- * caza el typecheck, y aquí solo se pregunta por lo que se publica.
+ * Those that go by their bare name (`three`, `react`) are the ones of
+ * `peerDependencies` and the host provides them, so here they do not count. A
+ * relative specifier that does not resolve is ignored instead of failing: the
+ * typecheck already catches that, and here only what is published is asked about.
  */
 function reachableFrom(entries: string[]): string[] {
   const seen = new Set<string>()
@@ -107,7 +107,7 @@ function reachableFrom(entries: string[]): string[] {
   return [...seen]
 }
 
-/** Rutas relativas de todos los ficheros que hay bajo un directorio. */
+/** Relative paths of all the files there are under a directory. */
 async function filesIn(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { recursive: true, withFileTypes: true })
   return entries
@@ -126,12 +126,12 @@ beforeAll(async () => {
       (raw) => JSON.parse(raw) as PackageManifest,
     ),
   ])
-  // Empaquetar arranca npm entero: en una máquina fría se pasa de los cinco
-  // segundos por defecto sin que nada vaya mal.
+  // Packing starts the whole of npm: on a cold machine it goes past the
+  // default five seconds without anything being wrong.
 }, 120_000)
 
-describe('el paquete que se publica', () => {
-  it('lleva dentro todo lo que apunta `exports`', () => {
+describe('the package that gets published', () => {
+  it('carries inside everything `exports` points to', () => {
     const targets = Object.values(manifest.exports).map((target) =>
       target.replace(/^\.\//, ''),
     )
@@ -140,11 +140,12 @@ describe('el paquete que se publica', () => {
     expect(targets.filter((target) => !packed.includes(target))).toEqual([])
   })
 
-  it('lleva dentro los módulos que esa entrada importa, no solo la entrada', () => {
-    // Publicar el punto de entrada sin lo que hay debajo no falla al empaquetar
-    // ni al construir aquí: falla al instalarlo, importando un módulo que no
-    // subió. Y no hace falta borrar `src/lib` de `files` para provocarlo: basta
-    // con que el juego importe algo de `src/app`, que es de la web y no viaja.
+  it('carries inside the modules that entry imports, not only the entry', () => {
+    // Publishing the entry point without what is underneath does not fail on
+    // packing or on building here: it fails on installing it, importing a
+    // module that did not go up. And there is no need to delete `src/lib` from
+    // `files` to cause it: it is enough for the game to import something from
+    // `src/app`, which belongs to the web page and does not travel.
     const entries = Object.values(manifest.exports)
       .map((target) => join(projectRoot, target.replace(/^\.\//, '')))
       .filter((target) => /\.tsx?$/.test(target))
@@ -153,13 +154,13 @@ describe('el paquete que se publica', () => {
       relative(projectRoot, file),
     )
 
-    // Si el rastreo dejara de seguir imports, se quedaría en las entradas y
-    // pasaría sin comprobar nada.
+    // If the crawl stopped following imports, it would stay at the entries and
+    // would pass without checking anything.
     expect(reachable.length).toBeGreaterThan(entries.length)
     expect(reachable.filter((file) => !packed.includes(file))).toEqual([])
   })
 
-  it('lleva dentro el ejecutable que copia los ficheros estáticos', () => {
+  it('carries inside the executable that copies the static files', () => {
     const targets = Object.values(manifest.bin).map((target) =>
       target.replace(/^\.\//, ''),
     )
@@ -168,10 +169,10 @@ describe('el paquete que se publica', () => {
     expect(targets.filter((target) => !packed.includes(target))).toEqual([])
   })
 
-  it('lleva dentro los ficheros estáticos que ese ejecutable copia', async () => {
-    // El ejecutable lee de `public/` dentro del paquete instalado: lo que no
-    // suba a npm no está ahí, y `glide-hockey-assets` se para diciendo que el
-    // paquete llegó incompleto (ver `copy-assets.test.ts`).
+  it('carries inside the static files that executable copies', async () => {
+    // The executable reads from `public/` inside the installed package: what
+    // does not go up to npm is not there, and `glide-hockey-assets` stops saying
+    // that the package arrived incomplete (see `copy-assets.test.ts`).
     const assets = (await filesIn(join(projectRoot, 'public'))).map(
       (file) => `public/${file}`,
     )
@@ -180,18 +181,18 @@ describe('el paquete que se publica', () => {
     expect(assets.filter((asset) => !packed.includes(asset))).toEqual([])
   })
 
-  it('no lleva los tests, que no le sirven a quien lo monta', () => {
+  it('does not carry the tests, which are of no use to whoever mounts it', () => {
     expect(packed.filter((file) => /\.test\.tsx?$/.test(file))).toEqual([])
   })
 
-  it('deja React y three al anfitrión, nunca en `dependencies`', () => {
-    // Dos copias de React rompen los hooks y dos de three, la escena. Es el
-    // fallo caro porque no rompe el build: rompe la partida.
+  it('leaves React and three to the host, never in `dependencies`', () => {
+    // Two copies of React break the hooks and two of three, the scene. It is
+    // the expensive failure because it does not break the build: it breaks the match.
     const shared = ['react', 'react-dom', 'three', '@react-three/fiber']
 
-    for (const paquete of shared) {
-      expect(manifest.peerDependencies).toHaveProperty(paquete)
-      expect(manifest.dependencies ?? {}).not.toHaveProperty(paquete)
+    for (const packageName of shared) {
+      expect(manifest.peerDependencies).toHaveProperty(packageName)
+      expect(manifest.dependencies ?? {}).not.toHaveProperty(packageName)
     }
   })
 })

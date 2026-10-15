@@ -3,35 +3,36 @@ import { MAX_PUCK_SPEED } from './gameConfig'
 import { puckGlow } from './puckGlow'
 
 /**
- * Que el disco se encienda con la velocidad, que es lo que deja seguirlo con el rabillo del
- * ojo mientras cruza la mesa en medio segundo.
+ * That the puck lights up with speed, which is what lets one follow it out of the corner of
+ * the eye while it crosses the table in half a second.
  *
- * Llevaba además un anillo que se ensanchaba, y con el visor puesto no se leía como un disco
- * rápido sino como un foco. Se quitó; el brillo hace el mismo trabajo sin parecer otra cosa.
+ * It also had a ring that widened, and with the headset on it did not read as a fast puck
+ * but as a spotlight. It was removed; the glow does the same job without looking like
+ * something else.
  */
 
-describe('el brillo del disco', () => {
-  it('en reposo apenas brilla', () => {
-    const quieto = puckGlow(0)
-    expect(quieto.emissive).toBeGreaterThan(0)
-    expect(quieto.emissive).toBeLessThan(0.3)
+describe('the glow of the puck', () => {
+  it('at rest it barely glows', () => {
+    const still = puckGlow(0)
+    expect(still.emissive).toBeGreaterThan(0)
+    expect(still.emissive).toBeLessThan(0.3)
   })
 
-  it('cuanto más rápido, más brilla, hasta la velocidad máxima', () => {
-    const lento = puckGlow(1)
-    const rapido = puckGlow(4)
-    const tope = puckGlow(MAX_PUCK_SPEED)
-    expect(rapido.emissive).toBeGreaterThan(lento.emissive)
-    expect(tope.emissive).toBeGreaterThan(rapido.emissive)
-    expect(puckGlow(MAX_PUCK_SPEED * 2)).toEqual(tope)
+  it('the faster, the more it glows, up to the maximum speed', () => {
+    const slow = puckGlow(1)
+    const fast = puckGlow(4)
+    const capped = puckGlow(MAX_PUCK_SPEED)
+    expect(fast.emissive).toBeGreaterThan(slow.emissive)
+    expect(capped.emissive).toBeGreaterThan(fast.emissive)
+    expect(puckGlow(MAX_PUCK_SPEED * 2)).toEqual(capped)
   })
 
-  it('y no lleva nada alrededor', () => {
-    // El control de lo que se quitó: si vuelve un anillo, este test lo dice.
+  it('and it has nothing around it', () => {
+    // The check on what was removed: if a ring comes back, this test says so.
     expect(Object.keys(puckGlow(3))).toEqual(['emissive'])
   })
 
-  it('una velocidad imposible cuenta como reposo', () => {
+  it('an impossible speed counts as rest', () => {
     expect(puckGlow(Number.NaN)).toEqual(puckGlow(0))
     expect(puckGlow(-3)).toEqual(puckGlow(0))
   })

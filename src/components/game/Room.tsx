@@ -2,67 +2,70 @@
 
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { Euler, InstancedMesh, Matrix4, Quaternion, Vector3 } from 'three'
+import { BACK_NEONS } from '../../lib/scoreboardSign'
 import { TABLE_CENTER_Z } from '../../lib/gameConfig'
 import { PALETTE } from '../../lib/palette'
 
 /**
- * El salón recreativo donde está la mesa: moqueta con dibujo, máquinas
- * apagadas contra las paredes, neones y la luz baja de un sitio así.
+ * The amusement arcade where the table is: patterned carpet, machines switched
+ * off against the walls, neons and the low light of a place like that.
  *
- * No es decoración: con el visor puesto, una mesa flotando en negro marea y no
- * hay forma de calcular distancias. Lo que da la escala son las cosas conocidas
- * alrededor —el alto de una máquina, dónde acaba el suelo—, y eso es lo que
- * deja jugar de pie sin perder el sitio. Y es el sitio que le toca: una mesa de
- * air hockey es el mueble que uno se encuentra en un salón recreativo, que es
- * literalmente lo que es xrcade.
+ * It is not decoration: with the headset on, a table floating in black is
+ * dizzying and there is no way to judge distances. What gives the scale are the
+ * familiar things around —the height of a machine, where the floor ends—, and
+ * that is what lets one play standing without losing one's place. And it is the
+ * place it belongs in: an air hockey table is the piece of furniture one finds
+ * in an amusement arcade, which is literally what xrcade is.
  *
- * Todo es geometría por código y colores planos: la política de seguridad del
- * salón no deja descargar texturas ni modelos (ver `docs/xrcade.md`), y de paso
- * el juego pesa lo que pesa.
+ * Everything is geometry in code and flat colours: the hall's security policy
+ * does not allow downloading textures or models (see `docs/xrcade.md`), and
+ * incidentally the game weighs what it weighs.
  *
- * En realidad mixta no se dibuja nada de esto: ahí el sitio es la habitación de
- * quien juega y taparla rompería el passthrough.
+ * In mixed reality none of this is drawn: there the place is the room of
+ * whoever plays and covering it would break the passthrough.
  */
 
-/** La moqueta oscura de un recreativo y las bandas de su dibujo. */
+/** The dark carpet of an arcade and the stripes of its pattern. */
 const CARPET_COLOR = '#141d33'
 const CARPET_STRIPE_COLOR = '#1b2748'
-/** Las paredes y su zócalo. */
+/** The walls and their skirting. */
 const WALL_COLOR = '#0b1220'
 const WALL_TRIM_COLOR = '#070d17'
 /**
- * El techo, un punto más oscuro que las paredes.
+ * The ceiling, a shade darker than the walls.
  *
- * **No es decoración.** Sin él, levantar la vista con el visor puesto enseñaba el negro del
- * compositor: no el negro de una sala a oscuras, sino la nada, que es lo que le dice al ojo
- * que esto no es un sitio. Cierra la sala por arriba y ya está.
+ * **It is not decoration.** Without it, looking up with the headset on showed the
+ * compositor's black: not the black of a room in the dark, but nothingness, which is what
+ * tells the eye that this is not a place. It closes the room at the top and that is all.
  */
 const CEILING_COLOR = '#070b14'
 
 /**
- * El fondo de la escena: lo que se ve donde no hay nada dibujado.
+ * The background of the scene: what is seen where nothing is drawn.
  *
- * Sale de aquí y no del `<Canvas>` porque es del sitio, no del anfitrión: montado en el
- * salón, el hub retira el suyo al entrar en la cabina, y el juego que no traiga el suyo se
- * queda con el negro del compositor. Del tono del techo, para que el borde de la sala no se
- * recorte contra él.
+ * It comes from here and not from the `<Canvas>` because it belongs to the place, not to the
+ * host: mounted in the hall, the hub removes its own on entering the cabinet, and the game
+ * that does not bring its own is left with the compositor's black. In the ceiling's shade, so
+ * that the edge of the room is not cut out against it.
  */
 export const ROOM_BACKDROP = CEILING_COLOR
-/** Los muebles de las máquinas, y la pantalla apagada de cada una. */
+/** The cabinets of the machines, and the switched-off screen of each one. */
 const CABINET_COLOR = '#24304d'
 const SCREEN_COLOR = '#0a1424'
-/** Los neones de la pared: rosa y cian, que es lo que hay en estos sitios. */
+/** The neons on the wall: pink and cyan, which is what there is in these places. */
 const NEON_PINK = '#f43f5e'
 const NEON_CYAN = '#38bdf8'
+/** The colour of each strip of `BACK_NEONS`, from top to bottom. */
+const NEON_COLORS = [NEON_PINK, NEON_CYAN] as const
 
-/** Lo que ocupa la sala. */
+/** What the room takes up. */
 const ROOM_WIDTH = 9
 const ROOM_DEPTH = 10
 const ROOM_HEIGHT = 3.4
-/** Las máquinas, del tamaño de una recreativa de verdad. */
+/** The machines, the size of a real arcade machine. */
 const CABINET = { width: 0.8, height: 1.85, depth: 0.75 }
 
-/** Una copia de una malla instanciada: dónde va, cómo gira y cuánto mide. */
+/** A copy of an instanced mesh: where it goes, how it is turned and how much it measures. */
 interface Copy {
   position: readonly [number, number, number]
   rotation?: readonly [number, number, number]
@@ -70,15 +73,15 @@ interface Copy {
 }
 
 /**
- * Coloca las copias de una malla instanciada. Se hace una sola vez: nada de
- * esto se mueve, y una sala entera de cosas quietas no tiene por qué costar una
- * llamada de dibujo por cosa.
+ * Places the copies of an instanced mesh. It is done only once: none of this
+ * moves, and a whole room of still things has no reason to cost one draw call
+ * per thing.
  */
 function usePlaced(copies: readonly Copy[]): React.RefObject<InstancedMesh | null> {
   const node = useRef<InstancedMesh>(null)
 
   useLayoutEffect(() => {
-    // La malla se monta con el grupo; el resguardo es para TypeScript.
+    // The mesh is mounted with the group; the guard is for TypeScript.
     const mesh = node.current
     /* v8 ignore next */
     if (mesh == null) return
@@ -97,7 +100,7 @@ function usePlaced(copies: readonly Copy[]): React.RefObject<InstancedMesh | nul
   return node
 }
 
-/** Dónde está cada recreativa y hacia dónde mira. */
+/** Where each arcade machine is and which way it faces. */
 interface CabinetSpot {
   x: number
   z: number
@@ -105,15 +108,15 @@ interface CabinetSpot {
 }
 
 /**
- * Las diez recreativas de la sala, **en tres mallas** y no en treinta.
+ * The ten arcade machines of the room, **in three meshes** and not in thirty.
  *
- * Son diez cajas idénticas con dos carteles cada una: pintadas de una en una
- * costaban treinta llamadas de dibujo, más de la mitad del presupuesto de la
- * escena entera, para diez muebles que no se mueven. Instanciadas cuestan tres,
- * una por material, y se ven exactamente igual.
+ * They are ten identical boxes with two signs each: drawn one by one they cost
+ * thirty draw calls, more than half the budget of the whole scene, for ten
+ * pieces of furniture that do not move. Instanced they cost three, one per
+ * material, and they look exactly the same.
  *
- * Cada malla se coloca a mano con su matriz porque no cambian nunca: se hace
- * una vez al montar la sala y nadie las vuelve a tocar.
+ * Each mesh is placed by hand with its matrix because they never change: it is
+ * done once on mounting the room and nobody touches them again.
  */
 function Cabinets({ spots }: { spots: readonly CabinetSpot[] }) {
   const bodies = useRef<InstancedMesh>(null)
@@ -125,7 +128,7 @@ function Cabinets({ spots }: { spots: readonly CabinetSpot[] }) {
     const rotation = new Quaternion()
     const one = new Vector3(1, 1, 1)
     const place = (spot: CabinetSpot, local: Vector3, tilt: number) => {
-      // La posición local del trozo, girada como el mueble y llevada a su sitio.
+      // The local position of the part, turned like the cabinet and taken to its place.
       const offset = local.clone().applyAxisAngle(new Vector3(0, 1, 0), spot.rotation)
       rotation.setFromEuler(new Euler(tilt, spot.rotation, 0))
       return scratch
@@ -145,8 +148,8 @@ function Cabinets({ spots }: { spots: readonly CabinetSpot[] }) {
       [screens.current, matrices.screens],
       [signs.current, matrices.signs],
     ] as const) {
-      // Las tres se montan a la vez; el resguardo es para que TypeScript sepa
-      // que existen.
+      // The three are mounted at once; the guard is so that TypeScript knows
+      // they exist.
       /* v8 ignore next */
       if (node == null) continue
       list.forEach((matrix, index) => node.setMatrixAt(index, matrix))
@@ -160,12 +163,12 @@ function Cabinets({ spots }: { spots: readonly CabinetSpot[] }) {
         <boxGeometry args={[CABINET.width, CABINET.height, CABINET.depth]} />
         <meshStandardMaterial color={CABINET_COLOR} roughness={0.85} />
       </instancedMesh>
-      {/* La pantalla, apagada y algo inclinada, que es como se ven de lejos. */}
+      {/* The screen, switched off and slightly tilted, which is how they look from afar. */}
       <instancedMesh ref={screens} args={[undefined, undefined, spots.length]}>
         <planeGeometry args={[CABINET.width * 0.78, 0.5]} />
         <meshBasicMaterial color={SCREEN_COLOR} toneMapped={false} />
       </instancedMesh>
-      {/* El cartel de arriba, encendido: es lo único que ilumina la fila. */}
+      {/* The sign at the top, lit: it is the only thing that lights the row. */}
       <instancedMesh ref={signs} args={[undefined, undefined, spots.length]}>
         <planeGeometry args={[CABINET.width * 0.86, 0.26]} />
         <meshBasicMaterial color={PALETTE.primaryDeep} toneMapped={false} />
@@ -176,16 +179,16 @@ function Cabinets({ spots }: { spots: readonly CabinetSpot[] }) {
 
 export function Room() {
   const centre = TABLE_CENTER_Z
-  /** Las bandas del dibujo de la moqueta, todas iguales. */
+  /** The stripes of the carpet's pattern, all the same. */
   const stripeCopies = useMemo<Copy[]>(
     () => [-4, -2, 0, 2, 4].map((x) => ({ position: [x, 0.002, centre] as const, rotation: [-Math.PI / 2, 0, 0] as const })),
     [centre],
   )
 
   /**
-   * Las tres paredes que se ven desde el sitio de quien juega —la cuarta queda
-   * a su espalda— y sus zócalos. Miden distinto, así que cada copia lleva su
-   * escala: el plano instanciado es de un metro por un metro.
+   * The three walls seen from the place of whoever plays —the fourth is behind
+   * their back— and their skirtings. They measure differently, so each copy
+   * carries its scale: the instanced plane is one metre by one metre.
    */
   const sides = useMemo(
     () => [
@@ -229,7 +232,7 @@ export function Room() {
 
   return (
     <group>
-      {/* La moqueta, con sus bandas: lo que dice que el suelo es un suelo. */}
+      {/* The carpet, with its stripes: what says that the floor is a floor. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[ROOM_WIDTH, ROOM_DEPTH]} />
         <meshStandardMaterial color={CARPET_COLOR} roughness={1} />
@@ -245,8 +248,8 @@ export function Room() {
         />
       </instancedMesh>
 
-      {/* Las paredes, con zócalo. Solo las tres que se ven desde el sitio de
-          quien juega: la cuarta queda a su espalda. */}
+      {/* The walls, with skirting. Only the three seen from the place of
+          whoever plays: the fourth is behind their back. */}
       <instancedMesh ref={walls} args={[undefined, undefined, wallCopies.length]} receiveShadow>
         <planeGeometry args={[1, 1]} />
         <meshStandardMaterial color={WALL_COLOR} roughness={1} />
@@ -256,32 +259,30 @@ export function Room() {
         <meshStandardMaterial color={WALL_TRIM_COLOR} roughness={1} />
       </instancedMesh>
 
-      {/* El techo, que cierra la sala por arriba. Sin él, levantar la vista era
-          ver el negro del compositor —la nada, no una sala a oscuras—, y eso es
-          lo que le dice al ojo que el sitio no es un sitio. Mira hacia abajo
-          (`Math.PI / 2`), o se vería desde fuera y no desde dentro. */}
+      {/* The ceiling, which closes the room at the top. Without it, looking up
+          was seeing the compositor's black —nothingness, not a room in the
+          dark—, and that is what tells the eye that the place is not a place.
+          It faces down (`Math.PI / 2`), or it would be seen from outside and
+          not from inside. */}
       <mesh position={[0, ROOM_HEIGHT, centre]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[ROOM_WIDTH, ROOM_DEPTH]} />
         <meshStandardMaterial color={CEILING_COLOR} roughness={1} />
       </mesh>
 
-      {/* Los neones de la pared del fondo: dos rayas de luz, que es lo que se
-          ve al levantar la vista en un recreativo. */}
-      {[
-        { y: 2.6, color: NEON_PINK, width: 5 },
-        { y: 2.3, color: NEON_CYAN, width: 3.6 },
-      ].map((neon) => (
+      {/* The neons on the back wall: two stripes of light, which is what one
+          sees on looking up in an arcade. */}
+      {BACK_NEONS.strips.map((neon, i) => (
         <mesh key={neon.y} position={[0, neon.y, centre - ROOM_DEPTH / 2 + 0.03]}>
-          <planeGeometry args={[neon.width, 0.06]} />
-          <meshBasicMaterial color={neon.color} toneMapped={false} />
+          <planeGeometry args={[neon.width, BACK_NEONS.thickness]} />
+          <meshBasicMaterial color={NEON_COLORS[i]} toneMapped={false} />
         </mesh>
       ))}
 
-      {/* Las máquinas: una fila al fondo y otra a cada lado, todas apagadas. */}
+      {/* The machines: one row at the back and another on each side, all switched off. */}
       <Cabinets spots={cabinets} />
 
-      {/* El halo bajo la mesa: la separa del suelo y da profundidad sin meter
-          una textura que haya que servir por HTTP. */}
+      {/* The glow under the table: it separates it from the floor and gives
+          depth without bringing in a texture that would have to be served over HTTP. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, centre]}>
         <ringGeometry args={[1.15, 1.9, 64]} />
         <meshBasicMaterial

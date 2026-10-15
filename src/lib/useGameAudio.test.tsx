@@ -3,19 +3,19 @@ import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GameContext, useGameStoreValue } from './gameStore'
 import { useGameAudio } from './useGameAudio'
-import { DEFAULT_VOLUMES } from './ajustes'
-import { setVolume } from './ajustesCliente'
+import { DEFAULT_VOLUMES } from './settings'
+import { setVolume } from './settingsClient'
 
 /**
- * Lo que se comprueba aquí es lo único que el hook añade sobre el reproductor
- * (que tiene sus tests en `audioEngine.test.ts`): que haya **un solo contexto
- * de audio**, que aparezca con el primer sonido y no antes, y que se suelte
- * tanto al silenciar como al quitar la escena.
+ * What is checked here is the only thing the hook adds on top of the player
+ * (which has its tests in `audioEngine.test.ts`): that there is **a single
+ * audio context**, that it appears with the first sound and not before, and
+ * that it is released both on muting and on removing the scene.
  *
- * El reproductor va de mentira porque la Web Audio API no existe en jsdom. El
- * almacén, en cambio, es el de verdad: el silencio se cambia como lo cambian
- * los dos menús —guardándolo en el navegador— y así se prueba también el camino
- * de vuelta, que es lo que hace que el juego se calle.
+ * The player is a fake because the Web Audio API does not exist in jsdom. The
+ * store, on the other hand, is the real one: the mute is changed the way the
+ * two menus change it —saving it in the browser— and that way the way back is
+ * tested too, which is what makes the game go silent.
  */
 const audio = vi.hoisted(() => ({
   create: vi.fn(),
@@ -23,11 +23,12 @@ const audio = vi.hoisted(() => ({
   slide: vi.fn(),
   close: vi.fn(),
   setVolume: vi.fn(),
+  setLowpass: vi.fn(),
 }))
 
 vi.mock('./audioEngine', () => ({ createGlideHockeyAudio: audio.create }))
 
-/** El juego alrededor del hook: el almacén de verdad, con su contexto. */
+/** The game around the hook: the real store, with its context. */
 function Harness({ children }: { children: ReactNode }) {
   return (
     <GameContext.Provider value={useGameStoreValue()}>
@@ -36,41 +37,42 @@ function Harness({ children }: { children: ReactNode }) {
   )
 }
 
-/** Silencia o vuelve a encender, como haría el menú. */
+/** Mutes or turns back on, as the menu would. */
 function setMuted(muted: boolean) {
   act(() => setVolume('sfx', muted ? 0 : DEFAULT_VOLUMES.sfx))
 }
 
 const renderAudio = () => renderHook(() => useGameAudio(), { wrapper: Harness })
 
-/** Qué sonidos se han pedido, en orden. */
+/** Which sounds have been requested, in order. */
 const played = () => audio.play.mock.calls.map(([sound]) => sound)
 
 describe('useGameAudio', () => {
   beforeEach(() => {
-  // Los volúmenes salen de los ajustes del arcade, que cachean lo leído para
-  // que `useSyncExternalStore` no repinte sin parar: vaciar `localStorage` a
-  // secas dejaría el caché con el valor de la prueba anterior. Se restablecen
-  // por la API, que es la que lo invalida.
+  // The volumes come from the hall's settings, which cache what was read so
+  // that `useSyncExternalStore` does not repaint endlessly: just emptying
+  // `localStorage` would leave the cache with the value of the previous
+  // test. They are reset through the API, which is what invalidates it.
   setVolume('sfx', DEFAULT_VOLUMES.sfx)
   setVolume('ambience', DEFAULT_VOLUMES.ambience)
     window.localStorage.clear()
-    // `restoreMocks` deja los dobles sin implementación antes de cada test.
+    // `restoreMocks` leaves the doubles without implementation before each test.
     audio.create.mockImplementation(() => ({
       play: audio.play,
       slide: audio.slide,
       close: audio.close,
       setVolume: audio.setVolume,
+      setLowpass: audio.setLowpass,
     }))
   })
 
-  it('montar la mesa no abre todavía el audio del navegador', () => {
+  it('mounting the table does not open the browser audio yet', () => {
     renderAudio()
 
     expect(audio.create).not.toHaveBeenCalled()
   })
 
-  it('un solo reproductor para toda la partida', () => {
+  it('a single player for the whole match', () => {
     const { result } = renderAudio()
 
     result.current.play('strike')
@@ -81,7 +83,7 @@ describe('useGameAudio', () => {
     expect(played()).toEqual(['strike', 'bounce', 'goal'])
   })
 
-  it('silenciado no suena nada, ni se abre el audio', () => {
+  it('muted nothing sounds, nor is the audio opened', () => {
     setMuted(true)
     const { result } = renderAudio()
 
@@ -92,7 +94,7 @@ describe('useGameAudio', () => {
     expect(audio.play).not.toHaveBeenCalled()
   })
 
-  it('silenciar suelta el audio del dispositivo, no solo lo calla', () => {
+  it('muting releases the audio of the device, it does not just silence it', () => {
     const { result } = renderAudio()
     result.current.play('strike')
 
@@ -101,7 +103,7 @@ describe('useGameAudio', () => {
     expect(audio.close).toHaveBeenCalled()
   })
 
-  it('el sonido se apaga y se enciende sin recargar el juego', () => {
+  it('the sound turns off and on without reloading the game', () => {
     const view = renderAudio()
     view.result.current.play('strike')
 
@@ -112,11 +114,11 @@ describe('useGameAudio', () => {
     setMuted(false)
     view.result.current.play('goal')
     expect(played()).toEqual(['strike', 'goal'])
-    // El que se soltó al silenciar no vuelve: hace falta abrir otro.
+    // The one released on muting does not come back: another has to be opened.
     expect(audio.create).toHaveBeenCalledTimes(2)
   })
 
-  it('quitar la escena se lleva su audio', () => {
+  it('removing the scene takes its audio with it', () => {
     const view = renderAudio()
     view.result.current.play('strike')
 
@@ -125,7 +127,7 @@ describe('useGameAudio', () => {
     expect(audio.close).toHaveBeenCalled()
   })
 
-  it('el roce va por el mismo reproductor y no lo abre antes del primer golpe', () => {
+  it('the slide goes through the same player and does not open it before the first strike', () => {
     const { result } = renderAudio()
 
     result.current.slide(3)
@@ -137,7 +139,7 @@ describe('useGameAudio', () => {
     expect(audio.slide).toHaveBeenCalledWith(3)
   })
 
-  it('silenciado, el roce tampoco suena', () => {
+  it('muted, the slide does not sound either', () => {
     setMuted(true)
     const { result } = renderAudio()
 
@@ -145,5 +147,14 @@ describe('useGameAudio', () => {
     result.current.slide(3)
     expect(audio.slide).not.toHaveBeenCalled()
   })
-})
 
+  it('the hit filter reaches the open bus, and without open audio it opens nothing', () => {
+    const { result } = renderAudio()
+    result.current.filter(500)
+    expect(audio.create).not.toHaveBeenCalled()
+
+    result.current.play('strike')
+    result.current.filter(700)
+    expect(audio.setLowpass).toHaveBeenCalledWith(700)
+  })
+})

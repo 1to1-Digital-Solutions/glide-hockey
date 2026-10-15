@@ -1,28 +1,29 @@
 /**
- * Dónde están los ficheros estáticos del juego: los perfiles de mando de WebXR,
- * que es lo que el navegador pide por HTTP al entrar en el visor.
+ * Where the game's static files are: the WebXR controller profiles, which is
+ * what the browser requests over HTTP when entering the headset.
  *
- * Montado en su propia web cuelgan de la raíz, pero dentro de otra aplicación
- * el sitio lo decide quien lo monta: los ficheros se copian a su `public/` y la
- * base se pasa como opción (ver `game/GlideHockey.tsx`). Por eso las rutas se
- * guardan relativas y se resuelven al pedir cada recurso, no al importar el
- * módulo que las declara.
+ * Mounted on its own website they hang from the root, but inside another
+ * application the place is decided by whoever mounts it: the files are copied
+ * to its `public/` and the base is passed as an option (see
+ * `game/GlideHockey.tsx`). That is why the paths are kept relative and resolved
+ * when each resource is requested, not when the module that declares them is
+ * imported.
  *
- * Es estado de módulo y no un contexto de React porque quien pide los perfiles
- * es el store de WebXR, que vive fuera del árbol. A cambio, la base es una por
- * página: montar dos juegos a la vez con bases distintas no funcionaría, cosa
- * que WebXR tampoco permite (una sesión por documento).
+ * It is module state and not a React context because the one requesting the
+ * profiles is the WebXR store, which lives outside the tree. In exchange, the
+ * base is one per page: mounting two games at once with different bases would
+ * not work, which WebXR does not allow either (one session per document).
  */
 
-/** La raíz del sitio: lo que sirve la propia web del juego. */
+/** The root of the site: what the game's own website serves. */
 const DEFAULT_ASSETS_BASE = '/'
 
 let assetsBase = DEFAULT_ASSETS_BASE
 
 /**
- * Deja la base lista para concatenar: siempre con barra final, y la raíz
- * cuando no se da ninguna. Una base sin barra final convertiría
- * `/juegos/glide-hockey` + `webxr-profiles/…` en `/juegos/glide-hockeywebxr-…`.
+ * Leaves the base ready to concatenate: always with a trailing slash, and the
+ * root when none is given. A base without a trailing slash would turn
+ * `/juegos/glide-hockey` + `webxr-profiles/…` into `/juegos/glide-hockeywebxr-…`.
  */
 function normalizeBase(base: string): string {
   const trimmed = base.trim()
@@ -30,12 +31,12 @@ function normalizeBase(base: string): string {
   return trimmed.endsWith('/') ? trimmed : `${trimmed}/`
 }
 
-/** Cambia de dónde cuelgan los ficheros estáticos del juego. */
+/** Changes where the game's static files hang from. */
 export function setAssetsBase(base: string): void {
   assetsBase = normalizeBase(base)
 }
 
-/** URL pública de un fichero de `public/`, dada su ruta relativa. */
+/** Public URL of a file of `public/`, given its relative path. */
 export function assetUrl(path: string): string {
   return `${assetsBase}${path.replace(/^\/+/, '')}`
 }

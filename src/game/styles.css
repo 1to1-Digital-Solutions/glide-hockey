@@ -1,26 +1,26 @@
 /**
- * Estilos propios del juego: cómo usa sus colores, su tipografía y las
- * animaciones de sus pantallas.
+ * The game's own styles: how it uses its colours, its typography and the
+ * animations of its screens.
  *
- * **Aquí no se escribe ningún color.** Los valores de `--color-*` los pone el
- * juego sobre este mismo elemento desde `src/lib/palette.ts`, que es la única
- * definición de la paleta y la que leen también la escena y la interfaz del
- * visor; lo de aquí son los colores derivados y dónde va cada uno.
+ * **No colour is written here.** The `--color-*` values are set by the game on
+ * this very element from `src/lib/palette.ts`, which is the only definition of
+ * the palette and the one the scene and the headset interface read too; what
+ * is here are the derived colours and where each one goes.
  *
- * Todo cuelga de `.glide-hockey`, la clase del contenedor que monta el juego, en
- * vez de `:root`: montado dentro de otra aplicación, unas variables globales
- * llamadas `--color-primary` le cambiarían el aspecto a lo que las tuviera
- * puestas. Las clases utilitarias (`flex`, `text-white/40`…) no están aquí: las
- * genera Tailwind escaneando el código del juego, y quien lo monta tiene que
- * incluirlo entre sus fuentes (ver `docs/montar-el-juego.md`).
+ * Everything hangs from `.glide-hockey`, the class of the container that mounts
+ * the game, instead of `:root`: mounted inside another application, global
+ * variables called `--color-primary` would change the look of whatever had them
+ * set. The utility classes (`flex`, `text-white/40`…) are not here: Tailwind
+ * generates them by scanning the game's code, and whoever mounts it has to
+ * include it among their sources (see `docs/mounting-the-game.md`).
  *
- * Las dos fuentes se toman de fuera con un respaldo del sistema: en su propia
- * web las define el layout con `next/font`, y quien lo monta puede darle las
- * suyas definiendo esas dos variables.
+ * The two fonts are taken from outside with a system fallback: on its own
+ * website the layout defines them with `next/font`, and whoever mounts it can
+ * give it their own by defining those two variables.
  */
 
 .glide-hockey {
-  /* Filo de las tarjetas: el color de texto, apenas insinuado. */
+  /* Edge of the cards: the text colour, barely hinted at. */
   --color-border: color-mix(in srgb, var(--color-foreground) 9%, transparent);
 
   background: var(--color-background);
@@ -32,7 +32,7 @@
   font-family: var(--font-heading, system-ui), system-ui, sans-serif;
 }
 
-/* Entrada sutil de las pantallas */
+/* Subtle entrance of the screens */
 @keyframes glide-hockey-fade-slide-up {
   from {
     opacity: 0;
@@ -48,7 +48,7 @@
   animation: glide-hockey-fade-slide-up 0.45s ease-out both;
 }
 
-/* Golpe de cada número de la cuenta atrás: entra grande y se asienta. */
+/* Punch of each countdown number: it comes in big and settles. */
 @keyframes glide-hockey-countdown-pop {
   from {
     opacity: 0;
@@ -67,15 +67,15 @@
   animation: glide-hockey-countdown-pop 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Halo del título */
+/* Glow of the title */
 .glide-hockey .text-glow-primary {
   text-shadow:
     0 0 12px color-mix(in srgb, var(--color-primary) 45%, transparent),
     0 0 32px color-mix(in srgb, var(--color-primary) 25%, transparent);
 }
 
-/* Botón principal, en el cian del juego. La tinta va aquí, con su fondo: sobre
-   ese cian claro el blanco no se lee. */
+/* Main button, in the game's cyan. The ink goes here, with its background: on
+   that light cyan white cannot be read. */
 .glide-hockey .cta-gradient {
   background-image: linear-gradient(
     180deg,
@@ -96,7 +96,7 @@
     inset 0 1px 0 color-mix(in srgb, var(--color-foreground) 45%, transparent);
 }
 
-/* El foco tiene que verse: se navega el menú con teclado y con el mando. */
+/* The focus has to be visible: the menu is navigated with keyboard and controller. */
 .glide-hockey :is(button, input, [tabindex]):focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;

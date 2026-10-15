@@ -3,22 +3,22 @@
 import { useEffect, useState } from 'react'
 
 /**
- * Si este dispositivo puede jugar con el visor, y de qué manera.
+ * Whether this device can play with the headset, and in what way.
  *
- * Se pregunta al navegador en vez de usar el hook de `@react-three/xr` porque
- * aquel no tiene respuesta para el servidor: al prerenderizar la página revienta
- * el build entero con un «Missing getServerSnapshot». Y la pregunta hay que
- * hacerla en el menú de escritorio, que es HTML de verdad y se prerenderiza.
+ * The browser is asked instead of using the `@react-three/xr` hook because that
+ * one has no answer for the server: when prerendering the page it blows up the
+ * whole build with a «Missing getServerSnapshot». And the question has to be
+ * asked in the desktop menu, which is real HTML and is prerendered.
  *
- * `null` mientras no se sabe. Es un tercer valor a propósito: enseñar el botón
- * de entrar en VR y quitarlo medio segundo después —o al revés— es peor que
- * esperar a tener la respuesta, porque el botón se mueve justo cuando alguien
- * iba a pulsarlo.
+ * `null` while it is not known. It is a third value on purpose: showing the
+ * enter-VR button and removing it half a second later —or the other way round—
+ * is worse than waiting to have the answer, because the button moves right when
+ * someone was about to press it.
  */
 export interface ImmersiveSupport {
-  /** Realidad mixta: la mesa sobre la habitación del jugador. */
+  /** Mixed reality: the table over the player's room. */
   ar: boolean
-  /** Realidad virtual: la sala del juego y nada más. */
+  /** Virtual reality: the game's room and nothing else. */
   vr: boolean
 }
 
@@ -30,15 +30,15 @@ export function useImmersiveSupport(): ImmersiveSupport | null {
 
     void (async () => {
       const xr = typeof navigator === 'undefined' ? undefined : navigator.xr
-      // Un navegador sin WebXR no es un fallo: es la mitad de los que van a
-      // abrir esto, y ahí simplemente no hay botón de visor.
+      // A browser without WebXR is not a failure: it is half of those who are
+      // going to open this, and there is simply no headset button there.
       const [ar, vr] =
         xr == null
           ? [false, false]
           : await Promise.all([
-              // `isSessionSupported` rechaza en contextos no seguros y en
-              // algunos navegadores con la API a medias. Que falle la pregunta
-              // significa que no se puede, no que el juego no arranque.
+              // `isSessionSupported` rejects in non-secure contexts and in
+              // some browsers with a half-done API. The question failing
+              // means that it cannot be done, not that the game does not start.
               xr.isSessionSupported('immersive-ar').catch(() => false),
               xr.isSessionSupported('immersive-vr').catch(() => false),
             ])

@@ -1,43 +1,43 @@
 /**
- * La paleta del juego: el único sitio donde se escribe un color suyo.
+ * The game's palette: the only place where one of its colours is written.
  *
- * Los mismos colores los piden tres capas que no se hablan —el CSS de las
- * pantallas de escritorio, la escena de three y la interfaz del visor, que no
- * tiene CSS del que tirar—, y escritos a mano en cada una se desvían sin que
- * nadie lo decida. Aquí están los que **identifican al juego**, que son justo
- * los que más de una capa necesita; los neutros de una sola capa se quedan con
- * nombre junto al componente que los pinta.
+ * The same colours are asked for by three layers that do not talk to each other
+ * —the CSS of the desktop screens, the three scene and the headset interface,
+ * which has no CSS to draw on—, and written by hand in each one they drift
+ * without anybody deciding it. Here are the ones that **identify the game**,
+ * which are exactly the ones more than one layer needs; the neutral ones of a
+ * single layer stay, named, next to the component that draws them.
  */
 
 import type { CSSProperties } from 'react'
 import type { Difficulty } from './gameConfig'
 
 export const PALETTE = {
-  /** Fondo del juego y de los paneles del visor: azul de sala oscura. */
+  /** Background of the game and of the headset panels: dark-room blue. */
   background: '#0b1220',
-  /** Texto y números. */
+  /** Text and numbers. */
   foreground: '#ffffff',
-  /** El cian del juego: lo que está activo, encendido o elegido. */
+  /** The game's cyan: what is active, lit or chosen. */
   primary: '#38bdf8',
-  /** Los dos extremos del degradado del botón principal. */
+  /** The two ends of the main button's gradient. */
   primaryBright: '#7dd3fc',
   primaryDeep: '#0284c7',
-  /** Tinta del botón principal: sobre ese cian claro, el blanco no se lee. */
+  /** Ink of the main button: on that light cyan, white cannot be read. */
   primaryInk: '#042335',
-  /** Naranja del disco, que es también el acento de los datos del jugador. */
+  /** Orange of the puck, which is also the accent of the player's data. */
   puck: '#f97316',
-  /** Rojo del rival: su mazo, su marcador y los goles encajados. */
+  /** Red of the rival: its mallet, its score and the goals conceded. */
   rival: '#f43f5e',
-  /** Blanco frío de la superficie de la mesa. */
+  /** Cold white of the table surface. */
   table: '#e6edf5',
-  /** Azul oscuro del marco y las bandas. */
+  /** Dark blue of the frame and the rails. */
   rail: '#152238',
 } as const
 
 /**
- * Color de cada dificultad: progresa de verde (fácil) a rojo (imposible).
- * Señal visual de riesgo, siempre acompañada de texto para no depender solo
- * del color.
+ * Colour of each difficulty: it progresses from green (easy) to red (impossible).
+ * A visual signal of risk, always accompanied by text so as not to depend on
+ * colour alone.
  */
 export const DIFFICULTY_COLORS: Record<Difficulty, string> = {
   easy: '#15803d',
@@ -48,16 +48,16 @@ export const DIFFICULTY_COLORS: Record<Difficulty, string> = {
 }
 
 /**
- * La paleta como variables CSS, que es lo que consumen las pantallas de
- * escritorio (`src/game/styles.css`).
+ * The palette as CSS variables, which is what the desktop screens consume
+ * (`src/game/styles.css`).
  *
- * Las pone el juego sobre su propio contenedor, en línea (ver `GameScene`), y
- * no las escribe el CSS: el juego se publica como código, sin ningún paso de
- * construcción propio, así que la única forma de que el CSS y la escena lean
- * los mismos literales es que se los dé quien pinta el contenedor.
+ * The game sets them on its own container, inline (see `GameScene`), and the
+ * CSS does not write them: the game is published as code, with no build step
+ * of its own, so the only way for the CSS and the scene to read the same
+ * literals is for whoever draws the container to hand them over.
  *
- * Cuelgan del contenedor y nunca de `:root`: montado dentro de otra aplicación,
- * un `--color-primary` global le cambiaría el aspecto al anfitrión.
+ * They hang from the container and never from `:root`: mounted inside another
+ * application, a global `--color-primary` would change the look of the host.
  */
 export const GLIDE_HOCKEY_CSS_VARIABLES = {
   '--color-background': PALETTE.background,

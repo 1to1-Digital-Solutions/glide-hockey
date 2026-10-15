@@ -5,28 +5,32 @@ import { useXR } from '@react-three/xr'
 import { useGame } from '../../lib/gameStore'
 
 /**
- * Puente entre el estado de la sesión WebXR y el estado del juego.
+ * Bridge between the state of the WebXR session and the state of the game.
  *
- * Al entrar en VR/AR se lleva al jugador **al menú**, no a una partida: en el
- * visor manda `XRMenu`, que es donde elige modo, nivel y goles. Y al salir se
- * vuelve al menú de escritorio, porque una partida a medias que sigue corriendo
- * sin nadie mirándola solo puede acabar en una goleada en contra.
+ * On entering VR/AR the player is taken **to the menu**, not to a match: in the
+ * headset `XRMenu` is in charge, which is where they choose mode, level and
+ * goals. And on leaving, it goes back to the desktop menu, because a half-played
+ * match that keeps running with nobody watching it can only end in a thrashing.
  *
- * Debe montarse dentro de `<XR>` para poder leer el estado de la sesión.
+ * It must be mounted inside `<XR>` to be able to read the state of the session.
  */
 export function XRSessionController() {
   const mode = useXR((state) => state.mode)
   const { gameState, resetGame, setImmersive } = useGame()
 
-  // Recordar que hubo sesión es imprescindible: en escritorio `mode` es null
-  // siempre, y sin esta guarda cualquier partida iniciada con el ratón se
-  // cancelaría sola nada más empezar.
-  const immersive = useRef(false)
+  // Remembering that there was a session is essential: on desktop `mode` is
+  // always null, and without this guard any match started with the mouse would
+  // cancel itself as soon as it began.
+  //
+  // It starts from whatever there is on mount: mounted already inside a session —which is what
+  // the hall does— there is no desktop match to discard, and the one there is belongs to the
+  // hall's challenge, which starts already playing (see `HallOptions`).
+  const immersive = useRef(mode != null)
 
   useEffect(() => {
     setImmersive(mode != null)
 
-    // Entrada: si se llega con una partida de escritorio a medias, se descarta.
+    // Entry: if it arrives with a half-played desktop match, it is discarded.
     if (mode != null) {
       if (immersive.current) return
       immersive.current = true
@@ -34,7 +38,7 @@ export function XRSessionController() {
       return
     }
 
-    // Salida: se vuelve al menú de escritorio.
+    // Exit: back to the desktop menu.
     if (!immersive.current) return
     immersive.current = false
     resetGame()

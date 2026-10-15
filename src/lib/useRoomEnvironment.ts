@@ -2,35 +2,47 @@
 
 import { useEffect, useMemo } from 'react'
 import { useThree } from '@react-three/fiber'
-import { PMREMGenerator, type Texture } from 'three'
+import { InstancedMesh, PMREMGenerator, type Texture } from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
 /**
- * Un mapa de entorno para los reflejos de la mesa y del disco, **sin fichero**.
+ * An environment map for the reflections of the table and of the puck, **with no file**.
  *
- * La tarea pedía un cubemap o un HDRI pequeño servido desde `assetsBase`; esto
- * es lo mismo sin pedir nada por HTTP —un juego de xrcade puede arrancar en un
- * visor en red local— y sin nada que copiar al anfitrión: `RoomEnvironment`
- * es una sala de luces que three trae hecha, y `PMREMGenerator` la convierte
- * una vez, al montar, en el mapa prefiltrado que los materiales estándar saben
- * leer. Barato: se calcula una vez y los reflejos son una lectura de textura
- * por píxel del material que lo lleve. Nada de reflejos planares.
+ * The task asked for a cubemap or a small HDRI served from `assetsBase`; this
+ * is the same without asking for anything over HTTP —an xrcade game can start
+ * on a headset on a local network— and with nothing to copy to the host:
+ * `RoomEnvironment` is a room of lights that three ships ready-made, and
+ * `PMREMGenerator` converts it once, on mount, into the prefiltered map that
+ * standard materials know how to read. Cheap: it is computed once and the
+ * reflections are one texture read per pixel of the material that wears it.
+ * No planar reflections.
  *
- * Se aplica a mano a los materiales que lo quieren (`envMap`), no a
- * `scene.environment`: dentro del salón de xrcade la escena es del anfitrión, y
- * un entorno global le cambiaría el aspecto a las cabinas.
+ * It is applied by hand to the materials that want it (`envMap`), not to
+ * `scene.environment`: inside xrcade's hall the scene belongs to the host, and
+ * a global environment would change the look of the cabinets.
  */
 export function useRoomEnvironment(): Texture {
   const gl = useThree((state) => state.gl)
-  const texture = useMemo(() => {
+  const target = useMemo(() => {
     const pmrem = new PMREMGenerator(gl)
-    const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+    const room = new RoomEnvironment()
+    const environment = pmrem.fromScene(room, 0.04)
     pmrem.dispose()
+    room.dispose()
+    // `room.dispose()` releases geometries and materials, but not the room's boxes, which are an
+    // `InstancedMesh`: its `instanceMatrix` is a WebGL buffer that only goes away by releasing the mesh.
+    // Without this one buffer was left per visit (measured in tower-tumble).
+    room.traverse((part) => {
+      if (part instanceof InstancedMesh) part.dispose()
+    })
     return environment
   }, [gl])
 
-  // La textura vive en la tarjeta gráfica: se suelta al desmontar la escena.
-  useEffect(() => () => texture.dispose(), [texture])
+  // The map lives on the graphics card inside its render target, and it is the target that is
+  // released on unmount: releasing only its texture leaves the buffer alive on every visit. The
+  // room of lights is released as soon as it is converted (its geometries and materials): it is
+  // no longer needed.
+  useEffect(() => () => target.dispose(), [target])
 
-  return texture
+  return target.texture
 }

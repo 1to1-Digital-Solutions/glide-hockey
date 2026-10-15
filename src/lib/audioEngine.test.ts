@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
 import { MAX_PUCK_SPEED } from './gameConfig'
-import { createGlideHockeyAudio, impactStrength, slideLevel, slidePitch } from './audioEngine'
+import { LOWPASS_OPEN, createGlideHockeyAudio, impactStrength, slideLevel, slidePitch } from './audioEngine'
 import { STALL_SPEED } from './puckPhysics'
 
 /**
- * La Web Audio API no existe en jsdom, así que se le da una de mentira que
- * apunta lo que se le pide. Lo que se comprueba aquí no es cómo suena —eso hay
- * que oírlo— sino las decisiones que sí se pueden romper sin que nadie se
- * entere: cuándo se crea el contexto, que se reanude si el navegador lo paró,
- * que se suelte al cerrar y que los tres sonidos no sean el mismo.
+ * The Web Audio API does not exist in jsdom, so it is given a fake one that
+ * records what is asked of it. What is checked here is not how it sounds
+ * —that has to be heard— but the decisions that can indeed break without
+ * anybody noticing: when the context is created, that it resumes if the
+ * browser stopped it, that it is released on close and that the three sounds
+ * are not the same one.
  */
 function fakeParam(): AudioParam {
   return {
@@ -20,56 +21,58 @@ function fakeParam(): AudioParam {
 }
 
 /**
- * @param rechaza  Con qué se niegan `resume()` y `close()`. El navegador
- *   rechaza esas dos promesas de verdad —la política de reproducción
- *   automática una, un contexto ya cerrado la otra—, así que el doble tiene que
- *   poder hacerlo: es el caso en el que un fallo sin recoger ensucia la consola
- *   del juego, que es lo que vigila `e2e/consola.spec.ts`.
+ * @param rejection  What `resume()` and `close()` refuse with. The browser
+ *   really rejects those two promises —the autoplay policy one, an already
+ *   closed context the other—, so the double has to be able to do it: it is
+ *   the case in which an unhandled failure dirties the game's console, which
+ *   is what `e2e/console.spec.ts` watches.
  */
 function fakeAudioContext(
   state: AudioContextState = 'running',
-  rechaza: Error | null = null,
+  rejection: Error | null = null,
 ) {
   const gains: { gain: AudioParam }[] = []
   const filters: { type: string; frequency: number }[] = []
-  /** Las fuentes creadas, para poder hacer que una falle al pararla. */
+  /** The real filters, to look at what is asked of them and what they connect to. */
+  const bus: { type: string; frequency: { value: number; setTargetAtTime: ReturnType<typeof vi.fn> }; Q: { value: number }; connect: ReturnType<typeof vi.fn> }[] = []
+  /** The sources created, to be able to make one fail when it is stopped. */
   const sources: { stop: () => void }[] = []
   const oscillators: { frequency: number }[] = []
-  /** Cuántas veces se ha pedido cada cosa que devuelve una promesa. */
-  const llamadas = { resume: 0, close: 0 }
-  /** Promesas rechazadas cuyo fallo no ha recogido nadie. */
-  const sinRecoger: string[] = []
+  /** How many times each thing that returns a promise has been requested. */
+  const calls = { resume: 0, close: 0 }
+  /** Rejected promises whose failure nobody has handled. */
+  const unhandled: string[] = []
 
   /**
-   * Lo que devuelve un método que puede fallar, apuntando si alguien lo recoge.
+   * What a method that can fail returns, recording whether anybody handles it.
    *
-   * A mano y **sin `vi.fn`**: los dobles de vitest encadenan un `then` a la
-   * promesa que devuelve la función espiada para anotar cómo acabó, y ese `then`
-   * recoge el fallo por su cuenta. Con uno de por medio, este doble diría que
-   * todo está recogido pase lo que pase.
+   * By hand and **without `vi.fn`**: vitest's doubles chain a `then` onto the
+   * promise the spied function returns to note down how it ended, and that
+   * `then` handles the failure on its own. With one in between, this double
+   * would say everything is handled whatever happens.
    *
-   * Se mira sobre `then` y no sobre `catch` porque `catch(fn)` es
-   * `then(undefined, fn)` y lo busca en la propia promesa: así cuentan las dos
-   * formas de atender un fallo.
+   * It is watched on `then` and not on `catch` because `catch(fn)` is
+   * `then(undefined, fn)` and looks it up on the promise itself: that way both
+   * ways of handling a failure count.
    */
-  const responde = (nombre: 'resume' | 'close') => () => {
-    llamadas[nombre]++
-    if (rechaza == null) return Promise.resolve()
+  const respond = (name: 'resume' | 'close') => () => {
+    calls[name]++
+    if (rejection == null) return Promise.resolve()
 
-    sinRecoger.push(nombre)
-    const promesa = Promise.reject(rechaza)
-    const then = promesa.then.bind(promesa)
-    promesa.then = ((alCumplir, alFallar) => {
-      if (alFallar != null) {
-        sinRecoger.splice(sinRecoger.indexOf(nombre), 1)
+    unhandled.push(name)
+    const promise = Promise.reject(rejection)
+    const then = promise.then.bind(promise)
+    promise.then = ((onFulfilled, onRejected) => {
+      if (onRejected != null) {
+        unhandled.splice(unhandled.indexOf(name), 1)
       }
-      return then(alCumplir, alFallar)
-    }) as typeof promesa.then
-    return promesa
+      return then(onFulfilled, onRejected)
+    }) as typeof promise.then
+    return promise
   }
 
-  const resume = responde('resume')
-  const close = responde('close')
+  const resume = respond('resume')
+  const close = respond('close')
 
   const context = {
     state,
@@ -80,8 +83,9 @@ function fakeAudioContext(
     close,
     createGain: () => {
       const gain = { gain: fakeParam(), connect: vi.fn() }
-      // Se apuntan en el orden en que se crean: el maestro es el primero,
-      // porque es el que se cuelga del destino antes que nada.
+      // They are recorded in the order they are created: the master is the
+      // first, because it is the one that hangs from the destination before
+      // anything else.
       gains.push(gain)
       return gain
     },
@@ -91,9 +95,12 @@ function fakeAudioContext(
         frequency: { value: 0, setTargetAtTime: vi.fn() },
         Q: { value: 0 },
         connect: vi.fn(),
+        context: { currentTime: 0 },
       }
-      // Se apunta al crear pero se lee por getter: así el filtro se inspecciona
-      // ya configurado, no con los valores con los que nace.
+      bus.push(filter)
+      // It is recorded on creation but read through a getter: that way the
+      // filter is inspected already configured, not with the values it is
+      // born with.
       filters.push({
         get type() {
           return filter.type
@@ -144,18 +151,19 @@ function fakeAudioContext(
 
   return {
     context: context as unknown as AudioContext,
-    /** El nodo maestro, que es por donde pasa todo lo que suena. */
-    maestro: () => gains[0].gain,
+    /** The master node, which is where everything that sounds goes through. */
+    master: () => gains[0].gain,
     filters,
+    bus,
     oscillators,
     sources,
-    llamadas,
-    sinRecoger,
+    calls,
+    unhandled,
   }
 }
 
 describe('createGlideHockeyAudio', () => {
-  it('no toca el audio del navegador hasta que hay algo que sonar', () => {
+  it('does not touch the browser audio until there is something to sound', () => {
     const fake = fakeAudioContext()
     const createContext = vi.fn(() => fake.context)
 
@@ -164,35 +172,35 @@ describe('createGlideHockeyAudio', () => {
 
     audio.play('strike')
     audio.play('bounce')
-    // Un solo contexto para toda la partida: son un recurso escaso y el
-    // navegador corta a la decena.
+    // A single context for the whole match: they are a scarce resource and
+    // the browser cuts off at around ten.
     expect(createContext).toHaveBeenCalledTimes(1)
   })
 
-  it('reanuda el contexto que el navegador dejó en suspenso', () => {
+  it('resumes the context the browser left suspended', () => {
     const fake = fakeAudioContext('suspended')
 
     createGlideHockeyAudio(() => fake.context).play('strike')
 
-    expect(fake.llamadas.resume).toBe(1)
+    expect(fake.calls.resume).toBe(1)
   })
 
-  it('el contexto que se niega a sonar no deja fallos sin recoger', () => {
-    // Un navegador que no da todavía por buena la interacción rechaza el
-    // `resume()` de cada golpe. Sin recogerlo, una partida así deja decenas de
-    // fallos sueltos en la consola —y la consola limpia es lo que vigila
-    // `e2e/consola.spec.ts`—, con el juego funcionando igual de mudo.
+  it('the context that refuses to sound leaves no unhandled failures', () => {
+    // A browser that does not yet accept the interaction rejects the
+    // `resume()` of every strike. Without catching it, such a match leaves
+    // dozens of loose failures in the console —and the clean console is what
+    // `e2e/console.spec.ts` watches—, with the game working just as mute.
     const fake = fakeAudioContext('suspended', new Error('NotAllowedError'))
     const audio = createGlideHockeyAudio(() => fake.context)
 
     audio.play('strike')
     audio.close()
 
-    expect(fake.llamadas).toEqual({ resume: 1, close: 1 })
-    expect(fake.sinRecoger).toEqual([])
+    expect(fake.calls).toEqual({ resume: 1, close: 1 })
+    expect(fake.unhandled).toEqual([])
   })
 
-  it('los tres sonidos se filtran distinto, para que no suenen igual', () => {
+  it('the three sounds are filtered differently, so that they do not sound alike', () => {
     const fake = fakeAudioContext()
     const audio = createGlideHockeyAudio(() => fake.context)
 
@@ -200,80 +208,112 @@ describe('createGlideHockeyAudio', () => {
     audio.play('bounce')
     audio.play('goal')
 
-    const usados = fake.filters.map(
+    // The first one is the bus low-pass, which belongs to all and not to one sound.
+    const used = fake.filters.slice(1).map(
       (filter) => `${filter.type}:${filter.frequency}`,
     )
-    expect(new Set(usados).size).toBe(3)
+    expect(new Set(used).size).toBe(3)
   })
 
-  it('el gol lleva melodía y los golpes solo cuerpo', () => {
+  it('the goal carries melody and the strikes only body', () => {
     const fake = fakeAudioContext()
     const audio = createGlideHockeyAudio(() => fake.context)
 
-    // Un golpe es un tono y nada más: es el cuerpo del impacto.
+    // A strike is one tone and nothing else: it is the body of the impact.
     audio.play('strike')
     expect(fake.oscillators).toHaveLength(1)
 
-    // El gol son dos notas distintas, y la segunda más aguda: es lo que se lee
-    // como celebración y no como otro golpe.
+    // The goal is two different notes, and the second one higher: it is what
+    // reads as a celebration and not as another strike.
     audio.play('goal')
-    const [primera, segunda] = fake.oscillators.slice(1)
+    const [first, second] = fake.oscillators.slice(1)
     expect(fake.oscillators).toHaveLength(3)
-    expect(segunda.frequency).toBeGreaterThan(primera.frequency)
+    expect(second.frequency).toBeGreaterThan(first.frequency)
   })
 
-  it('el final del partido suena, y ganar y perder no suenan igual', () => {
-    // Terminar era silencio: se metía el último gol, sonaba como cualquier otro y la
-    // pantalla de fin llegaba sin avisar. Con el visor puesto el marcador está donde uno
-    // no siempre está mirando.
+  it('the end of the match sounds, and winning and losing do not sound alike', () => {
+    // Finishing was silence: the last goal went in, it sounded like any other and the
+    // end screen arrived without warning. With the headset on the scoreboard is where one
+    // is not always looking.
     const fake = fakeAudioContext()
     const audio = createGlideHockeyAudio(() => fake.context)
 
     audio.play('win')
-    const ganar = fake.oscillators.map((o) => o.frequency)
+    const winning = fake.oscillators.map((o) => o.frequency)
     audio.play('loss')
-    const perder = fake.oscillators.slice(ganar.length).map((o) => o.frequency)
+    const losing = fake.oscillators.slice(winning.length).map((o) => o.frequency)
 
-    expect(ganar.length).toBeGreaterThan(0)
-    expect(perder.length).toBeGreaterThan(0)
-    // Ganar sube y perder baja, que es lo que el oído entiende sin haberlo aprendido.
-    expect(Math.max(...ganar)).toBeGreaterThan(Math.min(...ganar))
-    expect(Math.min(...perder)).toBeLessThan(Math.min(...ganar))
+    expect(winning.length).toBeGreaterThan(0)
+    expect(losing.length).toBeGreaterThan(0)
+    // Winning rises and losing falls, which is what the ear understands without having learnt it.
+    expect(Math.max(...winning)).toBeGreaterThan(Math.min(...winning))
+    expect(Math.min(...losing)).toBeLessThan(Math.min(...winning))
   })
 
-  it('un cierre no golpea nada: va sin siseo', () => {
-    // El ruido del impacto en un final sonaría a que se ha roto algo.
+  it('a closing strikes nothing: it goes without hiss', () => {
+    // The noise of the impact in an ending would sound as if something had broken.
     const fake = fakeAudioContext()
     const audio = createGlideHockeyAudio(() => fake.context)
 
-    // Se cuentan filtros **nuevos** por sonido: el contexto ya monta el suyo para el roce
-    // del disco en cuanto se abre, así que el total no dice nada por sí solo.
-    const nuevos = (sonido: 'goal' | 'win' | 'loss' | 'record') => {
-      const antes = fake.filters.length
-      audio.play(sonido)
-      return fake.filters.length - antes
+    // **New** filters are counted per sound: the context already sets up its own for the
+    // slide of the puck as soon as it opens, so the total says nothing by itself.
+    const newFilters = (sound: 'goal' | 'win' | 'loss' | 'record') => {
+      const before = fake.filters.length
+      audio.play(sound)
+      return fake.filters.length - before
     }
 
-    expect(nuevos('goal')).toBeGreaterThan(0)
-    expect(nuevos('win')).toBe(0)
-    expect(nuevos('loss')).toBe(0)
-    expect(nuevos('record')).toBe(0)
+    expect(newFilters('goal')).toBeGreaterThan(0)
+    expect(newFilters('win')).toBe(0)
+    expect(newFilters('loss')).toBe(0)
+    expect(newFilters('record')).toBe(0)
   })
 
-  it('la marca batida suena por encima de todo y después del cierre', () => {
-    // Va aparte del cierre porque se puede batir ganando o perdiendo el partido.
+  it('the beaten record sounds above everything and after the closing', () => {
+    // It goes apart from the closing because it can be beaten winning or losing the match.
     const fake = fakeAudioContext()
     const audio = createGlideHockeyAudio(() => fake.context)
 
     audio.play('win')
-    const ganar = fake.oscillators.map((o) => o.frequency)
+    const winning = fake.oscillators.map((o) => o.frequency)
     audio.play('record')
-    const record = fake.oscillators.slice(ganar.length).map((o) => o.frequency)
+    const record = fake.oscillators.slice(winning.length).map((o) => o.frequency)
 
-    expect(Math.min(...record)).toBeGreaterThan(Math.max(...ganar))
+    expect(Math.min(...record)).toBeGreaterThan(Math.max(...winning))
   })
 
-  it('sin Web Audio se juega en silencio y no se reintenta a cada golpe', () => {
+  it('the medal threshold: two notes going up, higher the better the medal is, and with no hiss', () => {
+    const fake = fakeAudioContext()
+    const audio = createGlideHockeyAudio(() => fake.context)
+    // The goal that crosses the threshold sounds first, and with it the context opens with its
+    // bus filter.
+    audio.play('goal')
+    const notes = (['medal-bronze', 'medal-silver', 'medal-gold'] as const).map((sound) => {
+      const before = { oscillators: fake.oscillators.length, filters: fake.filters.length }
+      audio.play(sound)
+      // It strikes nothing: no hiss, like the closings.
+      expect(fake.filters.length - before.filters, sound).toBe(0)
+      return fake.oscillators.slice(before.oscillators).map((o) => o.frequency)
+    })
+
+    for (const [first, second] of notes) expect(second).toBeGreaterThan(first)
+    expect(notes.map((pair) => pair.length)).toEqual([2, 2, 2])
+    expect(notes[1][0]).toBeGreaterThan(notes[0][0])
+    expect(notes[2][0]).toBeGreaterThan(notes[1][0])
+  })
+
+  it('and it ignores the strength: it is a celebration, like the goal', () => {
+    const fake = fakeAudioContext()
+    const audio = createGlideHockeyAudio(() => fake.context)
+
+    audio.play('medal-gold', 0)
+    audio.play('medal-gold', 1)
+
+    const [weak, , strong] = fake.oscillators.map((o) => o.frequency)
+    expect(weak).toBe(strong)
+  })
+
+  it('without Web Audio it is played in silence and it is not retried on every strike', () => {
     const createContext = vi.fn(() => null)
     const audio = createGlideHockeyAudio(createContext)
 
@@ -286,22 +326,22 @@ describe('createGlideHockeyAudio', () => {
     expect(createContext).toHaveBeenCalledTimes(1)
   })
 
-  it('cerrar suelta el contexto y el siguiente sonido estrena otro', () => {
+  it('closing releases the context and the next sound opens a new one', () => {
     const fake = fakeAudioContext()
     const createContext = vi.fn(() => fake.context)
     const audio = createGlideHockeyAudio(createContext)
 
     audio.play('strike')
     audio.close()
-    expect(fake.llamadas.close).toBe(1)
+    expect(fake.calls.close).toBe(1)
 
     audio.play('strike')
     expect(createContext).toHaveBeenCalledTimes(2)
   })
 })
 
-describe('la fuerza del impacto', () => {
-  it('va de 0 a 1 con la velocidad, y a tope a la velocidad máxima del disco', () => {
+describe('the strength of the impact', () => {
+  it('goes from 0 to 1 with the speed, and to the cap at the maximum speed of the puck', () => {
     expect(impactStrength(0)).toBe(0)
     expect(impactStrength(-1)).toBe(0)
     expect(impactStrength(Number.NaN)).toBe(0)
@@ -310,55 +350,55 @@ describe('la fuerza del impacto', () => {
     expect(impactStrength(MAX_PUCK_SPEED * 3)).toBe(1)
   })
 
-  /** Los picos de volumen que se le pidieron a cada ganancia en una reproducción. */
-  function picos(play: (audio: ReturnType<typeof createGlideHockeyAudio>) => void): number[] {
+  /** The volume peaks that were asked of each gain in one playback. */
+  function peaks(play: (audio: ReturnType<typeof createGlideHockeyAudio>) => void): number[] {
     const fake = fakeAudioContext()
-    const valores: number[] = []
+    const values: number[] = []
     const context = fake.context as unknown as { createGain: () => unknown }
     context.createGain = () => ({
       gain: {
         value: 0,
         setValueAtTime: vi.fn(),
         exponentialRampToValueAtTime: (value: number) => {
-          if (value > 0.001) valores.push(value)
+          if (value > 0.001) values.push(value)
         },
       },
       connect: vi.fn(),
     })
     play(createGlideHockeyAudio(() => fake.context))
-    return valores
+    return values
   }
 
-  it('un roce suena más bajo que un golpe seco, pero no se calla', () => {
-    const seco = Math.max(...picos((audio) => audio.play('bounce', 1)))
-    const roce = Math.max(...picos((audio) => audio.play('bounce', 0)))
-    const medio = Math.max(...picos((audio) => audio.play('bounce', 0.5)))
+  it('a brush sounds quieter than a sharp strike, but it does not go silent', () => {
+    const sharp = Math.max(...peaks((audio) => audio.play('bounce', 1)))
+    const brush = Math.max(...peaks((audio) => audio.play('bounce', 0)))
+    const medium = Math.max(...peaks((audio) => audio.play('bounce', 0.5)))
 
-    expect(roce).toBeGreaterThan(0)
-    expect(roce).toBeLessThan(medio)
-    expect(medio).toBeLessThan(seco)
-    // Sin fuerza dicha, suena entero: es lo que hacía antes.
-    expect(Math.max(...picos((audio) => audio.play('bounce')))).toBe(seco)
+    expect(brush).toBeGreaterThan(0)
+    expect(brush).toBeLessThan(medium)
+    expect(medium).toBeLessThan(sharp)
+    // With no strength given, it sounds whole: it is what it did before.
+    expect(Math.max(...peaks((audio) => audio.play('bounce')))).toBe(sharp)
   })
 
-  it('el golpe flojo suena un poco más grave', () => {
+  it('the weak strike sounds a little lower', () => {
     const fake = fakeAudioContext()
     const audio = createGlideHockeyAudio(() => fake.context)
     audio.play('strike', 1)
     audio.play('strike', 0)
-    const [fuerte, flojo] = fake.oscillators
-    expect(flojo.frequency).toBeLessThan(fuerte.frequency)
+    const [strong, weak] = fake.oscillators
+    expect(weak.frequency).toBeLessThan(strong.frequency)
   })
 
-  it('el gol no mira la fuerza: es una celebración', () => {
-    const entero = picos((audio) => audio.play('goal', 1))
-    const flojo = picos((audio) => audio.play('goal', 0))
-    expect(flojo).toEqual(entero)
+  it('the goal ignores the strength: it is a celebration', () => {
+    const whole = peaks((audio) => audio.play('goal', 1))
+    const weak = peaks((audio) => audio.play('goal', 0))
+    expect(weak).toEqual(whole)
   })
 })
 
-describe('el roce del disco', () => {
-  it('no suena parado y sube con la velocidad hasta un fondo, nunca a golpe entero', () => {
+describe('the slide of the puck', () => {
+  it('does not sound at rest and rises with the speed up to a background level, never to a whole strike', () => {
     expect(slideLevel(0)).toBe(0)
     expect(slideLevel(STALL_SPEED)).toBe(0)
     expect(slideLevel(1)).toBeGreaterThan(0)
@@ -368,19 +408,19 @@ describe('el roce del disco', () => {
     expect(slideLevel(Number.NaN)).toBe(0)
   })
 
-  it('el arranque se oye más que la punta: la curva es una raíz', () => {
-    const arranque = slideLevel(1) - slideLevel(STALL_SPEED)
-    const punta = slideLevel(MAX_PUCK_SPEED) - slideLevel(MAX_PUCK_SPEED - 1)
-    expect(arranque).toBeGreaterThan(punta)
+  it('the start is heard more than the top end: the curve is a root', () => {
+    const start = slideLevel(1) - slideLevel(STALL_SPEED)
+    const top = slideLevel(MAX_PUCK_SPEED) - slideLevel(MAX_PUCK_SPEED - 1)
+    expect(start).toBeGreaterThan(top)
   })
 
-  it('más rápido, más agudo', () => {
+  it('faster, higher', () => {
     expect(slidePitch(0)).toBeLessThan(slidePitch(3))
     expect(slidePitch(3)).toBeLessThan(slidePitch(MAX_PUCK_SPEED))
     expect(slidePitch(MAX_PUCK_SPEED * 2)).toBe(slidePitch(MAX_PUCK_SPEED))
   })
 
-  it('no abre el contexto por su cuenta: hasta el primer golpe no hay nada que roce', () => {
+  it('does not open the context on its own: until the first strike there is nothing to slide', () => {
     const create = vi.fn(() => fakeAudioContext().context)
     const audio = createGlideHockeyAudio(create)
 
@@ -392,30 +432,30 @@ describe('el roce del disco', () => {
     expect(create).toHaveBeenCalledTimes(1)
   })
 
-  it('una sola voz en bucle que sigue la velocidad suavizada, y se para al cerrar', () => {
+  it('a single looped voice that follows the speed smoothed, and stops on close', () => {
     const fake = fakeAudioContext()
     const audio = createGlideHockeyAudio(() => fake.context)
     audio.play('strike')
-    const filtrosAntes = fake.filters.length
+    const filtersBefore = fake.filters.length
 
     audio.slide(2)
     audio.slide(4)
     audio.slide(0)
 
-    // Una voz: un filtro más que los del golpe, aunque se haya llamado tres veces.
-    expect(fake.filters.length).toBe(filtrosAntes + 1)
+    // One voice: one filter more than those of the strike, even if it was called three times.
+    expect(fake.filters.length).toBe(filtersBefore + 1)
     audio.close()
-    // Y cerrar no deja el roce sonando en un contexto que ya no existe.
+    // And closing does not leave the slide sounding in a context that no longer exists.
     audio.slide(3)
-    expect(fake.filters.length).toBe(filtrosAntes + 1)
+    expect(fake.filters.length).toBe(filtersBefore + 1)
   })
 })
 
 
-describe('el contexto que abre el navegador', () => {
-  it('sin Web Audio en el navegador, se juega en silencio', () => {
-    // Es lo que pasa en un navegador viejo o con el audio vetado por política:
-    // el juego tiene que seguir, no llevarse la escena por delante.
+describe('the context the browser opens', () => {
+  it('without Web Audio in the browser, it is played in silence', () => {
+    // It is what happens in an old browser or with the audio banned by policy:
+    // the game has to go on, not take the scene down with it.
     vi.stubGlobal('window', {})
 
     const audio = createGlideHockeyAudio()
@@ -424,7 +464,7 @@ describe('el contexto que abre el navegador', () => {
     vi.unstubAllGlobals()
   })
 
-  it('sin ventana ninguna tampoco rompe', () => {
+  it('with no window at all it does not break either', () => {
     vi.stubGlobal('window', undefined)
 
     const audio = createGlideHockeyAudio()
@@ -433,14 +473,14 @@ describe('el contexto que abre el navegador', () => {
     vi.unstubAllGlobals()
   })
 
-  it('si abrir el contexto falla, se juega en silencio', () => {
-    // Sin permiso, sin salida de audio o con demasiados contextos abiertos.
-    class Rota {
+  it('if opening the context fails, it is played in silence', () => {
+    // No permission, no audio output or too many contexts open.
+    class Broken {
       constructor() {
-        throw new Error('sin salida de audio')
+        throw new Error('no audio output')
       }
     }
-    vi.stubGlobal('window', { AudioContext: Rota })
+    vi.stubGlobal('window', { AudioContext: Broken })
 
     const audio = createGlideHockeyAudio()
     expect(() => audio.play('strike')).not.toThrow()
@@ -448,7 +488,7 @@ describe('el contexto que abre el navegador', () => {
     vi.unstubAllGlobals()
   })
 
-  it('con Web Audio, lo abre y suena', () => {
+  it('with Web Audio, it opens it and sounds', () => {
     const fake = fakeAudioContext()
     vi.stubGlobal('window', { AudioContext: function () { return fake.context } })
 
@@ -460,82 +500,118 @@ describe('el contexto que abre el navegador', () => {
   })
 })
 
-describe('cerrar el reproductor', () => {
-  it('una voz ya parada no impide cerrar el contexto', () => {
-    // El navegador lanza si se para dos veces la misma fuente, y eso pasa al
-    // salir de la partida justo después de que el roce se apague solo.
+describe('closing the player', () => {
+  it('a voice already stopped does not prevent closing the context', () => {
+    // The browser throws if the same source is stopped twice, and that happens
+    // when leaving the match right after the slide goes silent on its own.
     const fake = fakeAudioContext()
     const audio = createGlideHockeyAudio(() => fake.context)
-    // El primer golpe es quien abre el contexto; sin él no hay roce que parar.
+    // The first strike is what opens the context; without it there is no slide to stop.
     audio.play('strike')
     audio.slide(5)
 
-    // La última fuente creada es la voz del roce; el golpe crea la suya.
-    const voz = fake.sources[fake.sources.length - 1]
-    voz.stop = () => {
-      throw new Error('ya parada')
+    // The last source created is the slide voice; the strike creates its own.
+    const voice = fake.sources[fake.sources.length - 1]
+    voice.stop = () => {
+      throw new Error('already stopped')
     }
 
     expect(() => audio.close()).not.toThrow()
-    expect(fake.llamadas.close).toBe(1)
+    expect(fake.calls.close).toBe(1)
   })
 })
 
-describe('velocidades imposibles', () => {
-  it('una velocidad que no es número no sube el volumen del roce', () => {
-    // Sale del disco cada fotograma: al volver de una pestaña en segundo plano
-    // puede llegar como NaN, y con eso el volumen se iría a lo que sea.
+describe('impossible speeds', () => {
+  it('a speed that is not a number does not raise the volume of the slide', () => {
+    // It comes from the puck every frame: on coming back from a background tab
+    // it can arrive as NaN, and with that the volume would go to anything.
     expect(slideLevel(Number.NaN)).toBe(slideLevel(0))
     expect(slidePitch(Number.NaN)).toBe(slidePitch(0))
   })
 
-  it('y un golpe sin velocidad conocida es el más flojo, no el más fuerte', () => {
+  it('and a strike with no known speed is the weakest, not the strongest', () => {
     expect(impactStrength(Number.NaN)).toBe(impactStrength(0))
   })
 })
 
-describe('el volumen de los efectos del arcade', () => {
-  it('llega al nodo maestro, que es por donde pasa todo', () => {
+describe('the effects volume of the hall', () => {
+  it('reaches the master node, which is where everything goes through', () => {
     const fake = fakeAudioContext()
     const audio = createGlideHockeyAudio(() => fake.context)
 
     audio.play('goal')
-    const completo = fake.maestro().value
+    const full = fake.master().value
 
     audio.setVolume(0.5)
 
-    expect(fake.maestro().value).toBeCloseTo(completo / 2, 6)
+    expect(fake.master().value).toBeCloseTo(full / 2, 6)
   })
 
-  it('se guarda para cuando haya audio, si se pide antes de abrirlo', () => {
-    // El contexto no se abre hasta el primer sonido, y el volumen se elige
-    // antes, en la portada del arcade: pedirlo con el audio aún cerrado no
-    // puede perderse.
+  it('is kept for when there is audio, if it is requested before opening it', () => {
+    // The context does not open until the first sound, and the volume is
+    // chosen before, on the hall's front page: requesting it with the audio
+    // still closed cannot get lost.
     const fake = fakeAudioContext()
     const audio = createGlideHockeyAudio(() => fake.context)
 
     audio.setVolume(0.5)
     audio.play('goal')
 
-    const aMitad = fake.maestro().value
+    const atHalf = fake.master().value
     audio.setVolume(1)
 
-    expect(aMitad).toBeCloseTo(fake.maestro().value / 2, 6)
+    expect(atHalf).toBeCloseTo(fake.master().value / 2, 6)
   })
 
-  it('no se sale de lo que el navegador admite', () => {
-    // Lo que llega son ajustes de fuera: por encima de uno la ganancia satura,
-    // que no es sonar más alto sino sonar roto.
+  it('does not go beyond what the browser admits', () => {
+    // What arrives are settings from outside: above one the gain saturates,
+    // which is not sounding louder but sounding broken.
     const fake = fakeAudioContext()
     const audio = createGlideHockeyAudio(() => fake.context)
 
     audio.play('goal')
-    const completo = fake.maestro().value
+    const full = fake.master().value
 
     audio.setVolume(4)
-    expect(fake.maestro().value).toBeCloseTo(completo, 6)
+    expect(fake.master().value).toBeCloseTo(full, 6)
 
     audio.setVolume(-1)
-    expect(fake.maestro().value).toBe(0)
+    expect(fake.master().value).toBe(0)
+  })
+})
+
+describe('the bus low-pass', () => {
+  it('goes between the master and the output, open and flat until somebody closes it', () => {
+    const fake = fakeAudioContext()
+    const audio = createGlideHockeyAudio(() => fake.context)
+    audio.play('strike')
+
+    const filter = fake.bus[0]
+    expect(filter.type).toBe('lowpass')
+    expect(filter.frequency.value).toBe(LOWPASS_OPEN)
+    expect(filter.Q.value).toBeCloseTo(Math.SQRT1_2)
+    expect(filter.connect).toHaveBeenCalledWith(fake.context.destination)
+  })
+
+  it('closes and opens smoothed, bounded to what can be heard', () => {
+    const fake = fakeAudioContext()
+    const audio = createGlideHockeyAudio(() => fake.context)
+    audio.play('strike')
+    const filter = fake.bus[0]
+
+    audio.setLowpass(500)
+    expect(filter.frequency.setTargetAtTime).toHaveBeenLastCalledWith(500, 0, expect.any(Number))
+    audio.setLowpass(1e6)
+    expect(filter.frequency.setTargetAtTime).toHaveBeenLastCalledWith(LOWPASS_OPEN, 0, expect.any(Number))
+    audio.setLowpass(0)
+    expect(filter.frequency.setTargetAtTime).toHaveBeenLastCalledWith(20, 0, expect.any(Number))
+  })
+
+  it('with the audio not open yet, the requested cutoff is applied when it opens', () => {
+    const fake = fakeAudioContext()
+    const audio = createGlideHockeyAudio(() => fake.context)
+    audio.setLowpass(800)
+    audio.play('strike')
+    expect(fake.bus[0].frequency.value).toBe(800)
   })
 })

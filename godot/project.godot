@@ -1,0 +1,27 @@
+; Glide Hockey in Godot, with the logic of `glide-hockey/src/lib` run by GodotJS.
+;
+; Same contract as `xrcade/examples/hello-xrcade`: all the content hangs from
+; `games/glide-hockey/`, because the package is mounted on the hub's `res://` root.
+
+config_version=5
+
+[application]
+
+config/name="Glide Hockey (GodotJS)"
+run/main_scene="res://games/glide-hockey/main.tscn"
+config/features=PackedStringArray("4.7", "Forward Plus")
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+textures/vram_compression/import_etc2_astc=true
+textures/vram_compression/import_s3tc_bptc=true
+
+[xr]
+
+; On macOS there is no OpenXR runtime: with this enabled, pressing play from the editor on a Mac
+; shows a modal warning that stops the start-up. The depots (Windows, Linux, Steam Frame) do not
+; carry the `macos` tag and keep using OpenXR.
+openxr/enabled=true
+openxr/enabled.macos=false
+shaders/enabled=true

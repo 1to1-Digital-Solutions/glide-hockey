@@ -12,55 +12,55 @@ beforeEach(() => {
   window.localStorage.clear()
 })
 
-describe('lo que se lee del navegador', () => {
-  it('sin nada guardado no hay récord', () => {
+describe('what is read from the browser', () => {
+  it('with nothing stored there is no record', () => {
     expect(parseBestPoints(null)).toBe(0)
     expect(parseBestPoints('   ')).toBe(0)
   })
 
-  it('descarta lo que alguien haya podido escribir a mano', () => {
-    expect(parseBestPoints('mucho')).toBe(0)
+  it('discards what someone may have written by hand', () => {
+    expect(parseBestPoints('a lot')).toBe(0)
     expect(parseBestPoints('-40')).toBe(0)
     expect(parseBestPoints('12.5')).toBe(0)
   })
 
-  it('acepta un entero', () => {
+  it('accepts an integer', () => {
     expect(parseBestPoints('1200')).toBe(1200)
   })
 })
 
-describe('guardar el récord', () => {
-  it('solo escribe si mejora lo que había', () => {
+describe('saving the record', () => {
+  it('only writes if it improves on what was there', () => {
     saveBestPoints('practice', 500)
     saveBestPoints('practice', 300)
 
     expect(getBestPoints('practice')).toBe(500)
   })
 
-  it('lleva un récord por modo', () => {
+  it('keeps one record per mode', () => {
     saveBestPoints('practice', 500)
 
     expect(getBestPoints('challenge')).toBe(0)
     expect(window.localStorage.getItem(HIGH_SCORE_KEYS.challenge)).toBeNull()
   })
 
-  it('no guarda una puntuación imposible', () => {
+  it('does not save an impossible score', () => {
     saveBestPoints('practice', Number.NaN)
 
     expect(getBestPoints('practice')).toBe(0)
   })
 })
 
-describe('la racha de la partida sin fin', () => {
-  it('solo se guarda si mejora la que había', () => {
+describe('the streak of the endless match', () => {
+  it('is only saved if it improves on the one there was', () => {
     saveBestEndlessStreak(5)
     saveBestEndlessStreak(3)
 
     expect(getBestEndlessStreak()).toBe(5)
   })
 
-  it('una racha imposible no se guarda', () => {
-    // Llega de la partida, pero también de lo guardado, que se edita a mano.
+  it('an impossible streak is not saved', () => {
+    // It comes from the match, but also from what is stored, which is edited by hand.
     saveBestEndlessStreak(5)
     for (const streak of [0, -1, 2.5, Number.NaN]) saveBestEndlessStreak(streak)
 

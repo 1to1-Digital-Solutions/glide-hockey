@@ -1,41 +1,41 @@
 import { defineConfig, devices } from '@playwright/test'
 
 /**
- * Tests de extremo a extremo, contra el **build de producción**.
+ * End-to-end tests, against the **production build**.
  *
- * Que sea el de producción no es un detalle: en desarrollo React evalúa código
- * con `eval()` y ensucia la consola, y el test que más valor tiene de esta
- * suite es justamente el que exige la consola limpia. Además, las cabeceras de
- * `next.config.ts` —la política de seguridad que imita a la del salón de
- * xrcade— solo se ven sirviendo la aplicación de verdad, y son las que cazan un
- * `wasm` o un CDN colados en el árbol de dependencias.
+ * That it is the production one is not a detail: in development React evaluates
+ * code with `eval()` and dirties the console, and the most valuable test of
+ * this suite is precisely the one that demands a clean console. Besides, the
+ * headers of `next.config.ts` —the security policy that imitates the one of the
+ * xrcade hall— are only seen by serving the real application, and they are the
+ * ones that catch a `wasm` or a CDN slipped into the dependency tree.
  *
- * Se sirve en `127.0.0.1` y no en `localhost` a propósito: hay librerías del
- * ecosistema de WebXR que inyectan un emulador cuando el nombre de máquina es
- * exactamente `localhost`, y eso cambiaría el navegador bajo los pies de unos
- * tests que comprueban qué pasa **sin** visor.
+ * It is served on `127.0.0.1` and not on `localhost` on purpose: there are
+ * libraries of the WebXR ecosystem that inject an emulator when the host name
+ * is exactly `localhost`, and that would change the browser under the feet of
+ * tests that check what happens **without** a headset.
  *
- * El puerto sale del entorno porque en esta máquina conviven varios proyectos:
- * el 3000 no es de nadie que pueda ocuparlo por su cuenta.
+ * The port comes from the environment because several projects live together
+ * on this machine: 3000 belongs to nobody who can take it on their own.
  */
 const PORT = Number(process.env.E2E_PORT ?? process.env.PORT ?? 3100)
 const HOST = '127.0.0.1'
 const baseURL = `http://${HOST}:${PORT}`
 
 export default defineConfig({
-  // Empaqueta el emulador de WebXR y el anfitrión de prueba (`e2e/support/`).
+  // Bundles the WebXR emulator and the test host (`e2e/support/`).
   globalSetup: './e2e/support/globalSetup.ts',
   testDir: './e2e',
-  // La partida va en tiempo real: dos a la vez en la misma máquina se roban
-  // fotogramas y falsean lo que tarda el disco en cruzar la mesa.
+  // The match runs in real time: two at once on the same machine steal frames
+  // from each other and distort how long the puck takes to cross the table.
   workers: 1,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
-  // Holgado a propósito: una partida dura sus segundos y en una máquina cargada
-  // —o en integración continua, con WebGL por software— se alarga en tiempo
-  // real.
+  // Roomy on purpose: a match lasts its seconds and on a loaded machine —or in
+  // continuous integration, with WebGL in software— it stretches in real
+  // time.
   timeout: 120_000,
   expect: { timeout: 30_000 },
   use: {
@@ -47,7 +47,7 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        // El Canvas necesita WebGL; sin pantalla lo cubre SwiftShader.
+        // The Canvas needs WebGL; without a screen SwiftShader covers it.
         launchOptions: {
           args: ['--use-gl=angle', '--enable-unsafe-swiftshader'],
         },

@@ -2,17 +2,22 @@
 
 import { useCallback } from 'react'
 
-import { useGame } from '../../lib/gameStore'
-import { useGrabMode, useLang } from '../../lib/ajustesCliente'
-import { traductor, type TextKey } from '../../lib/textos'
+import { PLAYER_LABELS, formatMargin, margin, type Player } from '../../lib/duel'
+import type { DuelTally } from '../../lib/duelTally'
+import { useGame, type DuelView } from '../../lib/gameStore'
+import { useDuelTally } from '../../lib/useDuelTally'
+import { useGrabMode, useLang } from '../../lib/settingsClient'
+import { translator, type TextKey } from '../../lib/textos'
 import { CanvasPanel, drawParagraph, drawText } from './canvasPanel'
-import { MandoDeVerdad } from './MandoDeVerdad'
+import { RealController } from './RealController'
+import { BACK_SCOREBOARD } from '../../lib/scoreboardSign'
 import { isEndless } from '../../lib/gameMode'
 import { PALETTE } from '../../lib/palette'
+import { emissiveMaterial, COMMON_PALETTE } from '../../lib/commonPalette'
 import { useExit } from '../../game/exit'
 import {
   DIM_COLOR,
-  XRSalirIcon,
+  XRExitIcon,
   XRMenuIcon,
   XRNumber,
   XRPanel,
@@ -23,20 +28,20 @@ import {
 } from './XRUi'
 
 /**
- * El marcador y el final de partida, dentro del visor.
+ * The scoreboard and the end of the match, inside the headset.
  *
- * Es el equivalente inmersivo de `ui/HUD`. Todo son cifras de siete segmentos y
- * placas de color (ver `lib/xrDigits.ts` para el porqué de no usar texto): el
- * marcador en cian es el del jugador y el rojo el de la máquina, los mismos
- * colores que llevan sus mazos en la mesa.
+ * It is the immersive equivalent of `ui/HUD`. Everything is seven-segment digits
+ * and colour plates (see `lib/xrDigits.ts` for the why of not using text): the
+ * scoreboard in cyan is the player's and the red one the machine's, the same
+ * colours their mallets carry on the table.
  *
- * Quien lo monta decide dónde va; aquí solo se compone (ver `GameWorld`).
+ * Whoever mounts it decides where it goes; here it is only composed (see `GameWorld`).
  */
 
 const SMALL_BUTTON: [number, number] = [0.1, 0.1]
 const ACTION_BUTTON: [number, number] = [0.24, 0.11]
 
-/** Altura de cada fila del marcador dentro de su panel, en metros. */
+/** Height of each row of the scoreboard inside its panel, in metres. */
 const ROW = { goals: 0.06, points: -0.065, round: -0.135 }
 
 function hitBox(
@@ -48,38 +53,58 @@ function hitBox(
 }
 
 /**
- * Lo que mide la placa del marcador, en metros.
+ * What the scoreboard plate measures, in metres.
  *
- * Sale del componente para poder comprobar desde fuera que no se le pone otro panel delante: el
- * menú de ajustes lo tapaba entero, y eso solo se ve desde los ojos de quien juega
- * (`lib/panelOcclusion.ts`).
+ * It comes out of the component so that it can be checked from outside that no other panel is
+ * put in front of it: the settings menu covered it entirely, and that is only seen from the eyes
+ * of whoever is playing (`lib/panelOcclusion.ts`).
  */
-export const SCOREBOARD_SIZE = { width: 0.52, height: 0.34 } as const
+export const SCOREBOARD_SIZE = { width: BACK_SCOREBOARD.width, height: BACK_SCOREBOARD.height } as const
 
-/** El marcador de la partida en curso, con los puntos debajo. */
+/**
+ * At what height the goals go: in their row at the top, or **in the middle** when the sign above
+ * already says the points and the round and nothing is left underneath (`scoreboardOmits`).
+ */
+export function goalsRow(omitted: { points: boolean; round: boolean }): number {
+  return omitted.points && omitted.round ? 0 : ROW.goals
+}
+
+/**
+ * The scoreboard of the match in progress, with the points underneath.
+ *
+ * **Minus what the sign above it already says** (`omitted`): in the challenge, the points and
+ * the round are read there, in letters, and the goals stay here.
+ */
 export function XRScoreboard() {
-  const { gameState, playerGoals, opponentGoals, points, round, gameMode, activeLevel } = useGame()
-  // La ronda del reto, o el nivel en Niveles: la misma fila.
-  const fila = round ?? (gameMode === 'levels' ? activeLevel : null)
+  const { gameState, playerGoals, opponentGoals, points, round, lap, gameMode, activeLevel, duel, omitted: omittedRows } =
+    useGame()
+  // The round of the challenge, the level in Levels or, in the duel, which player has the
+  // controller: the same row. Without letters, the player's number is what says whose the cyan
+  // scoreboard is.
+  const rowValue = omittedRows.round ? null : (round ?? (gameMode === 'levels' ? activeLevel : duel != null ? duel.player + 1 : null))
+  // The lap of the challenge's ladder, only when there is already more than one: on
+  // the first it says nothing the round does not already say (see `lib/challenge.ts`).
+  const lapCount = !omittedRows.round && lap != null && lap > 1 ? lap : null
+  const goalsY = goalsRow(omittedRows)
   if (gameState === 'menu') return null
 
   return (
     <group>
-      {/* Alto para las tres filas: marcador, puntos y —en reto— la ronda. Una
-          cifra ocupa `1,14 × size` contando el grosor de los segmentos, y con
-          el panel más corto la ronda se dibujaba encima de los puntos y se
-          salía por abajo. */}
+      {/* Tall enough for the three rows: scoreboard, points and —in the challenge— the
+          round. A digit takes up `1.14 × size` counting the thickness of the
+          segments, and with the shorter panel the round was drawn on top of the
+          points and stuck out at the bottom. */}
       <XRPanel width={SCOREBOARD_SIZE.width} height={SCOREBOARD_SIZE.height} opacity={0.7} />
 
       <XRNumber
         value={playerGoals}
         size={0.13}
         color={PALETTE.primary}
-        position={[-0.12, ROW.goals, 0]}
+        position={[-0.12, goalsY, 0]}
       />
-      {/* Separador de marcador: dos puntos, que es lo que se lee como «a». */}
+      {/* Scoreboard separator: two dots, which is what reads as «a». */}
       {[-0.03, 0.03].map((y) => (
-        <mesh key={y} position={[0, ROW.goals + y, 0]}>
+        <mesh key={y} position={[0, goalsY + y, 0]}>
           <planeGeometry args={[0.016, 0.016]} />
           <meshBasicMaterial color={DIM_COLOR} toneMapped={false} />
         </mesh>
@@ -88,104 +113,124 @@ export function XRScoreboard() {
         value={opponentGoals}
         size={0.13}
         color={PALETTE.rival}
-        position={[0.12, ROW.goals, 0]}
+        position={[0.12, goalsY, 0]}
       />
 
-      <XRNumber
-        value={points}
-        size={0.055}
-        color={PALETTE.puck}
-        position={[0, ROW.points, 0]}
-      />
-
-      {/* En reto, la ronda por la que va; en niveles, el nivel. En prueba no hay
-          nada que enseñar aquí. */}
-      {fila != null ? (
+      {omittedRows.points ? null : (
         <XRNumber
-          value={fila}
+          value={points}
+          size={0.055}
+          color={PALETTE.puck}
+          position={[0, ROW.points, 0]}
+        />
+      )}
+
+      {/* In the challenge, the round it is on; in levels, the level. In practice there
+          is nothing to show here. With more than one lap of the ladder, the round
+          shifts to the left to make room for the lap counter. */}
+      {rowValue != null ? (
+        <XRNumber
+          value={rowValue}
           size={0.04}
           color={DIM_COLOR}
-          position={[0, ROW.round, 0]}
+          position={[lapCount != null ? -0.05 : 0, ROW.round, 0]}
         />
+      ) : null}
+
+      {/* The lap counter: a cross and the number, in the colour of the points.
+          It goes in that colour and not in the round's on purpose: what it says is
+          not where things are at, it is that **what is scored now is worth more**
+          (see `lib/challenge.ts`). A cross of two crossed strokes and not a letter:
+          here there is no typography, there are segments (`XRNumber`). */}
+      {lapCount != null ? (
+        <group position={[0.05, ROW.round, 0]}>
+          {[1, -1].map((turn) => (
+            <mesh key={turn} position={[-0.028, 0, 0]} rotation={[0, 0, (turn * Math.PI) / 4]}>
+              <planeGeometry args={[0.026, 0.005]} />
+              <meshBasicMaterial color={PALETTE.puck} toneMapped={false} />
+            </mesh>
+          ))}
+          <XRNumber value={lapCount} size={0.04} color={PALETTE.puck} position={[0.008, 0, 0]} />
+        </group>
       ) : null}
     </group>
   )
 }
 
 /**
- * Lo ancho y lo alto del aviso de coger el mazo, en metros.
+ * The width and the height of the pick-up-the-mallet notice, in metres.
  *
- * Con el alto de dos renglones de su letra y el párrafo colgado cerca del borde, el primero se
- * salía de la placa por arriba; y en español, con un toque, la frase ocupa tres. La placa tiene
- * alto para tres y la frase va centrada en ella.
+ * With the height of two rows of its lettering and the paragraph hung near the edge, the first
+ * one stuck out of the plate at the top; and in Spanish, with one tap, the phrase takes three.
+ * The plate is tall enough for three and the phrase goes centred in it.
  */
-export const AVISO_DEL_MAZO: [number, number] = [0.62, 0.2]
+export const MALLET_NOTICE: [number, number] = [0.62, 0.2]
 
-/** A qué tamaño se escribe el aviso de coger el mazo, en metros de alto de letra. */
+/** At what size the pick-up-the-mallet notice is written, in metres of letter height. */
 export const MALLET_TEXT = { phrase: 0.036 } as const
 
 /**
- * Lo que pone el aviso de coger el mazo, fuera del componente **para poder medirlo**
- * (`cuenta.legible.test.ts`): es texto del visor como cualquier otro panel.
+ * What the pick-up-the-mallet notice says, outside the component **so that it can be measured**
+ * (`countdown.legible.test.ts`): it is headset text like any other panel.
  */
-export function dibujarElAvisoDelMazo(
+export function drawMalletNotice(
   ctx: CanvasRenderingContext2D,
-  t: (clave: TextKey) => string,
-  conUnToque: boolean,
+  t: (key: TextKey) => string,
+  oneTap: boolean,
 ): void {
   drawParagraph(
     ctx,
     t(
-      conUnToque
+      oneTap
         ? 'Press the grip button on the mallet to pick it up'
         : 'Close your hand on the mallet to pick it up',
     ),
     0,
     0,
-    { size: MALLET_TEXT.phrase, color: PALETTE.foreground, weight: '700', maxWidth: AVISO_DEL_MAZO[0] - 0.06 },
+    { size: MALLET_TEXT.phrase, color: PALETTE.foreground, weight: '700', maxWidth: MALLET_NOTICE[0] - 0.06 },
   )
 }
 
 /**
- * La cuenta atrás antes del saque, grande y sobre la mesa.
+ * The countdown before the serve, large and over the table.
  *
- * **Y cuando se para, dice por qué.** En el último segundo espera a que el mazo esté en la
- * mano —sacar con el mazo en la mesa es empezar a perder—, y eso no se contaba: el 1 se
- * quedaba clavado y desde dentro parece que el juego se ha colgado. Reportado con el visor
- * puesto: «el countdown se queda parado en el 1 sin ninguna explicación». La frase es la
- * misma que enseña el tutorial, y cambia con la forma de agarrar elegida en el arcade.
+ * **And when it stops, it says why.** In the last second it waits for the mallet to be in the
+ * hand —serving with the mallet on the table is starting to lose—, and that was not told: the
+ * 1 stayed stuck and from inside it looks as if the game has hung. Reported with the headset
+ * on: «the countdown stays stopped on the 1 with no explanation». The phrase is the same one
+ * the tutorial shows, and it changes with the way of grabbing chosen in the hall.
  *
- * **Y enseña qué botón es.** Decir «el botón de agarre» solo sirve a quien ya sabe cuál es, y
- * aquí el tutorial no puede ayudar: su paso de coger se supera **en la cuenta atrás**, antes
- * de que el panel llegue a salir. Así que el botón se enciende donde está, sobre el mando que
- * se tiene en la mano (`MandoDeVerdad.tsx`). En las dos manos: el mazo se coge con
- * cualquiera.
+ * **And it shows which button it is.** Saying «el botón de agarre» only helps whoever already
+ * knows which one it is, and here the tutorial cannot help: its pick-up step is passed **in
+ * the countdown**, before the panel ever comes up. So the button lights up where it is, on the
+ * controller held in the hand (`RealController.tsx`). On both hands: the mallet is picked up
+ * with either.
  */
 export function XRCountdown() {
-  const { gameState, countdown, esperandoElMazo } = useGame()
-  const t = traductor(useLang())
-  const conUnToque = useGrabMode() === 'toggle'
+  const { gameState, countdown, waitingForMallet: malletPending } = useGame()
+  const t = translator(useLang())
+  const oneTap = useGrabMode() === 'toggle'
 
-  const escribir = useCallback(
-    (ctx: CanvasRenderingContext2D) => dibujarElAvisoDelMazo(ctx, t, conUnToque),
-    [t, conUnToque],
+  const write = useCallback(
+    (ctx: CanvasRenderingContext2D) => drawMalletNotice(ctx, t, oneTap),
+    [t, oneTap],
   )
 
   if (gameState !== 'countdown') return null
 
-  if (esperandoElMazo) {
+  if (malletPending) {
     return (
       <>
-        {/* Fuera del grupo del aviso a propósito: esto no vive en el panel, vive en la mano.
-            Se coloca solo, deshaciendo lo que le pongan sus padres. */}
-        <MandoDeVerdad mano="left" boton="agarre" />
-        <MandoDeVerdad mano="right" boton="agarre" />
+        {/* Outside the notice's group on purpose: this does not live on the panel, it lives in
+            the hand. It places itself, undoing whatever its parents put on it. */}
+        <RealController hand="left" button="agarre" />
+        <RealController hand="right" button="agarre" />
         <group>
-          <XRPanel width={AVISO_DEL_MAZO[0]} height={AVISO_DEL_MAZO[1]} />
+          <XRPanel width={MALLET_NOTICE[0]} height={MALLET_NOTICE[1]} />
           <CanvasPanel
-            width={AVISO_DEL_MAZO[0]}
-            height={AVISO_DEL_MAZO[1]}
-            draw={escribir}
+            width={MALLET_NOTICE[0]}
+            height={MALLET_NOTICE[1]}
+            draw={write}
             fallbackColor={PALETTE.background}
           />
         </group>
@@ -198,48 +243,168 @@ export function XRCountdown() {
   )
 }
 
+/** What the end-of-match panel measures, in metres. */
+export const GAME_OVER_SIZE: [number, number] = [0.6, 0.42]
+
+/** The three buttons of the end of the match, in the panel's own coordinates. */
+export const GAME_OVER_BOXES = {
+  play: hitBox(-0.12, -0.13, ACTION_BUTTON),
+  menu: hitBox(0.11, -0.13, SMALL_BUTTON),
+  exit: hitBox(0.24, -0.13, SMALL_BUTTON),
+}
+
 /**
- * El final de partida: cuántos puntos, y qué hacer ahora.
+ * At what size the end of the duel is written, in metres of letter height.
  *
- * Sin texto tampoco aquí, así que el resultado se dice con el color de la
- * placa —el cian del jugador si ganó, el rojo de la máquina si perdió— y con
- * el marcador, que sigue a la vista al lado.
+ * A single list for whoever paints and for whoever measures (`duel.legible.test.ts`), the same
+ * ones as the exit notice, which goes in the same column and at the same scale.
+ */
+export const DUEL_TEXT = { title: 0.05, body: 0.034 } as const
+
+/**
+ * What is written when a match of the duel ends.
+ *
+ * It is one of the few things in the headset with letters, and on purpose: «pásale el mando a
+ * Jugador 2» is not said with a colour plate. Apart from the component so that it can be
+ * **measured** in both languages (`duel.legible.test.ts`): Spanish is longer and it is where
+ * the text overflows.
+ */
+export function drawDuel(
+  ctx: CanvasRenderingContext2D,
+  t: (key: TextKey, values?: Record<string, string | number>) => string,
+  duel: DuelView,
+  score: { scored: number; conceded: number },
+  tally: DuelTally,
+): void {
+  const nameOf = (player: Player) => t(PLAYER_LABELS[player])
+  const textWidth = GAME_OVER_SIZE[0] - 0.08
+  const title = duel.over
+    ? duel.winner != null
+      ? t('{player} wins', { player: nameOf(duel.winner) })
+      : t('Tie')
+    : t('{player}: {scored}–{conceded}', { player: nameOf(duel.player), ...score })
+  drawText(ctx, title, 0, 0.15, { size: DUEL_TEXT.title, color: PALETTE.foreground, weight: '700', maxWidth: textWidth })
+
+  if (duel.next != null) {
+    drawParagraph(ctx, t('Pass the controller to {player}.', { player: nameOf(duel.next) }), 0, 0.05, {
+      size: DUEL_TEXT.body,
+      color: PALETTE.foreground,
+      maxWidth: textWidth,
+    })
+    return
+  }
+
+  ;([0, 1] as const).forEach((player, row) => {
+    const match = duel.matches[player]
+    if (match == null) return
+    drawText(
+      ctx,
+      t('{player}: {scored}–{conceded} ({margin})', {
+        player: nameOf(player),
+        scored: match.scored,
+        conceded: match.conceded,
+        margin: formatMargin(margin(match)),
+      }),
+      0,
+      0.09 - row * 0.05,
+      {
+        size: DUEL_TEXT.body,
+        color: duel.winner === player ? PALETTE.primary : DIM_COLOR,
+        weight: duel.winner === player ? '700' : '400',
+        maxWidth: textWidth,
+      },
+    )
+  })
+  // What the two of them have between them is a phrase with three figures that grow with each
+  // duel: it is split into lines and not shrunk, because shrunk it drops below the size that can
+  // be read at the column's distance. Anchored at the top it grows only downwards, towards the
+  // buttons.
+  drawParagraph(
+    ctx,
+    t('Duels won: {one}–{two} · tied: {ties}', { one: tally.wins[0], two: tally.wins[1], ties: tally.ties }),
+    0,
+    0.015,
+    { size: DUEL_TEXT.body, color: DIM_COLOR, maxWidth: textWidth, anchor: 'top' },
+  )
+}
+
+/**
+ * The end of the match: how many points, and what to do now.
+ *
+ * Outside the duel, with no text: the result is said with the colour of the
+ * plate —the common green of a hit if they won, the red of a miss if they lost,
+ * the same ones across the whole hall— and with the scoreboard, which stays in
+ * view beside it. The two are also told apart by lightness
+ * (`commonPalette.test.ts`), which is what is left without seeing the colour. In
+ * the duel it is written (`drawDuel`): whose match it was and whose turn it is,
+ * or who wins.
  */
 export function XRGameOver() {
-  const { gameState, outcome, points, isRecord, levelResult, startGame, resetGame } =
-    useGame()
+  const {
+    gameState,
+    outcome,
+    points,
+    isRecord,
+    levelResult,
+    duel,
+    playerGoals,
+    opponentGoals,
+    startGame,
+    resetGame,
+  } = useGame()
   const exit = useExit()
+  const t = translator(useLang())
+  const tally = useDuelTally()
+
+  const writeDuel = useCallback(
+    (ctx: CanvasRenderingContext2D) => {
+      if (duel != null) drawDuel(ctx, t, duel, { scored: playerGoals, conceded: opponentGoals }, tally)
+    },
+    [t, duel, playerGoals, opponentGoals, tally],
+  )
 
   if (gameState !== 'finished') return null
 
   const won = outcome === 'won'
   return (
     <group>
-      <XRPanel width={0.6} height={0.42} />
+      <XRPanel width={GAME_OVER_SIZE[0]} height={GAME_OVER_SIZE[1]} />
 
-      <mesh position={[0, 0.13, -0.01]}>
-        <planeGeometry args={[0.5, 0.06]} />
-        <meshBasicMaterial
-          color={won ? PALETTE.primary : PALETTE.rival}
-          toneMapped={false}
-        />
-      </mesh>
+      {/* In the duel, what is said is written. The play button starts the other player's
+          match, or a new duel. */}
+      {duel != null ? (
+        <group position={[0, 0, 0.004]}>
+          <CanvasPanel
+            width={GAME_OVER_SIZE[0]}
+            height={GAME_OVER_SIZE[1]}
+            draw={writeDuel}
+            fallbackColor={PALETTE.background}
+          />
+        </group>
+      ) : (
+        <>
+          <mesh position={[0, 0.13, -0.01]}>
+            <planeGeometry args={[0.5, 0.06]} />
+            <meshBasicMaterial {...emissiveMaterial(won ? COMMON_PALETTE.hit : COMMON_PALETTE.miss)} />
+          </mesh>
 
-      <XRNumber
-        value={points}
-        size={0.11}
-        color={isRecord ? PALETTE.puck : PALETTE.foreground}
-        position={[0, 0.02, 0]}
-      />
+          <XRNumber
+            value={points}
+            size={0.11}
+            color={isRecord ? COMMON_PALETTE.gold : PALETTE.foreground}
+            position={[0, 0.02, 0]}
+          />
+        </>
+      )}
 
-      {/* Las estrellas del nivel, bajo los puntos: las ganadas encendidas. */}
+      {/* The stars of the level, under the points: the ones earned lit. */}
       {levelResult ? (
         <group position={[0, -0.055, 0]}>
           {[0, 1, 2].map((i) => (
             <mesh key={i} position={[(i - 1) * 0.045, 0, 0]} rotation={[0, 0, Math.PI / 4]}>
               <planeGeometry args={[0.022, 0.022]} />
               <meshBasicMaterial
-                color={i < levelResult.stars ? PALETTE.puck : DIM_COLOR}
+                color={i < levelResult.stars ? COMMON_PALETTE.gold : DIM_COLOR}
                 toneMapped={false}
                 transparent
                 opacity={i < levelResult.stars ? 1 : 0.35}
@@ -249,7 +414,7 @@ export function XRGameOver() {
         </group>
       ) : null}
       <XRPressable
-        box={hitBox(-0.12, -0.13, ACTION_BUTTON)}
+        box={GAME_OVER_BOXES.play}
         onSelect={startGame}
       >
         <XRPlate
@@ -260,9 +425,9 @@ export function XRGameOver() {
         <XRPlayIcon size={0.045} />
       </XRPressable>
 
-      {/* Volver al menú y salir del juego son cosas distintas, así que llevan
-          iconos distintos: dos aspas iguales no se pueden diferenciar. */}
-      <XRPressable box={hitBox(0.11, -0.13, SMALL_BUTTON)} onSelect={resetGame}>
+      {/* Going back to the menu and leaving the game are different things, so they
+          carry different icons: two identical crosses cannot be told apart. */}
+      <XRPressable box={GAME_OVER_BOXES.menu} onSelect={resetGame}>
         <XRPlate
           width={SMALL_BUTTON[0]}
           height={SMALL_BUTTON[1]}
@@ -272,36 +437,40 @@ export function XRGameOver() {
         <XRMenuIcon color={DIM_COLOR} />
       </XRPressable>
 
-      <XRPressable box={hitBox(0.24, -0.13, SMALL_BUTTON)} onSelect={exit}>
+      <XRPressable box={GAME_OVER_BOXES.exit} onSelect={exit}>
         <XRPlate
           width={SMALL_BUTTON[0]}
           height={SMALL_BUTTON[1]}
           color={PALETTE.rail}
           opacity={0.8}
         />
-        <XRSalirIcon />
+        <XRExitIcon />
       </XRPressable>
     </group>
   )
 }
 
-/** Dejar la partida sin llegar al final; y en la sin fin, terminarla con resumen. */
+/** Leaving the match without reaching the end; and in the endless one, ending it with a summary. */
 export function XRQuitButton() {
-  const { gameState, askToQuit, endRun, activeGoalTarget } = useGame()
+  const { gameState, askToQuit, endRun, activeGoalTarget, prompt } = useGame()
 
   if (gameState !== 'playing' && gameState !== 'countdown') return null
+  // With the notice open the button steps aside: the notice comes up right where it is (`XR_QUIT`).
+  if (prompt !== null) return null
 
   return (
     <group>
-      {/* Pregunta antes de dejarla: el brazo pasa por aquí y salir pierde los goles. */}
+      {/* It asks before leaving it: the arm passes through here and leaving loses the goals. */}
+      {/* In the game's blue and opaque, not grey and translucent: at a metre and a half and with
+          the room's machines behind, the grey got lost against them and had to be looked for. */}
       <XRPressable box={hitBox(0, 0, SMALL_BUTTON)} onSelect={askToQuit}>
         <XRPlate
           width={SMALL_BUTTON[0]}
           height={SMALL_BUTTON[1]}
-          color={PALETTE.rail}
-          opacity={0.7}
+          color={PALETTE.primaryDeep}
+          opacity={0.95}
         />
-        <XRMenuIcon color={DIM_COLOR} />
+        <XRMenuIcon color={PALETTE.foreground} />
       </XRPressable>
       {isEndless(activeGoalTarget) && gameState === 'playing' ? (
         <XRPressable box={hitBox(0.13, 0, SMALL_BUTTON)} onSelect={endRun}>
@@ -321,20 +490,20 @@ export function XRQuitButton() {
   )
 }
 
-/** Lo que ocupa el panel, en metros. */
+/** What the panel takes up, in metres. */
 export const CONFIRM_SIZE: [number, number] = [0.72, 0.42]
 
 /**
- * Sus tres botones, en coordenadas del propio panel.
+ * Its three buttons, in the panel's own coordinates.
  *
- * **Tres y no dos.** El botón de las tres rayitas dice «opciones» y lo que hacía era
- * preguntar si salir: reportado con el visor puesto, «el botón de salir parece que abre las
- * opciones». Ahora abre esto, y salir es una de las cosas que hay dentro — que es el orden
- * que la gente espera.
+ * **Three and not two.** The button with the three little bars says «options» and what it did
+ * was ask whether to leave: reported with the headset on, «the exit button seems to open the
+ * options». Now it opens this, and leaving is one of the things inside — which is the order
+ * people expect.
  *
- * Seguir jugando va el primero y más ancho: es la respuesta que no pierde nada. «Volver al menú»
- * no cabía en 28 cm con la letra que se lee y se encogía a 25 mm: su botón mide lo que pide la
- * etiqueta en inglés, que es la larga.
+ * Keep playing goes first and widest: it is the answer that loses nothing. «Volver al menú» did
+ * not fit in 28 cm with lettering that can be read and shrank to 25 mm: its button measures what
+ * the label asks for in English, which is the long one.
  */
 export const CONFIRM_BOXES = {
   stay: hitBox(0, -0.04, [0.44, 0.1]),
@@ -342,32 +511,32 @@ export const CONFIRM_BOXES = {
   leave: hitBox(0.2, -0.16, [0.26, 0.1]),
 }
 
-/** A qué tamaño se escribe el aviso, en metros de alto de letra (`salida.legible.test.ts`). */
+/** At what size the notice is written, in metres of letter height (`exit.legible.test.ts`). */
 export const CONFIRM_TEXT = { title: 0.05, body: 0.034, button: 0.034 } as const
 
 /**
- * El aviso antes de dejar la partida.
+ * The notice before leaving the match.
  *
- * **No se sale de golpe.** El botón se pulsa sin querer —con el visor puesto no se ve lo
- * que hay a los lados y el brazo pasa por donde pasa—, y salir pierde los goles que se
- * lleven. Así que se para la mesa y se pregunta; mientras se pregunta el disco no corre,
- * porque si no, decidir costaría goles.
+ * **There is no leaving at a stroke.** The button gets pressed by accident —with the headset
+ * on you cannot see what is at the sides and the arm passes where it passes—, and leaving
+ * loses the goals scored so far. So the table is stopped and the question is asked; while it
+ * is being asked the puck does not run, because otherwise deciding would cost goals.
  *
- * Va donde el menú, en medio de la mesa y a la altura de la vista: es donde ya se está
- * mirando, y lo que se decide aquí no es un detalle.
+ * It goes where the menu does, in the middle of the table and at eye height: it is where
+ * the player is already looking, and what is decided here is no detail.
  *
- * Es la única parte de la interfaz inmersiva de este juego con letras. El resto son cifras
- * y placas de color a propósito, pero una pregunta no se dibuja: hay que leerla.
+ * It is the only part of this game's immersive interface with letters. The rest is digits
+ * and colour plates on purpose, but a question cannot be drawn: it has to be read.
  */
 /**
- * Lo que pone el aviso, fuera del componente **para poder medirlo**.
+ * What the notice says, outside the component **so that it can be measured**.
  *
- * Un panel del visor se pinta en un lienzo que nadie mira al tamaño al que se lee, así que
- * un texto que se sale o dos que se pisan solo se descubren con las gafas puestas — y así
- * se descubrió este. Sacado aquí, `legibilidad.test.ts` lo escribe en un lienzo que apunta
- * y comprueba que ni se pisa ni se sale.
+ * A headset panel is painted on a canvas nobody looks at in the size it is read at, so
+ * a text that overflows or two that overlap are only discovered with the goggles on — and
+ * that is how this one was discovered. Taken out here, `legibility.test.ts` writes it on a
+ * canvas that takes notes and checks that it neither overlaps nor overflows.
  */
-export function dibujarElAviso(ctx: CanvasRenderingContext2D, t: (clave: TextKey) => string): void {
+export function drawExitNotice(ctx: CanvasRenderingContext2D, t: (key: TextKey) => string): void {
   drawParagraph(ctx, t('Leave the game?'), 0, 0.15, {
     size: CONFIRM_TEXT.title,
     color: PALETTE.foreground,
@@ -400,9 +569,9 @@ export function dibujarElAviso(ctx: CanvasRenderingContext2D, t: (clave: TextKey
 export function XRQuitConfirm() {
   const { prompt, resetGame, keepPlaying } = useGame()
   const exit = useExit()
-  const t = traductor(useLang())
+  const t = translator(useLang())
 
-  const escribir = useCallback((ctx: CanvasRenderingContext2D) => dibujarElAviso(ctx, t), [t])
+  const write = useCallback((ctx: CanvasRenderingContext2D) => drawExitNotice(ctx, t), [t])
 
   if (prompt !== 'quit') return null
 
@@ -410,8 +579,8 @@ export function XRQuitConfirm() {
     <group>
       <XRPanel width={CONFIRM_SIZE[0]} height={CONFIRM_SIZE[1]} opacity={0.96} />
 
-      {/* Volver al menú del juego y salirse del todo son cosas distintas, y hasta ahora solo
-          estaba la primera con el nombre de la segunda. */}
+      {/* Going back to the game's menu and leaving altogether are different things, and until
+          now there was only the first one under the name of the second. */}
       <XRPressable box={CONFIRM_BOXES.menu} onSelect={resetGame}>
         <XRPlate
           width={CONFIRM_BOXES.menu.size[0]}
@@ -438,12 +607,12 @@ export function XRQuitConfirm() {
         />
       </XRPressable>
 
-      {/* El texto va encima de las placas: el lienzo es transparente salvo donde escribe. */}
+      {/* The text goes on top of the plates: the canvas is transparent except where it writes. */}
       <group position={[0, 0, 0.03]}>
         <CanvasPanel
           width={CONFIRM_SIZE[0]}
           height={CONFIRM_SIZE[1]}
-          draw={escribir}
+          draw={write}
           fallbackColor={PALETTE.background}
         />
       </group>

@@ -1,40 +1,40 @@
 /**
- * Cuándo cuenta la pulsación de un botón del visor.
+ * When the press of a headset button counts.
  *
- * El problema: en sesión inmersiva un mismo botón recibe más de un puntero. Los
- * dos mandos pueden cruzarse encima y un agarre suele registrar dos punteros
- * casi a la vez. Sin filtro, los botones que suman o restan —los goles del
- * menú— se accionarían dos veces por pulsación.
+ * The problem: in an immersive session one same button receives more than one
+ * pointer. The two controllers can cross over it and a grab usually registers
+ * two pointers almost at once. Without a filter, the buttons that add or
+ * subtract —the menu's goals— would fire twice per press.
  *
- * La regla: una pulsación cuenta si ha pasado la ventana desde la anterior que
- * contó. Y si no hay reloj del que fiarse, cuenta igual: ante la duda un botón
- * responde, nunca se calla — un menú entero que no reacciona no deja ni rastro
- * en consola que lo explique.
+ * The rule: a press counts if the window has passed since the previous one that
+ * counted. And if there is no clock to trust, it counts all the same: when in
+ * doubt a button responds, it never stays silent — a whole menu that does not
+ * react leaves no trace in the console to explain it.
  *
- * Es lógica pura para poder probarla sin visor: `XRPressable` solo pinta y
- * llama a lo que esto decida.
+ * It is pure logic so that it can be tested without a headset: `XRPressable`
+ * only draws and calls whatever this decides.
  */
 
-/** Ventana, en milisegundos, durante la que se ignora una segunda pulsación. */
+/** Window, in milliseconds, during which a second press is ignored. */
 export const PRESS_DEBOUNCE_MS = 300
 
 /**
- * Cuándo se ha pulsado, en milisegundos, o `null` si no hay reloj disponible.
+ * When it was pressed, in milliseconds, or `null` if there is no clock available.
  *
- * `performance` está en cualquier navegador; el respaldo es para los entornos
- * donde el juego se monta sin él (una prueba, un renderizado en servidor) y
- * existe para no romper, no para bloquear.
+ * `performance` is in every browser; the fallback is for the environments
+ * where the game is mounted without it (a test, a server render) and it
+ * exists so as not to break, not to block.
  */
 export function pressTime(): number | null {
   return typeof performance !== 'undefined' ? performance.now() : null
 }
 
 /**
- * ¿Esta pulsación cuenta?
+ * Does this press count?
  *
- * @param now cuándo se ha pulsado, o `null` si no se sabe
- * @param lastPress cuándo contó la anterior, o `null` si no ha habido ninguna
- * @param disabled si el botón está apagado
+ * @param now when it was pressed, or `null` if it is not known
+ * @param lastPress when the previous one counted, or `null` if there has been none
+ * @param disabled whether the button is disabled
  */
 export function pressCounts(
   now: number | null,

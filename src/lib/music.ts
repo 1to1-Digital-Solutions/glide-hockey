@@ -1,34 +1,34 @@
 import { assetUrl } from './assets'
 
 /**
- * La música de fondo: si suena y cuál es.
+ * The background music: whether it plays and which one it is.
  *
- * Es lo único del juego que **no** está sintetizado. Los golpes, los goles y el
- * roce del disco salen de osciladores (`audioEngine.ts`) porque son cortos y
- * responden a lo que pasa; una música de dos minutos y medio hecha a mano
- * sonaría a lo que es. Así que es un fichero, y por eso viaja en `public/` como
- * el HDRI de otros juegos: nunca desde un CDN, que el visor puede estar
- * conectado solo a la red de casa.
+ * It is the only thing in the game that is **not** synthesised. The strikes,
+ * the goals and the slide of the puck come from oscillators (`audioEngine.ts`)
+ * because they are short and respond to what happens; a two and a half minute
+ * piece of music made by hand would sound like what it is. So it is a file,
+ * and that is why it travels in `public/` like the HDRI of other games: never
+ * from a CDN, since the headset may be connected only to the home network.
  *
- * Va aparte del silencio (`muted.ts`) a propósito: son dos decisiones
- * distintas. Hay quien quiere oír el disco y no la música, y quien pone el
- * juego de fondo y prefiere lo contrario. El silencio manda sobre las dos —si
- * el juego está callado, no suena nada— y la música solo se apaga a sí misma.
+ * It goes apart from the mute (`muted.ts`) on purpose: they are two different
+ * decisions. Some want to hear the puck and not the music, and some put the
+ * game in the background and prefer the opposite. The mute rules over both
+ * —if the game is silenced, nothing sounds— and the music only turns itself off.
  */
 
-/** El bucle de la sala, relativo a la base de los ficheros estáticos. */
+/** The loop of the room, relative to the base of the static files. */
 const MUSIC_PATH = 'audio/sala.mp3'
 
 /**
- * A qué volumen suena, de 0 a 1.
+ * At what volume it plays, from 0 to 1.
  *
- * Bajo a propósito: es el fondo de un salón recreativo, no la partida. Tiene
- * que oírse cuando no pasa nada y desaparecer debajo del disco en cuanto lo
- * hay.
+ * Low on purpose: it is the background of an amusement arcade, not the match.
+ * It has to be heard when nothing happens and disappear under the puck as
+ * soon as there is one.
  */
 export const MUSIC_VOLUME = 0.22
 
-/** La URL de la que se pide la música, ya con la base de quien monte el juego. */
+/** The URL the music is requested from, already with the base of whoever mounts the game. */
 export function musicUrl(): string {
   return assetUrl(MUSIC_PATH)
 }

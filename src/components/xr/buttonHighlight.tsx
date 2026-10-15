@@ -4,79 +4,80 @@ import { useCallback, useState } from 'react'
 import { NO_RAYCAST } from '../raycast'
 
 /**
- * Cómo contesta un botón de un panel del visor: apuntado se enciende, pulsado se hunde.
+ * How a button of a headset panel answers: pointed at it lights up, pressed it sinks.
  *
- * **Por qué está en un fichero suyo y es el mismo en los trece.** El realce se escribía a
- * mano en cada panel —el menú, el tutorial— y en todos con el mismo fallo: un plano
- * transparente por delante de la placa **con el `depthWrite` que traen los materiales por
- * defecto**. Un material transparente sí apunta su profundidad salvo que se le diga que no, y
- * eso, en un panel, no es un detalle: es lo que borraba el botón.
+ * **Why it is in a file of its own and is the same in all thirteen.** The highlight used to be
+ * written by hand in every panel —the menu, the tutorial— and in all of them with the same bug:
+ * a transparent plane in front of the plate **with the `depthWrite` that materials bring by
+ * default**. A transparent material does record its depth unless it is told not to, and
+ * that, in a panel, is not a detail: it is what erased the button.
  *
- * ## Por qué borraba el botón, que no es lo que parece
+ * ## Why it erased the button, which is not what it looks like
  *
- * three pinta lo transparente de lejos a cerca, y para ordenarlo mide la profundidad **del
- * origen de cada objeto**, no de cada píxel. Mientras se mira al centro del panel, el realce
- * —5 mm por delante— sale más cerca que la placa y se pinta después: se mezcla encima y todo
- * está bien. Pero **apuntar un botón es mirarlo**: la cabeza se inclina hacia él, el panel deja
- * de estar de frente y un botón a medio metro del centro pasa a estar *más lejos por el eje de
- * la vista* que el centro de la placa. Entonces el orden se da la vuelta: el realce se pinta
- * **primero**, escribe su profundidad 5 mm por delante, y cuando se pinta la placa —que es el
- * lienzo donde están la cara del botón, su color y su letra— sus píxeles fallan la prueba de
- * profundidad dentro de ese rectángulo y se tiran. Queda un agujero con forma de botón por el
- * que se ve la escena de detrás. Reportado con el visor puesto: «al poner el cursor encima de
- * un botón es como que el botón desaparece, mostrando lo que hay por debajo».
+ * three paints what is transparent from far to near, and to sort it it measures the depth **of
+ * each object's origin**, not of each pixel. While you look at the centre of the panel, the
+ * highlight —5 mm in front— comes out nearer than the plate and is painted afterwards: it blends
+ * on top and all is well. But **pointing at a button is looking at it**: the head tilts towards
+ * it, the panel stops being face-on and a button half a metre from the centre comes to be
+ * *farther along the view axis* than the centre of the plate. Then the order flips: the highlight
+ * is painted **first**, writes its depth 5 mm in front, and when the plate is painted —which is
+ * the canvas where the button's face, its colour and its lettering are— its pixels fail the depth
+ * test inside that rectangle and are discarded. What remains is a button-shaped hole through
+ * which the scene behind is seen. Reported with the headset on: «when you put the cursor over
+ * a button it is as if the button disappears, showing what is underneath».
  *
- * Que dependa de hacia dónde se mira es lo que lo hacía parecer caprichoso —«y a veces también
- * al pulsarlo»—: mirando al centro del panel no pasa nunca, y mirando al botón pasa siempre.
+ * That it depends on where you look is what made it seem capricious —«and sometimes also
+ * when pressing it»—: looking at the centre of the panel it never happens, and looking at the
+ * button it always happens.
  *
- * Por eso aquí van **las dos cosas juntas**, y ninguna sirve sola:
+ * That is why **both things go together** here, and neither works alone:
  *
- * - `depthWrite: false`, para que el realce no pueda borrar nada que se pinte después.
- * - `renderOrder`, para que se pinte **siempre** después de la placa. Sin esto, quitar el
- *   `depthWrite` arregla el agujero y deja el otro medio fallo: mirando al botón, la placa se
- *   pinta encima del realce y apuntar deja de notarse.
+ * - `depthWrite: false`, so that the highlight cannot erase anything painted afterwards.
+ * - `renderOrder`, so that it is **always** painted after the plate. Without this, removing the
+ *   `depthWrite` fixes the hole and leaves the other half of the bug: looking at the button, the
+ *   plate is painted on top of the highlight and pointing stops being noticeable.
  */
 
-/** En cuál de los tres estados está un botón. */
+/** Which of the three states a button is in. */
 export type ButtonState = 'idle' | 'pointed' | 'pressed'
 
 /**
- * El orden en que se pintan las capas de un panel.
+ * The order in which the layers of a panel are painted.
  *
- * Un panel es un montón de planos a milímetros unos de otros, y a esa distancia **la
- * ordenación por profundidad no decide nada fiable**: basta inclinar la cabeza para que se
- * invierta (ver arriba). Así que el orden se declara, no se deduce, y las capas de en medio
- * no escriben profundidad.
+ * A panel is a pile of planes millimetres from one another, and at that distance **sorting
+ * by depth decides nothing reliable**: tilting the head is enough for it to be
+ * inverted (see above). So the order is declared, not deduced, and the layers in between
+ * do not write depth.
  */
 export const PANEL_ORDER = {
-  /** El fondo del panel: la placa sobre la que va todo lo demás. */
+  /** The panel's background: the plate everything else goes on. */
   back: -3,
-  /** El realce de un botón cuando enmarca por detrás, sin tapar el dibujo. */
+  /** A button's highlight when it frames from behind, without covering the drawing. */
   behind: -2,
-  /** La placa de cada botón. */
+  /** Each button's plate. */
   face: -1,
-  /** Y el realce que va por delante de lo pintado, que es lo último del panel. */
+  /** And the highlight that goes in front of what is painted, which is the last thing of the panel. */
   highlight: 10,
 } as const
 
-/** Cuánto asoma el realce por delante de la placa del panel. */
+/** How far the highlight sticks out in front of the panel's plate. */
 export const HIGHLIGHT_Z = 0.004
 
 /**
- * Cuánto crece el realce alrededor del botón apuntado, y cuánto se mete al pulsarlo.
+ * How much the highlight grows around the pointed button, and how much it goes in on pressing it.
  *
- * Crecer y encogerse es lo que se lee como «se ha hundido» cuando la cara del botón está
- * pintada en el lienzo y no se puede mover: lo que se mueve es la luz que lleva encima.
+ * Growing and shrinking is what reads as «it has sunk» when the button's face is
+ * painted on the canvas and cannot be moved: what moves is the light it carries on top.
  */
 const HALO = 0.014
 const SINK = 0.01
 
 /**
- * El realce de un botón, por delante de la placa.
+ * A button's highlight, in front of the plate.
  *
- * Apuntado se enciende con `glow` y desborda un poco el botón; pulsado se oscurece con `ink`
- * y se mete dentro de él. Los dos colores los pone quien lo monta: este fichero es el mismo en
- * los trece juegos y no sabe de la paleta de ninguno.
+ * Pointed at it lights up with `glow` and overflows the button a little; pressed it darkens with
+ * `ink` and goes inside it. Both colours are set by whoever mounts it: this file is the same in
+ * the thirteen games and knows nothing of the palette of any of them.
  */
 export function ButtonHighlight({
   width,
@@ -88,9 +89,9 @@ export function ButtonHighlight({
   width: number
   height: number
   state: ButtonState
-  /** Con qué se enciende al apuntarlo. */
+  /** What it lights up with when pointed at. */
   glow: string
-  /** Y con qué se oscurece al pulsarlo. */
+  /** And what it darkens with when pressed. */
   ink: string
 }) {
   if (state === 'idle') return null
@@ -100,7 +101,7 @@ export function ButtonHighlight({
 
   return (
     <mesh
-      // Pulsado se acerca a la placa: el realce baja con el botón.
+      // Pressed it comes closer to the plate: the highlight goes down with the button.
       position={[0, 0, pointed ? HIGHLIGHT_Z : HIGHLIGHT_Z / 2]}
       raycast={NO_RAYCAST}
       renderOrder={PANEL_ORDER.highlight}
@@ -117,20 +118,20 @@ export function ButtonHighlight({
 }
 
 /**
- * En qué estado está cada botón del panel y qué hay que escucharle para saberlo.
+ * Which state each button of the panel is in and what has to be listened to on it to know.
  *
- * Apuntar y pulsar se llevan juntos porque se pisan: el rayo se sale del botón entre que se
- * aprieta el gatillo y se suelta, y sin soltar el apuntado **el botón se quedaría hundido para
- * siempre**. Salirse del botón limpia los dos.
+ * Pointing and pressing are kept together because they step on each other: the ray leaves the
+ * button between the trigger being squeezed and released, and without releasing the pointed one
+ * **the button would stay sunk for ever**. Leaving the button clears both.
  */
 export function useButtonFeedback() {
   const [pointed, setPointed] = useState<string | null>(null)
   const [pressed, setPressed] = useState<string | null>(null)
 
   const forget = useCallback((id: string) => {
-    const soloOtro = (current: string | null) => (current === id ? null : current)
-    setPointed(soloOtro)
-    setPressed(soloOtro)
+    const onlyOther = (current: string | null) => (current === id ? null : current)
+    setPointed(onlyOther)
+    setPressed(onlyOther)
   }, [])
 
   const handlersFor = useCallback(
